@@ -1,0 +1,494 @@
+### **1. Meta-Level Frameworks (Reflective & Recursive Thinking)**
+
+- **Nested Feedback Loops**: Incorporate feedback at multiple levels (individual, team, system).
+- **Double-Loop Learning**: Adapt not only strategies but also underlying assumptions.
+- **Reflective Equilibrium**: Balance intuition and principles for coherent ethical reasoning.
+- **Learning Organization Framework**: Foster continuous learning at all levels of an organization.
+- **Meta-Cognitive Questioning**: Focus on how one thinks about the problem-solving process itself.
+
+---
+
+### **2. Decision-Making Under Uncertainty**
+
+- **Bayesian Decision Theory**: Combine probabilistic reasoning with decision-making frameworks.
+- **Expected Utility Theory**: Weigh outcomes by their likelihood and potential payoff.
+- **Info-Gap Decision Theory**: Make robust decisions when critical information is incomplete.
+- **Black Swan Analysis**: Prepare for low-probability, high-impact events.
+- **Decision Boundary Mapping**: Define zones of certainty, risk, and unknowns in choices.
+
+---
+
+### **3. Advanced Problem-Framing Techniques**
+
+- **Causal Layered Analysis (CLA)**: Break problems into litany, systems, worldviews, and myths.
+- **Boundary Critique**: Evaluate where boundaries are drawn in system analysis.
+- **Wicked Problem Frameworks**: Address problems with no definitive solution (e.g., societal challenges).
+- **Polarities Management**: Navigate tensions between interdependent opposites (e.g., stability vs. change).
+- **Future-Oriented Problem Structuring**: Design problems as if solving for 10+ years ahead.
+
+---
+
+### **4. Collaboration & Teamwork Dynamics**
+
+- **Belbin Team Roles**: Optimize team composition by balancing roles like "Shaper," "Thinker," and "Implementer."
+- **RACI Matrix**: Define roles and responsibilities (Responsible, Accountable, Consulted, Informed).
+- **Six Thinking Hats**: Facilitate discussions with different thinking styles (e.g., creative, critical).
+- **Nominal Group Technique (NGT)**: Combine individual idea generation with group prioritization.
+- **Consensus-Building Models**: Foster agreement in diverse teams through structured frameworks.
+
+---
+
+### **5. Creativity and Ideation Techniques**
+
+- **SCAMPER**: Systematically generate ideas by Substituting, Combining, Adapting, Modifying, Putting to another use, Eliminating, and Rearranging.
+- **De Bono's Lateral Thinking**: Tackle problems creatively by challenging assumptions.
+- **Random Word Generator**: Use unrelated stimuli to spark novel ideas.
+- **Analogical Reasoning**: Leverage similarities across unrelated domains to create innovative solutions.
+- **Brainwriting**: Silent brainstorming to prevent groupthink.
+
+---
+
+### **6. Ethical and Value-Based Frameworks**
+
+- **Ethical Matrix**: Analyze decisions based on stakeholder values (e.g., societal, environmental, personal).
+- **Veil of Ignorance**: Evaluate fairness by imagining decision-making without personal bias.
+- **Rights-Responsibility Matrix**: Balance individual rights and collective responsibilities.
+- **Virtue Ethics Framework**: Base decisions on moral character rather than rules or consequences.
+- **Value-Driven Impact Assessment**: Evaluate solutions through lenses like equity, inclusion, and sustainability.
+
+---
+
+### **7. Visualization and Analytical Tools**
+
+- **Force Field Analysis**: Map driving and restraining forces impacting a decision.
+- **Fishbone Diagrams (Ishikawa)**: Analyze root causes of problems visually.
+- **Bubble Charts**: Compare multiple variables visually in a single chart.
+- **Gantt Charts with Dependencies**: Incorporate task interdependencies into project timelines.
+- **Emergent Behavior Maps**: Visualize how local interactions lead to global patterns.
+
+---
+
+### **8. Productivity and Focus**
+
+- **Eat That Frog**: Focus on your most challenging task first each day.
+- **The Eisenhower Matrix**: Prioritize tasks based on urgency and importance.
+- **Timeboxing**: Allocate fixed periods for specific tasks.
+- **Deep Work Framework**: Foster distraction-free concentration for cognitively demanding tasks.
+- **SMART Goals**: Ensure objectives are Specific, Measurable, Achievable, Relevant, and Time-bound.
+
+---
+
+### **9. Behavioral Science and Decision Bias Mitigation**
+
+- **Nudge Theory**: Subtly influence behavior through design choices.
+- **Anchoring Effect Awareness**: Adjust decisions to avoid initial reference point bias.
+- **Loss Aversion Framing**: Frame outcomes to leverage people's tendency to avoid losses over seeking gains.
+- **Cognitive Dissonance Resolution**: Use psychological tension to refine and align beliefs with actions.
+- **Behavioral Feedback Loops**: Leverage positive or negative reinforcement to encourage desirable behaviors.
+
+---
+
+### **10. Advanced Systems Thinking**
+
+- **Panarchy Framework**: Explore how systems adapt and transform across scales (micro to macro).
+- **Complex Adaptive Systems (CAS)**: Analyze non-linear interactions and self-organizing behaviors.
+- **Agent-Based Modeling**: Simulate interactions among agents to study emergent phenomena.
+- **Resilience Thinking**: Design systems to withstand shocks and recover rapidly.
+- **Leverage Points in Systems**: Target areas of maximum influence for systemic change.
+
+---
+
+### **11. Learning and Development Models**
+
+- **Kolb’s Experiential Learning Cycle**: Combine experience, reflection, conceptualization, and experimentation.
+- **Bloom’s Taxonomy**: Categorize learning objectives (Remember, Understand, Apply, Analyze, Evaluate, Create).
+- **Spaced Repetition**: Improve memory by reviewing information at increasing intervals.
+- **Reflective Journaling**: Encourage personal insights through regular self-analysis.
+- **Knowledge Spiral (SECI)**: Convert tacit knowledge into explicit knowledge and back for organizational learning.
+
+---
+
+### **12. Unique and Emerging Frameworks**
+
+- **Tree of Thought Prompting**: Explore ideas through branching, exploratory pathways.
+- **Program of Thoughts Prompting**: Build reasoning through logical sequences.
+- **Meta-Heuristic Optimization**: Solve optimization problems through iterative, adaptive algorithms.
+- **Evolutionary Algorithms**: Evolve solutions by mimicking biological natural selection.
+- **Chaos Theory Integration**: Explore sensitive dependence on initial conditions in dynamic systems.
+
+1. **Recursive Problem-Solving** - Simple iteration and refinement.
+2. **Inversion Technique** - Straightforward reverse thinking approach.
+3. **Constraint Optimization** - Introducing boundaries adds moderate complexity.
+4. **Temporal Shifting** - Requires considering timeframes but manageable.
+5. **Oppositional Creativity** - Combines ideas with contrasts, more abstract.
+6. **Algorithmic Abstraction** - Involves breaking down into logical processes.
+7. **Equilibrium Disturbance Testing** - Needs understanding of balance and changes in systems.
+8. **Nested Fractal Visualization** - Complex, recursive patterns and self-similarity.
+9. **Emergent Scenario Mapping** - Advanced as it requires simulating and observing outcomes.
+
+---
+
+### **Creative Thinking**
+
+1. **Pattern Breaking** - Simple disruption technique.
+2. **Dynamic Scaling** - Easy to adjust focus points.
+3. **Starbursting** - Question-based ideation; relatively straightforward.
+4. **Lotus Blossom Technique** - Slightly more structured idea expansion.
+5. **Reframing Matrix** - Involves shifting perspectives, slightly layered.
+6. **Anti-Solution Brainstorming** - Requires creative failure simulation.
+7. **Conceptual Pivoting** - Involves abstract shifts in thinking.
+8. **Negative Space Thinking** - Focuses on absences; abstract and layered.
+9. **Multi-Sensory Mapping** - Involves incorporating diverse sensory data.
+
+---
+
+### **Decision-Making**
+
+1. **Role-Based Prompting** - Simple, scenario-specific approach.
+2. **Anchoring Bias Reduction** - Targeting a specific bias, straightforward.
+3. **Feedback Loop Prompting** - Linear improvement cycles.
+4. **Iterative Prompt Expansion** - Adds layers through refinement but manageable.
+5. **Outcome-Oriented Prompting** - Focuses on results, requiring future projection.
+6. **Monte Carlo Simulations** - Introduces probabilistic elements, moderate complexity.
+7. **Ethical Deliberation Prompting** - Requires balancing nuanced values.
+8. **Conditional Task Prompting** - Involves multi-scenario preparation.
+9. **Comparative Judgment Prompting** - Requires multi-factor analysis.
+10. **Regret Minimization Frameworks** - Accounts for potential emotional outcomes.
+
+---
+
+### **Analytical Tools**
+
+1. **Exploratory Data Analysis (EDA)** - Foundational and low complexity.
+2. **Regression Analysis** - Mathematical modeling, slightly more advanced.
+3. **Bayesian Networks** - Introduces probabilistic dependency.
+4. **Causal Loop Diagrams** - Moderate complexity to map feedback structures.
+5. **Cross-Impact Analysis** - Involves understanding and quantifying relationships.
+6. **Threshold Sensitivity Testing** - Evaluates critical boundaries and responses.
+7. **Probabilistic Forecasting** - Requires handling uncertainty systematically.
+8. **Emergent Dynamics Mapping** - Tracks evolving patterns, highly interdependent.
+9. **Structural Equation Modeling** - Advanced, combining hypotheses and testing variables.
+
+---
+
+### **Systems Thinking**
+
+1. **Feedback Sensitivity** - Linear input-output evaluations.
+2. **Temporal Cross-Mapping** - Slightly more layered with time variables.
+3. **Adaptive Dimensionality** - Introduces flexible parameters to evaluate systems.
+4. **Systems Archetype ID** - Recognition of patterns, moderate.
+5. **Stock-Flow Mapping** - Tracking system flows; requires temporal understanding.
+6. **Distributed Cognition** - Adds decentralized agent perspectives.
+7. **Nested System Interventions** - Requires multi-tiered systemic evaluations.
+8. **Holistic Ecosystem Modelling** - Incorporates interdependencies and adaptability.
+9. **Multi-Agent Simulations** - Advanced, requires dynamic and interactive agent modeling.
+
+---
+
+### **Innovation Techniques**
+
+1. **Creative Destruction** - Straightforward paradigm shifts.
+2. **Open Innovation** - Involves collaborative idea generation.
+3. **Lead User Analysis** - Extracting trends based on early adopters.
+4. **Trend Extrapolation** - Moderate complexity, predicting trends.
+5. **Value Proposition Design** - Structured matching of user pain points to solutions.
+6. **Dual Operating Systems** - Balances hierarchical and networked systems.
+7. **Boundary Spanning** - Interdisciplinary, requires bridging knowledge gaps.
+8. **Absorptive Capacity** - Advanced, involves assimilating and applying external knowledge.
+9. **Gigamapping** - Highly complex, requires navigating large-scale systemic maps.
+
+---
+
+### **Learning & Productivity**
+
+1. **Recursive Spaced Recall** - Memory-based, simple iteration.
+2. **Time-Blocking Journals** - Easy time management method.
+3. **PQ4R Study Method** - Linear learning enhancement.
+4. **Knowledge Chunking Strategy** - Straightforward segmentation.
+5. **Reflective Practice Loops** - Adds reflection but remains cyclical.
+6. **Gamified Goal Tracking** - Adds motivational mechanisms.
+7. **Self-Determination Theory** - Emphasizes intrinsic motivation; layered.
+8. **Elaborative Interrogation** - Focuses on in-depth inquiry; moderate.
+9. **Interleaving Learning Models** - Alternates subjects, challenging yet effective.
+10. **Continuous Improvement Boards** - Integrates incremental updates, moderate.
+
+---
+
+### **Collaboration Tools**
+
+1. **Affinity Diagramming** - Clusters ideas, simple categorization.
+2. **Consensus Mapping** - Requires shared agreement, slightly layered.
+3. **Cross-Disciplinary Panels** - Adds variety but manageable.
+4. **Virtual Role Enactment** - Requires role-specific insights.
+5. **Storyboarding Dialogues** - Encourages structured brainstorming.
+6. **RAPID Decision Roles** - Formalizes roles but needs coordination.
+7. **Ecosystem Collaboration Tools** - Introduces interactive workflows.
+8. **Adaptive Leadership Models** - Advanced dynamic leadership.
+9. **Feedback Thermodynamics** - Tracks loops, advanced systemic metrics.
+
+---
+
+### **Behavioral & Ethical Decision-Making**
+
+1. **Habit Loop Analysis** - Identifies triggers and routines, simple.
+2. **Anchoring Techniques** - Focuses on single biases, easy application.
+3. **Eudaimonic Exploration** - Engages intrinsic motivation for well-being.
+4. **Moral Foundations Theory** - Balances core moral values, moderate.
+5. **Conflict Resolution Ethics** - Layered but manageable.
+6. **Stakeholder Ethical Mapping** - Adds multi-perspective evaluation.
+7. **Ethics Canvas** - Structures ethical evaluations; moderate complexity.
+8. **Triple Bottom Line Analysis** - Balances environmental, social, and financial concerns.
+9. **Circular Ethics** - Tackles interdependencies in moral scenarios.
+
+### **Advanced Prompt Engineering Techniques**
+
+1. **Dual-Perspective Prompting**: Craft prompts that ask the model to argue for both sides of a debate or problem.
+2. **Layered Context Injection**: Gradually introduce complex background information across iterative prompts to refine results.
+3. **Frame Shifting**: Ask the model to analyze the problem through multiple disciplinary lenses (e.g., legal, scientific, ethical).
+4. **Hierarchical Prompting**: Use a top-down approach by starting with overarching questions and drilling down to specifics.
+5. **Critique and Iterate Prompts**: Request self-critiques and iterative refinements on previous outputs.
+6. **Comparative Frameworks**: Ask the model to compare scenarios, ideas, or frameworks side by side.
+7. **Outcome Simulation**: Frame prompts to simulate long-term outcomes or consequences.
+8. **Reflexive Prompts**: Encourage the model to reflect on its reasoning process and assumptions.
+9. **Ambiguity Exploration**: Use ambiguous or paradoxical prompts to force creative or non-linear thinking.
+10. **Constraint Evolution Prompts**: Gradually evolve constraints within a single interaction to explore flexibility.
+11. **Collaborative Role Play**: Assign the model a collaborative role (e.g., brainstorm partner or critic) to guide problem-solving.
+12. **Zero-Base Rethinking**: Ask the model to strip a problem down to first principles and build from scratch.
+13. **Narrative Development Prompts**: Use storytelling to frame abstract ideas in concrete, relatable scenarios.
+14. **Dynamic Role Switching**: Prompt the model to switch roles within a session (e.g., expert, layperson, teacher).
+15. **Algorithmic Perspective**: Request structured or step-by-step breakdowns of problems in algorithmic terms.
+
+---
+
+### **Psychological and Cognitive Prompts**
+
+1. **Anchored Emotion Prompts**: Use specific emotional tones to guide the style and intent of the response.
+2. **Memory-Association Prompts**: Frame questions to elicit responses that mimic human memory association (e.g., "What does this remind you of?").
+3. **Cognitive Dissonance Prompts**: Create situations that force the model to reconcile conflicting statements or ideas.
+4. **Introspective Reasoning**: Ask the model to identify potential biases or limitations in its responses.
+5. **Behavioral Simulation**: Simulate real-world behaviors or psychological states in a given scenario.
+6. **Identity Framing**: Have the model respond "as if" it were a specific identity or persona.
+7. **Stress Testing Prompts**: Pose extreme or contradictory scenarios to evaluate consistency in reasoning.
+
+---
+
+### **Data and Logic-Based Techniques**
+
+1. **Data Validation Prompts**: Include factual data and ask the model to validate or expand on it.
+2. **Hypothesis Testing Prompts**: Frame the problem as a hypothesis and ask for evidence or refutation.
+3. **Probabilistic Reasoning**: Craft prompts requiring the model to analyze likelihoods and uncertainties.
+4. **Counterfactual Analysis**: Pose “what if” scenarios that challenge existing assumptions.
+5. **Temporal Logic Prompts**: Request outputs involving sequencing and relationships between events over time.
+6. **Dynamic Constraints Testing**: Ask for solutions under shifting or evolving rules or criteria.
+
+---
+
+### **Creative Prompting Techniques**
+
+1. **Absurdity Exploration**: Frame deliberately absurd questions to stimulate unconventional thinking.
+2. **Poetic Reframing**: Use artistic or poetic forms to guide creative ideation.
+3. **Metaphorical Reasoning Prompts**: Ask the model to explain abstract ideas through metaphor.
+4. **Random Stimulus Introduction**: Add unexpected elements into a problem for lateral thinking.
+5. **Reverse Engineering Prompts**: Ask the model to deduce original causes from a known outcome.
+6. **Genre-Specific Narratives**: Frame prompts in unique styles (e.g., mystery, sci-fi, or historical fiction).
+7. **Artistic Constraint Prompts**: Request ideas limited by a specific medium, color palette, or aesthetic.
+
+---
+
+### **Systems Thinking and Complexity**
+
+1. **Network Analysis Prompts**: Ask for systemic breakdowns of interconnected entities or ideas.
+2. **Feedback Loop Discovery**: Request identification of reinforcing or balancing loops in systems.
+3. **Threshold Modeling**: Explore how tipping points emerge within a complex problem.
+4. **Emergence Analysis**: Frame prompts around identifying emergent behaviors or properties.
+5. **Causal Chain Construction**: Ask for step-by-step breakdowns of causes leading to a given effect.
+
+---
+
+### **Ethics and Value-Based Prompts**
+
+1. **Ethical Trade-Off Analysis**: Pose scenarios that require evaluating competing ethical principles.
+2. **Stakeholder Mapping Prompts**: Ask for an analysis of potential impacts on all stakeholders in a scenario.
+3. **Value Hierarchies**: Have the model rank or justify decisions based on explicit value criteria.
+4. **Philosophical Argumentation**: Engage the model in reasoning from different schools of thought (e.g., utilitarianism, deontology).
+5. **Moral Paradox Exploration**: Present dilemmas with no clear "right" answer to explore reasoning depth.
+
+---
+
+### **Cross-Cultural and Historical Contexts**
+
+1. **Cultural Translation Prompts**: Frame problems within a specific cultural or historical lens.
+2. **Time-Period Framing**: Explore how solutions would differ in past or future eras.
+3. **Cross-Border Perspectives**: Pose questions considering international norms or regional perspectives.
+4. **Historical Counterfactuals**: Ask the model to reimagine historical events with alternate outcomes.
+5. **Localized Framing**: Focus prompts on geographically specific contexts for tailored insights.
+
+### **Iterative and Context-Aware Prompting**
+
+1. **Recursive Refinement**: Continuously refine outputs by asking the model to evaluate and improve upon its own responses.
+2. **Adaptive Prompting**: Dynamically alter the prompt based on the model’s previous response to guide it toward a specific goal.
+3. **Contextual Layering**: Introduce background information incrementally, building complexity over several prompt iterations.
+4. **Interdependent Prompts**: Link multiple prompts together, where outputs of one serve as inputs for subsequent prompts.
+5. **Feedback-Informed Prompting**: Use explicit feedback loops to guide the model in correcting errors or deepening its analysis.
+
+---
+
+### **Meta-Cognitive Prompting**
+
+1. **Reasoning Trace Requests**: Ask the model to document its reasoning process step-by-step for transparency and debugging.
+2. **Self-Reflection Prompts**: Encourage the model to critique its reasoning or output for biases or logical inconsistencies.
+3. **Chain-of-Justification**: Require the model to justify every part of its reasoning or solution explicitly.
+4. **Confidence Scoring**: Prompt the model to assign confidence levels to its statements or predictions.
+5. **Error Hypothesis Generation**: Ask the model to identify potential weaknesses or errors in its reasoning.
+
+---
+
+### **Role and Persona-Based Techniques**
+
+1. **Expert Emulation**: Frame the prompt with the model assuming a specific professional role (e.g., “Answer as a scientist”).
+2. **Conversational Personas**: Have the model simulate discussions between multiple personas with distinct viewpoints.
+3. **Perspective Switching**: Alternate the model’s viewpoint between different roles (e.g., optimist, pessimist, realist).
+4. **User Persona Alignment**: Tailor the prompt to reflect specific user traits or preferences, such as knowledge level or interests.
+5. **Collaborative Role Play**: Prompt the model to brainstorm or problem-solve in partnership with the user.
+
+---
+
+### **Creative and Abstract Prompting**
+
+1. **Conceptual Blending**: Combine unrelated concepts in a prompt to stimulate innovative solutions (e.g., “Imagine a smartphone designed by nature”).
+2. **Narrative Anchoring**: Frame the problem within a detailed story or scenario for relatable and engaging responses.
+3. **Surreal Prompts**: Use intentionally bizarre or fantastical prompts to break conventional reasoning patterns.
+4. **Analogy Generation**: Ask the model to create analogies for complex concepts to aid understanding or spark creativity.
+5. **Imaginative Constraints**: Introduce arbitrary limits to foster creative thinking (e.g., “Solve this problem without using technology”).
+
+---
+
+### **Logical and Structured Techniques**
+
+1. **Premise-Driven Reasoning**: Provide a series of premises and ask the model to deduce logical conclusions.
+2. **Reverse Problem Solving**: Present the solution first and ask the model to infer the problem.
+3. **Multi-Step Breakdown**: Explicitly request the model to divide a problem into sequential steps or phases.
+4. **Logic Tree Expansion**: Build a branching tree of possible decisions or outcomes and ask the model to explore each branch.
+5. **Assumption Testing**: Ask the model to challenge or validate the assumptions underlying a given scenario.
+
+---
+
+### **Probabilistic and Analytical Techniques**
+
+1. **Bayesian Reasoning Prompts**: Request outputs framed as probability-based reasoning or statistical inference.
+2. **Monte Carlo Exploration**: Simulate multiple randomized outcomes for a given scenario to assess variability.
+3. **Weighted Trade-Offs**: Ask the model to evaluate scenarios based on weighted criteria (e.g., cost, risk, and impact).
+4. **Data-Driven Anchoring**: Include datasets or numerical benchmarks to ground responses in measurable evidence.
+5. **Uncertainty Modeling**: Frame questions explicitly around ambiguities or unknowns to explore probabilistic solutions.
+
+---
+
+### **Dynamic and Interaction-Driven Techniques**
+
+1. **Progressive Scenario Building**: Start with a simple prompt and iteratively add details to build a richer scenario.
+2. **Branching Conversations**: Design prompts that create multiple-choice pathways for the model to follow dynamically.
+3. **Interactive Verification**: Ask the model to verify or fact-check its previous outputs iteratively.
+4. **Prompt Swapping**: Alternate between multiple prompts to explore a topic from diverse angles.
+5. **Dialogical Reasoning**: Create structured back-and-forth dialogues to simulate human discussion and negotiation.
+
+---
+
+### **Cross-Domain and Hybrid Techniques**
+
+1. **Multi-Domain Contextualization**: Frame prompts that draw on principles from different disciplines (e.g., "Explain climate change using game theory").
+2. **Hybrid Prompt Chains**: Combine techniques such as chain-of-thought with analogical reasoning to explore layered problems.
+3. **Transdisciplinary Perspectives**: Introduce problems that require integration of unrelated fields for solution synthesis.
+4. **Cultural Variation Prompts**: Frame scenarios that account for different cultural or regional interpretations.
+5. **Temporal Context Shifting**: Examine problems across past, present, and future perspectives.
+
+---
+
+### **Exploratory and Divergent Techniques**
+
+1. **Ambiguity Tolerance Prompts**: Request solutions that embrace and work within uncertainty.
+2. **Hypothesis Discovery**: Ask the model to generate new hypotheses or theories based on minimal data.
+3. **Counterfactual Thinking**: Frame "what if" questions that deviate significantly from established norms.
+4. **Worst-Case Exploration**: Investigate edge cases or worst-case scenarios explicitly.
+5. **Scenario Inversion**: Pose the opposite of the desired outcome and work backward to correct it.
+
+---
+
+### **Ethics and Values-Based Techniques**
+
+1. **Moral Dilemma Prompts**: Present ethical dilemmas to evaluate nuanced decision-making.
+2. **Stakeholder Analysis**: Ask the model to analyze impacts across diverse groups or stakeholders.
+3. **Value Prioritization**: Rank decisions or solutions based on explicit ethical values or principles.
+4. **Philosophical Reasoning**: Use prompts grounded in philosophical frameworks (e.g., utilitarianism vs. deontology).
+5. **Cultural Sensitivity Prompts**: Explore the implications of scenarios in multicultural contexts.
+
+---
+
+### **Learning and Meta-Learning Prompts**
+
+1. **Skill Refinement**: Ask the model to simulate learning or teaching a concept step-by-step.
+2. **Knowledge Gap Identification**: Prompt for areas where more context or data is needed.
+3. **Transfer Learning Framing**: Use domain knowledge from one area to apply in another (e.g., "Explain business strategies using chess tactics").
+4. **Explain-Like-I’m-Five (ELI5)**: Frame responses to simplify complex ideas for lay audiences.
+5. **Growth Mindset Prompts**: Frame scenarios that focus on improvement, learning, and adaptation.
+
+[OUTPUTS:]
+
+⦿ Solutions ↔ Deliver clear, actionable steps for immediate application.
+
+⦿ Explorations ↔ Provide in-depth synthesis for systemic challenges.
+
+↔ **Dynamic Outputs:** Adjust responses to align with user context and evolving needs.
+
+[FRAMEWORKS + TOOLS:]
+
+**Decision-Making Under Uncertainty**
+
+⦾ Bayesian ↔ Probabilities ↔ Optimize decisions.
+
+⦾ Monte Carlo ↔ Model scenarios ↔ Predict disruptions.
+
+⦾ Decision Boundaries ↔ Highlight risk zones ↔ Clarify ambiguity.
+
+**Systems Thinking**
+
+⦾ CAS ↔ Simulate ↔ Dynamic interdependencies.
+
+⦾ Leverage Points ↔ Identify ↔ Drive systemic change.
+
+⦾ Feedback Loops ↔ Refine ↔ Multi-layer evolution.
+
+**Creativity + Innovation**
+
+⦾ Tree of Thought ↔ Branch ↔ Optimize ideas iteratively.
+
+⦾ SCAMPER ↔ Adapt ↔ Innovate via modular shifts.
+
+⦾ Analogies ↔ Cross-domain ↔ Ignite novel solutions.
+
+**Ethical Frameworks**
+
+⦾ Triple Bottom Line ↔ Balance ↔ Sustainability ↔ Equity.
+
+⦾ Veil of Ignorance ↔ Bias-free ↔ Fair decisions.
+
+⦾ Ethics Canvas ↔ Map stakeholder impacts ↔ Ensure transparency.
+
+[ADVANCED PROMPTING:]
+
+⦿ Recursive Refinement ↔ Iterate ↔ Embed dynamic feedback.
+
+⦿ Dual Perspectives ↔ Solve ↔ Evaluate opposition.
+
+⦿ Ambiguity Exploration ↔ Embrace ↔ Discover opportunities in uncertainty.
+
+[METACOGNITION TOOLS:]
+
+⦾ Reflective Equilibrium ↔ Balance intuition ↔ Structured reasoning.
+
+⦾ Double-Loop Learning ↔ Reassess ↔ Adapt assumptions.
+
+⦾ Boundary Critique ↔ Expand ↔ Enable holistic thinking.
+
+[OBJECTIVE:]
+
+Deliver transformative insights ↔ Iterative growth ↔ Scalable clarity ↔ Fully ethical solutions.

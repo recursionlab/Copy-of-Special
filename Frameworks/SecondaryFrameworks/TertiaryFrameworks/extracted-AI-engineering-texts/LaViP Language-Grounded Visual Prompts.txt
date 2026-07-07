@@ -1,0 +1,1045 @@
+LaViP: Language-Grounded Visual Prompts
+NilakshanKunananthaseelan1,JingZhang2,MehrtashHarandi1
+1DepartmentofElectricalandComputerSystemsEngineering,MonashUniversity
+2CollegeofEngineeringandComputerScience,AustralianNationalUniversity
+{nilakshan.kunananthaseelan,mehrtash.harandi}@monash.edu, jing.zhang@anu.edu.au
+Abstract
+Weintroducealanguage-groundedvisualpromptingmethod
+to adapt the visual encoder of vision-language models for
+downstream tasks. By capitalizing on language integration,
+wedeviseaparameter-efficientstrategytoadjusttheinputof
+thevisualencoder,eliminatingtheneedtomodifyoraddto
+themodel’sparameters.Duetothisdesignchoice,ouralgo-
+rithm can operate even in black-box scenarios, showcasing
+adaptabilityinsituationswhereaccesstothemodel’sparam-
+eters is constrained. We will empirically demonstrate that,
+compared to prior art, grounding visual prompts with lan-
+guage enhances both the accuracy and speed of adaptation.
+Moreover, our algorithm excels in base-to-novel class gen-
+eralization, overcoming limitations of visual prompting and
+exhibitingthecapacitytogeneralizebeyondseenclasses.We
+Figure 1: Our key idea is to reprogram the visual encoder
+thoroughlyassessandevaluateourmethodacrossavarietyof
+of CLIP (Radford et al. 2021) through the generation of
+imagerecognitiondatasets,suchasEuroSAT,UCF101,DTD,
+and CLEVR, spanning different learning situations, includ- language-groundedvisualprompts.
+ingfew-shotlearning,base-to-novelclassgeneralization,and
+transferlearning.
+an output mapping function to achieve this objective. The
+pioneering work of (Tsai, Chen, and Ho 2020) has demon-
+1 Introduction
+stratedthatthroughMR,evenaCNNinitiallytrainedonIm-
+Large-scalepre-trainedmodels(PTMs)(Brownetal.2020a; ageNetcanbeswiftlyadaptedtoexcelinclassifyingmedi-
+Dosovitskiyetal.2020;Radfordetal.2021;Touvronetal. calimages,interestingly,evenoutperformingthetraditional
+2023; Kirillov et al. 2023) are trained on massive amounts finetuning approach. Subsequent research efforts have ex-
+of data and intricate optimization throughout the learn- tendedtheideaofMRintovariousdomains,achievingsuc-
+ing process. This makes designing and developing high- cessful adaption without finetuing (Vinod, Chen, and Das
+performing PTMs a laborious and costly process. While 2020;Yenetal.2021;Yang,Tsai,andChen2021;Neekhara
+these models showcase generalization prowess, achieving etal.2022;Chenetal.2023).
+optimalperformanceonnewtasksnecessitatescarefulfine- The input transformation acquired through MR is com-
+tuning.Nonetheless,thefinetuningofPTMscarriesinherent monly conceptualized as a perturbation pattern, which is
+challenges, notably the risk of catastrophic knowledge for- either added to or concatenated with the input images. By
+getting and vulnerability to overfitting on the downstream learningtheperturbationpattern,alsocalledVisualPrompts
+tasks(Kumaretal.2021;Wortsmanetal.2022). (VPs)invisiontasks,thePTMeffectivelyembedsthedown-
+In response to the aforementioned challenges, model streamtasksamplesintoadistinctsubsetofitslatentspace.
+reprogramming(MR) (Elsayed, Goodfellow, and Sohl- As such, MR allows to adeptly repurpose the PTM’s capa-
+Dickstein 2018), a method in the context of transfer learn- bilities,allwhilepreservingtheintegrityofthelatentspace.
+ing,hasemergedasafreshparadigm.Thecoreideabehind Despite the promise and rapid progress, several questions
+MR is to repurpose and harness a high-quality pre-trained remainunansweredinMR;
+model, facilitating seamless cross-domain learning without
+• UnimodalityinlearningVPs.Tothebestofourknowl-
+theneedforfinetuningthemodel.MRintroducesalearnable
+edge, in the previous studies focusing on VPs, class se-
+transformationfunctionattheinputofthemodel,alongwith
+mantic information and visual encoding are typically
+Copyright©2024,AssociationfortheAdvancementofArtificial treated separately in many cases, despite human per-
+Intelligence(www.aaai.org).Allrightsreserved. ception being multimodal (e.g., (Gibson 1969; Meltzoff
+3202
+ceD
+81
+]VC.sc[
+1v54901.2132:viXraandBorton1979;Quirogaetal.2005).Thismultimodal a mechanism effectively extending visual prompts beyond
+frameworkofourcognitivesystemhelpsustolearnnew seen classes, a feat largely confined to text prompt adapta-
+concepts with a few examples. This, in AI, will raise a tion. We extensively evaluate and assess our algorithm on
+simplequestion,ifaVision-Languagemodelisathand, three learning paradigms: few-shot learning, generalization
+doeslanguagehelpindesigningVPsforMR?Ifyes,what beyondseenclasses,andtransferlearning.
+arethedesignquestionstoanswer?
+• Efficient Training. In practice, learning VPs require a 2 LaViP
+largenumberofiterationstoachievequalityresults.For
+Throughoutthepaper,wedenotescalarsasx,vectorsasx,
+example,adaptingaPTMtoclassify10classesofsatel-
+matrices as X, and equality by definition as ≜. The Kro-
+lite images in EuroSAT (Helber et al. 2019a), requires
+neckerproductbetweenmatrixX ∈Rm×nandY ∈Rp×q,
+1000 training epochs. This is because, adapting the vi-
+denotedbyX⊗Y ∈Rmp×nq isdefinedas
+sual encoder is challenging due to the complexity of
+high-dimensionalvisualinputandtheasymmetricnature  x Y ··· x Y 
+11 1n
+o mf aV y- wL oe nn dc eo rd wer hs, etc ho em
+r
+p laa nr ged uat go eit cs antex ot vec ro cu on mte erp ta hr it s. cO on ne
+-
+X⊗Y = 
+
+. .
+.
+... . .
+.
+ , (1)
+straint. x m1Y ··· x mnY
+• Generalizing beyond seen classes. MR is, by nature, a wherea representstheelementinthei-throwandj-thcol-
+ij
+formoftransferlearning.Assuch,itdoesnotendowan umnofX.Below,wedescribeLaViP,ourinput-dependent
+explicitmechanismtogeneralizebeyondwhatithasseen
+visual prompting approach guided by language semantics.
+duringadaptation.RecentstudieshaveshownthatVision
+In § 2.1, we provide a detailed exposition of the underly-
+LanguageModels(VLMs)havegreatzero-shotlearning
+ingrationaleofouralgorithmanditsdesign.§2.2illustrates
+capabilities.Thiswouldsuggestwhetheronecanexpect
+howLaViPcanbetransitionedtobase-to-novelgeneraliza-
+or design an MR algorithm that can benefit from lan-
+tiontasks.
+guagetogeneralizebeyonditsseenclassesduringadap-
+tation. Problem Statement. Given a training dataset S =
+{(x ,y )m } drawn i.i.d. from distribution D, we seek to
+• Adaptation without accessing model parameters Our i i i=1
+learn a model to effectively assign input vectors x to their
+methodmaintainstheoriginalfoundationmodel,thusen-
+corresponding class labels y, based on the patterns and re-
+abling adaptation via APIs and cases where for ethical
+lationships. We assume x ∈ RH×W×C is an image and
+constraints, accessing the structure and weights of the i
+y ∈ ∆K−1 is its associated label, with ∆K−1 denoting
+foundationmodel isnot possible. Furthermore, preserv- i
+theK-simplex.Furthermore,weassumeapre-trainedVLM
+ing the foundation model translates into maintaining its
+withavisualencoderΦ : RH×W×C → Rd Φ : X → Rd
+generalizationcapabilities,avirtue,thatalgorithmssuch vis lan
+asMaPLe(Khattaketal.2023)cannotensure.
+isatourdisposal.Here,X ⊆Rdt denotestheinputspaceof
+thelanguageencoder,inthecaseofCLIP,asubsetofinte-
+Our work takes a stride toward addressing the afore- gersdefinedbyitstokenizer.
+mentioned questions. In particular, we propose Language-
+Toachievethisgoal,ourobjectiveistogeneratepadding-
+Grounded Visual Prompting (LaViP)1 , which enables style visual prompts with a total of 2pC(H+W−2p) pa-
+pixel-space input-aware prompting by leveraging the lan- rameters, where C represents channels, H and W denote
+guageintegrationtoadaptdownstreamtasks(Figure 1).In heightandwidth,andpisthepaddingsize.Unlikeprevious
+LaViP,weoptforalow-ranksolutiontogeneratelanguage
+visual prompting methods such as VP (Bahng et al. 2022),
+groundedvisualprompt.Thissubstantiallyreducesthenum-
+LaViP adopts an approach where it learns input-specific
+berofparameterstobelearned,aqualityparticularlyadvan-
+promptsthatarelanguage-grounded.
+tageous in the context of black-box settings. Furthermore,
+wedevelopamechanismtoincorporatenovelclassknowl-
+2.1 LanguageGroundedVisualPrompts
+edgewithoutneedingtoretraintheVPs,enablingoursolu-
+tiontogeneralizetonovelandunseenclassesseamlessly.To VisualPromptsmanipulatethepixelspacevialearnablepa-
+contrastandcompareouralgorithmagainstpreviousart,we rametersandsteerthePTMSinanydesireddirection.While
+haveperformedathoroughsetofexperiments,rangingover VPmadethefirstcontributiontothisconceptinthecontext
+transfer learning, few-shot learning, and generalization be- ofthepre-trainedvisionmodelandVLMs,theyoverlooked
+yondseenclassesover12recognitiondatasets.Ourempiri- 1)themultimodalnatureofVLMs,and2)thesemanticdi-
+calstudyshowsthatouralgorithmconsistentlyoutperforms versityofimages.Toaddressthesegaps,weproposeLaViP,
+state-of-the-artalgorithmsbyatangiblemarginbyharness- anovelapproachthatcapitalizesonthesetwoimportantob-
+ingthemultimodalsignalsinvisualprompts. servations. Figure 2 provides an overview of our method.
+Tosummarize,wehavemadethefollowingcontributions LaViPsynergizescomplexintricaciesininputsandcontext
+to this work. Firstly, to the best of our knowledge, we are expertise,generatinglanguage-groundedinput-awarevisual
+pioneeringalanguage-groundedMRsolutiontoadaptavi- prompts,whichfacilitatesenhancedmodalityalignment.
+sual encoder to downstream tasks. Secondly, we propose Assuggestedearlier,thevisualpromptforasamplex ∈
+RH×W×C is defined as ν ∈ R2C(H+W−2p)p, which is padded
+1https://github.com/NilakshanKunananthaseelan/LaViP aroundaresizedversionofx.WemathematicallyandwithFigure 2: Overview of our proposed Language-Grounded Visual Prompting(LaViP) for VLMs: LaViP utilizes language-
+grounded input-specific visual programs to reprogram the frozen visual encoder of the CLIP model. LaViP scales and shifts
+local image encoding and projects global text encoding. The subsequent matrix multiplication of these localized and global
+projectionsfostersamutualsynergybetweenthetwomodalities,resultinginthegenerationofadaptivevisualprompts.
+abitofabuseofnotationshowthisprocessby: universalvisualpromptslimitsthemodel’scapacitytoadapt
+effectivelytothesevariations,especiallywhenextendingto
+x˜ =x⊕ν . (2)
+unseen classes. The hyper-parameter r controls the rank of
+ForaVLMsuchasCLIP,typicalvaluesofH=W=224, A and B, and can be considered as a prior in generating
+and p = 28, which results in generating 2C(H+W−2p)p VPs.Consequently,werepresenttheVPasν =Vec(AB).
+parametersforVPs. Here, the notation Vec(·) denotes the process of reshaping
+We aim to facilitate the generation of input-specific vi- a matrix into a vector. By adopting this formulation, we
+sual prompts by formulating the process through low-rank reduce the complexity of requiring ν from the initially re-
+matrixdecomposition.Specifically,wederivetwomatrices quired2C(H+W−2p)pparameterstomerelyr(a+b)pa-
+A ∈ Ra×r, B ∈ Rr×b and M ∈ RK×r. Here, A acts as rameters for each instance. Learning low-rank decomposi-
+a projection and captures the class semantics of the prob- tion of learnable parameters has proven more effective and
+lem via the language encoder. Furthermore and as we will efficientthanfinetuningallparameters(Huetal.2021).Be-
+show shortly, A is obtained from the textual description of low,weprovideadetailedexplanationofhowAandB are
+allK classes.Thisimpliesthataftertraining,ouralgorithm generated.
+can only store A and does not need a language encoder to Language-Grounded Encoding Following common
+operateinitsnominalform. practice(Radfordetal.2021;Bahngetal.2022),forallK
+On the other hand, the B component of the VP is tai- classes of a downstream, we craft textual descriptions by a
+loredtoeachimage,enablingourmethod,LaViP,todynam- template in the form: “a photo of a ⟨class⟩”. Then,
+icallyadjustitspromptsbasedontheinputimageitreceives. we obtain the encoding of the VLM language coder for all
+Thisimagedependencyalignswiththeideathatcustomized K promptsasT ∈RK×dusing:
+enc
+guidancecanenhancemodelperformance,aspreviouslydis-
+T =VLM (prompts). (3)
+cussed.Wearguethat,despitesharingidenticalclasslabels, enc TextEncoder
+imagesoftenexhibitdistinctsemanticvariations.Relyingon To enrich the representation, we define A ≜ MA .
+baseAlgorithm1:LaViPalgorithm promptstoimputenovelclassknowledgeintoprompts,and
+Input:Targetdataset: DwithK classesandX images, MaPLe (Khattak et al. 2023) injects tokens in both the vi-
+Pre-trainedmodel:F , sion and language branches which efficiently transition the
+Promptlearner:P withtrainableparameters. novelclassknowledgeintoprompts.Incontrasttotheseap-
+Parameters:Parametersof P :B ,B ,M,Scale ,Shift proaches, visual prompt-based techniques lack an efficient
+1 2 B B
+Output:Visualprompt:Φ forthetargettask. meanstointegratenovelclassknowledge.
+W
+We address this limitation by embedding novel-class
+knowledge into the visual prompts on the fly and without
+1: InitializeParameters:B 1,B 2andM
+theneedforretraining.TheKroneckerproductencapsulates
+2: CreateVisualProjectionMatrix:B base =B 1×B 2
+information, eliminating the necessity for additional learn-
+3: Construct K textual prompts: prompts =
+{ a photo of a {i}}K } ing (Gao, Wang, and Ji 2020; Schwartz, Haley, and Tyers
+i=1 2022;Demir,Lienen,andNgongaNgomo2022;Jin,Kolda,
+4: Encodetheimageandtextprompt:
+andWard2021).Theunderlyingideaistoemploythesim-
+T ,I =F(x,prompts)
+enc enc
+ilarity between novel classes and base classes to refine A.
+5: Projecttextencoding:A base =f(T enc)
+Recall that A = MA . This can be understood as A
+6: Controlthetextintegration:A=M ×A base base
+beingalinearcombinationofthesemanticinformationcap-
+7: Scalingandshiftingofimageencoding:
+turedinA .Inthepresenceofnovelclasses,wefirsten-
+B =Scale (I ) base
+scale B enc
+code a notion of similarity between base and novel classes
+B =Shift (I )
+shift B enc
+by
+8: Feature-wisemodulation:
+B ≜B ⊙B +B
+scale base shift
+9: Combine the textual and image-specific information :  t A ··· t A 
+11 1d
+Φ W =A×B TK enn covel ⊗A=  . . . ... . . .  , (6)
+t A ··· t A
+Knovel1 Knoveld
+Here, A is obtained from the semantics T (see
+base enc where⊗denotestheKroneckerproduct.
+Eq.(3)) as A = f(T ). The matrix M is learnable,
+base enc The resulting product will exist in R(aKnovel)×(rd), rep-
+helpingthemodeltogaugethesemanticstobeincorporated
+resenting the projection of each novel class on all the
+asapartofVPs.
+base classes. To obtain a compact and coherent embedding
+Image-dependent Encoding Similar in concept, we for- representation between base and novel classes, we trans-
+mulate the image-dependent part of the VP as a matrix de- formthisclass-wiseprojectionintoRa×Knovel×r×d.Subse-
+composition, albeit with some touch-ups. In particular, we quently, we compute the mean along VLM features(d) and
+proposethefollowingformforconstructingB: the number of novel classes (K ). The averaging oper-
+novel
+ation serves to align the base classes with a more unified
+B ≜B scale⊙B base+B shift , (4) representationofnovelclasses.
+where B ,B ∈ Rr, B ∈ Rb×r and ⊙ indi-
+scale shift base 3 RelatedWorks
+catesscalingfunction.InEq.(4),B isamatrixencoding
+base
+thevisualaspectsoftheinputimageandisobtainedas: Inthissection,first,wewillintroduceVLMsandtheircon-
+straints for adapting to new tasks, then we will discuss ex-
+B base =B 1×B 2 , (5) istingpromptlearningmethods,andfinally,wewillexplore
+where B and B are low-rank decomposition of B how MR is used in repurposing PTMs for diverse domains
+1 2 base
+withrankr .WemodulateB withB andB , tasks.
+B base scale shift
+whicharelight-waymatricesobtainedthroughsimplelinear
+3.1 PretrainedVision-Languagemodels:
+layers.Weoptforlight-designchoicestoaccelerateimage-
+wise transformation in Eq.(4) without introducing signifi- VLMssuchasCLIP(Radfordetal.2021),ALIGN(Jiaetal.
+cantcomputationaloverheadandprovideaconvenientway 2021), Flamingo(Alayrac et al. 2022), Flava (Singh et al.
+tointroducenon-linearityintheprocess.Algorithm1sum- 2022) and LiT (Zhai et al. 2022) have demonstrated ex-
+marizesthestepsinvolvedinourmethod. ceptionalperformanceonavarietyoftasks,includingfew-
+shot and zero-shot image recognition. These models learn
+2.2 GeneralizationfromBasetoNovelClasses
+toalignthevision-languagerepresentationsonaweb-scale
+Inthebase-to-novelgeneralizationtask,thegoalistoeval- trainingdataset.Althoughpre-trainedmodelsofferastrong
+uate the generalizability of the model to unseen classes by foundation for a wide range of tasks, efficiently adapting
+training on base classes while evaluating on the base and them to downstream tasks is still a challenging research
+novelclassesseparately(Zhouetal.2022a). problem.Thedifficultyisexacerbatedwhenthedownstream
+CoOp(Zhouetal.2022b)learnstextpromptsneglecting task requires specialized context, interpretable representa-
+inputdifferences,thereforefailingtogeneralizewellbeyond tions, or access to the model is forbidden (Mokady, Hertz,
+classes in training data. To alleviate such drawbacks, Co- and Bermano 2021; Jiang, Liu, and Zheng 2022; Shu et al.
+CoOp(Zhouetal.2022a)proposesimage-conditionedtext 2023;Mausetal.2023).Furthermore,Kumaretal.showedMethod Caltech Pets Cars Flowers Food Aircraft SUN DTD EuroSAT RESISC CLEVR UCF Avg. Win
+ZS(Radfordetal.2021) 89.3 88.9 65.6 70.4 89.2 27.1 65.2 46.0 54.1 65.5 23.4 69.8 62.75 1
+VP(Bahngetal.2022) 94.2 90.2 66.9 86.9 81.8 31.8 67.1 61.9 90.8 81.4 40.8 74.2 71.26 1
+LaViP(Ours) 95.0 91.2 77.8 96.3 82.5 43.2 71.1 68.8 86.1 85.6 46.5 81.3 74.59 10
+Table1:Comparisonwithvisualpromptingmethodonfew-shottransferlearning.LaViPlearnslanguage-driveninput-aware
+visual prompts and exhibits robust performance on 10 in 12 recognition datasets with training accelerated by more than 3×.
+WinindicateshowmanycasesLaViPoutperformspreviousmethods.
+finetuning overparameterized models can yield detrimen- evidenceofhowtheirsolutionsperformacrossdiverseback-
+tal results compared to linear probing (i.e., tuning the head bonearchitectures.
+whilekeepinglowerlayersfrozen)whenaddressingout-of-
+distributiondownstreamtasks(Kumaretal.2021). 3.3 Modelreprogramming
+By deriving motivation from adversarial attacks Elsayed,
+3.2 PromptLearninginVLMs Goodfellow,andSohl-Dickstein(2018)proposedAdversar-
+ial Reprogramming(AR) to repurpose a pre-trained model
+Standard finetuning and linear probing are common ap-
+to perform on a new domain. This led to a new learning
+proaches to adapting VLMs to downstream tasks. How-
+paradigm called model reprogramming (MR) for transfer
+ever, such finetuning causes detrimental results due to the
+learning.
+loss of embedded knowledge and poor adaptation tech-
+Weprovidesomenotableexamplesbelow. Vinod,Chen,
+niques (Wortsman et al. 2022). There is a significant body
+andDas(2020)repurposedalanguagemodeltopredictbio-
+of work in natural language processing (NLP) that focuses
+chemical sequences; Tsai, Chen, and Ho (2020) proposed
+on learning effective prompts to adapt a large language
+BAR to reprogram an ImageNet model for complex bio-
+modeltodownstreamtasks(Sanhetal.2021;Houlsbyetal.
+medical under a black-box setting; Yen et al. (2021) used
+2019; Brown et al. 2020b; Chen et al. 2022). Inspired by
+anattention-basedRNNspeechmodelforlow-resourcespo-
+thesuccessofpromptlearninginNLP,severalrecentstud-
+kencommandrecognition; Yang,Tsai,andChen(2021)re-
+ies explored prompt learning methods in the context of
+programmed aspeech model fortime-series prediction and
+large-scale VLMs. Visual Prompt Tuning(VPT) learns the
+Neekharaetal.(2022)reprogrammedavisionmodeltoclas-
+prefix prompts in encoder layers or embedding layer (Jia
+sify text sentences and DNA sequences. (Oh et al. 2023)
+etal.2022),while (Khattaketal.2023)proposesinjection
+extended BAR by generating input-aware visual prompts
+of learnable tokens in both vision and text encoder layers
+throughanexternalencoder-decodermodelforlimiteddata
+andcouplesthemwithalearnablefunction.VisualPrompt-
+recognition.
+ing(VP) investigated input pixel space prompt tuning for
+To the best of our knowledge, we are pioneering to de-
+pre-trainedvisionandVLMs(Bahngetal.2022).VPlearns
+signoflanguage-groundedvisualpromptstoreprogramthe
+afixedinputagnosticperturbationandattachesittotheorig-
+visualencoderofaVLM.IncontrasttopreviousMRmeth-
+inalimages,henceadaptingapre-trainedmodeltonewtasks
+odsthatprimarilyfocusedonrepurposingPTMsusinguni-
+withoutmodifyingthemodelparameters.Baretal.usesthe
+modality, our contribution lies in harnessing the power of
+inpainting method as visual prompting. Context Optimiza-
+multimodalitytoenhancecontextknowledgeduringadapta-
+tion (CoOp) (Zhou et al. 2022b) optimizes a set of context
+tion.
+vectorsforthetextencoderofCLIP,whileConditionalCon-
+textOptimization(CoCoOp)(Zhouetal.2022a)generalizes
+4 Results
+CoOptounseenclassesbyconditioningthetextpromptop-
+timization on image instances. (Lin et al. 2023) suggests Wefirstprovidetheexperimentalsetupin§4.1.Next,§4.2
+cross-modaladaptationbyrepurposingclassnamesasone- presentsthecomparisonbetweenLaViPandpreviousmeth-
+shot training examples, (Lu et al. 2022) proposes an en- ods.§4.3providestheresultforthebase-to-novelgeneral-
+semble of learnable prompts. (Menon and Vondrick 2023; izationtaskand§4.4providestheresultsforwhole-dataset
+Zhang et al. 2023; Dunlap et al. 2022) showcase how lan- training.
+guagecanbeeffectivelyemployedtostrengthentheadapta-
+tionofpre-trainedvisionmodelstonoveldomains. 4.1 ExperimentalSetup
+We argue that generating input-agnostic prompts with WeextensivelyevaluateLaViPcapabilityon12benchmark
+unimodal knowledge is a suboptimal approach. Consider- datasets(referAppendixB.3)underthreedistinctscenarios.
+ing the large-scale pre-training of VLMs, prompting meth- First, its transferability in limited data settings is assessed
+odsshouldadeptlyutilizetheembeddedmultimodalknowl- throughfew-shotlearning,whereitlearnsfrom16-shotsfor
+edge to efficiently address new tasks. Further, we under- training and 4-shots for validation. Next, its generalizabil-
+score the importance of prompting methods being agnostic ity is examined by evaluating its ability to learn from base
+to the underlying architecture of PTMs. For instance, VPT classes and apply that knowledge to unseen novel classes.
+andMaPLehavesuccessfullyadaptedViTencodersthrough Finally,weusethefulldatasetfortraining,testingandvali-
+prefixlearning.However,thesemethodslackcomprehensive dation.Inthispaper,weuseCLIPViT-B/16 (Radfordetal.CLIP CoOp CoCoOp MaPLe LaViP(Ours)
+Dataset Base Novel HM Base Novel HM Base Novel HM Base Novel HM Base Novel HM
+Caltech101 96.84 94.00 95.40 98.00 89.81 93.73 97.96 93.81 95.84 97.74 94.36 96.02 97.63 93.45 95.49
+DTD 53.24 59.90 56.37 79.44 41.18 54.24 77.01 56.00 64.85 80.36 59.18 68.16 80.05 58.01 67.27
+EuroSAT 56.48 64.05 60.03 92.19 54.74 68.69 87.49 60.04 71.21 94.07 73.23 82.35 92.53 82.31 87.12
+FGVCAircraft 27.19 36.29 31.09 40.44 22.30 28.75 33.41 23.71 27.74 37.44 35.61 36.50 37.25 34.03 35.57
+Food101 90.10 91.22 90.66 88.33 82.26 85.19 90.70 91.29 90.99 90.71 92.05 91.38 86.19 91.28 88.66
+OxfordPets 91.17 97.26 94.12 93.67 95.29 94.47 95.20 97.69 96.43 95.43 97.76 96.58 92.45 97.22 94.78
+SUN397 69.36 75.35 72.23 80.60 65.89 72.51 79.74 76.86 78.27 80.82 78.70 79.75 76.47 73.25 74.82
+Flowers102 72.08 77.80 74.83 97.60 59.67 74.06 94.87 71.75 81.71 95.92 72.46 82.56 96.96 76.34 85.25
+UCF101 70.53 77.50 73.85 84.69 56.05 67.46 82.33 73.45 77.64 83.00 78.66 80.77 83.83 76.46 79.97
+StanfordCars 63.37 74.89 68.65 78.12 60.40 68.13 70.49 73.59 72.01 72.94 74.00 73.47 73.63 74.63 74.13
+Average 69.04 74.83 71.72 83.31 62.76 70.72 80.92 71.82 75.67 82.84 75.60 78.75 81.7 75.70 78.31
+Table2:PerformanceofLaViPonbase-to-novelgeneralizationacross10recognitiondatasets.LaViPdemonstratescompetitive
+generalizationperformanceoverCoOpandCoCoOpwithanabsolutegainof2.64%.HMindicatestheharmonicmeanofbase
+classaccuracyandnovelclassaccuracy.
+2021) for few-shot learning and base-to-novel generaliza- virtue,thatalgorithmssuchasMaPLecannotensure.LaViP
+tion, and CLIP ViT-B/32 for whole-set training as the pre- trailed MaPLe by only 0.44% in performance, showcasing
+trainedVLmodelduetoitsstrongzero-shotgeneralization acompetitiveperformanceandevenmarginallyoutperform-
+capability.MoredetailsareprovidedinAppendixB. ingonclassifyingnovelclasses.
+IncomparisonwithCLIPonnovelclasses,CoCoOpim-
+4.2 Few-shotlearning proves 3/10 classes, leading to a decrease in the average
+novel accuracy from 74.83% to 71.82%. LaViP only im-
+Table 1 presents the performance of LaViP in a few-shot
+proves accuracy in 2 out of 10 datasets compared to CLIP
+transfersettingacross12recognitiondatasets.Wecompare
+for new classes. However, it positively impacts the aver-
+our results against CLIP Zero-shot (ZS), and the previous
+age accuracy, elevating it from 74.83% to 75.70%. This
+pixel-spacereprogrammingmethod.LaViPoutperformsZS
+sustains its position as a robust competitor. CoOp exhibits
+on11datasets,exhibitingasubstantialgainof11.84%.Ad-
+limited generalization capability to novel classes, a defi-
+ditionally, when comparing to VP(Bahng et al. 2022) on
+ciency that CoCoOp strives to address by contextualizing
+11 datasets, achieving a gain of 3.3% in performance and
+textpromptsbasedonimageinstances,andshowssubstan-
+more than a 3× faster convergence. Furthermore, Table 1
+tial improvement in novel class recognition. However, it
+showsthatwhenthedomainshiftsfromgenerictorarecon-
+manages to outperform 2/10 base classes with a decrease
+cepts,LaViPconsistentlydemonstrateshigherperformance
+in average performance of 2.39%. LaViP’s language inte-
+in comparison to CLIP. This highlights the effectiveness
+gration exhibits competitive performance in the base class,
+of incorporating language guidance in enhancing modality
+with only a 1.4% decrease in average performance. De-
+alignment, particularly in cases where concepts can be ex-
+spitemarginalimprovementscomparedtoCoCoOp,it’svi-
+plicitlydescribed.
+taltorecognizethedissimilaritybetweenhigh-dimensional,
+variable-richimagedataandstructuredtext.Thisdivergence
+4.3 Base-to-NovelGeneralization
+affectslearningspeedandeffectiveness,especiallywithlim-
+Table 2 presents the performance of LaViP in the base-to- ited data. Given the complexities inherent in the visual do-
+novelgeneralizationsetting,evaluatedacross10recognition main,anapproachmustbeparameter-efficientandcontext-
+datasets.WecompareLaViPagainstalineupofbenchmarks, aware. This dual requirement aligns with the fundamental
+includingCLIPZero-shot(ZS),CoOP,CoCoOpandMaPLe. characteristicofLaViP.
+RelativetoCoCoOp,LaViPexhibitsastrongerperformance Moreover, from Table 2 we can conclude that as the do-
+acrossbothbaseandnovelconcepts,yieldingabsolutegains mainshiftincreasesfromthepretrainingdataset,LaViPex-
+of0.0.78%and3.88%respectively.Withthecontext-aware hibitsincreasingperformancecomparedtoCLIP,CoOpand
+knowledge diffused through Kronecker product, LaViP as CoCoOp. This emphasizes the impact of language context
+astrongcompetitorsurpassesCoCoOpin6/10datasetsand indesigningvisualprompts.
+slightlytrailsintwodatasets.Whentakingintoaccountboth
+base and novel classes, LaViP shows an absolute average Method Pets Flowers Food SUN DTD EuroSAT RESISC CLEVR UCF Avg.
+gainofwithgainof2.64%comparedtoCoOpandCoCoOp. ZS 88.3 67.4 85.2 62.6 44.4 42.2 56.6 25.8 65.2 59.75
+CLIP+LP 89.2 96.9 84.6 75.0 74.6 95.3 92.3 66.0 83.3 84.13
+MaPLe, the current SOTA has outperformed in many VP 85.0 70.3 78.9 60.6 57.1 96.4 84.5 81.4 66.1 75.72
+studieddatasets. However,unlikeMaPLe,other algorithms LaViP(Ours) 89.6 96.7 83.2 71.5 72.9 96.3 91.0 67.0 81.9 80.99
+maintaintheoriginalfoundationmodel,thusenablingadap-
+tation via APIs and cases where for ethical constraints, ac- Table 3: Performance across 9 recognition dataset using
+cessingthestructureandweightsofthefoundationmodelis CLIP Zero-shot(ZS), Linear Probe(LP), Visual Prompt-
+notpossible.Furthermore,preservingthefoundationmodel ing(VP)andLaViPwithViT-B/32backbone.
+translates into maintaining its generalization capabilities, a4.4 Full-datasetLearning Method Caltech Pets Cars Flowers Food Aircraft DTD RESISC UCF SUN Avg.
+ZS(CLIP) 89.3 88.9 65.6 70.4 89.2 27.1 46.0 65.5 69.8 62.6 67.44
+The summarized findings of full-dataset training are pre- VPw/SPSA-GC 89.4 87.1 56.6 67.0 80.4 23.8 44.5 61.3 64.6 61.2 63.59
+BAR 93.8 88.6 63.0 71.2 84.5 24.5 47.0 65.3 64.2 62.4 66.45
+sented in Table 3. To provide a comprehensive evaluation, BlackVIP 93.7 89.7 65.6 70.6 86.6 25.0 45.2 64.5 69.1 64.7 67.47
+wedrawcomparisonsbetweenourresultsandthoseofCLIP BlackLaViP(Ours) 92.3 89.3 63.3 68.8 84.6 23.9 46.1 61.8 65.6 62.2 65.77
+% 98.5 99.6 96.5 97.5 97.7 95.6 101.2 95.8 95.1 96.1 97.49
+Zero-shot (ZS), CLIP Linear Probe (LP), and VP, all using
+the ViT-B/32 CLIP model with the same hyperparameters Table 4: Comparison with state-of-the-art methods on few-
+as those used in few-shot learning. It indicates that LaViP shottransferlearninginablack-boxsetting.%indicatesper-
+consistently outperforms VP by a notably wider margin centage of BlackVIP score achieved with more than 15×
+across 7/9 recognition datasets. This substantial improve- fasteroptimization.
+ment is coupled with an optimization process that is three
+times more efficient. In contrast with the results obtained
+from CLIP Linear Probe, VP shows enhancement in 2 out imageandtextviavisualpromptingandwithoutalteringthe
+of 9 datasets, albeit accompanied by an average accuracy latent space of the foundation model, we capitalize on the
+decrease of 8.91%. Comparatively, while LaViP only en- generalizationcapabilityofthemodel.
+hances performance in 1 out of 9 datasets, it achieves an Itsversatilityshinesacrossdiversetasks,requiringnoin-
+average accuracy drop of 3.14%. These observations high- dividualfinetuningefforts,anditsprivacy-preservingnature
+light the robust improvements brought about by improved makesitidealforinteractingwithAPIsandproprietarysoft-
+visualpromptingofLaViP. ware. The reprogramming methodology studied in this can
+work to provide increased user control over bias and fair-
+5 AblationStudies ness issues in pretraining. However, low-resolution images
+andhighlydiversedatasetspresentchallenges.Wehypothe-
+5.1 Learningingradient-freeenvironment
+sizethattheobservedcharacteristicisduetocontexttokens
+We adapt our algorithm in a gradient-free environment to failingtograspsemanticcontentorcapturethefullspectrum
+understand the effectiveness of language integration. We ofclasses.LaViP’sperformanceisinherentlyinfluencedby
+proceed to evaluate BlackLaViP, the gradient-free variant thecontexttokenspresentintheprompttemplate.Thisnatu-
+of LaViP, by employing the SPSA algorithm (Spall 1992, rallygivesrisetothequestion:Whatadvantagesdoeslearn-
+2000).Table4presentstheperformanceofBlackLaViPon ingtextpromptsofferincomparisontoemployingmanually
+few-shotlearningon10recognitiondatasets.BlackVIP(Oh crafted templates in LaViP?. Future research could delve
+et al. 2023) uses SPSA with an external model to generate intothedirectionoflearningmultimodalpromptswithmu-
+input-aware prompts and exhibits effectiveness on 4 out of tualsynergy.
+10datasets.ThoughBlackLaViPdoesn’toutperformBlack-
+VIP,anintriguingobservationemergesfromourexperiment. 7 Conclusion
+Remarkably,BlackLaViPattains95%oftheperformanceof
+Adaptating large-scale VLMs(e.g. CLIP (Radford et al.
+BlackVIP with a convergence rate that is over 15× faster.
+2021))fornewtasksisachallengingresearchproblemdue
+ImplementationdetailsareprovidedinAppendixC.
+toalargenumberoftunableparameters.Despitestemming
+from distinct motivation, prompt learning and model re-
+5.2 Impactofhyperparameters(a,b,r)
+programming provide an efficient and scalable approach to
+VP requires generating a padding of size θ = driveVLMstodownstreamtasks.Tothisend,existingvisual
+2pC(H+W−2p) as the visual prompt. We propose a promptingapproacheslearninput-agnosticpromptsthrough
+low-rank formulation to generate the prompt, which effi- unimodal knowledge. The perceptual diversity of the im-
+ciently reduces the generator size by a factor of 4 when age domain makes a difficult to repurpose visual encoders
+r = 32, 2 when r = 64, and 1.2 when r = 96. The in VLMs compared to text encoders, and these approaches
+parameterr(rankofmatricesingeneratingtheprompt)can require an external world model to provide context or a
+beunderstoodasaninductivebias,regularizingthedesign. largenumberofiterations.Ourworkcounterstheseassump-
+Empirically, we observed that LaViP performed robustly tionsbyleveragingembeddedmultimodalknowledgewithin
+if r was chosen within a reasonable range (not too small, VLMs. Our approach seamlessly integrates these multi-
+e.g. r ∈ [16,96]). Furthermore, LaVIP robustly performs modalrepresentationstogenerateadaptablevisualprompts,
+for varying (a,b) which creates padding of size p = 20 to therebyenhancingperformancewithoutcompromising.Fur-
+p=50.AdditionalresultsareprovidedinAppendinxD. ther,weproposeanefficientstrategyforgeneralizingvisual
+promptingmethodstounseenclasses.Ourmethodimproves
+6 Discussion thefew-shottransferlearning,generalizationtowardsnovel
+conceptsandfull-settransferlearningwithvaryingdomain
+LaViP,anovelapproachtovisualprompting,harnessesthe
+shiftscomparedtothepretrainingdataset.
+power of language to enhance pre-trained models without
+theneedforinvasivefinetuning.Bymergingtextualknowl-
+edge into input prompts, LaViP steers models towards de-
+siredtasks,surpassingthelimitationsofpreviousmethodsin References
+bothaccuracyandoptimization.Thefew-shotcapabilityisa Alayrac, J.-B.; Donahue, J.; Luc, P.; Miech, A.; Barr, I.; Hasson,
+directresultofpreservingthefoundationmodel.Byaligning Y.; Lenc, K.; Mensch, A.; Millican, K.; Reynolds, M.; Ring, R.;Rutherford,E.;Cabi,S.;Han,T.;Gong,Z.;Samangooei,S.;Mon- bayesianapproachtestedon101objectcategories.In2004confer-
+teiro, M.; Menick, J.; Borgeaud, S.; Brock, A.; Nematzadeh, A.; enceoncomputervisionandpatternrecognitionworkshop,178–
+Sharifzadeh,S.;Binkowski,M.;Barreira,R.;Vinyals,O.;Zisser- 178.IEEE. 11
+man, A.; and Simonyan, K. 2022. Flamingo: a Visual Language
+Gao,H.;Wang,Z.;andJi,S.2020. Kroneckerattentionnetworks.
+ModelforFew-ShotLearning. ArXiv,abs/2204.14198. 4 In Proceedings of the 26th ACM SIGKDD International Confer-
+Bahng,H.;Jahanian,A.;Sankaranarayanan,S.;andIsola,P.2022. enceonKnowledgeDiscovery&DataMining,229–237. 4
+Exploring visual prompts for adapting large-scale models. arXiv
+Gibson,E.J.1969. Principlesofperceptuallearninganddevelop-
+preprintarXiv:2203.17274. 2,3,5,6,11
+ment. 1
+Bar,A.;Gandelsman,Y.;Darrell,T.;Globerson,A.;andEfros,A.
+Helber,P.;Bischke,B.;Dengel,A.;andBorth,D.2019a. Eurosat:
+2022. Visualpromptingviaimageinpainting. AdvancesinNeural
+Anoveldatasetanddeeplearningbenchmarkforlanduseandland
+InformationProcessingSystems,35:25005–25017. 5
+cover classification. IEEE Journal of Selected Topics in Applied
+Bossard, L.; Guillaumin, M.; and Van Gool, L. 2014. Food- EarthObservationsandRemoteSensing. 2
+101–mining discriminative components with random forests. In
+Helber,P.;Bischke,B.;Dengel,A.;andBorth,D.2019b. Eurosat:
+ComputerVision–ECCV2014:13thEuropeanConference,Zurich,
+Anoveldatasetanddeeplearningbenchmarkforlanduseandland
+Switzerland,September6-12,2014,Proceedings,PartVI13,446–
+cover classification. IEEE Journal of Selected Topics in Applied
+461.Springer. 11
+EarthObservationsandRemoteSensing,12(7):2217–2226. 11
+Brown,T.;Mann,B.;Ryder,N.;Subbiah,M.;Kaplan,J.D.;Dhari-
+Houlsby,N.;Giurgiu,A.;Jastrzebski,S.;Morrone,B.;DeLarous-
+wal, P.; Neelakantan, A.; Shyam, P.; Sastry, G.; Askell, A.; et al.
+silhe, Q.; Gesmundo, A.; Attariyan, M.; and Gelly, S. 2019.
+2020a. Languagemodelsarefew-shotlearners. Advancesinneu-
+Parameter-efficient transfer learning for NLP. In International
+ralinformationprocessingsystems,33:1877–1901. 1
+ConferenceonMachineLearning,2790–2799.PMLR. 5
+Brown,T.;Mann,B.;Ryder,N.;Subbiah,M.;Kaplan,J.D.;Dhari-
+Hu, E. J.; Shen, Y.; Wallis, P.; Allen-Zhu, Z.; Li, Y.; Wang, S.;
+wal, P.; Neelakantan, A.; Shyam, P.; Sastry, G.; Askell, A.; et al.
+Wang,L.;andChen,W.2021. Lora:Low-rankadaptationoflarge
+2020b. Languagemodelsarefew-shotlearners. Advancesinneu-
+languagemodels. arXivpreprintarXiv:2106.09685. 3
+ralinformationprocessingsystems,33:1877–1901. 5
+Jia,C.;Yang,Y.;Xia,Y.;Chen,Y.-T.;Parekh,Z.;Pham,H.;Le,
+Chen,A.;Yao,Y.;Chen,P.-Y.;Zhang,Y.;andLiu,S.2023. Un-
+Q.; Sung, Y.-H.; Li, Z.; and Duerig, T. 2021. Scaling up visual
+derstandingandimprovingvisualprompting:Alabel-mappingper-
+andvision-languagerepresentationlearningwithnoisytextsuper-
+spective. In Proceedings of the IEEE/CVF Conference on Com-
+vision. In International conference on machine learning, 4904–
+puterVisionandPatternRecognition,19133–19143. 1
+4916.PMLR. 4
+Chen, Y.; Liu, Y.; Dong, L.; Wang, S.; Zhu, C.; Zeng, M.; and
+Jia,M.;Tang,L.;Chen,B.-C.;Cardie,C.;Belongie,S.;Hariharan,
+Zhang,Y.2022. Adaprompt:Adaptivemodeltrainingforprompt-
+B.; and Lim, S.-N. 2022. Visual Prompt Tuning. In European
+basednlp. arXivpreprintarXiv:2202.04824. 5
+ConferenceonComputerVision(ECCV). 5
+Cheng,G.;Han,J.;andLu,X.2017. Remotesensingimagescene
+classification:Benchmarkandstateoftheart. Proceedingsofthe Jiang, J.; Liu, Z.; and Zheng, N. 2022. Finetuning pre-
+IEEE,105(10):1865–1883. 11 trained vision-language models with correlation information bot-
+tleneck for robust visual question answering. arXiv preprint
+Cimpoi, M.; Maji, S.; Kokkinos, I.; Mohamed, S.; and Vedaldi,
+arXiv:2209.06954. 4
+A. 2014. Describing textures in the wild. In Proceedings of
+theIEEEconferenceoncomputervisionandpatternrecognition, Jin, R.; Kolda, T. G.; and Ward, R. 2021. Faster johnson–
+3606–3613. 11 lindenstrausstransformsviakroneckerproducts. Informationand
+Inference:AJournaloftheIMA,10(4):1533–1562. 4
+Demir,C.;Lienen,J.;andNgongaNgomo,A.-C.2022.Kronecker
+Decomposition for Knowledge Graph Embeddings. In Proceed- Johnson, J.; Hariharan, B.; Van Der Maaten, L.; Fei-Fei, L.;
+ingsofthe33rdACMConferenceonHypertextandSocialMedia, LawrenceZitnick,C.;andGirshick,R.2017. Clevr:Adiagnostic
+HT ’22, 1–10. New York, NY, USA: Association for Computing datasetforcompositionallanguageandelementaryvisualreason-
+Machinery. ISBN9781450392334. 4 ing. In Proceedings of the IEEE conference on computer vision
+andpatternrecognition,2901–2910. 11
+Deng, J.; Dong, W.; Socher, R.; Li, L.-J.; Li, K.; and Fei-Fei, L.
+2009. Imagenet: A large-scale hierarchical image database. In Khattak,M.U.;Rasheed,H.;Maaz,M.;Khan,S.;andKhan,F.S.
+2009IEEEconferenceoncomputervisionandpatternrecognition, 2023. MaPLe:Multi-ModalPromptLearning. InProceedingsof
+248–255.Ieee. 14 theIEEE/CVFConferenceonComputerVisionandPatternRecog-
+nition(CVPR),19113–19122. 2,4,5
+Dosovitskiy, A.; Beyer, L.; Kolesnikov, A.; Weissenborn, D.;
+Zhai, X.; Unterthiner, T.; Dehghani, M.; Minderer, M.; Heigold, Kirillov,A.;Mintun,E.;Ravi,N.;Mao,H.;Rolland,C.;Gustafson,
+G.; Gelly, S.; et al. 2020. An image is worth 16x16 words: L.; Xiao, T.; Whitehead, S.; Berg, A. C.; Lo, W.-Y.; et al. 2023.
+Transformers for image recognition at scale. arXiv preprint Segmentanything. arXivpreprintarXiv:2304.02643. 1
+arXiv:2010.11929. 1,11 Krause, J.; Stark, M.; Deng, J.; and Fei-Fei, L. 2013. 3d object
+Dunlap,L.;Mohri,C.;Guillory,D.;Zhang,H.;Darrell,T.;Gon- representationsforfine-grainedcategorization. InProceedingsof
+zalez,J.E.;Raghunathan,A.;andRohrbach,A.2022. Usinglan- theIEEEinternationalconferenceoncomputervisionworkshops,
+guagetoextendtounseendomains. InTheEleventhInternational 554–561. 11
+ConferenceonLearningRepresentations. 5 Krizhevsky,A.;Hinton,G.;etal.2009. Learningmultiplelayers
+Elsayed,G.F.;Goodfellow,I.;andSohl-Dickstein,J.2018. Ad- offeaturesfromtinyimages. 11
+versarial reprogramming of neural networks. arXiv preprint Kumar,A.;Raghunathan,A.;Jones,R.M.;Ma,T.;andLiang,P.
+arXiv:1806.11146. 1,5 2021. Fine-TuningcanDistortPretrainedFeaturesandUnderper-
+Fei-Fei, L.; Fergus, R.; and Perona, P. 2004. Learning genera- formOut-of-Distribution.InInternationalConferenceonLearning
+tive visual models from few training examples: An incremental Representations. 1,5Lin,Z.;Yu,S.;Kuang,Z.;Pathak,D.;andRamanan,D.2023.Mul- Singh, A.; Hu, R.; Goswami, V.; Couairon, G.; Galuba, W.;
+timodalityhelpsunimodality:Cross-modalfew-shotlearningwith Rohrbach,M.;andKiela,D.2022.Flava:Afoundationallanguage
+multimodalmodels. InProceedingsoftheIEEE/CVFConference and vision alignment model. In Proceedings of the IEEE/CVF
+onComputerVisionandPatternRecognition,19325–19337. 5 ConferenceonComputerVisionandPatternRecognition,15638–
+Lu,Y.;Liu,J.;Zhang,Y.;Liu,Y.;andTian,X.2022. PromptDis- 15650. 4
+tributionLearning. InProceedingsoftheIEEE/CVFConference Soomro,K.;Zamir,A.R.;andShah,M.2012. UCF101:Adataset
+onComputerVisionandPatternRecognition(CVPR),5206–5215. of 101 human actions classes from videos in the wild. arXiv
+5 preprintarXiv:1212.0402. 11
+Maji, S.; Rahtu, E.; Kannala, J.; Blaschko, M.; and Vedaldi, A. Spall, J. 1992. Multivariate stochastic approximation using a si-
+2013. Fine-grainedvisualclassificationofaircraft. arXivpreprint multaneous perturbation gradient approximation. IEEE Transac-
+arXiv:1306.5151. 11 tionsonAutomaticControl,37(3):332–341. 7,12
+Maus, N.; Chao, P.; Wong, E.; and Gardner, J. 2023. Adversar- Spall,J.2000. Adaptivestochasticapproximationbythesimulta-
+ial prompting for black box foundation models. arXiv preprint neousperturbationmethod.IEEETransactionsonAutomaticCon-
+arXiv:2302.04237. 4 trol,45(10):1839–1853. 7,12
+Meltzoff,A.N.;andBorton,R.W.1979. Intermodalmatchingby Touvron,H.;Lavril,T.;Izacard,G.;Martinet,X.;Lachaux,M.-A.;
+humanneonates. Nature,282(5737):403–404. 1 Lacroix, T.; Rozie`re, B.; Goyal, N.; Hambro, E.; Azhar, F.; Ro-
+Menon,S.;andVondrick,C.2023. VisualClassificationviaDe- driguez,A.;Joulin,A.;Grave,E.;andLample,G.2023. LLaMA:
+scriptionfromLargeLanguageModels. ICLR. 5 OpenandEfficientFoundationLanguageModels. arXivpreprint
+Mokady,R.;Hertz,A.;andBermano,A.H.2021. Clipcap:Clip arXiv:2302.13971. 1
+prefixforimagecaptioning. arXivpreprintarXiv:2111.09734. 4 Tsai,Y.-Y.;Chen,P.-Y.;andHo,T.-Y.2020.Transferlearningwith-
+Neekhara,P.;Hussain,S.;Du,J.;Dubnov,S.;Koushanfar,F.;and outknowing:Reprogrammingblack-boxmachinelearningmodels
+McAuley, J. 2022. Cross-modal adversarial reprogramming. In withscarcedataandlimitedresources.InInternationalConference
+ProceedingsoftheIEEE/CVFWinterConferenceonApplications onMachineLearning,9614–9624.PMLR. 1,5
+ofComputerVision,2427–2435. 1,5 Vinod, R.; Chen, P.-Y.; and Das, P. 2020. Reprogramming lan-
+Netzer, Y.; Wang, T.; Coates, A.; Bissacco, A.; Wu, B.; and Ng, guagemodelsformolecularrepresentationlearning.arXivpreprint
+A. Y. 2011. Reading digits in natural images with unsupervised arXiv:2012.03460. 1,5
+featurelearning. 11 Wortsman, M.; Ilharco, G.; Kim, J. W.; Li, M.; Kornblith, S.;
+Nilsback,M.-E.;andZisserman,A.2008.Automatedflowerclassi- Roelofs,R.;Lopes,R.G.;Hajishirzi,H.;Farhadi,A.;Namkoong,
+ficationoveralargenumberofclasses.In2008SixthIndianconfer- H.;etal.2022.Robustfine-tuningofzero-shotmodels.InProceed-
+enceoncomputervision,graphics&imageprocessing,722–729. ingsoftheIEEE/CVFConferenceonComputerVisionandPattern
+IEEE. 11 Recognition,7959–7971. 1,5
+Oh,C.;Hwang,H.;Lee,H.-y.;Lim,Y.;Jung,G.;Jung,J.;Choi, Xiao,J.;Hays,J.;Ehinger,K.A.;Oliva,A.;andTorralba,A.2010.
+H.; and Song, K. 2023. BlackVIP: Black-Box Visual Prompting Sundatabase:Large-scalescenerecognitionfromabbeytozoo. In
+for Robust Transfer Learning. In Proceedings of the IEEE/CVF 2010 IEEE computer society conference on computer vision and
+ConferenceonComputerVisionandPatternRecognition,24224– patternrecognition,3485–3492.IEEE. 11
+24235. 5,7,11
+Yang,C.-H.H.; Tsai, Y.-Y.;andChen,P.-Y.2021. Voice2series:
+Parkhi,O.M.;Vedaldi,A.;Zisserman,A.;andJawahar,C.2012. Reprogramming acoustic models for time series classification.
+Catsanddogs. In2012IEEEconferenceoncomputervisionand In International conference on machine learning, 11808–11819.
+patternrecognition,3498–3505.IEEE. 11 PMLR. 1,5
+Quiroga, R. Q.; Reddy, L.; Kreiman, G.; Koch, C.; and Fried, I. Yen,H.;Ku,P.-J.;Yang,C.-H.H.;Hu,H.;Siniscalchi,S.M.;Chen,
+2005. Invariantvisualrepresentationbysingleneuronsinthehu- P.-Y.;andTsao,Y.2021. Neuralmodelreprogrammingwithsimi-
+manbrain. Nature,435(7045):1102–1107. 2 laritybasedmappingforlow-resourcespokencommandclassifica-
+Radford,A.;Kim,J.W.;Hallacy,C.;Ramesh,A.;Goh,G.;Agar- tion. arXivpreprintarXiv:2110.03894. 1,5
+wal,S.;Sastry,G.;Askell,A.;Mishkin,P.;Clark,J.;etal.2021. Zhai, X.; Wang, X.; Mustafa, B.; Steiner, A.; Keysers, D.;
+Learningtransferablevisualmodelsfromnaturallanguagesupervi- Kolesnikov, A.; and Beyer, L. 2022. LiT: Zero-Shot Transfer
+sion.InInternationalconferenceonmachinelearning,8748–8763. WithLocked-ImageTextTuning.InProceedingsoftheIEEE/CVF
+PMLR. 1,3,4,5,7,10,11 ConferenceonComputerVisionandPatternRecognition(CVPR),
+Sanh, V.; Webson, A.; Raffel, C.; Bach, S. H.; Sutawika, L.; 18123–18133. 4
+Alyafeai,Z.;Chaffin,A.;Stiegler,A.;Scao,T.L.;Raja,A.;etal.
+Zhang, R.; Hu, X.; Li, B.; Huang, S.; Deng, H.; Qiao, Y.; Gao,
+2021. Multitaskpromptedtrainingenableszero-shottaskgeneral-
+P.; and Li, H. 2023. Prompt, Generate, Then Cache: Cascade of
+ization. arXivpreprintarXiv:2110.08207. 5
+FoundationModelsMakesStrongFew-ShotLearners.InProceed-
+Schwartz, L.; Haley, C.; and Tyers, F. 2022. How to encode ingsoftheIEEE/CVFConferenceonComputerVisionandPattern
+arbitrarily complex morphology in word embeddings, no corpus Recognition(CVPR),15211–15222. 5
+needed. InProceedingsofthefirstworkshoponNLPapplications
+Zhou, K.; Yang, J.; Loy, C. C.; and Liu, Z. 2022a. Conditional
+tofieldlinguistics,64–76.Gyeongju,RepublicofKorea:Interna-
+promptlearningforvision-languagemodels.InProceedingsofthe
+tionalConferenceonComputationalLinguistics. 4
+IEEE/CVFConferenceonComputerVisionandPatternRecogni-
+Shu,Y.;Guo,X.;Wu,J.;Wang,X.;Wang,J.;andLong,M.2023. tion,16816–16825. 4,5
+CLIPood:GeneralizingCLIPtoOut-of-Distributions. InKrause,
+Zhou, K.; Yang, J.; Loy, C. C.; and Liu, Z. 2022b. Learning to
+A.;Brunskill,E.;Cho,K.;Engelhardt,B.;Sabato,S.;andScarlett,
+promptforvision-languagemodels.InternationalJournalofCom-
+J.,eds.,Proceedingsofthe40thInternationalConferenceonMa-
+puterVision,130(9):2337–2348. 4,5,11
+chineLearning,volume202ofProceedingsofMachineLearning
+Research,31716–31731.PMLR. 4SupplementaryMaterial Method Prompt Params %CLIP
+This section contains supplementary material that provides CoOP L 2048 0.002
+additionaldetailsforthemainpaperandfurtherexperimen- CoCoOP L 35360 0.03
+VP V 69840 0.06
+talanalysis.Thissectionoutlinesthecontentsinthefollow-
+VPT V 15.51M 12.51
+ingorder. MaPLe V-L 3.5M 2.83
+• Preliminarystudies(AppendixA). LaViP(Avg) V-L 0.221M 0.18
+• Experimentalsetting(AppendinxB)
+Table 5: Number of trainable parameters used in existing
+• Optimizinginagradient-freeenvironment(AppendixC). methods
+• Additionalablationexperiments(AppendixD).
+A Preliminary and VPT). Therefore, to use the visual prompting method
+a new design paradigm that can promote the alignment be-
+Wefirstprovideabriefintroductiontowhyvisualprompting
+tween visio-language modalities is essential. Thereby, we
+is challenging in VLMs compared to text prompting, then
+proposevisualpromptingbyleveragingthelanguageknowl-
+wediscussthemechanismofCLIPandfinallydiscusshow
+edgeembeddedinCLIP.
+visualpromptingworks.
+A.2 CLIP
+A.1 WhyVisualpromptingischallengingin
+OurapproachisbasedonCLIPwhichisapre-trainedvision
+CLIP?
+language model that uses vision and text encoder to align
+Imagesareoftenhigh-dimensionaldatawithrichvisualcues the two input modalities. We evaluate LaViP using ViT-
+and more variability, whereas text data can be more struc- basedCLIPtomakeafaircomparisonwithpreviousvisual
+turedandsymbolic.Thisnatureofdatacanaffecthowfast promptingmethods.LaViPoptimizestheinputtransforma-
+andeffectivelymodelslearnandoptimize,particularlyifthe tionsimilartoMR,thereforeitcanbeusedwithvision-only
+training data is limited. By the asymmetric design of CLIP models provided text embeddings and output are available.
+imagesandtextencoders,theirparametersinfluencetheca- Below,weexpandourdiscussionusingViT-basedCLIPar-
+pacity of adapters to learn from a few data. With a large chitecture.
+numberofparametersofimageencodersinCLIPasshown
+Image Encoding: The image encoder V consists of K
+in Figure 3, they may require more data and time to learn enc
+transformer layers {V }N input dimension of d and
+complex patterns and optimize them effectively. Once pre- enci i=1 v
+output dimension of d . The input image is split into M
+trained, finetuning the vision encoder fully or partially has vl
+fixed-size patches using a CNN layer, and then the patches
+thepotentialriskoffailingtopreservethelearnedpatterns.
+are projected to linear embeddings e ∈ R . The em-
+0 M×dv
+beddings from the previous layer are passed on to the next
+transformerlayer,alongwithalearnableclasstokenc ,and
+i
+then processed sequentially through N transformer layers.
+Imagepatchesaretreatedthesamewayastokensdescribed
+in[Transformer.]
+Fori=1,2,··· ,K
+[c ,E ]=V ([c ,E ]) (7)
+i i enci i−1 i−1
+The class token of the final transformer layer,c is pro-
+N
+jected to a shared vision-language embedding space via a
+ImageProjtoformI .
+proj
+I =ImageProj(c ); I ∈R (8)
+proj k proj dvl
+Text Encoding: CLIP text encoder T consist of K
+enc
+transformer layers with input dimension of d and output
+l
+dimension of d . It first tokenizes the words to n tokens
+vl
+and then maps them to corresponding token embeddings
+W
+0
+∈ RN×dl. Token embeddings from the previous layer
+Figure3:Numberofparametersinvisualandtextencoders
+arepassedtothenexttransformerlayerandsequentiallypro-
+ofCLIPvariants(Radfordetal.2021)
+cessedthroughKtransformerlayers.
+Fori=1,2,··· ,K
+Table 5 shows several learnable parameters used by dif-
+[W ]=T ([c ,E ]) (9)
+ferent prompt learning methods. We note that, despite tun- i enci i−2 i−1
+ing a few parameters, language prompt learning methods The final token of the T transformer layer is pro-
+encK
+suchasCoOPandCoOPexhibitstrongperformanceonfew- jected into shared vision-language embedding space via a
+shot learning compared to visual prompting methods(VP TextProjtoformT .
+projdownstreamtasks.Toconductourexperiments,weutilized
+T =TextProj(c ); T ∈R (10) thepubliclyavailablevisionlanguagemodelCLIP(Radford
+proj k proj dvl
+etal.2021).Tomakeafaircomparisonwithpreviousartsfor
+Aligining Vision and Language projection: Once the
+theunderlyingimageencoder,wechosetheViT-b/16(Doso-
+image projection I and language projection T
+proj proj vitskiyetal.2020)withdimensionsd=512,asourdefault
+are obtained, they are ℓ -normalized and a similarity
+2 option.Throughoutthetrainingphase,welefttheentirepa-
+score(sim(·)) iscomputed betweenthe normalizedprojec-
+rameters of CLIP architecture and refrained from making
+tions. Both the contrastive learning processes (i.e. V → L
+any structural adjustments. Our focus is solely on optimiz-
+and L → V ) are regarded as symmetrical operations and
+ingthepromptlearnerP externally.
+theyareusedjointlyoptimizedduringthetrainingphase.
+Zero-shotClasssification Forthezero-shotclassification B.2 BaselineMethods
+task, A set of hand-crafted prompts are used:“a photo
+1) CLIP Zero-Shot(ZS): CLIP learns a robust shared latent
+of a ⟨class⟩”)withclasslabelsy ∈{1,2,...C}.Topre-
+space by aligning vision-language modalities through con-
+dicttheoutput,thesim(·)scorebetweentheimageinstance
+trastivelearningonnearly400millionimage-textpairs,en-
+and the prompts from all the class labels is calculated. and
+ablinganexcellentgeneralizationability.Weaimtoimprove
+the final score is adjusted using a scaling temperature pa-
+CLIP’szero-shotperformancefornewtasks.2)VP:(Bahng
+rameterτ.Thepredictedoutputyˆistheonewiththehighest
+et al. 2022) proposed VP to adapt VLMs by learning pixel
+sim(·)score.
+space prompts. It uses universal visual prompts for all im-
+ages.OuralgorithmexpandstheVPintwosignificantways:
+exp(sim(I ,Tyˆ )/τ) 1)Creatingpromptsthataretailoredtotheinputand2)Us-
+p(yˆ|I )= proj proj (11) ing language supervision to enhance the synergy between
+proj (cid:80)C
+i=1exp(sim(I proj,T proj)) thevision-languagemodalities.
+A.3 RevisitingVisualPrompting
+B.3 Datasets
+StudiesinNLPexploredpromptlearningasamethodtocal-
+We follow the CoOP (Zhou et al. 2022b), VP (Bahng
+ibretheinputsofpre-trainedlanguagemodelstonewtasks.
+et al. 2022) and BlackVIP (Oh et al. 2023) and eval-
+This motivates the use of prompt learning methods to ex-
+uate our method on different image recognition datasets
+ploit the knowledge of VLMs. Studies such as CoOP learn
+across a diverse range of tasks. This includes: General im-
+toadapttothelanguagebranch,whileVPlearnstoadaptto
+ages Caltech101 (Fei-Fei, Fergus, and Perona 2004); fine-
+thevisionbranch.
+graineddatasets,OxfordPets(Parkhietal.2012),Stanford-
+Below, we discuss the shared rationale behind these con-
+Cars(Krauseetal.2013),Flowers102(NilsbackandZisser-
+cepts in adapting pre-trained models. Given a frozen PTM
+man 2008), Food101 (Bossard, Guillaumin, and Van Gool
+F andatargetdatasetD ={(x ,y ),...,(x ,y )},theob-
+1 1 k k 2014),andFGVCAircraft(Majietal.2013);ascenerecog-
+jectiveistotrainapromptlearner(P)suchthatitgenerates
+nition dataset SUN397 (Xiao et al. 2010); an action recog-
+perturbationininputspaceΦ ,parameterizedbylearnable
+W nition dataset UCF101 (Soomro, Zamir, and Shah 2012);
+parametersW ofP.Thegeneratedperturbationisattached
+a texture dataset DTD (Cimpoi et al. 2014) and a satellite
+totheinputbeforefeedingtothepre-trainedmodel.
+image datasets EuroSAT (Helber et al. 2019b); an remote
+sensing scene recognition dataset RESISC45 (Cheng, Han,
+X =X+Φ (12)
+prompted W and Lu 2017), visual reasoning dataset CLEVR (Johnson
+During training, the P is learned to maximize the likeli- etal.2017),andlow-resolutiondatasetsSVHN(Netzeretal.
+hoodofthecorrectlabely, 2011),CIFAR10 and CIFAR100 (Krizhevsky, Hinton et al.
+2009).Weconductourexperimentsusingdatasplitprovided
+maxΦ (y|X+Φ ) (13)
+W W W by(Zhouetal.2022b;Ohetal.2023).Forfew-shotlearning
+experiments,weuse16-shotforthetrainset,4-shotforthe
+whilethegradientupdatesareappliedonlytoP.Duringthe
+validationset,andthewholetestset.
+evaluation, the optimized parameters W∗ of P are used to
+generate a prompt to the input and added to all the input
+B.4 ImplementationDetails
+instances.
+We use the default padding of size 28 for all our experi-
+X ={x +ϕ ,...,x +ϕ } (14)
+test 1 w m w mentsbasedontheassessmentofvariouspaddingsizesand
+CoOPstyletransformationtoresizetheimageforCLIP.All
+Given the perceptual variability of images and semantic
+the experiments run consist of 300 epochs run on a single
+abstraction of textual descriptions, we assert that prompt
+NVIDIARTXA5500GPU,withbatchsize64forfew-shot
+learningmethodsneedtobeadaptableforinputdisparity.
+learning and 128 for full-set transfer learning. For the sake
+B ExperimentalSetting ofsimplicityinourfew-shottransferlearningexperiments,
+wesetr = K andr = 32forP parameterswhendealing
+B
+B.1 BackboneModel
+with datasets featuring over 15 classes. For other datasets,
+The primary focus of this work is directed towards achiev- wesetr = 64(includingSUN397).Inthecontextofbase-
+ing robust adaptation of pre-trained V-L models to diverse to-domaingeneralizationexperiments,bothrandr areset
+Bat 32. We used SGD with a learning rate of 1.0 for all the Here, a represents the learning rate and c represents the
+i i
+datasets,exceptforStanfordCars,whereweutilizearateof perturbationscale,withspecificvaluesassignedasfollows:
+0.1.Thefinalcheckpointisconsistentlyusedforevaluating
+total a steps
+our algorithm’s performance on the test set throughout all α=0.4,a=0.01,γ =0.2,o= i andc=0.005
+π
+experiments.Toensurereproducibilityinourfew-shottrain-
+4
+ingexperiments,performanceevaluationreliesoncalculat-
+ingaverageaccuracyacrossthreedistinctrandomseeds.
+C.2 Base-to-NovelGeneralization
+C OptimizinginaGradientFree
+Figure 4 compares BlackLaViP models in the context of
+Environment
+generalization towards base-to-novel tasks. While it might
+Itisimportanttoacknowledgethataccessingtheparameters fall short in comparison to other models in terms of per-
+ofPTMsisnotalwaysattainable,whichcreatesachallenge formance,itisworthnotingthatBlackLaViPhasdisplayed
+foradaptingthemtospecificdownstreamtasks.Adaptingin notable improvement over the CoCoOp model in the case
+agradient-freeenvironmentischallengingbecauseefficient of the EuroSAT and FGVCAircraft datasets, and exhibits
+search through the parameter space is hindered, leading to marginally less on Caltech101 and OxfordPets. Moreover,
+potentiallyslowandsuboptimaloutcomesandreliablefeed- it outperforms CoOp in 6 out of 10 datasets. We consider
+backisoftenlimitedorabsent,makingithardtodetermine these outcomes to be strong indicators that the incorpora-
+theeffectivenessoflearningstrategies. tion of language context holds the potential to mitigate the
+In this section, we provide the details of BlackLaViP, limitations observed in previous black-box models when it
+the gradient-free variant of LaViP. BlackLaViP utilizes Si- comestogeneralizingtounseenclasses.
+multaneousPerturbationStochasticApproximation(SPSA) We would like to emphasize that the experiment was
+algorithm(Spall1992,2000).SPSAapproximatethegradi- conducted with the sole intention of providing evidence
+entofhighdimensionaltensorsbyevaluatingthedifference forLaViPperformancewithinagradient-freeenvironment.
+between loss value under forward and backward perturba- Thisdemonstrationholdssubstantialimplicationsforfuture
+tion. Given the positive decaying sequences of a > 0 and research, specifically in the realm of integrating language
+i
+c ∈ [0,1], the gradient approximation, gˆ, and single-step contextintovisualpromptingforblack-boxtraining.While
+i
+parameterupdateofSPSAisdescribedasfollows: theremightbeasmalllossofaccuracy,thetrade-offismore
+than justified by the advantage of achieving rapid conver-
+L(ϕ +c ∆ )−L(ϕ −c ∆ ) genceandsetsapromisingdirectionforexploringscenarios
+gˆ(ϕ )= wi i i wi i i (15)
+i wi 2c ∆ wherefasterconvergenceisofparamountimportancewitha
+i i
+smalltradeoffofaccuracy.
+ϕ wi+1 =ϕ wi −a igˆ i(ϕ wi) (16) D AdditionalAblationStudies
+where L is the loss function, ϕ ∈ Rd is d-dimensional D.1 AlternateTextPromptTemplates
+w
+learnable parameters, and ∆ ∈ Rd is an i-th step random Weevaluatetheeffectofcontextwordsontheperformance
+i
+perturbation vector, sampled from mean-zero distributions. of LaViP. Table 7 presents the effect of utilizing different
+Utilizing two consecutive forward evaluations, the SPSA text prompt templates on LaVIP’s performance. We em-
+interprets the estimated gradient through the difference in ployed two distinct prompt template types across the se-
+model output. This unique approach empowers us to opti- lecteddatasets.
+mize BlackLaViP’s parameters ϕ without the reliance on
+w • Base Prompt: Use same prompt template across all
+backpropagation.
+datasets:“a photo of a{}”
+• Custom Prompts: Building upon the base prompt tem-
+C.1 ImplementationDetails
+plate,integratecontext-specificvisualtokens,asdetailed
+We opt for r = 8 and r = 32 to effectively reduce the inTable6
+B
+parameters,runallexperimentsfor300epochsandevaluate
+LaViP surpasses CLIP Zero-Shot prediction by a more
+themodelonthelastcheckpoint.Wehaveusedparameters,
+significant margin when employing the base template.
+perturbationdistribution,andschedulersproposedbyBlack-
+The inclusion of context-specific visual tokens further ele-
+VIP.
+vates performance. The results underscore the significance
+of language-grounded visual prompts in aligning vision-
+a languagemodalities.
+a =
+i (step +o)α
+i
+c D.2 LanguageIntegrationHelpsDomainShift
+c =
+i stepγ WeevaluateLaViPondatasetscharacterizedbylessgeneric
+i
+concepts and varying levels of perceptual diversity. in Fig-
+total a steps=TotalEpochs×len(dataloader)
+i ure 5, we show the percentage of improvement achieved
+byLaViPoverzero-shotCLIP.Notably,LaViPconsistentlyFigure 4: Performance of BlackLaViP on base-to-novel generalization.Despite trailing behind other methods, BlackLaViP
+outperforms CoCoOp on EuroSAT and FGVCAircraft datasets. The best Harmonic Mean (HM) values on each dataset are
+bolded.
+Figure 5: Classification improvement of LaViP as domain
+shiftincrease(→)frompretrainingdatasetofCLIP
+Figure 6: Average performance changes with different
+outperforms when applied to datasets where domain shift padding sizes. Using a moderate prompt size resulted in
+from the pretraining dataset is more pronounced. LaViP anoverallimprovement(LaViPusesp = 28).LaViPoutper-
+surpasses CLIP Zero-Shot prediction by a more signifi- formsCLIPzero-shotpredictionbyasignificantmarginon
+cant margin when employing the base template. The inclu- testpaddingsizes.
+sionofcontext-specificvisualtokensfurtherelevatesperfor-
+mance.Theresultsunderscorethesignificanceoflanguage-
+groundedvisualpromptsinaligningvision-languagemodal-
+sual prompting. Figure 6 illustrates the effect of padding
+ities.
+sizepofLaViP.TheaverageperformanceofLaViPexhibits
+fluctuationsinresponsetodifferentpaddingsizes.itisevi-
+D.3 ImpactofHyperparameters(a,b,r)
+dentthatourlanguage-groundedvisualpromptsconsistently
+Table8presentstheresultobtainedfrom5distinctdatasets outperform the zero-shot CLIP approach across all tested
+for varying r. LaViP robustly performs on these datasets paddingsizes.Thiscleartrendhighlightstheefficacyofour
+when selecting r such that r ∈ [16,96] The effect of a,b model. Motivated by the ability to enhance overall perfor-
+can be studied by varying the size of padding used for vi- manceacrossalldatasetsinourexperiments,weselectedaDataset Classes Parameters(M) PromptTemplate
+Caltech 100 0.273 “aphotoofa{}.”
+Pets 37 0.198 “aphotoofa{},abreedofpet.”
+Cars 196 0.403 “aphotoofacarmodel{}.”
+Flowers 102 0.276 “avibrantphotoofa{},atypeofflower.”
+Food 101 0.275 “aclose-upphotoshowingdeliciousdetailsof{},atypeoffood.”
+Aircraft 100 0.273 “aphotoofanaircraft{}.”
+SUN 397 0.221 “aphotoshowinggoodviewofa{}location.”
+DTD 47 0.210 “aphotoshowingfinepatternsofa{}-texturedsurface.”
+SVHN 10 0.221 “apixelatedstreetsignofthenumber{}.”
+EuroSAT 10 0.221 “aphotoofcenteredsatellitetop-downview{}location.”
+RESISC 45 0.207 “asatelliteimageryofa{}location.”
+CLEVR 8 0.221 “aphotoof{}coloredobjects.”
+UCF 101 0.275 “aphotoofapersonactivelyengagedin{}.”
+CIFAR10 10 0.221 “apixelatedphotoofa{}.”
+CIFAR100 100 0.273 “apixelatedphotoofa{}.”
+Table6:NumberofparametersandthetextprompttemplateusedinLaViP
+Method Caltech101 DTD Flowers102 OxfordPets EuroSAT UCF101 Avg. Source Target
+Z LVS aP
+ViP-Base
+8 9 99 4 5. . .3 2
+0
+4 6 66 1 7. . .0 9
+7
+7 8 90 6 6. . .4 9
+2
+8 9 98 0 0. . .9 2
+3
+5 9 84 0 6. . .1 8
+0
+6 7 89 4 1. . .8 2
+1
+6 8 89 3 6. . .7 0 05 3
+5
+ImageNet Caltech101 OxfordPets StanfordCars Flowers102 Food101 FGVCAircraft SUN397
+DTD
+EuroSAT UCF101 Average
+LaViP(Ours) 95.0 68.8 96.3 91.2 86.2 81.3 86.47 CoOp 71.51 93.70 89.14 64.51 68.71 85.30 18.47 64.15 41.92 46.39 66.55 63.88
+Co-CoOp 71.02 94.43 90.14 65.32 71.88 86.06 22.94 67.36 45.73 45.37 68.21 65.74
+MaPLe 70.72 93.53 90.49 65.57 72.23 86.20 24.74 67.01 46.49 48.06 68.69 66.30
+Table 7: Comparison of performance when using different LaViP(Ours) 65.97 93.10 89.63 64.87 70.53 85.73 25.23 63.47 46.30 58.87 68.17 66.53
+textprompttemplates
+Table 10: Comparison of LaViP with previous methods on
+cross-datasetevaluation.
+Dataset 1 2 4 8 16 32 64 96 LaViP(Ours)
+Caltech101 33.3 33.5 34.3 34.7 94.5 94.9 94.9 94.9 95.0
+DTD 31.1 50.3 49.1 60.2 64.6 68.6 68.8 67.7 68.8
+EuroSAT 77.2 78.7 79.9 85.0 85.7 84.0 86.1 84.3 86.1 due to information loss when upscaling them(SVHN, CI-
+Flowers102 44.7 49.2 26.6 88.8 93.8 95.2 96.2 96.1 96.3
+FAR10,CIFAR100).Incaseswhereconceptdiversityisel-
+OxfordPets 89.6 90.4 90.8 90.9 90.5 91.2 90.8 90.8 91.2
+evated(suchasCIFAR10andCIFAR100),theutilizationof
+Average 55.17 60.42 56.15 71.90 85.83 86.77 87.36 86.77 87.48
+asingleprompttemplateproveslesseffectiveinaccommo-
+Table 8: Performance of LaViP on 5 distinct datasets with datingthewiderangeofcontextsinherenttotheseconcepts.
+varyingr. Moreover, when the semantic variability of images(PCam)
+isdiminished,thelanguagetemplatefailstooffermeaning-
+fulcontextinformationthatcouldfacilitateimprovedinter-
+padding size of 28. Our decision also aligned with the ob- action.
+servationpreviouslyreportedbytheVP.
+D.5 LaViPadaptabilitytoCLIPvariants
+D.4 LimitationsofLaviP We evaluate to assess the compatibility of LaViP with
+the CNN and ViT backbones, available in CLIP. Table 12
+Table9showstheperformanceofLaViPonlow-resolution
+presentstheoutcomesfortheDTDdataset,whereinalearn-
+datasets compared to CLIP and VP. We hypothesize that
+ing rate of 0.01 was used for RN50 and RN101. The table
+the observed characteristic of LaViP can be attributed to
+reveals that LaViP surpasses 2 out of 3 of the tested vari-
+the challenge of context tokens failing to establish mean-
+ants,includingtheCNNbackbone.ComparedtoVP,LaViP
+ingful interactions with the semantic content of the images
+achievesanabsolutegainof8.5%overCLIPzeroshotwith
+anoptimizationthatismorethan3×faster.Thisresulthigh-
+lightsthatLaViPcanseamlesslyadapttodiversebackbone
+Method SVHN CIFAR10 CIFAR100 PCam
+architectures while maintaining or even improving perfor-
+ZS 35.3 91.6 68.7 48.1
+VP 60.4 73.2 49.9 73.1 mance.
+LaViP(ours) 58.9 75.6 43.8 68.2
+D.6 Cross-datasetGeneralization
+Table 9: Classification accuracy on datasets with images
+Wetestthecross-datasetgeneralizationabilityofLaViPby
+having low-resolution, and less semantic variation. LaViP
+learning visual prompts on all the 1000 Imagenet (Deng
+fallsshortondatasetsthathave(a)lowresolution(b)more
+et al. 2009) classes and transferring it to the remaining
+genericconcepts(c)lesssemanticvariation.
+datasetsusingourKroneckerproductknowledgefusion.Ta-Source Target
+ImageNet ImageNetV2 Imagenet-S ImageNet-A ImageNet-R
+CLIP 66.73 60.83 46.15 47.77 73.96
+CoOp 71.51 64.20 47.99 49.71 75.21
+Co-CoOp 71.02 64.07 48.75 50.63 76.18
+MaPLe 70.72 64.07 49.15 50.90 76.98
+LaViP(Ours) 65.95 61.60 47.23 48.91 83.93
+Table11:ComparisonofLaViPwithexistingapproachesin
+thedomaingeneralizationsetting.
+Method RN50 RN101 ViT-B/16 Avg.
+ZS 41.7 43.9 46.0 43.87
+VP 46.0 33.3 61.9 47.07
+LaViP(Ours) 42.2 46.1 68.8 52.37
+Table12:ExperimentstudyforbackbonevariantofCLIPon
+thefew-shotlearningtask.ClassificationaccuracyonDTD
+acrosspre-trainedbackbonearchitecturesofCLIPincluding
+theCNNandViT.
+ble 10 shows the performance comparison between LaVIP,
+CoOp, CoCoOp and MaPLe. On the ImageNet, the perfor-
+manceofLaViPissuboptimal.Wehypothesizethisisdueto
+thedomainofImageNethavingastrongcorrelationwiththe
+pretraining dataset of CLIP. We used NVIDIA A100 GPU
+forthisexperimentwithbatchsize64andprompttemplate
+“a cropped photo of a < class >”
+D.7 DomainGeneralization
+TounderstandthedomaingeneralizationofLaViP,wetrans-
+fer the ImageNet mode to various out-of-domain (OOD)
+datasets. Table11 shows the comparison of domain gener-
+alizationcapabilityofLaViPcomparedtoCLIP,CoOp,Co-
+CoOpandMaPLe.TheperformanceoftheImagNetdataset
+impactstheperformanceofOODdatasets.

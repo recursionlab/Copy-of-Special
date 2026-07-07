@@ -1,0 +1,1192 @@
+Interleaving Retrieval with Chain-of-Thought Reasoning
+for Knowledge-Intensive Multi-Step Questions
+HarshTrivedi† NiranjanBalasubramanian† TusharKhot‡ AshishSabharwal‡
+†StonyBrookUniversity ‡AllenInstituteforAI
+StonyBrook,U.S.A. Seattle,U.S.A.
+{hjtrivedi,niranjan}@cs.stonybrook.edu {tushark,ashishs}@allenai.org
+Abstract
+In what country was
+Lost Gravity manufactured?
+Prompting-based large language models
+(LLMs) are surprisingly powerful at gener-
+cumulate docs
+ating natural language reasoning steps or
+Chains-of-Thoughts (CoT) for multi-step
+The Lost Gravity was
+question answering (QA). They struggle,
+manufactured by Mack Rides.
+however, when the necessary knowledge is
+eitherunavailabletotheLLMornotup-to-date cumulate docs
+withinitsparameters. Whileusingthequestion
+to retrieve relevant text from an external
+Mack Rides is a company
+knowledge source helps LLMs, we observe
+from Germany.
+that this one-step retrieve-and-read approach
+is insufficient for multi-step QA. Here, what cumulate docs
+to retrieve depends on what has already
+been derived, which in turn may depend on
+The answer is Germany.
+what was previously retrieved. To address
+this, we propose IRCoT, a new approach
+for multi-step QA that interleaves retrieval Figure 1: IRCoT interleaves chain-of-thought (CoT)
+with steps (sentences) in a CoT, guiding the generation and knowledge retrieval steps in order to
+retrievalwithCoTandinturnusingretrieved guidetheretrievalbyCoTandvice-versa. Thisinter-
+results to improve CoT. Using IRCoT with leavingallowsretrievingmorerelevantinformationfor
+GPT3 substantially improves retrieval (up to laterreasoningsteps,comparedtostandardretrievalus-
+21 points) as well as downstream QA (up ingsolelythequestionasthequery.
+to 15 points) on four datasets: HotpotQA,
+2WikiMultihopQA,MuSiQue,andIIRC.We
+observe similar substantial gains in out-of-
+However,formanyopen-domainquestions,allre-
+distribution (OOD) settings as well as with
+quiredknowledgeisnotalwaysavailableorup-to-
+much smaller models such as Flan-T5-large
+date in models’ parameters and it’s beneficial to
+without additional training. IRCoT reduces
+retrieveknowledgefromexternalsources(Lazari-
+model hallucination, resulting in factually
+moreaccurateCoTreasoning.1. douetal.,2022;Kasaietal.,2022).
+Howcanweaugmentchain-of-thoughtprompt-
+1 Introduction
+ing for open-domain, knowledge-intensive tasks
+Large language models are capable of answer- thatrequirecomplex,multi-stepreasoning?
+ing complex questions by generating step-by- While a one-shot retrieval from a knowledge
+step natural language reasoning steps—so called source based solely on the question can success-
+chainsofthoughts(CoT)—whenpromptedappro- fully augment LMs with relevant knowledge for
+priately(Weietal.,2022). Thisapproachhasbeen manyfactoid-basedtasks(Lewisetal.,2020;Guu
+successfulwhenallinformationneededtoanswer et al., 2020; Borgeaud et al., 2022; Izacard et al.,
+thequestioniseitherprovidedascontext(e.g.,al- 2022),thisstrategyhasclearlimitationsformore
+gebra questions) or assumed to be present in the complexmulti-stepreasoningquestions. Forsuch
+model’sparameters(e.g.,commonsensereasoning). questions, one often must retrieve partial knowl-
+edge,performpartialreasoning,retrieveadditional
+1Code, data, and prompts are available at https://
+github.com/stonybrooknlp/ircot information based on the outcome of the partial
+3202
+nuJ
+32
+]LC.sc[
+2v90501.2122:viXrareasoningdonesofar,anditerate. Asanexample, strate that retrieval using IRCoT is substantially
+considerthequestionillustratedinFig.1,“Inwhat moreeffectivethanthebaseline,one-step,question-
+country was Lost Gravity manufactured?”. The basedretrievalby11-21recallpointsunderafixed-
+Wikipediadocumentretrievedusingthequestion budgetoptimalrecallsetup.3 WhenIRCoTisused
+(inparticular,therollercoasterLostGravity)asthe in conjunction with a prompting-based reader, it
+query does not mention where Lost Gravity was alsoleadstosubstantialimprovement(upto15F1
+manufactured. Instead, one must first infer that points)indownstreamfew-shotQAperformance
+it was manufactured by a company called Mack and reduces factual errors in generated CoT by
+Rides, and then perform further retrieval, guided up to 50%. Our approach also works on much
+bytheinferredcompanyname,toobtainevidence smallerFlan-T5models(11B,3B,and0.7B)show-
+pointingtothemanufacturingcountry. ingsimilartrends. Inparticular,wefindQAusing
+Thus,theretrievalandreasoningstepsmustin- Flan-T5-XL (3B) with IRCoT even outperforms
+formeachother. Withoutretrieval,amodelislikely the 58X larger GPT3 with a one-step question-
+togenerateanincorrectreasoningstepduetohallu- basedretrieval. Furthermore,theseimprovements
+cination. Additionally,withoutgeneratingthefirst alsoholdupinanout-of-distribution(OOD)setting
+reasoningstep,thetextsupportingthesecondstep wherethedemonstrationsfromonedatasetareused
+can’tbeidentifiedeasilygiventhelackoflexicalor when testing on another dataset. Lastly, we note
+evensemanticoverlapwiththequestion. Inother thatourQAscoresexceedthosereportedbyrecent
+words,weneedretrievedfactsinordertogenerate worksonfew-shotpromptingforopen-domainQA
+factuallycorrectreasoningstepsandthereasoning (ODQA)(Khotetal.,2023;Pressetal.,2022;Yao
+stepstoretrieverelevantfacts. etal.,2022),althoughafairapples-to-applescom-
+Basedonthisintuition,weproposeaninterleav- parisonwiththemisn’tpossible(cf.AppendixC).
+ingapproachtothisproblem,wheretheideaisto Insummary,ourmaincontributionisanovelre-
+use retrieval to guide the chain-of-thought (CoT) trievalmethod,IRCoT,thatleveragesLMs’chain-
+reasoningstepsanduseCoTreasoningtoguidethe of-thoughtgenerationcapabilitiestoguideretrieval
+retrieval. Fig.1showsanoverviewofourretrieval andusesretrievalinturntoimproveCoTreasoning.
+method, which we call IRCoT.2 We begin by re- WedemonstratethatIRCoT:
+trievingabasesetofparagraphsusingthequestion 1. improvesbothretrievalandfew-shotQAper-
+asaquery. Subsequently,wealternatebetweenthe formanceonseveralmulti-stepopen-domain
+followingtwosteps: (i)extendCoT:usetheques- QAdatasets,inbothIIDandOODsettings;
+tion,theparagraphscollectedthusfar,andtheCoT 2. reducesfactualerrorsingeneratedCoTs;and
+sentences generated thus far to generate the next 3. improvesperformancewithbothlarge-scale
+CoT sentence; (ii) expand retrieved information: (175Bmodels)aswellassmaller-scalemod-
+use the last CoT sentence as a query to retrieve els(Flan-T5-*,≤11B)withoutanytraining.
+additional paragraphs to add to the collected set.
+We repeat these steps till the CoT reports an an- 2 RelatedWork
+swer or we reach the maximum allowed number
+Prompting for Open-Domain QA. LLMs can
+ofreasoningsteps. Upontermination,allcollected
+learn various tasks by simply using a few exam-
+paragraphs are returned as the retrieval outcome.
+ples as prompts (Brown et al., 2020). They’ve
+Finally,weusetheseasthecontextforanswering
+also been shown to answer complex questions
+thequestionviadirectQAprompting(Brownetal.,
+by producing step-by-step reasoning (chain-of-
+2020)orCoTprompting(Weietal.,2022).
+thoughts, or CoT) when prompted with a few or
+We evaluate the efficacy of our system
+zerodemonstrations(Weietal.,2022;Kojimaetal.,
+on 4 multi-step reasoning datasets under an
+2022). Promptinghasbeenappliedtoopen-domain
+open-domain setting: HotpotQA (Yang et al.,
+QA (Lazaridou et al., 2022; Sun et al., 2022; Yu
+2018), 2WikiMultihopQA (Ho et al., 2020),
+etal.,2023)butitsvalueinimprovingretrievaland
+MuSiQue (Trivedi et al., 2022), and IIRC (Fer-
+QAformulti-stepopen-domainquestionsremains
+gusonetal.,2020). OurexperimentsusingOpenAI
+relativelyunderexplored.
+GPT3 (code-davinci-002) (Brown et al., 2020;
+Ouyang et al., 2022; Chen et al., 2021) demon- 3Weexplainlater(intheMetricsectionandFootnote7)
+theappropriatenessofthismetricinoursettingasopposedto
+2InterleavedRetrievalguidedbyChain-of-Thought. moremainstreaminformationrecallmetrics.Recentlythreeapproacheshavebeenproposed 3 Chain-of-Thought-GuidedRetrieval
+for multi-step open-domain QA. SelfAsk (Press andOpen-DomainQA
+etal.,2022)promptsLLMstodecomposeaques-
+Ourgoalistoansweraknowledge-intensivemulti-
+tionintosubquestionsandanswerssubquestionsby
+step reasoning question Q in a few-shot setting
+acalltoGoogleSearchAPI.DecomP(Khotetal.,
+by using a knowledge source containing a large
+2023) is a general framework that decomposes a
+number of documents. To do this we follow a
+task and delegates sub-tasks to appropriate sub-
+retrieve-and-readparadigm(Zhuetal.,2021),
+models. Theyalsodecomposequestionsbutdele-
+wheretheretrieverfirstretrievesdocumentsfrom
+gateretrievaltoaBM25-basedretriever. Bothof
+theknowledgesourceandtheQAmodelreadsthe
+theseapproachesarenotdevelopedforCoTreason-
+retrieveddocumentsandthequestiontogenerate
+ing,donotfocusontheretrievalproblem,andre-
+thefinalanswer. Ourcontributionismainlyinthe
+quireasingle-hopQAmodeltoanswerthedecom-
+retrievestep(§3.1),andweusestandardprompt-
+posed questions. Recently proposed ReAct (Yao
+ingstrategiesforthereadstep(§3.2).
+etal.,2022)systemframestheproblemasgenerat-
+As noted earlier, for multi-step reasoning, re-
+ingasequenceofreasoningandactionsteps. These
+trieval can help guide the next reasoning step,
+stepsaremuchmorecomplex,relyonmuchlarger
+whichinturncaninformwhattoretrievenext. This
+models (PaLM-540B), and require fine-tuning to
+motivatesourinterleavingstrategy,discussednext.
+outperform CoT for multi-step ODQA. Further-
+more,noneoftheseworkshavebeenshowntobe
+3.1 InterleavingRetrievalwith
+effectiveforsmallermodelswithoutanytraining.
+Chain-of-ThoughtReasoning
+Whileadirectcomparisonwiththeseapproachesis
+notstraightforward(differenceinknowledgecor- Our proposed retriever method, IRCoT, can be
+pus, LLMs, examples), we find that our ODQA instantiated from the following three ingredients:
+performanceismuchhigherthanalltheirreported (i) a base retriever that can take a query and re-
+numberswhereavailable(§5). turnagivennumberofparagraphsfromacorpus
+or knowledge source; (ii) a language model with
+Supervised Multi-Step Open-Domain QA. zero/few-shotChain-of-Thought(CoT)generation
+Prior work has explored iterative retrieval for capabilities;and(iii)asmallnumberofannotated
+open-domainQAinafullysupervisedsetting. Das questionswithreasoningstepsexplaininghowto
+etal.(2019)proposesaniterativeretrievalmodel arriveattheanswerinnaturallanguage(chainof
+that retrieves using a neural query representation thoughts)andasetofparagraphsfromtheknowl-
+and then updates it based on a reading compre- edgesourcethatcollectivelysupportthereasoning
+hension model’s output. Feldman and El-Yaniv chainandtheanswer.
+(2019) apply similar neural query reformulation The overview of IRCoT is given in Fig. 2. We
+idea for multihop open-domain QA. Xiong et al. firstgatherabasesetofparagraphsbyretrievingK
+(2021) extends the widely-used Dense Passage paragraphsusingthequestionQasthequery. Then,
+Retrieval (DPR) (Karpukhin et al., 2020) to we interleave two steps (reason and retrieve)
+multihopsetting,whichhassincebeenimproved iterativelyuntiltheterminationcriterionismet.
+by Khattab et al. (2021). Asai et al. (2020) The retrieval-guided reasoning step (“Rea-
+leveragesthegraphstructureinducedbytheentity son”) generates the next CoT sentence using the
+linkspresentinWikipediaparagraphstoperform question, the paragraphs collected thus far, and
+iterativemulti-stepretrieval. GoldEn(GoldEntity) theCoTsentencesgeneratedthusfar. Theprompt
+retriever (Qi et al., 2019) iteratively generates templateforthetasklooksasfollows:
+text queries based on paragraphs retrieved from
+Wikipedia Title: <Page Title>
+an off-the-shelf retriever but requires training <Paragraph Text>
+data for this next query generator. Nakano et al. ...
+Wikipedia Title: <Page Title>
+(2021)usedGPT3toanswerlong-formquestions
+<Paragraph Text>
+by interacting with the browser but relied on
+Q: <Question>
+human annotations of these interactions. All of
+A: <CoT-Sent-1> ... <CoT-Sent-n>
+these methods rely on supervised training on a
+large-scaledatasetandcannotbeeasilyextended Forin-contextdemonstrations,weusethecom-
+toafew-shotsetting. pleteCoTintheaboveformat. Foratestinstance,Q Who wrote the 1970 international hit song that Murray Head is most recognized for? Retrieve( q )
+IRCoT Retrieve (Q) → q
+Interleaved Retrieval guided
+by Chain-of-Thought Reasoning
+T1 ← Reason (Q, , )
+The 1970 international hit song that Reason( Q , , T 1 )
+T1 Murray Head is most recognized for
+is "Super Star" Retrieve (T1) → Wikipedia Title: Mack Rides
+Mack Rides GmbH & Co KG, also ...
+T2 ← Reason (Q, + , T1) Q: In what country was
+Lost Gravity manufactured?
+"Super Star" was written by A: The Lost Gravity was manufactured by Mack
+T2 Rides. Mack Rides is a company from
+Andrew Lloyd Webber and Tim Rice. Retrieve (T2) → Germany. The answer is Germany.
+...
+Wikipedia Title: Murray Head
+Murray Seafield St George Head ..
+T3 ← Reason (Q, + + , T1+T2) ...
+So the answer is: Wikipedia Title: Most Beautifullest Hits
+T3 Andrew Lloyd Webber and Tim Rice. The Most Beautifullest Hits is ...
+Stop
+Q: Who wrote the 1970 international hit .. Q
+A: The 1970 international hit song that
+Murray Head is most recognized for
+is "Super Star". "Super Star" was written T1
++ + by. Andrew Lloyd Webber and Tim Rice.
+Figure2: IRCoTinterleaveschain-of-thought(CoT)generationandretrievalstepstoguidetheretrievalbyCoTand
+vice-versa. WestartbyretrievingK documentsusingthequestionastheyqueryandrepeattwostepsalternatingly
+untiltermination. (i)reason-stepgeneratesnextCoTsentencebasedonthequestion,sofarretrievedparagraphs,
+andCoTsentences. (ii)retrieve-stepretrievesK moreparagraphsbasedonthelastCoTsentence. Theprocess
+terminateswhenthegeneratedCoThas“answeris”orthenumberofstepsexceedsathreshold. Thecollectionof
+allparagraphsisreturnedastheretrievalresultonthetermination.
+we show the model only the CoT sentences gen- twoversionsoftheQAreaderimplementedviatwo
+erated thus far and let it complete the rest. Even promptingstrategies: CoT Promptingasproposed
+thoughthemodelmayoutputmultiplesentences, byWeietal.(2022),DirectPromptingasproposed
+foreachreason-step,weonlytakethefirstgen- byBrownetal.(2020). ForCoTprompting,weuse
+eratedsentenceanddiscardtherest. thesametemplateasshownin§3.2,butattesttime
+Fortheparagraphsinthein-contextdemonstra- we ask the model to generate the full CoT from
+tions,weuseground-truthsupportingparagraphs scratch. ThefinalsentenceofCoTisexpectedto
+andM randomlysampledparagraphsshuffledand beoftheform“answeris: ...”,sothattheanswer
+concatenated together in the above format. For a can be extracted programmatically. If it’s not in
+testinstance,weshowalltheparagraphscollected that form, the full generation is returned as the
+thusfaracrossallthepreviousretrieve-steps. answer. For Direct Prompting, we use the same
+IfthegeneratedCoTsentencehasthe“answer template as CoT Prompting but the answer field
+is:” stringorthemaximumnumberofsteps4 has (“A: ”) contains only the final answer instead of
+beenreached,weterminatetheprocessandreturn CoT.SeeApp.Gfordetails.
+allcollectedparagraphsastheretrievalresult.
+The CoT-guided retrieval step (“Retrieve”) 4 ExperimentalSetup
+uses the last generated CoT sentence as a query
+We evaluate our method on 4 multi-step
+toretrievemoreparagraphsandaddsthemtothe
+QA datasets in the open-domain setting:
+collectedparagraphs. Wecapthetotalnumberof
+collectedparagraphs5 soastofitinatleastafew HotpotQA (Yang et al., 2018), 2WikiMul-
+tihopQA (Ho et al., 2020), answerable subset of
+demonstrationsinthemodel’scontextlimit.
+MuSiQue (Trivedi et al., 2022), and answerable
+3.2 QuestionAnsweringReader subset of IIRC (Ferguson et al., 2020). For
+HotpotQA, we use the Wikipedia corpus that
+TheQAreaderanswersthequestionusingretrieved
+comes with it for the open-domain setting. For
+paragraphstakenfromtheretriever. Weconsider
+each of the other three datasets, which originally
+4setto8inourexperiments. comeinareadingcomprehensionormixedsetting,
+5setto15inourexperiments. we used the associated contexts to construct acorpus for our open-domain setting (see App. A Thereportedmetriccanthusbeviewedasthefixed-
+fordetails). Foreachdataset,weuse100randomly budgetoptimalrecallforeachsystemconsidered.7
+sampledquestionsfromtheoriginaldevelopment
+QA Reader. To implement the reader, we use
+set for tuning hyperparameters, and 500 other
+the same LMs as used in the reason-step of
+randomlysampledquestionsasourtestset.
+IRCoT Retriever. We found that QA readers im-
+plementedwithFlan-T5-*performbetterwiththe
+4.1 Models
+DirectPromptingstrategyandGPT3performsbet-
+Retriever. WeuseBM25(Robertsonetal.,2009) ter with CoT Prompting strategy (see App. E).
+implementedinElasticsearch6 asourbaseretriever. Hence we use Direct prompting strategy for QA
+Wecomparetworetrieversystems: withFlan-T5-*andCoTwithGPT3fortheexperi-
+(i) One-step Retriever (OneR) uses the ques- ments.8
+tionasaquerytoretrieveK paragraphs. Weselect TheQAreaderhasonehyperparameterM: the
+K ∈ {5,7,9,11,13,15}that’sbestonthedevset. numberofdistractorparagraphsinthein-context
+(ii) IRCoT Retriever is our method de- demonstrations. We search for M in {1,2,3}.
+scribed in §3. We use BM25 as its underly- When used in conjunction with IRCoT retriever
+ing retriever and experiment with OpenAI GPT3 M istiedfortheCoTgeneratorandthereader.
+(code-davinci-002)(Brownetal.,2020;Ouyang
+Open-DomainQA(ODQA)Models. Puttingre-
+etal.,2022;Chenetal.,2021)andFlan-T5(Chung
+trieversandreaderstogether,weexperimentwith
+etal.,2022)ofdifferentsizesasitsCoTgenerator.
+ODQA models constructed from the various lan-
+Fordemonstratingin-contextexamplestothese
+guage models denoted as OneR QA and IRCoT
+LMs, we wrote CoTs for 20 questions for all the
+QA.ForIRCoTQA,thechoiceofLMfortheCoT
+datasets(seeApp. §G).Wethencreate3demon-
+generatorandthereaderiskeptthesame. Wealso
+stration(“training”)setsbysampling15questions
+experimentwithretriever-lessQAreadersNoRQA
+each for each dataset. For each experiment, we
+to assess how well LMs can answer the question
+searchforthebesthyperparametersforthedevset
+fromtheirparametricknowledgealone. Toselect
+usingthefirstdemonstrationsetandevaluateeach
+the best hyperparameters for the ODQA model,
+demonstrationsetonthetestsetusingtheselected
+wesearchforthehyperparametersK andM that
+hyperparameters. Wereportthemeanandstandard
+maximizetheanswerF1onthedevelopmentset.
+deviationofthese3resultsforeachexperiment.
+IIRCisstructuredslightlydifferentlyfromthe
+At test time, we pack as many demonstrations
+other datasets, in that its questions are grounded
+aspossiblewithinthemodel’scontextlengthlimit.
+inamainpassageandothersupportingparagraphs
+ThecontextlimitforGPT3(code-davinci-002)
+come from the Wikipedia pages of entities men-
+is 8K word pieces. Flan-T5-* doesn’t have any
+tionedinthispassage. Weslightlymodifythere-
+hardlimitasitusesrelativepositionembeddings.
+trieversandreaderstoaccountforthis(seeApp.B).
+ButwelimitFlan-T5’scontextto6Kwordpieces,
+whichisthemaximumwecouldfitinthememory
+5 Results
+ofour80GA100GPUs.
+IRCoT Retriever has one key hyperparameter: IRCoTretrievalisbetterthanone-step. Fig.3
+K ∈ {2,4,6,8}, the number of paragraphs to re- comparesOneRwithIRCoTretrieversmadefrom
+trieve at each step. Additionally, when creating
+7Notethatourretrieveddocumentsarenotranked,mak-
+“training” demonstrations for IRCoT’s Reasoner
+ingstandardinformationretrievalmetricssuchasMAPand
+module,weusegoldparagraphsandasmallernum- DCGinapplicable.Further,wecanonlylimitthenumberof
+retrievedparagraphspersteptoK. Sincethetotalnumber
+berM ∈ {1,2,3}ofdistractorparagraphs(§3.1).
+of reasoning steps varies for questions, and in some cases,
+RetrievalMetric: Weallowamaximumof15 wedon’tevenobtainallK paragraphsinagivenstep, the
+paragraphs for all retriever systems and measure totalnumberofretrievedparagraphsalsovaries(eventhough
+cappedat15).ThismakesRecall@k,Precision@k,etc.,also
+the recall of the gold paragraphs among the re-
+notapplicableasmetricsforanygivenk.
+trievedsetofparagraphs. Wesearchforthehyper- 8IRCoT,byconstruction,producesaCoTasapartofits
+parameterK (andM forIRCoT)thatmaximizes retrievalprocess.Thus,insteadofhavingaseparatepost-hoc
+reader, one can also just extract the answer from the CoT
+the recall on the dev set and use it on the test set.
+generatedduringretrieval. However,wefoundthistobea
+suboptimalchoice,sowealwaysuseaseparatereader(see
+6https://www.elastic.co/ App.F).Figure3: Retrievalrecallforone-stepretriever(OneR)andIRCoTinstantiatedfromFlan-T5-XXL(left)andGPT3
+(right)models. IRCoToutperformsOneRforbothmodelsandalldatasets.
+Figure4: AnswerF1forODQAmodelmadeusing(i)noretriever(NoRQA)(ii)one-stepretriever(OneRQA)and
+(iii)IRCoTQAinstantiatedfromFlan-T5-XXL(left)andGPT3(right)models. IRCoTQAoutperformsOneRQA
+andNoRQAforbothmodelsonalldatasets,exceptforGPT3onIIRC.
+Flan-T5-XXL and GPT3 LMs. For both models, muchworsethanIRCoTQA,indicatingthelimits
+IRCoTsignificantlyoutperformsone-stepretrieval ofthemodels’parametricknowledge.
+across all datasets. For Flan-T5-XXL, IRCoT im-
+proves our recall metric relative to one-step re- IRCoTiseffectiveinOODsetting. SinceCoT
+trieval,onHotpotQAby7.9,on2WikiMultihopQA maynotalwaysbeeasytowritefornewdatasets,
+by14.3,onMuSiQueby3.5,andonIIRCby10.2 weevaluateNoR,OneR,andIRCoTongeneraliza-
+points. ForGPT3,thisimprovementisby11.3,22.6, tion to new datasets, i.e. OOD setting. To do so,
+12.5,and21.2points,respectively. weusepromptdemonstrationsfromonedatasetto
+evaluate on another dataset.9 For all pairs of the
+datasets10andforbothFlan-T5-XXLandGPT3,we
+IRCoT QA outperforms NoR and OneR QA.
+findthesametrendasintheIIDsetting: IRCoTre-
+Fig. 4 compares ODQA performance using
+trievaloutperformsOneR(Fig.5),andIRCoTQA
+NoR, OneR and IRCoT retriever made from
+Flan-T5-XXL and GPT3 LMs. For Flan-T5-XXL, outperformsbothOneRQAandNoRQA(Fig.6).
+IRCoTQAoutperformsOneRQAonHotpotQA
+IRCoTgeneratesCoTwithfewerfactualerrors.
+by9.4,on2WikiMultihopQAby15.3,onMuSiQue
+by 5.0 and IIRC by 2.5 F1 points. For GPT3, the Toassesswhetherourapproachalsoimprovesthe
+factuality of generated CoTs, we manually anno-
+correspondingnumbers(exceptforIIRC)are7.1,
+13.2,and7.1F1points. ForGPT3,IRCoTdoesn’t tatedCoTsgeneratedbyNoRQA,OneRQA,and
+IRCoTQAusingGPT3for40randomlysampled
+improve the QA score on IIRC, despite signifi-
+questionsfromeachofthefourdatasets. Wecon-
+cantly improved retrieval (21 points as shown in
+sideredCoTtohaveafactualerrorifatleastone
+Fig.3). ThisislikelybecauseIIRCrelevantknowl-
+edgemayalreadybepresentinGPT3,asalsoev-
+9Weusetheevaluationdataset’scorpusforretrieval.
+idenced by its NoR QA score being similar. For
+10WeskipIIRCinthisexplorationasthetaskisstructured
+otherdatasetsandmodelcombinations,NoRQAis abitdifferentlyandrequiresspecialhandling(seeApp.B).Figure5: RetrievalrecallforOneRandIRCoTusingFlan-T5-XXL(Left)andGPT3(Right)inout-of-distribution
+(OOD)setting. HQ(HotpotQA),2W(2WikiMultihopQA),MQ(MuSiQue). TheresultX→Yindicatesprompt
+demonstrationsarefromdatasetXandevaluationisondatasetY.IRCoToutperformsOneRinsuchanOODsetting.
+Figure6: AnswerF1forNoRQA,OneRQAandIRCoTQAusingFlan-T5-XXL(Left)andGPT3(Right)in
+out-of-distribution(OOD)setting. HQ(HotpotQA),2W(2WikiMultihopQA),MQ(MuSiQue). TheresultX→Y
+indicatespromptdemonstrationsarefromdatasetXandevaluationisondatasetY.IRCoTQAoutperformsOneR
+QAandNoRQAinsuchOODsetting.
+andIRCoTtheleast. Inparticular,IRCoTreduces
+thefactualerrorsoverOneRby50%onHotpotQA
+and40%on2WikiMultihopQA.
+Table2illustrateshowtheCoTpredictionsfor
+different methods vary qualitatively. Since NoR
+reliescompletelyonparametricknowledge,itoften
+makes a factual error in the first sentence, which
+derails the full CoT. OneR can retrieve relevant
+informationclosesttothequestionandislesslikely
+to make such errors early on, but it still makes
+errorslaterintheCoT.IRCoT,ontheotherhand,
+Figure7: Numberofquestions,outof40,whereCoT
+isoftenabletopreventsucherrorsineachstep.
+generatedbyGPT3usingdifferentmethodshasatleast
+1factualerror. Factualerrors: IRCoT<OneR<NoR.
+IRCoTisalsoeffectiveforsmallermodels. To
+seehoweffectiveIRCoTisatdifferentLMsizes,
+ofthefacts11 isnottrue.12 AsFig.7shows,NoR we show the scaling plots in Fig. 8.13 We com-
+paretherecallforOneRandIRCoTusingFlan-T5
+makesthemostfactualerrors,OneRmakesfewer,
+{base(0.2B),large(0.7B),XL(3B),XXL(11B)},
+11allsentencesbeforethefinal“answeris:”sentence. and GPT3 code-davinci-002 (175B). IRCoT
+12Notethatfactualerrordoesn’tnecessarilymeanthepre- witheventhesmallestmodel(0.2B)isbetterthan
+dictedanswerisincorrectandvice-versa.Thisisbecausethe
+modelcangenerateawronganswerdespiteallcorrectfacts, 13WeskipIIRChereasthesmallermodelsarenotgoodat
+andvice-versa.Wealsoaccountforthepossibilityofanswer identifyingWikipediatitlesfromaparagraphandaquestion
+annotationerrorsintheoriginaldatasets. whichisnecessaryforIIRC(seeApp.B).Figure8: RetrievalrecallforOneR(bottom)andIRCoT(top)forLMsofincreasingsizes: Flan-T5{base(0.2B),
+large (0.7B), XL (3B), XXL (11B)} and GPT3 (175B) on HotpotQA, 2WikiMultihopQA, MuSiQue. IRCoT
+outperformsOneRforallmodelsizes,includingthe0.3Bmodel,andthedifferenceroughlygrowswithmodelsize.
+Note: OneRdoesn’tuseLMinitsretrievalandsohasafixedscore.
+Figure9: AnswerF1forODQAmodelsmadeusingOneR(bottom)andIRCoT(top)forLMsofincreasingsizes:
+Flan-T5{base(0.2B),large(0.7B),XL(3B),XXL(11B)}andGPT3(175B)onHotpotQA,2WikiMultihopQAand
+MuSiQue. IRCoTQAoutperformsOneRQAforallmodelsizesexceptforthesmallest,0.3B.IRCoTwith3B
+modelevenoutperformsOneRwith58XlargerGPT3modelshowingthevalueofimprovedretrieval.
+OneR,andtheperformanceroughlyimproveswith Model HpQABr HpQA 2WikiMQA MQ2H
+the model size. This shows the CoT generation
+InterAug −|− 30.3|− −|− −|−
+capabilitiesofevensmallmodelscanbeleveraged RECITE −|− 37.1|48.4 −|− −|−
+forimprovingretrieval. Furthermore,weshowthe ReAct −|− 35.1|− −|− −|−
+SelfAsk −|− −|− 40.1|− 15.2|−
+effectofmodelsizeontheQAscoreinFig.9. For
+DecomP −|50.0 −|− −|59.3 −|−
+allsizesexceptthesmallest(0.2B),weseeIRCoT
+IRCoTQA 45.8|58.5 49.3|60.7 57.7|68.0 34.2|43.8
+QA is better than OneR QA. Moreover, IRCoT
+witha3BmodelevenoutperformsOneRandNoR Table 1: Comparison with other LLM-based ODQA
+witha58Xlarger175BGPT3modelinalldatasets. systems on EM and F1 scores. ‘−’: score is unavail-
+able. HpQABr: BridgequestionssubsetofHotpotQA.
+IRCoTisSOTAforfew-shotmultistepODQA.14
+MQ2H: MuSiQue 2-hop questions. IRCoT QA with
+We compare IRCoT QA with five recent ap- GPT3(ours)outperformsothersystemsbyalargemar-
+proaches to using LLMs for ODQA: Internet- gin. Note: Comparisons aren’t head-to-head as dis-
+Augmented QA (Lazaridou et al., 2022), RE- cussedinthetext. App.§CreportsupdatedSOTAnum-
+CITE(Sunetal.,2022)ReAct(Yaoetal.,2022), bers,includingcontemporaneousandnewerworks.
+SelfAsk (Press et al., 2022), and DecomP (Khot
+As shown in Table 1, IRCoT QA significantly
+etal.,2022). Althoughthesearenothead-to-head
+outperformsalloftheserecentsystemsbyalarge
+comparisons as different methods use different
+margin, setting a new state of the art in terms of
+APIs, knowledge sources, and even LLMs (see
+what’s achievable via retrieval-augmented LLMs
+App. C for details), it is still informative to ex-
+(withoutsupervisedtraining).
+plore,inaleaderboard-stylefashion,howIRCoT
+performsrelativetothebestnumberspublishedfor
+6 Conclusions
+theserecentsystems.
+Chain-of-thoughtpromptinghassignificantlyim-
+14App.§CreportsupdatedSOTAnumbers,includingcon-
+temporaneousandnewerworks. provedLLMs’abilitytoperformmulti-stepreason-Question GoldFacts NoRQA OneRQA IRCoTQA
+AQtoptoH
+Thetapdancing ⇒ The tap dancing Thetapdancingsoloist Thetapdancingsoloist Thetapdancingsoloist
+soloist in My soloist in My Feet inMyFeetKeepDanc- inMyFeetKeepDanc- inMyFeetKeepDanc-
+Feet Keep KeepDancingisFayard ing is Eleanor Pow- ingisFayardNicholas. ingisFayardNicholas.
+Dancing also Nicholas. ell. Eleanor Powell Fayard Nicholas also FayardNicholasstarred
+starred in what ⇒ Fayard Nicholas alsostarredinthe1935 starred in the 1935 in the 1935 MGM mu-
+1935 MGM starred in the 1935 MGM musical Broad- MGMmusicalTopHat. sical An All-Colored
+musical? MGM musical An way Melody of 1936. So the answer is: Top Vaudeville Show. So
+All-ColoredVaudeville Sotheansweris:Broad- Hat. the answer is: An
+Show. wayMelodyof1936. All-ColoredVaudeville
+Show.
+AQMikiW2
+Who is the ⇒ Queen Hyojeong QueenHyojeonghasa QueenHyojeongisthe QueenHyojeongisthe
+father-in-law is the wife of King husband named King wifeofKingHeonjong wifeofKingHeonjong
+of Queen Hyo- HeonjongofJoseon. Gojong. King Gojong ofJoseon. KingHeon- ofJoseon. KingHeon-
+jeong? ⇒ King Heonjong has a father named jong of Joseon is the jongofJoseonistheson
+of Joseon is the son HeungseonDaewongun. son of King Sejo of of Crown Prince Hy-
+of Crown Prince Hy- Thus,QueenHyojeong Joseon.Thus,KingSejo omyeong.Thus,Crown
+omyeong. has a father-in-law of Joseon is the father- Prince Hyomyeong is
+named Heungseon in-law of Queen Hyo- the father-in-law of
+Daewongun. So the jeong.Sotheansweris: Queen Hyojeong. So
+answer is: Heungseon KingSejoofJoseon. the answer is: Crown
+Daewongun. PrinceHyomyeong.
+euQiSuM
+What is the ⇒ A Collection TheperformerofACol- A Collection A Collection
+name of the 1984–1989 was per- lection 1984–1989 is 1984–1989 was 1984–1989 was
+castle in the formedbyJaneSiberry. TheThe. TheThewas performed by Jane performed by Jane
+city where the ⇒ Jane Siberry was born in London. The Siberry. Jane Siberry Siberry. Jane Siberry
+performer of borninToronto. name of the castle in was born in Toronto. was born in Toronto.
+A Collection ⇒ThecastleinToronto LondonistheTowerof The castle in Toronto ThecastleinTorontois
+1984–1989was istheCasaLoma. London. Sotheanswer isPeqinCastle. Sothe theCasaLoma. Sothe
+born? is: the Tower of Lon- answeris:PeqinCastle. answeris:CasaLoma.
+don.
+Table2: ExampleCoTsgeneratedbyGPT3withdifferentmethods. SinceNoRreliesonparametricknowledge,it
+oftenmakesafactualerrorinthefirstsentencederailingthefullCoT.OneRcanretrieverelevantinformationclosest
+tothequestionandislesslikelytomakesucherrorsearlyon,butitstillmakeserrorslaterintheCoT.AsIRCoT
+performsretrievalaftereachstep,itisoftenabletopreventsucherrorsineachstep. MoreexamplesareinApp.D.
+ing. Weleveragedthisabilitytoimproveretrieval, LMs will likely increasingly acquire such ability,
+and in turn, improve QA performance for com- makingIRCoTcompatiblewithmanymoreLMs.
+plexknowledge-intensiveopen-domaintasksina IRCoT also relies on the base LM to support
+few-shotsetting. Wearguedthatone-stepquestion- longinputsasmultipleretrievedparagraphsneed
+based retrieval is insufficient for such tasks, and to fit in the LM’s input, in addition to at least
+introducedIRCoT,whichusesinterleavedCoTrea- a few demonstrations of QA or CoT with para-
+soning and retrieval steps that guide each other graphs. Thiswassupportedbythemodelsweused
+step-by-step. Onfourdatasets,IRCoTsignificantly as code-davinci-002 (GPT3) allows 8K tokens
+improvesbothretrievalandQAperformancewhen and Flan-T5-* uses relative position embeddings
+comparedtoone-stepretrieval,forbothlargeand making it as extensible as the GPU memory con-
+relativelysmaller-scaleLMs. Additionally,CoTs straintsallow. Futureworkcanexplorestrategiesto
+generatedbyIRCoTcontainfewerfactualerrors. rerankandselecttheretrievedparagraphsinstead
+of passing all of them to the LM to alleviate the
+Limitations needfortheLMtosupportlonginput.
+The performance gain of IRCoT retriever and
+IRCoT relies on the base LM to have a zero or QA(overOneRandZeroRbaselines)comewith
+few-shotCoT-generationability. Whilethisiscom- anadditionalcomputationalcost. Thisisbecause
+monlyavailableinlargeLMs(over100B),it’snot IRCoTmakesaseparatecalltoan(L)LMforeach
+ascommonforsmallLMs(under20B),whichto sentence of CoT. Future work can focus on, for
+someextentlimitsIRCoTadoptability. Giventhe instance, dynamically deciding when to retrieve
+recent surge of interest (Tay et al., 2023; Magis- moreinformationandwhentoperformadditional
+teretal.,2022;Hoetal.,2022),however,smaller reasoningwiththecurrentinformation.Lastly,aportionofourexperimentswascarried questionanswering. InInternationalConferenceon
+out using a commercial LLM API from OpenAI LearningRepresentations.
+(code-davinci-002). Thismodelwasdeprecated
+Sebastian Borgeaud, Arthur Mensch, Jordan Hoff-
+byOpenAIafteroursubmissionmakingtherepro-
+mann, Trevor Cai, Eliza Rutherford, Katie Milli-
+duction of these experiments challenging despite can,GeorgeBmVanDenDriessche,Jean-Baptiste
+ourbestefforts,justlikeanyotherworkusingsuch Lespiau, Bogdan Damoc, Aidan Clark, Diego
+APIs. The trends discussed in the paper (IRCoT DeLasCasas,AureliaGuy,JacobMenick,Roman
+Ring, Tom Hennigan, Saffron Huang, Loren Mag-
+> OneR > NoR), we believe, would still hold.
+giore, Chris Jones, Albin Cassirer, Andy Brock,
+Additionally,allourexperimentsusingFlan-T5-*,
+Michela Paganini, Geoffrey Irving, Oriol Vinyals,
+whichexhibitsimilartrendsasthatofGPT3,will SimonOsindero,KarenSimonyan,JackRae,Erich
+remain reproducible, thanks to its publicly avail- Elsen,andLaurentSifre.2022. Improvinglanguage
+models by retrieving from trillions of tokens. In
+ablemodelweights.
+Proceedings of the 39th International Conference
+onMachineLearning, volume162ofProceedings
+EthicalConsiderations
+of Machine Learning Research, pages 2206–2240.
+PMLR.
+Languagemodelsareknowntohallucinateincor-
+rect and potentially biased information. This is
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+especially problematic when the questions asked Subbiah,JaredDKaplan,PrafullaDhariwal,Arvind
+to it are of a sensitive nature. While retrieval- Neelakantan,PranavShyam,GirishSastry,Amanda
+Askell,etal.2020. Languagemodelsarefew-shot
+augmentedapproachessuchasoursareexpected
+learners. Advancesinneuralinformationprocessing
+toalleviatethisissuetosomeextentbygrounding
+systems,33:1877–1901.
+generationinexternaltext,thisbynomeanssolves
+theproblemofgeneratingbiasedoroffensivestate- Mark Chen, Jerry Tworek, Heewoo Jun, Qiming
+ments. Appropriate care should thus be taken if Yuan,HenriquePondedeOliveiraPinto,JaredKa-
+plan, HarriEdwards, YuriBurda, NicholasJoseph,
+deployingsuchsystemsinuser-facingapplications.
+Greg Brockman, et al. 2021. Evaluating large
+All the datasets and models used in this work
+language models trained on code. arXiv preprint
+are publicly available with permissible licenses. arXiv:2107.03374.
+HotpotQA has CC BY-SA 4.0 license15, 2Wiki-
+MultihopQAhasApache-2.0license16,MuSiQUe Hyung Won Chung, Le Hou, Shayne Longpre, Bar-
+ret Zoph, Yi Tay, William Fedus, Eric Li, Xuezhi
+andIIRChaveCCBY4.0license17,andFlan-T5-*
+Wang,MostafaDehghani,SiddharthaBrahma,etal.
+modelshaveApache-2.0license.
+2022. Scalinginstruction-finetunedlanguagemodels.
+arXivpreprintarXiv:2210.11416.
+Acknowledgments
+Rajarshi Das, Shehzaad Dhuliawala, Manzil Zaheer,
+Wethankthereviewersfortheirvaluablefeedback
+andAndrewMcCallum.2019. Multi-stepretriever-
+andsuggestions. WealsothankOpenAIforprovid- readerinteractionforscalableopen-domainquestion
+ingaccesstothecode-davinci-002API.Thisma- answering. InInternationalConferenceonLearning
+Representations.
+terialisbasedonresearchsupportedinpartbythe
+AirForceResearchLaboratory(AFRL),DARPA,
+YairFeldmanandRanEl-Yaniv.2019. Multi-hoppara-
+fortheKAIROSprogramunderagreementnumber
+graphretrievalforopen-domainquestionanswering.
+FA8750-19-2-1003,inpartbytheNationalScience InProceedingsofthe57thAnnualMeetingoftheAs-
+FoundationundertheawardIIS#2007290,andin sociationforComputationalLinguistics,pages2296–
+2309,Florence,Italy.AssociationforComputational
+part by an award from the Stony Brook Trustees
+Linguistics.
+FacultyAwardsProgram.
+James Ferguson, Matt Gardner, Hannaneh Hajishirzi,
+Tushar Khot, and Pradeep Dasigi. 2020. IIRC: A
+References datasetofincompleteinformationreadingcompre-
+hensionquestions. InEMNLP.
+AkariAsai,KazumaHashimoto,HannanehHajishirzi,
+RichardSocher,andCaimingXiong.2020. Learning
+KelvinGuu,KentonLee,ZoraTung,PanupongPasupat,
+toretrievereasoningpathsoverwikipediagraphfor
+and Mingwei Chang. 2020. Retrieval augmented
+15https://creativecommons.org/licenses/by-sa/4. languagemodelpre-training. InProceedingsofthe
+0/ 37thInternationalConferenceonMachineLearning,
+16https://www.apache.org/licenses/LICENSE-2.0 volume 119 of Proceedings of Machine Learning
+17https://creativecommons.org/licenses/by/4.0 Research,pages3929–3938.PMLR.NamgyuHo,LauraSchmid,andSe-YoungYun.2022. PatrickLewis,EthanPerez,AleksandraPiktus,Fabio
+Largelanguagemodelsarereasoningteachers. arXiv Petroni,VladimirKarpukhin,NamanGoyal,Hein-
+preprintarXiv:2212.10071. richKüttler, MikeLewis, Wen-tauYih, TimRock-
+täschel, Sebastian Riedel, and Douwe Kiela. 2020.
+Xanh Ho, A. Nguyen, Saku Sugawara, and Akiko Retrieval-augmented generation for knowledge-
+Aizawa.2020. Constructingamulti-hopqadataset intensive nlp tasks. In Advances in Neural Infor-
+forcomprehensiveevaluationofreasoningsteps. In mationProcessingSystems,volume33,pages9459–
+COLING. 9474.CurranAssociates,Inc.
+Gautier Izacard, Patrick Lewis, Maria Lomeli, Lucas Lucie Charlotte Magister, Jonathan Mallinson, Jakub
+Hosseini,FabioPetroni,TimoSchick,JaneDwivedi- Adamek, Eric Malmi, and Aliaksei Severyn. 2022.
+Yu,ArmandJoulin,SebastianRiedel,andEdouard Teaching small language models to reason. arXiv
+Grave. 2022. Atlas: Few-shot learning with re- preprintarXiv:2212.08410.
+trievalaugmentedlanguagemodels. arXivpreprint
+ReiichiroNakano,JacobHilton,SuchirBalaji,JeffWu,
+arXiv:2208.03299.
+Long Ouyang, Christina Kim, Christopher Hesse,
+ShantanuJain,VineetKosaraju,WilliamSaunders,
+VladimirKarpukhin,BarlasOguz,SewonMin,Patrick
+et al. 2021. WebGPT: Browser-assisted question-
+Lewis,LedellWu,SergeyEdunov,DanqiChen,and
+answering with human feedback. arXiv preprint
+Wen-tauYih.2020. Densepassageretrievalforopen-
+arXiv:2112.09332.
+domainquestionanswering. InProceedingsofthe
+2020ConferenceonEmpiricalMethodsinNatural
+LongOuyang,JeffreyWu,XuJiang,DiogoAlmeida,
+LanguageProcessing(EMNLP),pages6769–6781,
+CarrollWainwright,PamelaMishkin,ChongZhang,
+Online.AssociationforComputationalLinguistics.
+SandhiniAgarwal,KatarinaSlama,AlexGray,John
+Schulman,JacobHilton,FraserKelton,LukeMiller,
+Jungo Kasai, Keisuke Sakaguchi, Yoichi Takahashi,
+Maddie Simens, Amanda Askell, Peter Welinder,
+Ronan Le Bras, Akari Asai, Xinyan Yu, Dragomir
+Paul Christiano, Jan Leike, and Ryan Lowe. 2022.
+Radev,NoahASmith,YejinChoi,andKentaroInui.
+Traininglanguagemodelstofollowinstructionswith
+2022. RealTimeQA:What’stheanswerrightnow?
+humanfeedback. InAdvancesinNeuralInformation
+arXivpreprintarXiv:2207.13332.
+ProcessingSystems.
+Omar Khattab, Christopher Potts, and Matei Zaharia. OfirPress,MuruZhang,SewonMin,LudwigSchmidt,
+2021. Baleen: Robustmulti-hopreasoningatscale NoahASmith,andMikeLewis.2022. Measuring
+viacondensedretrieval. InAdvancesinNeuralInfor- andnarrowingthecompositionalitygapinlanguage
+mationProcessingSystems. models. arXivpreprintarXiv:2210.03350.
+Omar Khattab, Keshav Santhanam, Xiang Lisa Li, Peng Qi, Xiaowen Lin, Leo Mehr, Zijian Wang, and
+David Hall, Percy Liang, Christopher Potts, and ChristopherD.Manning.2019. Answeringcomplex
+Matei Zaharia. 2023. Demonstrate-search-predict: open-domainquestionsthroughiterativequerygen-
+Composing retrieval and language models for eration. InProceedingsofthe2019Conferenceon
+knowledge-intensiveNLP. EmpiricalMethodsinNaturalLanguageProcessing
+andthe9thInternationalJointConferenceonNatu-
+TusharKhot,HarshTrivedi,MatthewFinlayson,YaoFu, ralLanguageProcessing(EMNLP-IJCNLP),pages
+KyleRichardson,PeterClark,andAshishSabharwal. 2590–2602,HongKong,China.AssociationforCom-
+2022. Decomposedprompting: Amodularapproach putationalLinguistics.
+forsolvingcomplextasks.
+StephenRobertson,HugoZaragoza,etal.2009. The
+probabilistic relevance framework: Bm25 and be-
+TusharKhot,HarshTrivedi,MatthewFinlayson,Yao
+yond. FoundationsandTrends®inInformationRe-
+Fu,KyleRichardson,PeterClark,andAshishSab-
+trieval,3(4):333–389.
+harwal.2023. Decomposedprompting: Amodular
+approachforsolvingcomplextasks. InTheEleventh
+ZhiqingSun,XuezhiWang,YiTay,YimingYang,and
+International Conference on Learning Representa-
+DennyZhou.2022. Recitation-augmentedlanguage
+tions.
+models. arXivpreprintarXiv:2210.01296.
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu- YiTay,MostafaDehghani,VinhQ.Tran,XavierGarcia,
+takaMatsuo,andYusukeIwasawa.2022. Largelan- JasonWei,XuezhiWang,HyungWonChung,Dara
+guagemodelsarezero-shotreasoners. InICML2022 Bahri,TalSchuster,StevenZheng,DennyZhou,Neil
+Workshop on Knowledge Retrieval and Language Houlsby,andDonaldMetzler.2023. UL2: Unifying
+Models. languagelearningparadigms. InTheEleventhInter-
+nationalConferenceonLearningRepresentations.
+Angeliki Lazaridou, Elena Gribovskaya, Wojciech
+Stokowiec, and Nikolai Grigorev. 2022. Internet- HarshTrivedi,NiranjanBalasubramanian,TusharKhot,
+augmented language models through few-shot and Ashish Sabharwal. 2022. MuSiQue: Multi-
+prompting for open-domain question answering. hopquestionsviasingle-hopquestioncomposition.
+arXivpreprintarXiv:2203.05115. TACL,10:539–554.JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+Bosma,brianichter,FeiXia,EdH.Chi,QuocVLe,
+and Denny Zhou. 2022. Chain of thought prompt-
+ing elicits reasoning in large language models. In
+AdvancesinNeuralInformationProcessingSystems.
+WenhanXiong,XiangLi,SriniIyer,JingfeiDu,Patrick
+Lewis,WilliamYangWang,YasharMehdad,Scott
+Yih, Sebastian Riedel, Douwe Kiela, and Barlas
+Oguz.2021. Answeringcomplexopen-domainques-
+tionswithmulti-hopdenseretrieval. InInternational
+ConferenceonLearningRepresentations.
+Zhilin Yang, Peng Qi, Saizheng Zhang, Yoshua Ben-
+gio,WilliamW.Cohen,RuslanSalakhutdinov,and
+ChristopherD.Manning.2018. HotpotQA:Adataset
+fordiverse,explainablemulti-hopquestionanswer-
+ing. InEMNLP.
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+Shafran,KarthikNarasimhan,andYuanCao.2022.
+ReAct:Synergizingreasoningandactinginlanguage
+models. arXivpreprintarXiv:2210.03629.
+Wenhao Yu, Dan Iter, Shuohang Wang, Yichong Xu,
+Mingxuan Ju, Soumya Sanyal, Chenguang Zhu,
+Michael Zeng, and Meng Jiang. 2023. Generate
+rather than retrieve: Large language models are
+strong context generators. In The Eleventh Inter-
+nationalConferenceonLearningRepresentations.
+Fengbin Zhu, Wenqiang Lei, Chao Wang, Jianming
+Zheng, Soujanya Poria, and Tat-Seng Chua. 2021.
+Retrievingandreading: Acomprehensivesurveyon
+open-domain question answering. arXiv preprint
+arXiv:2101.00774.A ConstructingRetrievalCorpora IIRC,weusethefollowingtemplate.
+Wikipedia Title: <Main Page Title>
+HotpotQA already comes with the associated
+<Main Paragraph Text>
+Wikipedia corpus for the open-domain setting,
+so we use it directly. 2WikiMultihopQA and Q: The question is: '<Question>'. Generate titles
+of <N> Wikipedia pages that have relevant
+MuSiQue, however, are originally reading com-
+information to answer this question.
+prehension datasets. Questions in 2WikiMulti- A: ["<Title-1>", "<Title-2>", ...]
+hopQAandMuSiQueareassociatedwith10and20
+For“training”,i.e.,fordemonstrations,N(≤ 3)
+paragraphsrespectively,2-4ofwhicharesupport-
+isthenumberofsupportingWikipediapagetitles
+ing and others are non-supporting. To turn these
+for the question. At test time, since the number
+datasetsintoanopen-domainsetting,wemaketwo
+of supporting page titles is unknown, we use a
+corpora, one for each dataset, by combining all
+fixedvalueof3. Wefoundthistrickofprompting
+supportingandnon-supportingparagraphsforall
+the model to generate more titles at the test time
+its questions in the train, development, and test
+improvesitsrecalloverlettingthemodeldecideby
+sets. IIRC is originally a mix between reading
+itselfhowmanytitlestogenerate.
+comprehensionandanopen-domainsetting. Each
+questionisgroundedinonemainparagraph,which
+C ComparisonwithPreviousSystemsfor
+contains links to multiple Wikipedia pages with
+ODQAwithLLMs
+several paragraphs each. We create a corpus out
+ofalltheparagraphsfromalltheWikipediapages We showed a leaderboard-style comparison with
+present in the dataset.18 We do assume the avail- previousapproachestousinglargelanguagemod-
+ability of the main passage which doesn’t need elsforopen-domainQAin§5. Wenotedthough
+to be retrieved and is always present. We don’t thatthecomparisonisnothead-to-headgivenvari-
+assume the availability of Wikipedia links in the ousdifferences. Webrieflydescribeeachmethod
+mainpassage,however,tokeeptheretrievalprob- andthedifferencesinAPI,LLM,retrievalcorpus,
+lemchallenging.19
+andotherchoiceshere.
+Internet-AugmentedQA(Lazaridouetal.,2022)
+B SpecialHandlingofModelsforIIRC
+does(one-step)GoogleSearchretrieval,performs
+additional LLM-based filtering on it, and then
+IIRC is slightly different from the other datasets,
+prompts an LLM to answer the question using
+in that the question is grounded in the main pas-
+the resulting context. It uses the Gopher 280B
+sageandothersupportingparagraphscomefrom
+language model. RECITE (Sun et al., 2022) by-
+theWikipediapagesofentitiesmentionedinthis
+passes the retrieval and instead prompts an LLM
+passage. Wemodifytheretrieversandreadersto
+tofirstgenerate(recite)oneorseveralrelevantpas-
+accountforthisdifference: (i)Wealwayskeepthe
+sages from its own memory, and generate the an-
+mainpassageaspartoftheinputtothemodelre-
+swerconditionedonthisgeneration. Theyexper-
+gardlessoftheretrievalstrategyused. (ii)Forall
+iment with many LLMs, the highest performing
+theretrievalmethods,wefirstpromptthemodelto
+of which is code-davinci-002 which we report
+generate a list of Wikipedia page titles using the
+here. ReAct (Yao et al., 2022) prompts LLMs to
+mainpassageandthequestion. Wemapthesegen-
+producereasoningandactiontraceswhereactions
+eratedtitlestothenearestWikipediapagetitlesin
+are calls to a Wikipedia API to return the sum-
+thecorpus(foundusingBM25),andthentherest
+mary for a given Wikipedia page title. It uses
+oftheparagraphretrievalqueriesarescopedwithin
+the PALM 540B model. SelfAsk (Press et al.,
+onlythoseWikipediapages.
+2022) prompts LLMs to decompose a question
+TopromptthemodeltogenerateWikipediapage
+intosubquestionsandanswersthesesubquestions
+titlesusingthemainpassageandthequestionfor
+by issuing separate calls to the Google Search
+18Following are the corpus sizes for the datasets: Hot- API.ItusestheGPT3(text-davinci-002)model.
+potQA(5,233,329),2WikiMultihopQA(430,225),MuSiQue
+Finally, DecomP (Khot et al., 2023) is a gen-
+(139,416),andIIRC(1,882,415)
+19IIRCcorpushasapositionalbias,i.e.,themajorityofsup- eral framework that decomposes a task and del-
+portingparagraphsarealwayswithinthefirstfewpositionsof egatessub-taskstoappropriatesub-models. Sim-
+theWikipediapage.Tokeeptheretrievalproblemchallenging
+ilar to our system, it uses BM25 Search and the
+enoughweshuffletheparagraphsbeforeindexingthecorpus,
+i.e.,wedon’tusepositionalinformationinanyway. GPT3 (code-davinci-002) model. And lastly,Model HpQABr HpQA 2WikiMQA MQ2H MQ
+InterAug(Lazaridouetal.,2022) −|− 30.3|− −|− −|− −|−
+RECITE(Sunetal.,2022) −|− 37.1|48.4 −|− −|− −|−
+ReAct(Yaoetal.,2022) −|− 35.1|− −|− −|− −|−
+SelfAsk(Pressetal.,2022) −|− −|− 40.1|− 15.2|− −|−
+DecomP(Khotetal.,2022) −|50.0 −|− −|59.3 −|− −|−
+DecomP(Khotetal.,2023)* −|− −|53.5 −|70.8 −|− −|30.9
+DSP(Khattabetal.,2023)* −|− 51.4|62.9 −|− −|− −|−
+IRCoTQA(ours) 45.8|58.5 49.3|60.7 57.7|68.0 34.2|43.8 26.5|36.5
+Table 3: Extended comparison with published LLM-based ODQA systems (as of May 25, 2023) on EM and
+F1scores(withnewnumbersmarkedwith*). ‘−’: scoreisunavailable. HpQABr: Bridgequestionssubsetof
+HotpotQA. MQ2H: MuSiQue 2-hop questions. IRCoT remains SOTA for MuSiQue and is close to SOTA for
+HotpotQAand2WikiMultihopQA.Notethecomparisonsherearenothead-to-headasdiscussedinthetext.
+Flan-T5-XXL GPT3
+Model HotpotQA 2WikiMQA MuSiQue IIRC HotpotQA 2WikiMQA MuSiQue IIRC
+Direct 25.3±0.3 32.7±0.3 13.7±0.3 28.9±0.3 41.0±1.1 38.5±1.1 19.0±1.2 40.9±0.7
+ZeroRQA
+CoT 22.9±0.1 31.7±1.5 10.3±0.5 24.4±0.1 47.5±0.4 41.2±1.0 25.2±1.2 52.1±0.1
+Direct 49.7±0.5 51.2±0.3 25.8±0.6 40.0±1.3 50.7±0.1 46.4±2.9 20.4±0.3 40.1±0.9
+OneRQA
+CoT 43.1±0.7 47.8±0.9 17.6±0.2 34.5±1.5 53.6±0.7 54.8±2.1 29.4±0.8 49.8±2.3
+Direct 59.1±0.9 66.5±1.4 30.8±0.2 42.5±2.1 60.6±1.0 63.5±2.7 36.0±0.5 47.9±2.3
+IRCoTQA
+CoT 52.0±0.6 55.1±1.0 24.9±1.0 36.5±1.3 60.7±1.1 68.0±1.5 36.5±1.2 49.9±1.1
+Table 4: Answer F1 for different ODQA models made from NoR, One and IRCoT retrievals, and Direct and
+CoTpromptingreaders. ForFlan-T5-XXL,Directpromptingisabetterchoiceforthereader,andforGPT3,CoT
+promptingisabetterchoiceforthereader. Hence,wemakedifferentreaderchoicesforFlan-T5andGPT3forthe
+experimentsinthemainpaper. NotethatIRCoTQA>OneRQA>ZeroRQAholdsupregardlessofthischoice.
+DSP(Khattabetal.,2023)providesawaytopro- WespeculateDecomPperformswellon2WikiMul-
+grammatically define interactions between LLM tihopQAbecauseithasonlyafeweasy-to-predict
+andretrievalforODQA(e.g.,viaquestiondecom- decompositionpatterns,whichDecomP’squestion
+position),bootstrapdemonstrationsforsuchapro- decompositioncanleverage. Thelackofsuchpat-
+gram,andusethemtomaketheanswerprediction. terns in HotpotQA and MuSiQue causes it to un-
+ItusesGPT3.5LLMwithColBERT-basedretrieval. derperformcomparedtoIRCoT. Lastly,itwillbe
+Sincemostofthesemethodsusedifferentknowl- usefultoassesswhetherDSP,whichishardcoded
+edgesourcesorAPIsandarebuiltusingdifferent for 2-hop questions like that of HotpotQA, will
+LLMsandretrievalmodels,it’sdifficulttomakea work well for a dataset with a varied number of
+fairscientificcomparisonacrossthesesystems. Ad- hopslikethatofMuSiQue. Weleavethisfurther
+ditionally,theevaluationsintherespectivepapers investigationtofuturework.
+are on different random subsets (from the same
+distribution)oftestinstances. D AdditionalCoTGenerationExamples
+Despitethesedifferences,itisstillinformativeto Table 5 provides illustrations, in addition to the
+explore,inaleaderboard-stylefashion,howIRCoT ones provided in Table 2, for how the CoT gen-
+performs relative to the best numbers published erationsforNoRQA,OneRQA,andIRCoTQA
+for these recent systems. Table 3 shows results methods vary. This gives an insight into how IR-
+from different systems, including contemporane- CoT improves QA performance. Since NoR re-
+ousandnewernumbers. Thetwonewsystemsin liescompletelyonparametricknowledge,itoften
+thistable(relativetoTable1)areDecomP(newer makesafactualerrorinthefirstsentence,whichde-
+version)andDSP.WhileIRCoTremainsSOTAon railsthefullreasoningchain. Someofthisfactual
+MuSiQue,DSPoutperformsitonHotpotQAby2.0 informationcanbefixedbyOneR,especiallyinfor-
+points and the newer version of Decomp outper- mationclosesttothequestion(i.e.,canberetrieved
+formsIRCoTon2WikiMultihopQAby2.8points. usingthequestion). ThisisinsufficientforfixingQuestion GoldFacts NoRQA OneRQA IRCoTQA
+AQtoptoH
+What was the ⇒MarinelliGlacieris Marinelli Glacier is Marinelli Glacier is lo- Marinelli Glacier is lo-
+island, on locatedontheislandof locatedontheislandof cated on Isla Grande cated on the island of
+whichMarinelli TierradelFuego. GrahamLand.Graham de Tierra del Fuego. TierradelFuego.Theis-
+Glacier is lo- ⇒TheislandofTierra Land was formerly Isla Grande de Tierra landofTierradelFuego
+cated, formerly delFuegowasformerly known as Graham’s delFuegowasformerly wasformerlyknownas
+knownas? knownasIsladeXativa. Land.Sotheansweris: known as Tierra del Isla de Xativa. So the
+Graham’sLand. Fuego. So the answer answer is: Isla de Xa-
+is:TierradelFuego. tiva.
+AQMikiW2
+Who is the ⇒ The director of ThefilmMukhyamantri Mukhyamantri (1996 ThedirectorofMukhya-
+child of the Mukhyamantri (1996 wasdirectedbyS.V.Ra- film) was directed mantri (1996 film)
+directoroffilm film) is Anjan Choud- jendra Singh Babu. S. by Anjan Choudhury. is Anjan Choudhury.
+Mukhyamantri hury. V.RajendraSinghBabu AnjanChoudhuryhasa Anjan Choudhury has
+(1996Film)? ⇒ Anjan Choudhury has a child named S. childnamedAniruddha a child named Sandip
+has a child named V.RajendraSinghBabu. Choudhury. So the Choudhury. So the
+SandipChoudhury. Sotheansweris: S.V. answer is: Aniruddha answer is: Sandip
+RajendraSinghBabu. Choudhury. Choudhury.
+euQiSuM
+When did the ⇒SacerdotiiNostriPri- The author of Sacer- Sacerdotii Nostri Pri- Sacerdotii Nostri Pri-
+Governorship mordia was written by dotiiNostriPrimordiais mordia was written by mordia was written by
+end of the PopeJohnXXIII. PopePiusIX.PopePius PopeJohnXXIII.Pope PopeJohnXXIII.Pope
+city where the ⇒ Pope John XXIII IX died in the city of JohnXXIIIdiedinthe JohnXXIIIdiedinVat-
+author of Sac- diedinVaticanCity. Rome. The Governor- city of Rome. The ican City. The Gover-
+erdotii Nostri ⇒TheGovernorshipof shipofRomeendedin GovernorshipofRome norshipofVaticanCity
+Primordiadied? Vatican City ended in 1870. Sotheansweris: ended in 1870. So the ended in 1952. So the
+1952. 1870. answeris:1870. answeris:1952.
+Table5: AdditionalCoTsgeneratedbyGPT3withdifferentmethods. ZeroRismostpronetofactualerrors. OneR
+oftenfixessomeofthefactualinformationwhichisclosesttothequestionbutdoesn’talwaysfixitalltheway.
+SinceIRCoTretrievesaftereachstep,itcanalsofixtheerrorsateachstep. MoreexamplesareinTable2.
+all the mistakes. Since IRCoT involves retrieval Model HotpotQA2WikiMQAMuSiQue IIRC
+aftereachstep,itcanfixerrorsateachstep.
+E DirectvsCoTPromptingReaders
+Table 4 compares reader choice (Direct vs CoT
+Prompting)forFlan-T5-XXLandGPT3. Wefind
+thatFlan-T5-XXLworksbetterwithDirectPrompt-
+ing as a reader and GPT3 works better with CoT
+Prompting as a reader. Therefore, for the experi-
+ments in the main paper, we go with this choice.
+Notethoughthatthetrendsdiscussedin§5(IRCoT
+QA>OneRQA>ZeroRQA)holdregardlessof
+thechoiceofthereader.
+F SeparateReaderinIRCoTQA
+IRCoT,byconstruction,producesaCoTasapart
+ofitsretrievalprocess. So,insteadofhavingasep-
+aratepost-hocreader,onecanalsojustextractthe
+answer from the CoT generated during retrieval.
+As Table 6 shows the effect of such an ablation.
+For Flan-T5-XXL having a separate reader is sig-
+nificantlybetter. ForGPT3,thisisnotalwaystrue,
+but at least a model with a separate reader is al-
+waysbetterorclosetotheonewithout. Sooverall
+we go with the choice of using the reader for the
+experimentsinthispaper.
+nalF IRCoTQA 59.1±0.9 66.5±1.4 30.8±0.2 42.5±2.1
+w/oreader 52.6±0.3 60.9±0.6 24.9±0.2 40.3±0.2
+3TPG IRCoTQA 60.7±1.1 68.0±1.5 36.5±1.2 49.9±1.1
+w/oreader 61.0±0.7 70.4±1.5 31.5±0.6 48.4±1.0
+Table 6: Answer F1 of IRCoT QA with and without
+aseparatereaderforFlan-T5-XXL(toptworows)and
+GPT3(bottomtworows). Whenthereaderisnotused,
+the answer is extracted from the CoT generated by
+IRCoT while doing the retrieval. Ablating the reader
+usuallyhurtstheperformance.
+G Prompts
+Ourmanuallywrittenchain-of-thoughtannotations
+forHotpotQA,2WikiMultihopQA,MuSiQue,and
+IIRC are given in Listing 1, 2, 3 and 4 respec-
+tively. OurpromptsforGPT3CoTPromptingare
+the same as these, except they have Wikipipedia
+paragraphs on the top of the questions as shown
+in§3.120. OurpromptsforGPT3DirectPrompt-
+ingarethesameasthatofCoTprompting,except
+havetheanswerafter"A:"directly. Ourprompts
+for Flan-T5-* are slightly different from that of
+GPT3. ForCoTPrompting,weprefixthequestion
+20Wearenotshowingtheparagraphsinthepaperforbrevity
+buttheycanbeobtainedfromthereleasedcode.line: "Q:Answerthefollowingquestionbyreason-
+ing step-by-step. <actual-question>". For Direct
+Prompting,weprefixthequestionline: "Q:Answer
+the following question. <actual-question>". We
+didthistofollowFlan-T5-*’strainingformatand
+foundittohelpitsCoTgeneration.Listing1: Chain-of-ThoughtannotationsforHotpotQA.
+Q:JeremyTheobaldandChristopherNolansharewhatprofession?
+A:JeremyTheobaldisanactorandproducer.ChristopherNolanisadirector,producer,andscreenwriter.Therefore,they
+bothsharetheprofessionofbeingaproducer.Sotheansweris:producer.
+Q:WhatfilmdirectedbyBrianPatrickButlerwasinspiredbyafilmdirectedbyF.W.Murnau?
+A:BrianPatrickButlerdirectedthefilmThePhantomHour.ThePhantomHourwasinspiredbythefilmssuchasNosferatu
+andTheCabinetofDr.Caligari.OftheseNosferatuwasdirectedbyF.W.Murnau.Sotheansweris:ThePhantomHour.
+Q:HowmanyepisodeswereintheSouthKoreantelevisionseriesinwhichRyuHye−youngplayedBo−ra?
+A:TheSouthKoreantelevisionseriesinwhichRyuHye−youngplayedBo−raisReply1988.ThenumberofepisodesReply
+1988hasis20.Sotheansweris:20.
+Q:VerticalLimitstarswhichactorwhoalsoplayedastronautAlanShepardin"TheRightStuff"?
+A:TheactorwhoplayedastronautAlanShepardin"TheRightStuff"isScottGlenn.ThemovieVerticalLimitalsostarred
+ScottGlenn.Sotheansweris:ScottGlenn.
+Q:Whatwasthe2014populationofthecitywhereLakeWalesMedicalCenterislocated?
+A:LakeWalesMedicalCenterislocatedinthecityofPolkCounty,Florida.ThepopulationofPolkCountyin2014was
+15,140.Sotheansweris:15,140.
+Q:Whowasbornfirst?JandeBontorRaoulWalsh?
+A:JandeBontwasbornon22October1943.RaoulWalshwasbornonMarch11,1887.Thus,RaoulWalshwasbornthe
+first.Sotheansweris:RaoulWalsh.
+Q:InwhatcountrywasLostGravitymanufactured?
+A:TheLostGravity(rollercoaster)wasmanufacturedbyMackRides.MackRidesisaGermancompany.Sotheansweris:
+Germany.
+Q:Whichofthefollowinghadadebutalbumentitled"WeHaveanEmergency":HotHotHeatorTheOperationM.D.?
+A:Thedebutalbumoftheband"HotHotHeat"was"MakeUptheBreakdown".Thedebutalbumoftheband"TheOperation
+M.D."was"WeHaveanEmergency".Sotheansweris:TheOperationM.D..
+Q:InwhichcountrydidthisAustralianwhowasdetainedinGuantanamoBaydetentioncampandpublished"Guantanamo:
+MyJourney"receivepara−militarytraining?
+A:TheAustralianwhowasdetainedinGuantanamoBaydetentioncampandpublished"Guantanamo:MyJourney"isDavid
+Hicks.DavidHicksreceivedhispara−militarytraininginAfghanistan.Sotheansweris:Afghanistan.
+Q:DoesTheBorderSurrenderorUnsanehavemoremembers?
+A:TheBorderSurrenderbandhasfollowingmembers:KeithAustin,SimonShields,JohnnyManningandMarkAustin.That
+is,ithas4members.Unsaneisatrioof3members.Thus,TheBorderSurrenderhasmoremembers.Sotheansweris:
+TheBorderSurrender.
+Q:Whichbandformedfirst,SpongeColaorHurricaneNo.1?
+A:SpongeColabandwasformedin1998.HurricaneNo.1wasformedin1996.Thus,HurricaneNo.1bandformedthefirst.
+Sotheansweris:HurricaneNo.1.
+Q:JamesParisLeeisbestknownforinvestingtheLee−Metfordrifleandanotherrifleoftenreferredtobywhatacronymn?
+A:JamesParisLeeisbestknownforinvestingtheLee−MetfordrifleandLeeâA˘S¸Enfieldseriesofrifles.LeeâA˘S¸Enfieldis
+oftenreferredtobytheacronymofSMLE.Sotheansweris:SMLE.
+Q:Whowasbornfirst,JamesDGrant,whousesthepennameofLeeChild,orBernhardSchlink?
+A:JamesDGrant,whousesthepennameofLeeChild,wasbornin1954.BernhardSchlinkwasbornin1944.Thus,
+BernhardSchlinkwasbornfirst.Sotheansweris:BernhardSchlink.
+Q:WhichAmericanneo−noirsciencefictionhasPierceGagnonstarred?
+A:PierceGagnonhasstarredinOneTreeHill,Looper,WishIWasHereandExtant.Ofthese,LooperisanAmericanneo−
+noirsciencefiction.Sotheansweris:Looper.
+Q:WhatyeardidEdburgaofMinster−in−Thanet'sfatherdie?
+A:ThefatherofEdburgaofMinster−in−ThanetisKingCentwine.Centwinediedafter685.Sotheansweris:after685.
+Q:WereLonnyandAllurebothfoundedinthe1990s?
+A:Lonny(magazine)wasfoundedin2009.Allure(magazine)wasfoundedin1991.Thus,ofthetwo,onlyAllurewas
+foundedin1990s.Sotheansweris:no.
+Q:TheactorthatstarsasJoeProctorontheseries"Power"alsoplayedacharacteron"Entourage"thathaswhatlastname?A:TheactorthatstarsasJoeProctorontheseries"Power"isJerryFerrara.JerryFerraraalsoplayedacharacteronEntourage
+namedTurtleAssante.Thus,TurtleAssante'slastnameisAssante.Sotheansweris:Assante.
+Q:NobodyLovesYouwaswrittenbyJohnLennonandreleasedonwhatalbumthatwasissuedbyAppleRecords,andwas
+written,recorded,andreleasedduringhis18monthseparationfromYokoOno?
+A:ThealbumissuedbyAppleRecords,andwritten,recorded,andreleasedduringJohnLennon's18monthseparationfrom
+YokoOnoisWallsandBridges.NobodyLovesYouwaswrittenbyJohnLennononWallsandBridgesalbum.Sothe
+answeris:WallsandBridges.
+Q:Howmanyawardsdidthe"AGirlLikeMe"singerwinattheAmericanMusicAwardsof2012?
+A:Thesingerof"AGirlLikeMe"singerisRihanna.IntheAmericanMusicAwardsof2012,Rihanawononeaward.Sothe
+answeris:one.
+Q:whoisolderJeremyHornorRenatoSobral?
+A:JeremyHornwasbornonAugust25,1975.RenatoSobralwasbornonSeptember7,1975.Thus,JeremyHornisolder.So
+theansweris:JeremyHorn.
+Listing2: Chain-of-Thoughtannotationsfor2WikiMultihopQA.
+Q:WhendidthedirectoroffilmHypocrite(Film)die?
+A:ThefilmHypocritewasdirectedbyMiguelMorayta.MiguelMoraytadiedon19June2013.Sotheansweris:19June
+2013.
+Q:DodirectoroffilmCoolieNo.1(1995Film)anddirectoroffilmTheSensationalTrialhavethesamenationality?
+A:CoolieNo.1(1995film)wasdirectedbyDavidDhawan.TheSensationalTrialwasdirectedbyKarlFreund.David
+Dhawan'snationalityisIndia.KarlFreund'snationalityisGermany.Thus,theydonothavethesamenationality.Sothe
+answeris:no.
+Q:ArebothKurramGarhiandTrojkrstilocatedinthesamecountry?
+A:KurramGarhiislocatedinthecountryofPakistan.TrojkrstiislocatedinthecountryofRepublicofMacedonia.Thus,
+theyarenotinthesamecountry.Sotheansweris:no.
+Q:WhowasbornfirstoutofMartinHodgeandIvaniaMartinich?
+A:MartinHodgewasbornon4February1959.IvaniaMartinichwasbornon25July1995.Thus,MartinHodgewasborn
+first.Sotheansweris:MartinHodge.
+Q:Whichfilmcameoutfirst,TheNightOfTricksorTheGenealogy?
+A:TheNightofTrickswaspublishedintheyear1939.TheGenealogywaspublishedintheyear1979.Thus,TheNightof
+Trickscameoutfirst.Sotheansweris:TheNightOfTricks.
+Q:WhendidthedirectoroffilmLaughterInHelldie?
+A:ThefilmLaughterInHellwasdirectedbyEdwardL.Cahn.EdwardL.CahndiedonAugust25,1963.Sotheansweris:
+August25,1963.
+Q:Whichfilmhasthedirectordiedlater,TheGalWhoTooktheWestorTwentyPlusTwo?
+A:ThefilmTwentyPlusTwowasdirectedbyJosephM.Newman.TheGalWhoTooktheWestwasdirectedbyFrederickde
+Cordova.JosephM.NewmandiedonJanuary23,2006.FreddeCordovadiedonSeptember15,2001.Thus,theperson
+todielaterfromthetwoisTwentyPlusTwo.Sotheansweris:TwentyPlusTwo.
+Q:WhoisBoraqchin(WifeOfÃU˝gedei)'sfather−in−law?
+A:BoraqchinismarriedtoÃU˝gedeiKhan.ÃU˝gedeiKhan'sfatherisGenghisKhan.Thus,Boraqchin'sfather−in−lawis
+GenghisKhan.Sotheansweris:GenghisKhan.
+Q:WhatisthecauseofdeathofGrandDukeAlexeiAlexandrovichOfRussia'smother?
+A:ThemotherofGrandDukeAlexeiAlexandrovichofRussiaisMariaAlexandrovna.MariaAlexandrovnadiedfrom
+tuberculosis.Sotheansweris:tuberculosis.
+Q:Whichfilmhasthedirectordiedearlier,WhenTheMadAuntsArriveorTheMiracleWorker(1962Film)?
+A:WhenTheMadAuntsArrivewasdirectedbyFranzJosefGottlieb.TheMiracleWorker(1962film)wasdirectedby
+ArthurPenn.FranzJosefGottliebdiedon23July2006.ArthurPenndiedonSeptember28,2010.Thus,ofthetwo,the
+directortodieearlierisFranzJosefGottlieb,whodirectedWhenTheMadAuntsArrive.Sotheansweris:WhenThe
+MadAuntsArrive.
+Q:Whichalbumwasreleasedearlier,What'SInsideorCassandra'SDream(Album)?
+A:What'sInsidewasreleasedintheyear1995.Cassandra'sDream(album)wasreleasedintheyear2008.Thus,ofthetwo,
+thealbumtoreleaseearlierisWhat'sInside.Sotheansweris:What'sInside.
+Q:Arebothmountains,SerreMoureneandMonteGalbiga,locatedinthesamecountry?
+A:SerreMoureneislocatedinSpain.MonteGalbigaislocatedinItaly.Thus,thetwocountriesarenotlocatedinthesamecountry.Sotheansweris:no.
+Q:WhatisthedateofbirthofthedirectoroffilmBestFriends(1982Film)?
+A:ThefilmBestFriendswasdirectedbyNormanJewison.NormanJewisonwasbornonJuly21,1926.Sotheansweris:
+July21,1926.
+Q:Whichfilmhasthedirectorbornfirst,TwoWeeksWithPayorChhaillaBabu?
+A:TwoWeekswithPaywasdirectedbyMauriceCampbell.ChhaillaBabuwasdirectedbyJoyMukherjee.Maurice
+CampbellwasbornonNovember28,1919.JoyMukherjeewasbornon24February1939.Thus,fromthetwodirectors,
+ChhaillaBabuwasbornfirst,whodirectedTwoWeeksWithPay.Sotheansweris:TwoWeeksWithPay.
+Q:WhoisthegrandchildofKrishnaShah(NepaleseRoyal)?
+A:KrishnaShahhasachildnamedRudraShah.RudraShahhasachildnamedPrithvipatiShah.Thus,KrishnaShahhasa
+grandchildnamedPrithvipatiShah.Sotheansweris:PrithvipatiShah.
+Q:WhenwasthedirectoroffilmP.S.Jerusalemborn?
+A:P.S.JerusalemwasdirectedbyDanaeElon.DanaeElonwasbornonDecember23,1970.Sotheansweris:December23,
+1970.
+Q:Whichalbumwasreleasedmorerecently,IfIHavetoStandAloneorAnsweringMachineMusic?
+A:IfIHavetoStandAlonewaspublishedintheyear1991.AnsweringMachineMusicwasreleasedintheyear1999.Thus,
+ofthetwo,thealbumtoreleasemorerecentlyisAnsweringMachineMusic.Sotheansweris:AnsweringMachine
+Music.
+Q:WheredidthedirectoroffilmMaddalena(1954Film)die?
+A:ThefilmMaddalenaisdirectedbyAugustoGenina.AugustoGeninadiedinRome.Sotheansweris:Rome.
+Q:WhendidthedirectoroffilmTheBoyAndTheFogdie?
+A:ThedirectorofTheBoyandtheFogisRobertoGavaldÃs¸n.RobertoGavaldÃs¸ndiedonSeptember4,1986.Sotheanswer
+is:September4,1986.
+Q:ArethedirectorsoffilmsTheSunoftheSleeplessandNevada(1927film)bothfromthesamecountry?
+A:ThedirectorofSunoftheSleeplessisTemurBabluani.ThedirectorofNevada(1927film)isJohnWaters.JohnWatersis
+fromthecountryofAmerica.TemurBabluaniisfromthecountryofGeorgia.Thus,JohnWaltersandTemurBabluani
+arenotfromthesamecountry.Sotheansweris:no.
+Listing3: Chain-of-ThoughtannotationsforMuSiQue.
+Q:WhendidthefirstlargewintercarnivaltakeplaceinthecitywhereCIMI−FMislicensedtobroadcast?
+A:CIMI−FMislicensedtobroadcastinQuebecCity.ThefirstlargewintercarnivalinQuebecCitytookplacein1894.So
+theansweris:1894.
+Q:WhenwasNevilleA.Stanton'semployerfounded?
+A:TheemployerofNevilleA.StantonisUniversityofSouthampton.TheUniversityofSouthamptonwasfoundedin1862.
+Sotheansweris:1862.
+Q:WhatcountyisHebronlocatedin,inthesameprovincetheHeritagePlacesProtectionActappliesto?
+A:HeritagePlacesProtectionActappliestothejurisdictionofPrinceEdwardIsland.Hebron,PrinceEdwardIslandislocated
+inthePrinceCounty.Sotheansweris:PrinceCounty.
+Q:WhatweeklypublicationintheConnecticutcitywiththemostZagatratedrestaurantsisissuedbyuniversityofAmerica−
+Lite:HowImperialAcademiaDismantledOurCulture'sauthor?
+A:TheauthorofAmerica−Lite:HowImperialAcademiaDismantledOurCultureisDavidGelernter.DavidGelernterwas
+educatedattheYaleUniversity.ThecityinConnecticutthathasthehighestnumberofZagat−ratedrestaurantsisNew
+Haven.TheweeklypublicationinNewHaventhatisissuedbyYaleUniversityisYaleHerald.Sotheansweris:Yale
+Herald.
+Q:WhatistheheadquartersfortheorganizationwhosetsthestandardsforISO21500?
+A:ThestandardsforISO21500weresetbyInternationalOrganizationforStandardization.TheInternationalOrganization
+forStandardizationhasheadquartersinGeneva.Sotheansweris:Geneva.
+Q:WhatdidthepublisherofBanjo−Tooierelyprimarilyonforitssupport?
+A:ThepublisherofBanjo−TooieisNintendo.Nintendoreliedprimarilyforitssupportonfirst−partygames.Sotheansweris:
+first−partygames.
+Q:InwhichcountywasthebirthplaceoftheSmokeinthaCityperformer?
+A:TheperformerofSmokeinthaCityisMCEiht.MCEiht'sbirthplaceisCompton.ComptonislocatedinthecountyofLos
+AngelesCounty.Sotheansweris:LosAngelesCounty.
+Q:WhatregionofthestatewhereGuyShepherdsonwasborn,containsSMANegeri68?A:GuyShepherdsonwasborninJakarta.SMANegeri68JakartaislocatedinCentralJakarta.Sotheansweris:Central
+Jakarta.
+Q:WhendidBritainwithdrawfromthecountrycontainingHoora?
+A:HooraisinthecountryofBahrain.BritainwithdrewfromBahrainin1971.Sotheansweris:1971.
+Q:WheredoestheSnakeRiverstart,inthestatewhereLimaMountainislocated?
+A:LimaMountainislocatedinthestateofMinnesota.ThesnakeriverinMinnesotastartsinsouthernAitkinCounty.Sothe
+answeris:southernAitkinCounty.
+Q:WhatsharesaborderwithRiviÃ´lre−VerteintheprovinceWRSU−FMbroadcastsin?
+A:WRSU−FMwaslicensedtobroadcasttoNewBrunswick.RiviÃ´lre−Verte,NewBrunswicksharesborderwith
+Edmundston.Sotheansweris:Edmundston.
+Q:WhenwasthestateofemergencydeclaredinthecountrywheretheSenateislocated?
+A:TheSenateisinthecountryofKenya.ThestateofemergencywasdeclaredinKenyaon20October1952.Sotheanswer
+is:20October1952.
+Q:HowlongistheUSborderwiththecountrythatbordersthestatewhereFindingDorytakesplace?
+A:FindingDoryissupposedtotakeplaceinCalifornia.ThecountrythatsharesaborderwithCaliforniaisMexico.The
+lengthoftheusborderwithMexicois1,989mi.Sotheansweris:1,989mi.
+Q:WhatgenreistherecordlabeloftheperformerofSoLong,SeeYouTomorrowassociatedwith?
+A:TheperformerofSoLong,SeeYouTomorrowisBombayBicycleClub.TherecordlabelofBombayBicycleClubis
+IslandRecords.ThegenreofIslandRecordsisjazz.Sotheansweris:jazz.
+Q:WhendidthefirstlargewintercarnivalhappeninOlivierRobitaille'splaceofbirth?
+A:OlivierRobitaillewasborninQuebecCity.ThefirstlargewintercarnivalinQuebecCityhappenedinthe1894.Sothe
+answeris:1894.
+Q:WhatisthegenreoftherecordlabelofthebandthatperformedontheCrushTour?
+A:TheCrushTourisperformedbythebandBonJovi.TherecordlabelofBonJoviisIslandRecords.ThegenreofIsland
+Recordsisjazz.Sotheansweris:jazz.
+Q:WhenwasthefirstrailwaylineconstructedbetweenKotriandthecitywhereMarieAdelaideLeprosyCentreislocated?
+A:MarieAdelaideLeprosyCentreislocatedinKarachi.ThefirstrailwaylinebetweenKotriandKarachiwasconstructedin
+April1858.Sotheansweris:April1858.
+Q:WhereisthecryingstonefoundinthecountryinwhichRaphaelTujuholdscitizenship?
+A:RaphaelTujuisacitizenofKenya.ThecryingstoneinKenyaisfoundalongthehighwaytowardsKisumu.Sotheanswer
+is:alongthehighwaytowardsKisumu.
+Q:WhendidBritainwithdrawfromthecountrywherethevillageofWadyanisfound?
+A:WadyanisinthecountryofBahrain.BritainwithdrawfromBahrainin1971.Sotheansweris:1971.
+Q:HowmanycountriesinPacificNationalUniversity'scontinentarerecognizedbytheorganizationthatmediatedthetruce
+endingtheIran−Iraqwar?
+A:PacificNationalUniversityislocatedinKhabarovsk,RussiaKhabarovsk,RussianisinthecontinentofAsia.Theentity
+thatmediatedthetrucewhichendedtheIran−IraqWaristheUN.ThenumberofmemberstatesthatUNrecognisesin
+Asiais53.Sotheansweris:53.
+Listing4: Chain-of-ThoughtannotationsforIIRC.
+Q:WhatistheagedifferencebetweenthekickerandthequarterbackfortheChargers?
+A:ThekickerfortheChargersisNateKaeding.Thequarterback(QB)fortheChargersisPhilipRivers.NateKaedingwas
+bornintheyear1982.PhilipRiverswasbornintheyear1981.Thus,theagedifferencebetweenthemisof1year.So
+theansweris:1.
+Q:HowmanyyearswastheshipthattookthebattalionfromNewSouthWalestoCeyloninservice?
+A:TheshipthattookthebattalionfromNewSouthWalestoCeylonisGeneralHewitt.GeneralHewittwaslaunchedin
+Calcuttain1811.GeneralHewittwassoldforahulkortobebrokenupin1864.Sosheservedforatotalof1864−
+1811=53years.Sotheansweris:53.
+Q:Whatyearwasthetheatrethatheldthe2016NFLDraftbuilt?
+A:Thetheatrethatheldthe2016NFLDraftisAuditoriumTheatre.TheAuditoriumTheatrewasbuiltin1889.Sotheanswer
+is:1889.
+Q:HowlonghadMilanbeenestablishedbytheyearthatNavareturnedthereasareserveinthefirstteam'sdefense?
+A:NavareturnedtoMilanasareserveinthefirstteam'sdefenseintheyear1990.Milanhadbeenestablishedintheyear1899.Thus,Milanhadbeenestablishedfor1990−1899=91yearswhenMilanreturnedtoMilanasareserveinthe
+firstteam'sdefense.Sotheansweris:91.
+Q:WhenwasthetownScottwasborninfounded?
+A:ScottwasborninthetownofCooksville,Illinois.Cooksvillewasfoundedintheyear1882.Sotheansweris:1882.
+Q:InwhatcountrydidWrightleavetheFrenchprivateers?
+A:WrightlefttheFrenchprivateersinBluefield'sriver.BluefieldsisthecapitaloftheSouthCaribbeanAutonomousRegion(
+RAAS)inthecountryofNicaragua.Sotheansweris:Nicaragua.
+Q:WhoplaystheA−TeamcharacterthatDr.Hibbertfashionedhishairafter?
+A:Dr.HibbertfashionedhishairafterMr.TfromTheA−Team.MrT.'sbirthnameisLawrenceTureaud.Sotheansweris:
+LawrenceTureaud.
+Q:HowmanypeopleattendedtheconferenceheldnearBerlininJanuary1942?
+A:TheconferenceheldnearBerlininJanuary1942isWannseeConference.WannseeConferencewasattendedby15people.
+Sotheansweris:15.
+Q:WhendidthecountryOttwaltwentintoexileinfounded?
+A:OttwaltwentintoexileinthecountryofDenmark.Denmarkhasbeeninhabitedsincearound12,500BC.Sotheansweris:
+12,500BC.
+Q:WhenwastheJ2clubUkiplayedforin2001founded?
+A:TheJ2clubthatUkiplayedforisMontedioYamagata.MontedioYamagatawasfoundedin1984.Sotheansweris:1984.
+Q:WhenwasthepersonwhoproducedALittleAin'tEnoughborn?
+A:ALittleAin'tEnoughwasproducedbyBobRock.BobRockwasbornonApril19,1954.Sotheansweris:April19,1954.
+Q:WhichoftheschoolsFiserisaffiliatedwithwasfoundedfirst?
+A:TheschoolsthatFiserisaffiliatedwith(1)AcademyofMusic,UniversityofZagreb(2)MozarteumUniversityofSalzburg
+(3)CroatianMusicInstituteorchestra.AcademyofMusic,UniversityofZagrebwasfoundedintheyear1829.
+MozarteumUniversityofSalzburgwasfoundedintheyear1841.CroatianMusicInstitutewasfoundedintheyear1827.
+Thus,theschoolfoundedearliestoftheseisCroatianMusicInstitute.Sotheansweris:CroatianMusicInstitute.
+Q:HowmanycasualtieswerethereatthebattlethatDearingfoughtatunderJubalEarly?
+A:UnderJubalEarly,DearingfoughttheFirstBattleofBullRun.FirstBattleofBullRunhas460unioncasualtiesand387
+confederatecasualties.Thus,intotaltheFirstBattleofBullRunhad460+387=847casualties.Sotheansweris:847.
+Q:WhichofthetwocongregationswhichprovidedleadershiptothePilgrimswasfoundedfirst?
+A:ThecongregationswhichprovidedleadershiptothePilgrimsareBrownistsandSeparatistPuritans.Brownistwasfounded
+in1581.TheSeparatistPuritanswasfoundedin1640.Thus,Brownistwasfoundedfirst.Sotheansweris:Brownist.
+Q:HowlonghadtheRockandRollHallofFamebeenopenwhenthebandwasinductedintoit?
+A:ThebandwasinductedintoRockandRollHallofFameintheyear2017.RockandRollHallofFamewasestablishedin
+theyearof1983.Thus,RockandRollHallofFamebeenopenfor2018−1983=34yearswhenthebandwasinducted
+intoit.Sotheansweris:34.
+Q:DidtheLordSewerwhowasappointedatthe1509coronationlivelongerthanhisking?
+A:LordSewerwhowasappointedatthe1509coronationwasRobertRadcliffe,1stEarlofSussex.LordSever'skingin1509
+wasHenryVIIIofEngland.RobertRadcliffe,1stEarlofSussexwasbornintheyear1483,anddiedintheyear1542.
+SoRobertlivedfor1542−1483=59years.HenryVIIIofEnglandwasbornintheyear1491anddiedintheyear1547.
+SoHenryVIIIlivedfor1547−1491=56years.Thus,RobertRadcliffelivedlongerthanHenryVIII.Sotheansweris:
+yes.
+Q:WhenwastheplacenearwhereManucharwasdefeatedbyQvarqvareestablished?
+A:ManucharwasdefeatedbyQvarqvarenearErzurum.ErzurumwasfoundedduringtheUrartianperiod.Sotheansweris:
+Urartianperiod.
+Q:Whatyearwasthemanwhoimplementedthe46calendarreformborn?
+A:Themanwhoimplementedthe46calendarreformisJuliusCaesar.JuliusCaesarwasbornintheyear100BC.Sothe
+answeris:100BC.
+Q:HowmanyyearsafterthefirstrecordedTommyJohnsurgerydidScottBakerundergohis?
+A:ThefirstrecordedTommyJohnsurgeryhappenedwhenitwasinventedintheyear1974.ScottBakerunderwentTommy
+Johnsurgeryintheyear2012.Thus,ScottBakerunderwentTommyJohnsurgery2012−1974=38yearsafteritwas
+firstrecorded.Sotheansweris:38.
+Q:WhichwastheolderofthetwoplayerswhofoundthenetintheDouble−HeadedEagleoftheNorthinthesixthfinalfor
+PAOK?A:ThetwoplayerswhofoundthenetintheDouble−HeadedEagleoftheNorthinthesixthfinalforPAOKareKoudasand
+Matzourakis.Koudaswasbornon23November1946.Matzourakiswasbornon6June1949.Thus,theolderperson
+amongthetwoisKoudas.Sotheansweris:Koudas.

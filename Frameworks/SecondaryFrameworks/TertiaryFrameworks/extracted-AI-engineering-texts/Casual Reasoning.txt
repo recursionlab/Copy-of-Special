@@ -1,0 +1,1036 @@
+XCOPA: A Multilingual Dataset for Causal Commonsense Reasoning
+EdoardoM.Ponti1∗,GoranGlavasˇ2∗, OlgaMajewska1,
+QianchuLiu1, IvanVulic´1, AnnaKorhonen1
+1LanguageTechnologyLab,TAL,UniversityofCambridge,UK
+2 DataandWebScienceGroup,UniversityofMannheim,Germany
+1{ep490,om304,ql261,iv250,alk23}@cam.ac.uk
+2goran@informatik.uni-mannheim.de
+Abstract Ultimately,itshapestheindividuals’expectations
+abouttypicalsituations(Shoham,1990).1
+In order to simulate human language ca-
+pacity, natural language processing systems Aseminalworkonthequantitativeevaluationof
+must be able to reason about the dynamics commonsense reasoning is the Choice Of Plausi-
+of everyday situations, including their pos- bleAlternativesdataset(COPA;Roemmeleetal.,
+sible causes and effects. Moreover, they
+2011),whichfocusesoncause–effectrelationships.
+should be able to generalise the acquired
+Inrecentyears,moredatasetshavebeendedicated
+world knowledge to new languages, modulo
+to other facets of world knowledge (Sakaguchi
+cultural differences. Advances in machine
+et al., 2020; Bisk et al., 2020; Bhagavatula et al.,
+reasoning and cross-lingual transfer depend
+on the availability of challenging evaluation 2020;Rashkinetal.,2018;Sapetal.,2019,inter
+benchmarks. Motivated by both demands, alia). Unfortunately,theextensiveeffortsrelatedto
+we introduce Cross-lingual Choice of Plausi- thisthreadofresearchhavesofarbeenlimitedonly
+bleAlternatives(XCOPA),atypologicallydi- totheEnglishlanguage.2 Suchanarrowscopenot
+versemultilingualdatasetforcausalcommon-
+onlycurbsthedevelopmentofnaturallanguageun-
+sense reasoning in 11 languages, which in-
+derstandingtoolsinotherlanguages(Bender,2011;
+cludes resource-poor languages like Eastern
+Pontietal.,2019a),butalsoexacerbatestheAnglo-
+Apur´ımac Quechua and Haitian Creole. We
+evaluate a range of state-of-the-art models on centricbiasinmodelingcommonsensereasoning.
+this novel dataset, revealing that the perfor- Infact,theexpectationsabouttypicalsituationsdo
+mance of current methods based on multilin- varyacrosscultures(Thomas,1983).
+gualpretrainingandzero-shotfine-tuningfalls
+Datasetsthatcovermultiplelanguagesforother
+short compared to translation-based transfer.
+natural understanding tasks, such as language in-
+Finally, we propose strategies to adapt multi-
+ference(Conneauetal.,2018),questionanswering
+lingualmodelstoout-of-sampleresource-lean
+(Lewis et al., 2020; Artetxe et al., 2020a; Clark
+languageswhereonlyasmallcorpusorabilin-
+gual dictionary is available, and report sub- et al., 2020), and paraphrase identification (Yang
+stantial improvements over the random base- etal.,2019b)havereceivedincreasingattention. In
+line. TheXCOPAdatasetisfreelyavailableat fact,therequirementtogeneralisetonewlanguages
+github.com/cambridgeltl/xcopa.
+encouragesthedevelopmentofmoreversatilelan-
+1 Introduction guageunderstandingmodels,whichcanbeported
+across different grammars and lexica. These ef-
+Commonsense reasoning is a critical component
+fortshaverecentlyculminatedintheintegrationof
+of any natural language understanding system
+severalmultilingualtasksintotheXTREMEevalu-
+(Davis and Marcus, 2015). Contrary to textual
+ationsuite(Huetal.,2020). However, acompre-
+entailment, commonsense reasoning must bridge
+between premises and possible hypotheses with
+1Moreover,thereareoftenmultiplelegitimatechainsof
+worldknowledgethatisnotexplicitintext(Singer sentencesthatcanbeinvokedinbetweenpremisesandhy-
+etal.,1992). Suchworldknowledgeencompasses, potheses. In short, commonsense reasoning does not just
+involveunderstandingwhatispossible,butalsorankingwhat
+amongotheraspects: temporalandspatialrelations,
+ismostplausible.
+causality,lawsofnature,socialconventions,polite- 2Theonlyexceptionisdirecttranslationofthe272paired
+ness,emotionalresponses,andmultiplemodalities. EnglishWinogradSchemaChallengeinstancestoJapanese
+(Shibataetal.,2015), French(AmsiliandSeminck,2017),
+∗Equalcontribution. andPortuguese(Meloetal.,2020).PREMISE CHOICE1 CHOICE2
+qu Sipasqacerealmikhunanpikuruta Payqapukunmann˜uqn˜uta Payqamanammikhuyta
+tarirqan. R churakurqan. munarqanchu.
+en Thegirlfoundabuginhercereal. Shepouredmilkinthebowl. Shelostherappetite.
+th ตาของฉันแดงและบวม ฉันร้องไห้ ฉันหัวเราะ
+C
+en Myeyesbecameredandpuffy. Iwassobbing. Iwaslaughing.
+Table1: Examplesofforward(Result[R])andbackward(Cause[C])reasoningfromtheXCOPAvalidationsets.
+hensivemultilingualbenchmarkforcommonsense models must be able not only to combine textual
+reasoninginparticularisstillmissing. evidence with world knowledge – which makes
+Inordertoaddressthisgap,wedevelopanovel commonsense reasoning challenging per se (Tal-
+dataset, XCOPA (see examples in Table 1), by moretal.,2019;Rajanietal.,2019),buttheymust
+carefullytranslatingandre-annotatingthevalida- alsotransfertheacquiredcausalreasoningabilities
+tion and test sets of English COPA into 11 target acrosslanguages. TheresultsweobtainonXCOPA
+languages. Akeydesignchoiceistheselectionof thusindicatethelimitationsofcurrentstate-of-the-
+atypologicallydiversesampleoflanguages. Inpar- art multilingual models in cross-lingual transfer
+ticular,weprivilegevarietyovertheabundancein settingsforcomplexreasoningtasks.
+digitaltexts. Sinceresource-richlanguagestendto
+2 AnnotationDesign
+belongtoafewfamiliesandareas,samplesinspired
+bythiscriterionarehighlybiasedandnotindica-
+Design Objectives. The principal objectives in
+tiveoftruemodels’performance(Gerzetal.,2018;
+devising XCOPA were: 1) to create a genuinely
+Ponti et al., 2019a; Joshi et al., 2020; Lauscher
+typologicallydiversemultilingualdataset,aligned
+etal.,2020). Followingthisguidingprinciple,we
+acrosstargetlanguagestomakeperformancescores
+select11languagesfrom11distinctfamilies,and5
+comparable,and2)toensurehighquality,natural-
+geographicalmacro-areas(Africa,Eurasia,Papune-
+nessandidiomacityofeachmonolingualdataset.
+sia,NorthAmerica,andSouthAmerica).
+Whilethecommonlyusedtranslationapproachad-
+We leverage XCOPA to benchmark a series of
+dressestheformerobjective,itispronetocompro-
+state-of-the-artpretrainedmultilingualmodels,in-
+misethelattergoal,bendingthetargetlanguageto
+cluding XLM-R (Conneau et al., 2020), MBERT thestructuralandlexicalpropertiesofthesource
+(Devlinetal.,2019),andmultilingualUSE (Yang
+language: theresultingevaluationbenchmarksthus
+etal.,2019a). TwoXCOPAlanguages(i.e.,South-
+fail to measure system performance adequately
+ernQuechuaandHaitianCreole)areout-of-sample
+(Koppel and Ordan, 2011; Volansky et al., 2015;
+forthepretrainedmodels: thisnaturallyraisesthe
+Artetxeetal.,2020a;Freitagetal.,2020).
+questionofhowtoadaptthepretrainedmodelsto
+Toavoidthesepitfalls,we: (i)entrustedthetrans-
+such unseen languages. In particular, we investi-
+lationtasktoasingle(carefullyselected)transla-
+gatetheresource-leanscenarioswhereeithersome tor per target language,3 and (ii) offered enough
+monolingualdataorabilingualdictionarywithEn-
+leewayfornecessarytarget-languageadjustments
+glish(orboth)areavailableforthetargetlanguage.
+(e.g., substitutions with culture-specific concepts
+In summary, we offer the following contribu-
+andmulti-wordparaphrases,wherevertheoriginal
+tions. 1)Wecreatethefirstlarge-scalemultilingual
+texteludeddirecttranslation). Detailedtranslation
+evaluation set for commonsense reasoning, span-
+guidelinesareavailableintheAppendix.
+ning 11 languages, and discuss the challenges in
+Language Sampling. Multilingual evaluation
+accounting for world knowledge across different
+benchmarks assess the expected performance of
+culturesandlanguages. 2)Weproposequantitative
+amodelacrosslanguages. However,shouldsuch
+metrics to measure the internal variety of a lan-
+languagesbesampledaccordingtothedistribution
+guagesample,whichcanguidethedesignofany
+ofdigitaltextsorratherbasedonthedistribution
+multilingualdatasetinthefuture. 3)Webenchmark
+overthelanguagesspokenaroundtheworld? The
+pretrainedstate-of-the-artmodelsincross-lingual
+transfer of commonsense knowledge, and 4) in- 3Crowd-sourcingoffersfasterannotationatalowercost
+vestigate how to (post-hoc) improve transfer for –however,inourtrialexperiments,chasinglowannotation
+times and costs resulted in low translation quality. In our
+languagesunseenatpretrainingtime.
+experiment,theaveragewagewas£15perhour,fora(self-
+In order to rise to the challenge of this dataset, paced)totaltimeperlanguagebetween12and20hours.Range XCOPA TyDiQA XNLI XQUAD MLQA PAWS-X
+Typology [0,1] 0.41 0.41 0.39 0.36 0.32 0.31
+Family [0,1] 1 0.9 0.5 0.6 0.66 0.66
+Geography [0,ln6] 1.67 0.92 0.37 0 0 0
+Table2:Indicesoftypological,genealogical,andarealdiversityforthelanguagesamplesofasetofNLUdatasets.
+formerstrategyisunreliable,aslanguagesrichin European, Yuman–Cochim´ı, Niger-Congo, Dra-
+resourcestendtobelongtothesamefamiliesandar- vidian, Kra-Dai, Turkic, Austroasiatic, and Sino-
+eas,whichfacilitatesknowledgetransferandhence Tibetan. Moreover,HTandQUarespokeninNorth
+leadstoanoverestimationoftheexpectedperfor- and South America, respectively, which are both
+mance(Gerzetal.,2018;Pontietal.,2019a). underrepresentedmacro-areas. Wereportthe3met-
+Moreover,ratherthansamplesthataccountfor ricsinTable2andcomparethemtosamplesfrom
+independentandidenticallydistributeddrawsfrom otherstandardmultilingualNLUdatasets. XCOPA
+the‘true’languagedistribution(knownasproba- offersthemostdiversesampleintermsoftypology
+bilitysampling),weoptforauniformdistribution (onaparwithTyDiQA),family,andgeography.
+oflinguisticphenomena,whichencouragesthein-
+FinalDataset. AsTable1shows,each(X)COPA
+clusionofoutliers(knownasvarietysampling;Ri-
+instance corresponds to a premise, a question
+jkhoffetal.,1993;Dryer,1989). Thus,theperfor-
+(“What was the CAUSE?” or “What happened
+manceonXCOPAalsoreflectstherobustnessofa
+as a RESULT?”), and two alternatives. The task
+model,i.e.,itsresiliencetolinguisticfeaturesthat
+is framed as binary classification where the ma-
+areunlikelytobeobservedinthetrainingdata.
+chinehastopredictthemoreplausiblechoice. For
+InspiredbyRijkhoffetal.(1993)andMiestamo
+each target language, XCOPA comprises 100 an-
+(2004), we propose a series of simple and inter-
+notateddatainstancesinthevalidationsetand500
+pretable metrics that quantify diversity of a lan-
+instancesasthetestset,whicharetranslationsfrom
+guagesampleindependentofitssize: 1)atypology
+therespectiveEnglishCOPAvalidationandtestset.
+index based on 103 typological features of each
+Our translators performed labeling prior to trans-
+languagefromURIEL(Littelletal.,2017),origi-
+lation, deciding on the correct alternative for the
+nally sourced from the World Atlas of Language
+Englishpremiseandpreservingthecorrectnessof
+Structures(WALS;DryerandHaspelmath,2013).
+the same alternative in translation. We measure
+Each feature is binary and indicates the presence
+inter-translatoragreementusingtheFleiss’κstatis-
+or absence of an attribute in a language. We es-
+tic(Fleiss,1971): theobtainedscoreof0.921for
+timatetheentropyofthedistributionofvaluesin
+validationand0.911fortestdatarevealveryhigh
+a sample. Afterwards, we average across all 103
+agreement (i.e., Landis and Koch (1977) define
+feature-specificentropies. Intuitively,ifallvalues
+κ ≥ 0.81asalmostperfectagreement).
+areequallyrepresented,theentropyishigh. Ifall
+Fromthe11setsofannotationlabelsweobtain
+languageshaveidenticalfeatures,theentropyis0;
+themajoritylabels(i.e.,6+translatorsagree). We
+2) The family index is simply the number of dis-
+observeperfectagreementbetweenourmajorityla-
+tinct families divided by the sample size. 3) The
+belsandtheEnglishCOPAlabelsfordevelopment
+geographyindexistheentropyofthedistribution
+data. We then compute the percentage of anno-
+overmacro-areasinasample.4
+tatedlabelswhichagreewiththemajoritylabelfor
+The sample of languages for XCOPA aims at
+eachlanguageindividually,reportedinTable3,and
+maximisingtheseindices. Inparticular,XCOPAin-
+findveryhighagreementacross11languages. The
+cludesEstonian(ET),HaitianCreole(HT),Indone-
+small discrepancies in label choices in our work
+sian(ID),Italian(IT),EasternApur´ımacQuechua
+stemnotonlyfromtheactualsemanticambiguity
+(QU),Kiswahili(SW),Tamil(TA),Thai(TH),Turk-
+oftheoriginalEnglishquestion,butalsoreflectthe
+ish(TR),Vietnamese(VI),andMandarinChinese
+translators’ different cultural frames of reference
+(ZH). Theselanguagesbelongtodistinctfamilies,
+and patterns of association. On average, 2.1% of
+respectively: Uralic, Creole, Austronesian, Indo-
+labelsinthevalidationsetand2.4%oflabelsinthe
+4Sixmacro-areas,asdefinedbyWALS(DryerandHaspel-
+testsetdonotmatchthemajoritylabel.5
+math,2013),are:Africa,Australia,Eurasia,NorthAmerica,
+Papunesia,andSouthAmerica.Wheneveralanguagespans 5Inordertoaccuratelyrepresentambiguityofthesmall
+multiplemacro-areas,weselectthatofthestandardvariety. numberofdisagreementlabels,inthefinaldatasetsweexplic-ET HT ID IT QU SW TA TH TR VI ZH
+val 97.0 97.0 99.0 98.0 98.0 99.0 100.0 99.0 97.0 97.0 96.0
+test 98.2 96.4 100.0 97.0 94.8 99.0 98.6 98.2 96.4 98.4 96.6
+Table3: Percentageofannotatedlabelsineachlanguageagreeingwiththemajoritylabel. Notethatthemajority
+labelishighlyreliable,asweobserveda100%agreementwiththedevelopmentsetlabelsintheoriginalCOPA.
+3 QualitativeAnalysis fullyrepresentthepropertiesoftheso-calledtense-
+lesslanguages,wefavouredtheunmarkedvariants,
+As highlighted in §2, our guidelines anticipated withthetemporalrelationsestablishedbythesitua-
+that the adopted translation approach may en- tionalcontext. Forexample,compare: (a)我想节
+taillanguage-specificchallenges,e.g.,thelackof 约能源。,Woˇ xiaˇngjie´yue¯ ne´ngyua´n.,‘Iwant(ed)
+equivalentconceptsorthegrammaticalexpression to conserve energy.’ (no perfective marker), and
+of tense and aspect. We now analyse the main (b) 学生拼错了这个词。, Xue´she¯ng p¯ın cuo`le
+designchallengesandtheadoptedsolutions. zhe`gec´ı.,‘Thestudentmisspelledtheword.’ (with
+CulturalContext. ThescenariosincludedinEn- completedactionmarker).
+glish COPA were authored by American English Label Discrepancies. The analysis of inter-
+speakerswithaparticularculturalbackground. Itis translatoragreementin§2revealedasmallnumber
+thereforeinevitablethatsomeconcepts,intendedas of COPA scenarios with discrepancies in annota-
+commonplace,soundunusualorevencompletely tions across languages. To better understand the
+foreigninthetargetlanguage. Examplesinclude: sourceofsuchdisagreements,weidentifiedallthe
+(i) concrete referents with no language-specific validationsetinstancesonwhichoneormoretrans-
+termavailable(e.g.,bowlingball,hamburger,lot- latorsdivergedfromthemajoritylabel.6 Weiden-
+tery); (ii) systems of social norms absent in the tifiedtwocaseswherethetranslator’sexperience
+targetculture,e.g.,trafficregulations(e.g.,parallel and cultural frame of reference played a role (as
+parking,parkingmeter);(iii)social,political,and attestedintranslatorfeedback),whichrequired,for
+culturalinstitutionsandrelatedterminology(e.g., instance,understandingoftheproceduresandstruc-
+e.g.,mortgage,lobbyist,gavel);(iv)idiomaticex- ture of U.S. court trials (e.g., The judge pounded
+pressions(e.g.,putthecalleronhold). the gavel. CAUSE: (a) The courtroom broke into
+In such cases, the translators were advised to uproar. (b)Thejuryannounceditsverdict.).
+resort(inthefollowingorderofpreference)to(i) Most disagreement cases (87.5%), however,
+paraphrasing; (ii) substitutions with similar con- seemtobeculturallyindependentandconcerngen-
+cepts,e.g.,‘faucet’isreplacedwith‘pipe’inTamil uinelyambiguouscases(e.g.Thedetectiverevealed
+( !ழா$, ku ¯la¯y) and Haitian Creole (tiyo); or (iii) ananomalyinthecase. RESULT: (a)Hefinalized
+phoneticallytranscribedloanwords,e.g.,inTamil: his theory. (b) He scrapped his theory.). To ver-
+ெபௗலி& ப’(
+(paulin˙ pantu, ‘bowling ball’),
+ேசா$%
+ifythisinamonolingualsetting, weconducteda
+(co¯ppu,‘soap’). follow-upexperimentwhere4Italiannativespeak-
+ers labeled the translated validation and test in-
+GrammaticalTense. Thetemporalcontiguitybe-
+stances. TheFleiss’κagreementscoreswere0.926
+tween two events and their duration is crucial in
+(validation)and0.917(test). Thiscorroboratesour
+establishingtheircausalrelationship(Bohnemeyer
+decisiontooverrideasingletranslator’slabelwith
+etal.,2011). Anumberoflanguagesinoursample
+themajoritylabelwithoutalteringthetranslation.
+(i.e., TH, VI, ID, ZH)donothavethegrammatical
+categoryoftenseandexpresstemporalitybymeans
+4 ExperimentsandResults
+of aspect, mood or lexical items and expressions
+referringtotime(e.g.,adverbs),orrelyentirelyon
+XCOPA is a multiple–choice classification task:
+pragmaticcontexttoprovidesufficientinformation
+givenapremiseandaprompt(CAUSEor RESULT),
+fortheinterpretationoftheutterance. Evenifas-
+thegoalistoselectthemoreplausibleofthetwo
+pectualviewpointmarkersexist,theyareoptional,
+answerchoices(seeTable1). Wenowbenchmark
+e.g.,theperfectivemarker了(le)in ZH. Toensure
+naturalness of the translated sentences and faith- 6Overall, there were 10 validation set questions with 1
+translatoroutof11indisagreement,5questionswith2,and1
+itlytagthecorrespondingquestionswithanappositemarker. questionwith3.a series of state-of-the-art models on XCOPA to duringthetaskclassifier’straining). BothMBERT
+providebaselinescoresforfutureresearch,aswell andXLM-RincludeallXCOPAlanguagesintheir
+astoexposethechallengingnatureofthedataset. pretrainingdataspanning∼100languages,except
+In §4.1, we list the main axes of comparison of Haitian Creole and Quechua. Multilingual USE
+ourbaselinesandoutlinethegeneralneuralarchi- wastrainedon16languages,covering IT, TH, TR,
+tecture for multiple-choice classification that we andZHfromtheXCOPAlanguagesample.
+employinallexperiments. In§4.2,wediscussthe
+Data Sources. The only direct in-domain data
+results. Afterwardsin§4.3,inordertoprovethat
+availablefortrainingistheoriginalEnglishCOPA
+solving this task requires relying on true causal
+training set covering 400 instances. Due to data
+reasoningratherthanspuriouscorrelations,wetest
+scarcity, we probe the usefulness of an interme-
+thebest-performingmodelon‘adversarial’variants
+diate training stage (Phang et al., 2018; Glavasˇ
+whereeitherthepremiseorthepromptarehidden
+and Vulic´, 2020) on larger multiple–choice En-
+(NivenandKao,2019). Finally,in§4.4weexplore
+glish commonsense reasoning datasets, such as
+severalstrategiestoadaptmassivelymultilingual
+SOCIALIQA (SIQA;Sapetal.,2019),beforefine-
+modelstonewlanguagesnotobservedduringpre-
+tuningthemodelonCOPA.TheSIQAdatasetisin
+training,suchasQuechuaandHaitianCreole.
+a distant domain (commonsense reasoning about
+socialinteractions)withopen-formatpromptsand
+4.1 Baselines
+three answer choices. However, it comes with
+Weevaluatebaselinesinseveralcombinationsof a much larger training set, consisting of 33K in-
+experimentalsetupsbasedon: 1)differentmethods stances. Therefore, it can provide useful learn-
+for cross-lingual transfer, either based on model ingsignalalsoforcausalcommonsensereasoning
+transferormachinetranslation;2)differentmulti- in XCOPA. Moreover, we consider two different
+lingualpretrainedencoders;3)differentsourcesof modelselectionregimesforhyper-parametertun-
+trainingandvalidationdata. ing and early stopping, namely (i) using the EN
+Cross-lingual Transfer Methods. We consider COPAvalidationsetor(ii)targetlanguageXCOPA
+two high-level methods for cross-lingual transfer validationset. Table4listsallexperimentalsetups.
+(Tiedemann, 2015; Ponti et al., 2019a): 1) mul- Neural Architecture. As multiple–choice selec-
+tilingual model transfer (MuMoTr), whereby a tion tasks differ in the number of choices (e.g.,
+Transformer-based encoder is pretrained on mul- there are 2 possible answers in COPA, whereas
+tiple languages in an unsupervised fashion, and thereare3inSIQA),aclassifierwithafixednum-
+subsequentlytrainedonEnglishannotateddatafor ber of classes is not a good fit for this scenario.
+multiple-choiceclassification, therefore enabling We thus follow Sap et al. (2019) and couple the
+zero-shotgeneralisationtotheotherlanguages. 2) (pretrained)encoderwithafeed-forwardnetwhich
+translatetest(TrTe),wherebytargettestdata7 are produces a single scalar score for each possible
+translatedintoEnglishviaGoogleTranslate. This answer. Thescoresforindividualchoicesarethen
+includesalllanguagesexceptforQU,forwhichthe concatenatedandpassedtothesoftmaxfunction.
+serviceisnotavailable.
+As an input to the encoder, we couple each of
+Multilingual Encoders. For model transfer, we the answer choices with the concatenation of the
+evaluate the following state-of-the-art pretrained premise and the prompt. We feed this as a “sen-
+multilingual encoders: 1) multilingual BERT tencepair”inputtoMBERTandXLM-R,orasa
+(MBERT) (Devlin et al., 2019) and XLM-on- single“sentence”toUSE.8
+RoBERTa (Conneau et al., 2020), both the Base Letc bethei-thanswerchoiceofaninstanceof
+i
+(XLM-R) and Large (XLM-R-L) variants, in the multiple-choicedataset(i.e.,i ∈ {1,2}inXCOPA
+standardfine-tuningregime(i.e.,theirparameters andi ∈ {1,2,3}inSIQA)andletx ∈ RH (with
+i
+are fine-tuned together with the task classifier’s H as the vector size of the encoder)9 be the en-
+parameters), and 2) multilingual Universal Sen-
+8ForMBERTandXLM-R,weinsertthestandardspecial
+tence Encoder (USE) (Yang et al., 2019a) in the
+tokens. Forexample,forthelastexamplefromTable1and
+feature-basedregime(i.e.,itsparametersarefixed Choice1,theinputforMBERTwouldbeasfollows:“[CLS]
+Myeyesbecameredandpuffy.Whatwasthecause?[SEP]I
+7AsshownbyConneauetal.(2018),translatingthetest wassobbing.[SEP]”.
+datafromthetargetlanguagetoEnglishismorecost-effective 9ForMBERTBaseandXLM-RBase,H =768;forXLM-
+thantranslatingEnglishtrainingdataintothetargetlanguage. RLarge,H =1,024;formultilingualUSELarge,H =512.Traindataset Validdataset MBERT∩ USE∩
+Setup Model All XCOPA XCOPA
+Setup SIQA COPA EN target
+XLM-R 55.6 56.9 55.4
+CO-ZS CO-ZS XLM-R-L 52.4 52.5 52.1
+CO-TLV MBERT 54.1 54.4 55.7
+SI-ZS USE 54.7 56.0 58.1
+SI+CO-ZS XLM-R 55.1 56.4 55.2
+SI+CO-TLV CO-TLV XLM-R-L 51.6 51.7 52.1
+MBERT 54.2 54.5 55.8
+USE 54.8 55.4 59.0
+Table4: Differentexperimentalsetupsfordatasources.
+XLM-R 60.1 62.3 62.9
+CO=COPA; SI=SIQA; ZS=Zero-Shot; TLV=Target
+SI-ZS XLM-R-L 68.4 72.1 72.9
+LanguageValidation(Set). MBERT 54.7 55.6 56.4
+USE 55.0 56.4 60.1
+XLM-R 59.0 60.7 61.9
+coding of its corresponding input consisting of SI+CO-ZS XLM-R-L 67.3 70.8 71.8
+MBERT 55.8 56.8 57.9
+the premise, prompt and the answer itself, as ex-
+USE 54.1 54.9 58.9
+plained above.10 The predicted score yˆ for the
+i
+XLM-R 60.7 63.5 63.6
+answerc isthenobtainedwiththefollowingfeed-
+i SI+CO-TLV XLM-R-L 69.1 72.8 74.6
+forward net: yˆ i = W otanh(W hx i+b h), with MBERT 54.4 54.8 54.2
+W ∈ RH×H, b ∈ RH and W ∈ R1×H as USE 54.3 55.2 59.1
+h h o
+parameters. We obtain the score yˆ for each an-
+i
+swer c i and concatenate them into a prediction Table 5: Summary of XCOPA results. All: average
+vector to which we apply softmax normalisation: over all 11 XCOPA languages; MBERT∩XCOPA:
+yˆ = softmax([yˆ ,...,yˆ ]),whereN isthenum- average over 9 XCOPA languages (without HT and
+1 N
+berofanswersinthemultiple-choiceclassification
+QU) included in MBERT and XLM-R pretraining;
+USE∩XCOPA:averageover4XCOPAlanguages(IT,
+dataset. Weminimisethecross-entropylossfunc-
+TH,TR,andZH),includedintheUSEpretraining.
+tionviastochasticgradientdescent.
+4.2 ResultsandDiscussion
+few-shot learning setup of COPA-only, as it con-
+Wefirstpresenttheresultsformodeltransferbased
+tradictsthereceivedwisdomthatalargeramount
+onmultilingualpretrainedencoders. Table5shows
+oftrainableparametersguaranteeshighersample
+theaggregateaccuracyofMBERT,XLM-Rsand
+efficiency (Kaplan et al., 2020). What is more,
+USE over 11 XCOPA languages for each of the
+USE in some setups even surpasses MBERT for
+previouslydescribedtrainingsetupsfromTable4.
+someofthelanguages(e.g.,ID,TA,SW)onwhich
+Wefirstcompareourcross-lingualaverageXCOPA
+MBERTwaspretrainedandUSEwasnot(cf.the
+results in the best setup with the English COPA
+scoresintheMBERT∩XCOPAcolumn). Wespec-
+performance of the monolingual English BERT
+ulatethatthisisduetoacombinationoftwoeffects:
+(Base) reported by Sap et al. (2019), namely 63
+(1)theinfamous“curseofmultilinguality”(Con-
+accuracyinCOPA-onlyfine-tuning(+7%)and80
+neau et al., 2020) is much more pronounced for
+aftersequentialSIQA+COPAfine-tuning(+17%).
+MBERT (which is pretrained on 104 languages)
+This contributes to recent suspicions (Cao et al.,
+thanforUSE,pretrainedononly16languages;and
+2020;Huetal.,2020)thatmassivelymultilingual
+(2) there are subword-level similarities between
+pretrainedtransformersdonotofferacompletely
+XCOPAtargetlanguagesandthe16languagesused
+satisfactorysolutionforlanguagetransfer.
+inUSEpretraining.
+Multilingual Encoders. XLM-R (both Base and Unsurprisingly,XLM-RLargesubstantiallyout-
+Large) outperforms MBERT and USE in all se- performs its Base counterpart in all setups with
+tups, but the gains are pronounced only where SIQA training. Due to almost 3 times more pa-
+themodelswerefirstfine-tunedonSIQA(SI-ZS, rameters(355Mvs.125M),XLM-R-Lstoresmore
+SI+CO-ZS, and SI+CO-TLV). USE outperforms language-specific information during pretraining.
+MBERToften,whichisespeciallysurprisinginthe The large parameter space, however, also causes
+XLM-R-Ltounder-performXLM-RinCOPA-only
+10ForMBERTandXLM-Rx isthetransformedrepresen-
+i setups(CO-ZSandCO-TLV),withthesmallCOPA
+tationofthesequencestarttoken.ForUSE,x istheaverage
+i
+ofcontextualisedvectorsofalltokens. fine-tuningdataset.80
+70
+60
+50
+EN ET HT ID IT QU SW TA TH TR VI ZH
+Language
+ycaruccA
+XLM-R XLM-R-L MBERT USE
+Figure1: Per-languageXCOPAresultsforXLM-R,MBERT,andUSEintheSIQA+COPA-TLVsetup. Striped
+barscorrespondtolanguage-modelpairswherethelanguagewasnotincludedinmodelpretraining.
+Data Sources. Training models only on SIQA periments.11 Noclearpatternemergesasthesame
+yields performance that is comparable (and for model,XLM-R-L,issuperiorin5languagesunder
+MBERT and USE often better) to performance thetranslation-basedsetup,andin4languagesfor
+we obtain with additional COPA training (setups themultilingualmodeltransfersetup. Aboostinac-
+SI+CO-ZSandSI+CO-TLV).Whilethisisinpart curacy,however,isespeciallyevidentforSW,with
+due to the limited size of the COPA training set, a gain of 13.8 points (+25%). On the other hand,
+it confirms the assumption that SIQA and COPA thetranslation-basedsetuplargelyoutpacesmulti-
+arecompatibletasks. Wealsonotethatonlyslight lingualmodeltransferwhenpairedwithamonolin-
+gains are achieved by hyper-parameter tuning on gualencoder,R-L.Thisbaselinesurpassestheoth-
+thetargetlanguagevalidationset(TLV). ersinalllanguagesexceptforTH. Thisbringsusto
+theconclusionthatitisnotthecross-lingualtrans-
+Per-Language Performance. In Figure 1, we re-
+fermethodinitself,butrathertheavoidanceofthe
+port the language-specific performances for the
+‘curse of multilinguality,’ that makes translation-
+bestsetup,SIQA+COPA-TLV,whileweprovide
+basedcross-lingualtransfersuperior.
+detailedresultsforallothersetupsintheAppendix.
+Asexpected,allmodelsfluctuatearoundrandom- 4.3 AdversarialVariants
+levelaccuracyonthetwoout-of-samplelanguages,
+After detecting an effective baseline, we ‘stress
+HT and QU. Surprisingly, we also observe that
+test’itsrobustnesstoprovethattruecausalreason-
+for some languages (ID, VI, ZH) performance of
+ing is needed to solve our task. Recently, Niven
+transfer from English is slightly higher than the
+andKao(2019)demonstratedthatstate-of-the-art
+actual performance in English, without transfer.
+pretrainedencoderstendtorelyonspuriouscorre-
+Moreover,thescoresareoftenbetterforlanguages
+lationsinnaturallanguageunderstandingdatasets.
+typologicallydistantfromEnglishthanforcloser
+Inspiredbytheirwork,wecreatetwo‘adversarial’
+ones (e.g., TH, VI, ZH vs. IT). We speculate that
+variantsofXCOPA(andSIQA)wherepartofthe
+thisisduetothefactthatlanguagessuchasZHand
+inputismasked. Inthefirstvariant(NoP),wehide
+THarebetterrepresentedinthepretrainedmodels
+premises;inthesecond(NoQ),wehideprompts.
+duetotheiruniquescripts,whicharesharedwith
+Theresultsofthebestconfigurationformultilin-
+fewotherlanguagesandthereforepreventlexical
+gual model transfer are reported in Table 6 (top).
+interferences.
+Clearly, without premises the performance is not
+Cross-Lingual Transfer Methods. Finally, in muchbetterthanchance(accuracyof50.0). With-
+Table 6 (bottom) we compare the best setup for outprompts(CAUSEandEFFECTforXCOPA),per-
+multilingual model transfer (XLM-R-L encoder formanceishigherbutstilllagsbehindtheoriginal
+withSIQA+COPA-TLV)withthemethodbased variantwithfullinputs. Hence,wemayconclude
+on machine translation of the test set into En- thatsolvingthistaskrequirescausalreasoningover
+glish. In particular, for machine translation we allcomponentsoftheeventdynamics.
+consider both the massively multilingual (XLM-
+11Asacaveat,notethattheseresultsarenotperfectlycom-
+R-L)andthemonolingual(RoBERTaLarge,R-L)
+parableasGoogleTranslatewastrainedondifferent(possibly
+versionsofthebestencoderfoundinpreviousex- moreabundant)data,inadditiontoparalleltexts.Setup Variant Model EN ET HT ID IT SW TA TH TR VI ZH
+MuMoTr NoP XLM-R-L 63.0 56.2 - 62.4 56.6 56.0 60.2 60.6 58.8 60.2 63.2
+MuMoTr NoQ XLM-R-L 76.2 63.8 - 73.4 72.8 59.0 64.4 70.2 69.2 69.8 70.8
+MuMoTr Full XLM-R-L 84.2 71.4 - 79.8 72.6 59.2 73.0 72.8 74.4 73.8 78.6
+TrTe Full XLM-R-L 84.2 76.8 70.0 79.6 74.6 74.0 74.0 71.4 72.8 77.8 78.4
+TrTe Full R-L 88.4 81.0 73.8 82.2 77.8 74.2 79.6 71.4 79.6 81.0 86.0
+Table 6: Detailed per-language XCOPA results of the best cross-lingual transfer setups (bottom). Performance
+withtwoadversarialvariantsofthedatasetwherepremisesandpromptsarehidden,respectively(top).
+4.4 AdaptationtoUnseenLanguages Setup Model HT QU
+EvenmassivelymultilingualencoderslikeMBERT
+andXLM-R,pretrainedoncorporaofover100lan-
+guages,coveronlyafractionoftheworld’s7,000+
+languages. In fact, the majority of the world lan-
+guagessufferfromdatapaucity(Kornai,2013): we
+thusexploreseveralresource-leanapproachesfor
+extendingencoderspost-hoctosupporttransferto
+languagesnotobservedduringpretraining,suchas
+QUandHTinXCOPA.
+AdaptationStrategies. WeuseXLM-R,thebest-
+performingamongthe“basesize”multilingualen-
+codersonXCOPA,andprobeseveralstrategiesfor
+adapting it to the two unseen XCOPA target lan-
+guages. Inallstrategies,wesimplycontinuetrain-
+ing the XLM-R model via the masked language
+modeling(MLM)objectiveondifferentcombina-
+tionsofdata(Pfeifferetal.,2020),inparticular:
+1)T.Sentencesinthetargetlanguage. Wecreate
+themonolingualcorporaforHTandQUbyconcate-
+natingtheirrespectiveWikipediadumpswiththeir
+respectivetextfromtheJW300corpus(Agic´ and
+Vulic´,2019). Intotal,thetrainingsizeis5,710,426
+tokensforHT,and2,263,134tokensforQU.
+2)S.SentencesinEnglish(EN). Thiscouldprevent
+(catastrophic) forgetting of the source language
+while fine-tuning, which presumably may occur
+withTonly. WecreatetheEnglishcorpusofcom-
+parable size to HT and QU corpora by randomly
+sampling200KsentencesfromENWikipedia.
+3) D. A bilingual EN–HT and EN–QU dictio-
+nary. ThedictionarieswereextractedfromPanLex
+(Kamholzetal.,2014): weretainthe5kmostreli-
+ablewordtranslationpairsaccordingtotheavail-
+able PanLex confidence scores. We create a syn-
+theticcorpusfromthedictionary(termedD-corpus
+henceforth)byconcatenatingeachtranslationpair
+fromthedictionaryintoaquasi-sentence.
+4) T-REP. T data with all occurrences of target
+language terms from the 5K dictionary replaced
+withtheirEnglishtranslations.
+SZ-OC
+XLM-R 49.4 50.7
++T 53.8 49.8
++S+T 52.8 54.0
++D 52.2 51.2
++S+T+D 53.6 52.0
++T-REP 49.6 55.0
+SZ-IS
+XLM-R 49.2 51.0
++T 56.2 57.9
++S+T 55.2 55.0
++D 55.4 57.4
++S+T+D 56.4 53.5
++T-REP 58.6 57.7
+SZ-OC+IS
+XLM-R 51.4 51.2
++T 57.8 54.0
++S+T 55.8 55.2
++D 57.8 57.9
++S+T+D 55.4 54.0
++T-REP 58.4 54.4
+Table 7: XCOPA accuracy scores of different transfer
+variantsthatadapttoout-of-samplelanguages.
+We select 5k target language sentences as the de-
+velopmentcorpusanduseitforearlystoppingthe
+MLMtraining(withperplexityasametric).
+ResultsandDiscussion. Theperformanceofthe
+five adaptation variants with XLM-R on HT and
+QU in the zero-shot XCOPA evaluation setups is
+reportedinTable7. Whenusingsufficientlylarge
+fine-tuningdatasets(SI-ZSandSI+CO-ZSsetups)
+alladaptationmethodsyieldsubstantialimprove-
+mentsovertheXLM-RBasemodel. Theimprove-
+ments are less consistent in the COPA-ZS setup.
+However, we attribute this to the limited size of
+the English COPA training set (which contains
+mere400instances)usedforfine-tuningratherthan
+to the ineffectiveness of the proposed adaptation
+strategies. AcomparisonbetweenXLM-R+Tand
+XLM-R+S+T suggests that additional MLM pre-
+trainingonamoderatelysizedtargetlanguagecor-
+pusdoesnotleadtocatastrophicforgettingofthe
+sourcelanguageinformation.
+Theresultsofthelight-weightpost-hocXLM-R
+adaptations for HT and QU are encouraging,12 as
+12Notethattheunseenlanguages,however,mustrelyonthey bypass retraining the encoder from scratch sion: MLQA (Lewis et al., 2020) in 7 languages,
+while achieving downstream results almost com- XQuAD (Artetxe et al., 2020b) in 10; and Ty-
+parable with seen languages. Also, the results in DiQA (Clark et al., 2020) in 11 typologically di-
+Table 7 suggest that leveraging additional knowl- verse languages. Further, PAWS-X (Yang et al.,
+edgefromageneralbilingualdictionarycanleadto 2019b)evaluatesparaphraseidentificationin6lan-
+furtherbenefits: e.g.,notetheresultsofXLM-R+T- guages. A standard and pragmatic approach to
+REP in SIQA-ZS and SIQA+COPA-ZS transfer multilingual dataset creation is translation from
+setups, as well as XLM-R+D. Building on this an existing (English) dataset, e.g., Multi-SimLex
+proof-of-concept experiment, further adaptation fromtheextendedEnglishSimLex-999(Hilletal.,
+strategiesforzero-shotlearningmaybeexplored 2015), XNLI from MultiNLI (Williams et al.,
+inthefuture, suchasconditioningparameterson 2018), XQuAD from SQuAD (Rajpurkar et al.,
+typologicalfeatures(Pontietal.,2019b). 2016), and PAWS-X from PAWS (Zhang et al.,
+2019). TyDiQA,however,wasbuiltindependently
+5 RelatedWork ineachlanguage. Finally,alargenumberoftasks
+hasbeenrecentlyintegratedintounifiedmultilin-
+Evaluation of Commonsense Reasoning. Be-
+gualevaluationsuites,XTREME(Huetal.,2020)
+sides COPA, another important early dataset that
+andXGLUE(Liangetal.,2020).
+instigated computational modeling of common-
+sensereasoningistheWinogradSchemaChallenge
+(WSC;Levesqueetal.,2012;MorgensternandOr- 6 ConclusionandFutureWork
+tiz,2015). WSCconsistsinapronouncoreference
+resolutiontaskwithpairedinstances,andhasbeen WepresentedtheCross-lingualChoiceofPlausible
+recently expanded into the WinoGrande dataset Alternatives (XCOPA), a multilingual evaluation
+(Sakaguchietal.,2020)throughcrowd-sourcing. benchmarkforcausalcommonsensereasoning. All
+Several recent evaluation sets target particular XCOPAinstancesarealignedacross11languages,
+aspects of commonsense, e.g., abductive reason- whichenablescross-lingualcomparisons. Thelan-
+ing(Bhagavatulaetal.,2020),13 intentsandreac- guageselectionwasinformedbyvarietysampling,
+tionstoevents(Rashkinetal.,2018),social(Sap in order to maximise diversity in terms of typo-
+et al., 2019) and physical (Bisk et al., 2020) in- logicalfeatures,geographicalmacro-area,andlan-
+teractions, or visual commonsense (Zellers et al., guagefamily. Thisallowsustotesttherobustness
+2019a). Others, e.g., CommonsenseQA (Talmor of machine learning models for an array of rare
+etal.,2019),SWAG(Zellersetal.,2018),andHel- phenomenadisplayedbythechosenlanguages.
+laSWAG (Zellers et al., 2019b) are cast as open- Wealsoranaseriesofcross-lingualtransferex-
+ended multiple-choice problems where the most periments,evaluatingstate-of-the-arttransfermeth-
+sensibleoptionischosen. Anotherlineofevalua- ods based on multilingual pretraining and fine-
+tioninvolvescommonsense-enabledreadingcom- tuning on English. We observed that, although
+prehension and question answering (Ostermann these methods perform better than chance, they
+etal.,2018;Zhangetal.,2018;Huangetal.,2019). still lag significantly behind the monolingual set-
+Multilingual Evaluation of Natural Language tingwheretestdataaretranslatedintoEnglish,due
+Understanding. While the above commonsense to the ‘curse of multilinguality.’ In addition, we
+reasoning datasets are limited to English, several verifiedthatspuriouscorrelationsareinsufficient
+multilingualdatasetsforothernaturallanguageun- tosolvethisnewtaskbycreating‘adversarial’vari-
+derstandingtasksareavailable,e.g.,lexicalseman- antsofthedataset,wherepremisesorpromptsare
+tic similarity (Multi-SimLex; Vulic´ et al., 2020), masked,thusshowingthatrobustcausalreasoning
+document classification (MLDoc; Schwenk and is indeed required to solve XCOPA. Finally, we
+Li,2018),sentimentanalysis(Barnesetal.,2018), investigatedresource-leanadaptationofpretrained
+and natural language inference (XNLI; Conneau multilingual models to out-of-sample languages,
+et al., 2018). Other recent multilingual sets tar- exploitingonlysmallmonolingualcorporaand/or
+get the QA task based on reading comprehen- bilingualdictionaries,reportingnotablegains.
+We hope that this new challenging evaluation
+seenscripts(e.g.,bothHTandQUarewritteninLatinscript).
+setwillfosterfurtherresearchinmultilingualcom-
+13Abductivereasoningisinferencetothemostplausible
+explanationofincompleteobservations(Peirce,1960). monsensereasoningandcross-lingualtransfer.Acknowledgements JonathanH.Clark,EunsolChoi,MichaelCollins,Dan
+Garrette, Tom Kwiatkowski, Vitaly Nikolaev, and
+This work is supported by the ERC Consolidator JennimariaPalomaki.2020. TyDiQA:Abenchmark
+GrantLEXICAL(no648909). EMP,IV,andAK for information-seeking question answering in ty-
+pologically diverse languages. Transactions of the
+are also funded through the Google Faculty Re-
+ACL.
+searchAward2018forNaturalLanguageProcess-
+ing. GG is supported by the Eliteprogramm of AlexisConneau, KartikayKhandelwal, NamanGoyal,
+theBaden-Wu¨rttembergStiftung(AGREEGrant). Vishrav Chaudhary, Guillaume Wenzek, Francisco
+Guzma´n, Edouard Grave, Myle Ott, Luke Zettle-
+Heartfelt thanks to Fangyu Liu, Ulla Meeri Petti,
+moyer, and Veselin Stoyanov. 2020. Unsupervised
+andYiZhufortheirinvaluablehelp.
+cross-lingual representation learning at scale. In
+ProceedingsofACL,pages8440–8451.
+References Alexis Conneau, Ruty Rinott, Guillaume Lample, Ad-
+ina Williams, Samuel Bowman, Holger Schwenk,
+Zˇeljko Agic´ and Ivan Vulic´. 2019. JW300: A wide- and Veselin Stoyanov. 2018. XNLI: Evaluating
+coverageparallelcorpusforlow-resourcelanguages. cross-lingual sentence representations. In Proceed-
+InProceedingsofACL,pages3204–3210. ingsofEMNLP,pages2475–2485.
+Pascal Amsili and Olga Seminck. 2017. A Google- Ernest Davis and Gary Marcus. 2015. Commonsense
+proof collection of French Winograd schemas. In reasoning and commonsense knowledge in Artifi-
+Proceedings of the 2nd Workshop on Coreference cial Intelligence. Communications of the ACM,
+Resolution Beyond OntoNotes (CORBON 2017), 58(9):92–103.
+pages24–29.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+Mikel Artetxe, Gorka Labaka, and Eneko Agirre. Kristina Toutanova. 2019. BERT: Pre-training of
+2020a. Translationartifactsincross-lingualtransfer deep bidirectional transformers for language under-
+learning. arXivpreprintarXiv:2004.04721. standing. In Proceedings of NAACL-HLT, pages
+4171–4186.
+Mikel Artetxe, Sebastian Ruder, and Dani Yogatama.
+2020b. Onthecross-lingualtransferabilityofmono- MatthewS.Dryer.1989. Largelinguisticareasandlan-
+lingual representations. In Proceedings of ACL, guage sampling. Studies in Language, 13(2):257–
+pages4623–4637. 292.
+JeremyBarnes,RomanKlinger,andSabineSchulteim Matthew S. Dryer and Martin Haspelmath, editors.
+Walde. 2018. Bilingual sentiment embeddings: 2013. WALSOnline. MaxPlanckInstituteforEvo-
+Joint projection of sentiment across languages. In lutionaryAnthropology,Leipzig.
+ProceedingsofACL,pages2483–2493.
+JosephLFleiss.1971. Measuringnominalscaleagree-
+Emily M. Bender. 2011. On achieving and evaluating ment among many raters. Psychological bulletin,
+language-independenceinNLP. LinguisticIssuesin 76(5):378.
+LanguageTechnology,6(3):1–26.
+Markus Freitag, David Grangier, and Isaac Caswell.
+Chandra Bhagavatula, Ronan Le Bras, Chaitanya 2020. BLEUmightbeguiltybutreferencesarenot
+Malaviya, Keisuke Sakaguchi, Ari Holtzman, Han- innocent. arXivpreprintarXiv:2004.06063.
+nahRashkin,DougDowney,ScottWen-tauYih,and
+Yejin Choi. 2020. Abductive commonsense reason- Daniela Gerz, Ivan Vulic´, Edoardo Maria Ponti, Roi
+ing. InProceedingsofICLR. Reichart, and Anna Korhonen. 2018. On the rela-
+tionbetweenlinguistictypologyand(limitationsof)
+YonatanBisk,RowanZellers,RonanLeBras,Jianfeng multilinguallanguagemodeling. InProceedingsof
+Gao,andYejinChoi.2020. PIQA:Reasoningabout EMNLP,pages316–327.
+physicalcommonsenseinnaturallanguage. InPro-
+ceedingsofAAAI. Goran Glavasˇ and Ivan Vulic´. 2020. Is supervised
+syntacticparsingbeneficialforlanguageunderstand-
+Ju¨rgen Bohnemeyer, Nick Enfield, James Essegbey, ing? an empirical investigation. arXiv preprint
+and Sotaro Kita. 2011. The macro-event property: arXiv:2008.06788.
+Thesegmentationofcausalchains. TheMentalLex-
+icon. Andrew Gordon and Reid Swanson. 2009. Identify-
+ing personal stories in millions of weblog entries.
+StevenCao,NikitaKitaev,andDanKlein.2020. Mul- In Third International Conference on Weblogs and
+tilingual alignment of contextual word representa- Social Media, Data Challenge Workshop, San Jose,
+tions. InProceedingsofICLR. CA,volume46.Felix Hill, Roi Reichart, and Anna Korhonen. 2015. Patrick Lewis, Barlas Og˘uz, Ruty Rinott, Sebastian
+SimLex-999:Evaluatingsemanticmodelswith(gen- Riedel,andHolgerSchwenk.2020. MLQA:Evalu-
+uine)similarityestimation. ComputationalLinguis- atingcross-lingualextractivequestionanswering. In
+tics,41(4):665–695. ProceedingsofACL,pages7315–7330.
+PaulJ.Hopper.1979. Aspectandforegroundingindis- YaoboLiang,NanDuan,YeyunGong,NingWu,Fen-
+course. In Discourse and Syntax, pages 211–241. fei Guo, Weizhen Qi, Ming Gong, Linjun Shou,
+Brill. Daxin Jiang, Guihong Cao, Xiaodong Fan, Bruce
+Zhang, Rahul Agrawal, Edward Cui, Sining Wei,
+Junjie Hu, Sebastian Ruder, Aditya Siddhant, Gra- TaroonBharti,YingQiao,Jiun-HungChen,Winnie
+ham Neubig, Orhan Firat, and Melvin Johnson. Wu, Shuguang Liu, Fan Yang, Rangan Majumder,
+2020. XTREME: A massively multilingual multi- andMingZhou.2020. XGLUE:Anewbenchmark
+taskbenchmarkforevaluatingcross-lingualgeneral- datasetforcross-lingualpre-training,understanding
+ization. InProceedingsofICML. andgeneration. CoRR,abs/2004.01401.
+LifuHuang,RonanLeBras,ChandraBhagavatula,and Patrick Littell, David R. Mortensen, Ke Lin, Kather-
+Yejin Choi. 2019. Cosmos QA: Machine reading ine Kairis, Carlisle Turner, and Lori Levin. 2017.
+comprehension with contextual commonsense rea- URIEL and lang2vec: Representing languages as
+soning. In Proceedings of EMNLP-IJCNLP, pages typological,geographical,andphylogeneticvectors.
+2391–2401. InProceedingsofEACL,pages8–14.
+GabrielaMelo,ViniciusImaizumi,andFa´bioCozman.
+Pratik Joshi, Sebastin Santy, Amar Budhiraja, Kalika
+2020. Esquemas de Winograd em portugueˆs. In
+Bali, and Monojit Choudhury. 2020. The state and
+Proceedings of the 16th Encontro Nacional de In-
+fateoflinguisticdiversityandinclusionintheNLP
+teligeˆnciaArtificialeComputacional(ENIAC2020),
+world. InProceedingsofACL,pages6282–6293.
+pages787–798.
+David Kamholz, Jonathan Pool, and Susan Colowick.
+Matti Miestamo. 2004. Clausal negation: A typologi-
+2014. PanLex: Building a resource for panlingual
+calstudy. Ph.D.thesis,UniversityofHelsinki.
+lexical translation. In Proceedings of LREC, pages
+3145–3150.
+Leora Morgenstern and Charles L. Ortiz. 2015. The
+Winograd Schema Challenge: Evaluating progress
+Jared Kaplan, Sam McCandlish, Tom Henighan,
+incommonsensereasoning. InProceedingsofAAAI,
+Tom B. Brown, Benjamin Chess, Rewon Child,
+pages4024–4026.
+Scott Gray, Alec Radford, Jeffrey Wu, and Dario
+Amodei. 2020. Scaling laws for neural language
+TimothyNivenandHung-YuKao.2019. Probingneu-
+models.
+ralnetworkcomprehensionofnaturallanguageargu-
+ments. InProceedingsofACL,pages4658–4664.
+Diederik P Kingma and Jimmy Ba. 2015. Adam: A
+methodforstochasticoptimization. InProceedings
+SimonOstermann,AshutoshModi,MichaelRoth,Ste-
+ofICLR.
+fanThater,andManfredPinkal.2018. MCScript: A
+noveldatasetforassessingmachinecomprehension
+MosheKoppelandNoamOrdan.2011. Translationese
+usingscriptknowledge. InProceedingsofLREC.
+and its dialects. In Proceedings of the ACL-HLT,
+pages1318–1326.
+Charles Sanders Peirce. 1960. Collected papers of
+CharlesSandersPeirce,volume2. HarvardUniver-
+Andra´s Kornai. 2013. Digital language death. PloS sityPress.
+One,8(10):e77056.
+JonasPfeiffer, IvanVulic´, IrynaGurevych, andSebas-
+J. Richard Landis and Gary G. Koch. 1977. The mea- tianRuder.2020. MAD-X:Anadapter-basedframe-
+surementofobserveragreementforcategoricaldata. work for multi-task cross-lingual transfer. In Pro-
+Biometrics,pages159–174. ceedingsofEMNLP.
+Anne Lauscher, Vinit Ravishankar, Ivan Vulic´, and Jason Phang, Thibault Fe´vry, and Samuel R Bowman.
+Goran Glavasˇ. 2020. From zero to hero: On 2018. Sentence encoders on stilts: Supplementary
+the limitations of zero-shot cross-lingual transfer training on intermediate labeled-data tasks. arXiv
+with multilingual transformers. arXiv preprint preprintarXiv:1811.01088.
+arXiv:2005.00633.
+EdoardoMariaPonti,HelenO’Horan,YevgeniBerzak,
+Hector Levesque, Ernest Davis, and Leora Morgen- IvanVulic´,RoiReichart,ThierryPoibeau,Ekaterina
+stern. 2012. The Winograd schema challenge. In Shutova,andAnnaKorhonen.2019a. Modelinglan-
+Proceedings of the 13th International Conference guage variation and universals: A survey on typo-
+onthePrinciplesofKnowledgeRepresentationand logical linguistics for natural language processing.
+Reasoning. ComputationalLinguistics,45(3):559–601.Edoardo Maria Ponti, Ivan Vulic´, Ryan Cotterell, Roi Jo¨rgTiedemann.2015. Cross-lingualdependencypars-
+Reichart, and Anna Korhonen. 2019b. Towards ingwithUniversalDependenciesandpredictedPoS
+zero-shot language modeling. In Proceedings of labels. In Proceedings of the Third International
+EMNLP-IJCNLP,pages2893–2903. Conference on Dependency Linguistics (Depling
+2015),pages340–349.
+Nazneen Fatema Rajani, Bryan McCann, Caiming
+Xiong,andRichardSocher.2019. Explainyourself! Vered Volansky, Noam Ordan, and Shuly Wintner.
+Leveraging language models for commonsense rea- 2015. On the features of translationese. Digital
+soning. InProceedingsofACL,pages4932–4942. ScholarshipintheHumanities,30(1):98–118.
+PranavRajpurkar,JianZhang,KonstantinLopyrev,and Ivan Vulic´, Simon Baker, Edoardo Maria Ponti, Ulla
+PercyLiang.2016. SQuAD:100,000+questionsfor Petti,IraLeviant,KellyWing,OlgaMajewska,Eden
+machine comprehension of text. In Proceedings of Bar, Matt Malone, Thierry Poibeau, Roi Reichart,
+EMNLP,pages2383–2392. andAnnaKorhonen.2020. Multi-SimLex: Alarge-
+scale evaluation of multilingual and cross-lingual
+Hannah Rashkin, Maarten Sap, Emily Allaway, lexicalsemanticsimilarity. ComputationalLinguis-
+NoahA.Smith,andYejinChoi.2018. Event2Mind: tics.
+Commonsense inference on events, intents, and re-
+actions. InProceedingsofACL,pages463–473. Adina Williams, Nikita Nangia, and Samuel Bowman.
+2018. A broad-coverage challenge corpus for sen-
+Jan Rijkhoff, Dik Bakker, Kees Hengeveld, and Pe- tenceunderstandingthroughinference. InProceed-
+ter Kahrel. 1993. A method of language sampling. ingsofNAACL-HLT,pages1112–1122.
+StudiesinLanguage,17(1):169–203.
+Yinfei Yang, Daniel Cer, Amin Ahmad, Mandy
+Guo, Jax Law, Noah Constant, Gustavo Hernan-
+Melissa Roemmele, Cosmin Adrian Bejan, and An-
+dez Abrego, Steve Yuan, Chris Tar, Yun-Hsuan
+drewS.Gordon.2011. Choiceofplausiblealterna-
+Sung, et al. 2019a. Multilingual universal sen-
+tives: Anevaluationofcommonsensecausalreason-
+tenceencoderforsemanticretrieval. arXivpreprint
+ing. In Proceedings of the 2011 AAAI Spring Sym-
+arXiv:1907.04307.
+posiumSeries.
+Yinfei Yang, Yuan Zhang, Chris Tar, and Jason
+Keisuke Sakaguchi, Ronan Le Bras, Chandra Bhaga-
+Baldridge.2019b. PAWS-X:Across-lingualadver-
+vatula, andYejinChoi.2020. WinoGrande: Anad-
+sarial dataset for paraphrase identification. In Pro-
+versarial Winograd Schema Challenge at scale. In
+ceedingsofEMNLP,pages3687–3692.
+ProceedingsofAAAI.
+Rowan Zellers, Yonatan Bisk, Ali Farhadi, and Yejin
+Maarten Sap, Hannah Rashkin, Derek Chen, Ronan
+Choi.2019a. Fromrecognitiontocognition: Visual
+Le Bras, and Yejin Choi. 2019. Social IQa: Com-
+commonsense reasoning. In Proceedings of CVPR,
+monsense reasoning about social interactions. In
+pages6720–6731.
+ProceedingsofEMNLP-IJCNLP,pages4463–4473.
+Rowan Zellers, Yonatan Bisk, Roy Schwartz, and
+HolgerSchwenkandXianLi.2018. Acorpusformul-
+Yejin Choi. 2018. SWAG: A large-scale adversar-
+tilingualdocumentclassificationineightlanguages.
+ialdatasetforgroundedcommonsenseinference. In
+InProceedingsofLREC.
+ProceedingsofEMNLP,pages93–104.
+TomohideShibata, ShotaroKohama, andSadaoKuro-
+Rowan Zellers, Ari Holtzman, Yonatan Bisk, Ali
+hashi. 2015. 日本語 Winograd Schema Challenge
+Farhadi, and Yejin Choi. 2019b. HellaSwag: Can
+の構築と分析. 言語処理学会第 21回年次大会
+amachinereallyfinishyoursentence? InProceed-
+論文集,pages493–496.
+ingsofACL,pages4791–4800.
+Yoav Shoham. 1990. Nonmonotonic reasoning and Sheng Zhang, Xiaodong Liu, Jingjing Liu, Jianfeng
+causation. CognitiveScience,14(2):213–252. Gao, Kevin Duh, and Benjamin Van Durme. 2018.
+ReCoRD:Bridgingthegapbetweenhumanandma-
+Murray Singer, Michael Halldorson, Jeffrey C Lear,
+chinecommonsensereadingcomprehension. arXiv
+and Peter Andrusiak. 1992. Validation of causal
+preprintarXiv:1810.12885.
+bridging inferences in discourse understanding.
+JournalofMemoryandLanguage,31(4):507–524. Yuan Zhang, Jason Baldridge, and Luheng He. 2019.
+PAWS: Paraphrase adversaries from word scram-
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and bling. InProceedingsofNAACL-HLT,pages1298–
+Jonathan Berant. 2019. CommonsenseQA: A ques- 1308.
+tion answering challenge targeting commonsense
+knowledge. In Proceedings of NAACL-HLT, pages
+4149–4158.
+JennyThomas.1983. Cross-culturalpragmaticfailure.
+Appliedlinguistics,4(2):91–112.A DetailedTranslationGuidelines provideditisunderstoodbythegeneralpopu-
+lationoftarget-languagespeakers;(2)usinga
+Translation of the English COPA validation and
+periphrasistodescribethesameconcept(e.g.,
+test set instances into each of the 11 languages
+ajuicyfruit);(3)substitutingtheoriginalcon-
+wascarriedoutbyasingletranslatorperlanguage,
+ceptwithasimilaronethatismorefamiliarto
+meetingthefollowingeligibilitycriteria: (i)ana-
+thetargetlanguagespeakercommunity(e.g.,
+tivespeakerofthetargetlanguage,(ii)fluentinEn-
+santol),providedthatitcanplayasimilarrole
+glish,(iii)withminimumundergraduateeducation
+inthecausalrelationscapturedbytheoriginal
+level. Eachtranslatorwaspresentedwithtransla-
+premise–prompt–answerstriple.
+tionguidelinesandaspreadsheetaccessibleonline,
+Thetranslatorswereencouragedtosplitthework-
+containingoneEnglishpremise-hypothesistriple
+loadintomultiplesessionswithbreaksinbetween.
+per line, followed by an empty line where target
+Additionally, translators were encouraged to pro-
+translationswereentered. Thetaskconsistedin(a)
+vide feedback, commenting on translation chal-
+identifyingthecorrectalternativefortheEnglish
+lengesandsolutions,whichwediscussin§3.
+premise and (b) translating the premise and both
+alternativesintothetargetlanguage,preservingthe
+B WhyisGrammaticalTense
+causalrelationspresentintheoriginal(see§3for
+ProblematicforXCOPA?
+discussion of ambiguous and problematic cases).
+Eachtranslatorworkedindependently(usingany The scenarios included in COPA refer to events
+externalresources,suchasEnglish-targetlanguage that took place in the past and are formulated in
+dictionaries,ifneeded)andcompletedthetaskin whatcanbedescribedasanarrativeregister: one
+itsentirety,producing100validationand500test of the sources from which question topics were
+instancetranslations, andalabelforeach. Toen- drawnwasacorpusofpersonalstoriespublished
+suretheoutputpreservesthelexical,temporal,and online(GordonandSwanson,2009). Thisisgram-
+causalrelationspresentintheoriginaltriples,the matically rendered exclusively by means of past
+guidelinesinstructedto: simple (preterite) or past continuous (imperfect)
+i. maintaintheoriginalcorrespondencerelations verb forms. Temporal anteriority of a hypothesis
+betweenlexicalitems,i.e.,ifthesameEnglish sentence with respect to the premise is not gram-
+wordappearedbothinthepremiseandinthe matically marked (e.g., with a past perfect verb
+alternativechoices(Premise: Thefriendsde- form)andcanonlybededucedbasedontheprompt
+cidedtosharethehamburger.;A1: Theycut (“What was the CAUSE of this?”). The preterite-
+thehamburgerinhalf.;A2: Theyorderedfries imperfect contrast used in English to distinguish
+withthehamburger.),itwasmappedintothe background states (imperfective) from the main
+same target-language equivalent in all three event(perfective)(e.g.,Iwasexpectingcompany.
+translatedsentences; IMPERFvs. Itidiedupmyhouse. PERF)isnotuni-
+versallyapplicableanddifferentlanguagesemploy
+ii. ensurethattheoriginalchronologyandtem-
+different discourse grounding strategies (Hopper,
+poralextensionofeventsispreservedthrough
+1979), which has interesting implications for the
+appropriatechoiceofverbaltenseandaspect
+multilingualextensionofCOPAtoXCOPA.
+in the target language, e.g., maintaining the
+In the languages with grammatical tense, dif-
+distinctionbetweenperfectiveandimperfec-
+ferent strategies are employed to capture the
+tiveaspect(Premise: Myeyesbecameredand
+perfective–imperfectivedistinction,whichispromi-
+puffy. [PERF],A1: Iwassobbing. [IMPERF],
+nentinCOPA.Forexample,inHaitianCreole,the
+A2: I was laughing. [IMPERF]; See also §3
+simplepastmarkerteisusedtoindicateabounded
+and Appendix B for discussion of the chal-
+event in the past, while the continuous aspect is
+lengesposedbytenselesslanguages);
+signaled with an ap marker. Italian additionally
+iii. incaseofEnglishwordswithnoexacttransla- distinguishes between two perfective past tenses,
+tionsinthetargetlanguageorreferringtocon- expressed by means of a simple and compound
+ceptsabsentfromthetargetlanguageculture past (vidi - ho visto, ‘I saw’). The opposition is
+(e.g.,peach),thefollowingsolutionswereto between completed actions whose effects are de-
+beadopted,inorderofpreference: (1)using tachedfromthepresentandthosewithpersisting
+acommonloanwordfromanotherlanguage, effects on the present. Both contrast with the im-0 2 4 6 8 01 21 41 61 81 02 22 42 62 82 03 23 43 63 83 04 24 44 64 84 05 25 45 65 85 06 26 46 66 86 07 27 47 67 87 08 28 48 68 88 09 29 49 69 89 001 201
+XCOPA
+0.6
+XNLI
+0.5
+TyDiQA 0.4
+XQuAD 0.3
+0.2
+MLQA
+0.1
+PAWS-X
+0.0
+Figure2: HeatmapoftheentropyofthedistributionsofWALSfeatures(xaxis)inlanguagesamplesfromfamous
+cross-lingualdatasetsoutlinedin§5(yaxis).
+Setup Model EN ET HT ID IT QU SW TA TH TR VI ZH
+XLM-R 57.6 59.8 49.4 58 56 50.7 57.2 56.6 52.8 56.2 58.5 56.6
+XLM-R-L 53 49.6 55.8 53 52.4 48 54 51.4 51.8 51 56 53
+CO-ZS
+MBERT 62 50.6 51.4 55 53.8 54.7 53.6 52 53.2 56.8 55.4 59
+USE 63 53.8 49.4 57.6 60 48.3 52.2 53 57.2 55 54.8 60.2
+XLM-R 57.6 57.8 48.6 60.8 54.4 49.5 55.4 55.8 54.2 54.8 57.6 57.2
+XLM-R-L 53 49.4 47.8 51.4 53.6 54.2 50 47.8 53 50.6 58.2 51
+CO-TLV
+MBERT 62 52 52.6 58.2 55 52.7 53 52 52.4 53.8 52.6 61.8
+USE 63 49.4 49.6 57.6 62 54 50.8 53.6 58.6 56.2 51.4 59.2
+XLM-R 68 59.4 49.2 67.2 63.6 51 57.6 58.8 61.6 60.4 65.8 66
+XLM-R-L 85 70.4 53.4 79.4 72.8 50.2 60.8 71 69.4 71.2 76 78.2
+SI-ZS
+MBERT 62.2 55.2 51.4 57 57 50.2 51 52.2 51 53.2 59.2 64.4
+USE 62.6 51.6 46.8 60.2 61.8 50.5 52.4 48.8 60.8 54.6 54.8 63
+XLM-R 66.8 58 51.4 65 60.2 51.2 52 58.4 62 56.6 65.6 68.8
+XLM-R-L 84.2 68.8 52.8 79.8 72.4 50.7 59.4 68.2 67.2 71.2 73.8 76.2
+SI+CO-ZS
+MBERT 63.2 52.2 54 59.4 57.2 48 56 54.6 51.2 57.4 58 65.6
+USE 63.8 51.2 48.4 57.6 61.8 52 51.8 47 58 55.6 51 60.2
+XLM-R 66.8 59.4 50 71 61.6 46 58.8 60 63.2 62.2 67.6 67.4
+XLM-R-L 84.2 71.4 52.8 79.8 72.6 52 59.2 73 72.8 74.4 73.8 78.6
+SI+CO-TLV
+MBERT 63.2 52.2 51.8 58.2 57.2 53 51 57.2 52.6 54.6 57.8 52.4
+USE 63.8 51.8 47.8 56.6 61.6 52.2 52.4 47 59.8 54.4 52.8 60.6
+Table8: Detailedper-languageXCOPAresultsformultilingualmodeltransfer. Noneoftheencoderswasexposed
+toHTandQUduringpretraining. USEwasexposedonlytoIT,TH,TR,andZH.
+Name Languages Vocab Params URL
+mBERT 104 119K 125M https://huggingface.co/bert-base-multilingual-cased
+XLM-R 100 250K 125M https://huggingface.co/xlm-roberta-base
+XLM-R-L 100 250K 355M https://huggingface.co/xlm-roberta-large
+Table9: Pretrainedtransformersusedinourstudy.
+perfect, which emphasises the event’s extension C Hyper-ParameterSearch
+or repetition in time. Given that the opposition
+ForMBERTandXLM-Rwesearchedthefollow-
+isamatterofthespeaker’sperspectiveonevents
+inghyper-parametergridinbothSIQAandCOPA
+andpartiallybasedondeixis(remoteversusproxi-
+training: learningrate∈ {5·10−6,10−5,3·10−5},
+matepast),thetranslatoroptedforthemostnatural
+dropoutrate(appliedtotheoutputlayerofthetrans-
+choicegivenaspecificcontext/situation.
+former and the hidden layer of the feed-forward
+scoring net) ∈ {0,0.1}, and batch size ∈ {4,8}.
+ForUSE,wesearchedoverdifferentvaluesforthe
+learningrate,{10−3,10−4,10−5}. Weevaluatetheperformanceontherespectivedevelopmentsetev-
+ery 500 updates for SIQA and every 10 updates
+for COPA and stop the training if there is no im-
+provementafter10consecutiveevaluations. Inall
+setups,weoptimisetheparameterswiththeAdam
+algorithm(KingmaandBa,2015)with(cid:15) = 10−8,
+no weight decay, and no warm-up. We clip the
+normsofgradientsinsingleupdatesto1.
+D FullResults(PerLanguage)
+Table8containsthedetailedper-languageresults
+ofmultilingualmodeltransferforallXCOPAlan-
+guagesandallfiveofourevaluationsetups(CO-ZS,
+CO-TLV,SI-ZS,SI+CO-ZS,SI+CO-TLV).
+E CodeandDependencies
+OurcodeisbuiltontopoftheHuggingFaceTrans-
+formers framework14 and USE15 and is available
+atgithub.com/cambridgeltl/xcopa. Table9de-
+tailsthepretrainedmodelsthatweexploitedinthis
+work. Besidesthese,ourcodereliesonlyonstan-
+dardPython’sscientificcomputinglibraries(e.g.,
+numpy).
+14github.com/huggingface/transformers
+15tfhub.dev/google/
+universal-sentence-encoder-multilingual-large/
+3

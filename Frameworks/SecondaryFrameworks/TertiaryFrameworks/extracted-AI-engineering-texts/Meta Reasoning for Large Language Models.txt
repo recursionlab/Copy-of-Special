@@ -1,0 +1,445 @@
+Meta Reasoning for Large Language Models
+PeizhongGao1∗ AoXie1 ShaoguangMao2 WenshanWu2
+YanXia2 HaipengMi1 FuruWei2
+1Tsinghua University
+2Microsoft Research
+https://aka.ms/GeneralAI
+Abstract
+We introduce Meta-Reasoning Prompting (MRP), a novel and efficient system
+promptingmethodforlargelanguagemodels(LLMs)inspiredbyhumanmeta-
+reasoning. Traditional in-context learning-based reasoning techniques, such as
+Tree-of-Thoughts,showpromisebutlackconsistentstate-of-the-artperformance
+acrossdiversetasksduetotheirspecializednature. MRPaddressesthislimitation
+by guiding LLMs to dynamically select and apply different reasoning methods
+based on the specific requirements of each task, optimizing both performance
+andcomputationalefficiency. WithMRP,LLMreasoningoperatesintwophases.
+Initially, the LLM identifies the most appropriate reasoning method using task
+inputcuesandobjectivedescriptionsofavailablemethods. Subsequently,itapplies
+thechosenmethodtocompletethetask. Thisdynamicstrategymirrorshuman
+meta-reasoning,allowingthemodeltoexcelinawiderangeofproblemdomains.
+WeevaluatetheeffectivenessofMRPthroughcomprehensivebenchmarks. The
+resultsdemonstratethatMRPachievesorapproachesstate-of-the-artperformance
+acrossdiversetasks. MRPrepresentsasignificantadvancementinenablingLLMs
+toidentifycognitivechallengesacrossproblemsandleveragebenefitsacrossdiffer-
+entreasoningapproaches,enhancingtheirabilitytohandlediverseandcomplex
+problemdomainsefficiently. EveryLLMdeservesaMeta-ReasoningPromptingto
+unlockitsfullpotentialandensureadaptabilityinanever-evolvinglandscapeof
+challengesandapplications.
+1 Introduction
+Largelanguagemodels(LLMs)haveshownremarkablecapabilitiesinnaturallanguageunderstanding
+andgeneration,makingsignificantstridesinvariousreasoningtasks. However,thediversityand
+complexityofreal-worldproblemsrequireadvancedreasoningmethodsthatsurpassthecapabilities
+ofasingle,staticapproach. Whileexistingreasoningtechniques,suchasChain-of-Thoughts[27],
+Tree-of-Thoughts [32], Analogical Prompting [33], and Solo Performance Prompting [26], offer
+valuabletoolsforenhancingreasoning,theyoftenfallshortinconsistentlyachievingstate-of-the-art
+performanceacrossdifferenttasks.
+ThesechallengeshighlighttheneedforamoreadaptiveandflexibleapproachtoreasoninginLLMs.
+In human cognition, meta-reasoning involves monitoring and regulating reasoning and problem-
+solvingactivities,adjustingstrategiesbasedonthecontextandspecifictaskrequirements[5,4]. This
+adaptivecapabilityallowshumanstoefficientlyallocatecognitiveresources,balancingtrade-offs
+betweenaccuracy,complexity,andcomputationalcost. Inspiredbythis,weproposeMeta-Reasoning
+Prompting(MRP)toendowLLMswithsimilaradaptivereasoningcapabilities.
+Meta-ReasoningPrompting(MRP)isasimpleyeteffectivesystempromptdesignedtoguideLLMs
+indynamicallyselectingandapplyingthemostsuitablereasoningmethodforaspecifictask. By
+incorporatingmeta-reasoningprinciples,MRPtransformstask-specificpromptengineeringintoa
+∗WorkwasdonewheninterningatMicrosoftResearchAsia.
+Preprint.
+4202
+nuJ
+71
+]LC.sc[
+1v89611.6042:viXraFigure1: IllustrationofMeta-ReasoningPrompting(MRP)andthedifferencecomparedtostandard
+reasoningandtraditionalreasoningmethods.
+moregeneralandflexibleapproach. UndertheguidanceofMRP,theLLMevaluatesthetaskinput
+andselectsanappropriatereasoningmethodfromapredefinedset(ReasoningPool). Thisselection
+isinformedbyobjectivedescriptionsandevaluationsoftheavailablemethods. Thechosenmethodis
+thenappliedtocompletethetask,ensuringthemodelusesthemosteffectivestrategyforthegiven
+problem.
+Recentadvancesinreasoningtechniques,suchasthosedescribedin[30,24],introduceameta-buffer
+forstoringhigh-levelthoughtsoruseensemblemechanismstoimprovemodelgeneralizability. While
+someoftheseapproachesalignwiththeinherentlogicofmeta-reasoning,ourproposedMRPachieves
+simpleandefficientmeta-cognitiveeffectsbydirectlyleveragingthemeta-reasoningcapabilitiesof
+LLMsthroughprompts,withoutintroducingcomplexmechanisms.
+ToevaluatetheeffectivenessofMRP,weconductedexperimentsusingmultiplewidelyusedbench-
+marks. Thesebenchmarkscoverdifferentknowledgeandreasoningabilities,providingacompre-
+hensivetestoftheLLM’sperformanceacrossvariousreasoningtasks. Ourfindingsdemonstrate
+thatMRPnotonlyapproachesstate-of-the-artperformanceacrossthesebenchmarksbutalsoexcels
+in tasks requiring a blend of different reasoning strategies. Additionally, we observe that larger
+models,suchasGPT-4,exhibitsuperiormeta-reasoningcapabilitiescomparedtosmallermodelslike
+GPT-3.5.
+Asmodelsimprove,theirunderstandingofproblemsandmethods—i.e.,theirmeta-reasoningabil-
+ities—also enhances. MRP utilizes the inherent meta-cognitive abilities of LLMs, providing a
+straightforwardandeffectivemethodthatenhancestheirgeneralityacrossdifferenttasks. Experi-
+mentalandanalyticalresultsindicatethesignificantpotentialofMRPinboostingLLMperformance.
+Futureworkcouldexplorethebroader applicationof MRP,such asconstructingtraining datato
+enhancethemeta-cognitiveandgeneralreasoningabilitiesofLLMsduringthetrainingprocess.
+Ourkeycontributionsareasfollows:
+1. We propose Meta-Reasoning Prompting (MRP), a system prompt that enables LLMs to
+dynamicallyselectthemostsuitablereasoningmethodforspecifictasks,enhancingtheir
+flexibilityandeffectiveness.
+2Figure2: Meta-ReasoningPrompt.
+2. ExperimentsonmultiplebenchmarksshowthatMRPapproachesstate-of-the-artperfor-
+manceandexcelsintasksrequiringdiversereasoningstrategies,particularlyinlargermodels
+likeGPT-4.
+3. MRP leverages LLMs’inherent meta-cognitive abilities, improving their generality and
+performanceacrosstasks. Futureworkcouldfurtherenhancetheseabilitiesthroughtargeted
+trainingdata.
+2 Meta-ReasoningPrompting
+TheMeta-ReasoningPrompting(MRP)isdesignedtoguideaLanguageLearningModel(LLM)in
+selectingthemostsuitablereasoningmethodfromapoolofavailablemethods,therebyenhancing
+theoverallreasoningperformanceofthemodel. DetailedpromptscanbefoundinFig. 2.
+GuidedbytheMeta-ReasoningPrompting,theLLM(M)beginswithaninputx andasetofavail-
+0
+ablereasoningmethodsα ,α ,...,α . Areasoningpoolcontainsdescriptionsofeachreasoning
+1 2 n
+methodintheformofpromptsp ,p ,...,p ,withthesedescriptionsextractedfromtheabstractsof
+1 2 n
+3correspondingpapers. AMeta-ReasoningPromptingp isdefinedtoguidetheselectionprocess.
+MR
+Foreachreasoningmethodα (irangingfrom1ton),themodelM evaluatesthecombinedprompt
+i
+(p |p |x ). Thisevaluationyieldsascores indicatingtheeffectivenessofmethodα forthegiven
+i MR 0 i i
+inputx .
+0
+s =M(p ∥p ∥x ) for i=1,2,...,n. (1)
+i i MR 0
+Thealgorithmidentifiesthereasoningmethodα thatreceivesthehighestscores byfindingthe
+k i
+indexkthatmaximizesthesets ,s ,...,s .
+1 2 n
+k =argmax{s ,s ,...,s } (2)
+1 2 n
+i
+Once the best reasoning method α is determined, it is executed on the input x . The model M
+k 0
+generatesthefinaloutputy usingtheprompt(p |x ),whichcombinesthedescriptionofthechosen
+0 k 0
+reasoningmethodwiththeoriginalinput.
+y =α (x ) (3)
+0 k 0
+Algorithm1ProcessUnderMRPGuidelines
+Require: Input x , model M, reasoning methods α ,α ,...,α , a set of prompts of reasoning
+0 1 2 n
+methoddescriptionsp ,p ,...,p ,thepromptformetareasoningprocessdenotedasp . Evalua-
+1 2 n MR
+tionscoreisdenotedass ,s ,...,s .
+1 2 n
+1: fori=1tondo
+2: s i =M(p i∥p MR∥x 0)
+3: endfor
+4: k =argmax i{s 1,s 2,...,s n}
+5: Determinekforwhichα k isexecutedandreasonwiththechosenmethod.
+6: y 0 =α k(x 0)
+Returny
+0
+3 Experiments
+3.1 Setup
+ImplementationofMeta-ReasoningPrompting WeimplementMRPwithsevenpopularand
+distinctin-contextlearningreasoningmethods,whichalsoserveasourbaselineforcomparison. We
+promptdescriptionsforeachmethod,allowingtheLLMtounderstand.
+Tasks Weexperimentwithsevendiversetasks,Detailsaboutthedatasetanditsconstructionare
+providedinAppendixA.1:
+1. ArithmeticReasoning: GSM8K[3],1319basicmathquestions.
+2. ComplexMathematicalReasoning: Gameof24[32],agameusing4numbersandbasic
+arithmeticfouroperationstoobtain24.
+3. CreativeWriting: TriviaCreativeWriting(TriviaCW)[26,14],necessitatingthemodelto
+assimilateandcombineheterogeneousinformationfrommultipledomainsinternally.
+4. Multi-HopReasoning: HotpotQA,[31],requiringmodelstoconnectpiecesofinformation
+frommultipledocumentstoansweraquestion.
+5. SocialReasoning: BigToM[8],toevaluatesocialsituationsunderstandingandthetheory
+ofmind.
+6. ComputerCode: CodeReadability(Code)[19],toenhancethereadabilityofgivencode
+snippets.
+7. STEM: MMLU [11], Physics, Chemistry, Biology, and Math problems of high school
+domain.
+4Table1:ExperimentswithGPT4:ComparisonofperformanceonbenchmarksusingMeta-Reasoning
+Promptingversususingothermethodsindependently. Boldrepresentsthebestperformance,and
+underlinerepresentsthesecond-bestperformance.
+Method GSM8K Gameof24 TriviaCW HotpotQA BigToM Code MMLU MacroAvg.
+COT 0.914 0.050 0.762 0.800 0.470 0.685 0.894 0.654
+TOT 0.942 0.410 0.786 0.716 0.430 0.765 0.815 0.725
+Analogical 0.924 0.040 0.735 0.777 0.500 0.614 0.947 0.648
+Self-Refine 0.929 0.080 0.764 0.763 0.470 0.872 0.861 0.677
+SPP 0.929 0.170 0.861 0.763 0.550 0.672 0.874 0.688
+STEP-BACK 0.933 0.090 0.787 0.810 0.420 0.809 0.841 0.670
+SimTom 0.938 0.040 0.739 0.667 0.590 0.694 0.815 0.640
+MRP(our) 0.921 0.310 0.796 0.797 0.570 0.867 0.854 0.772
+Figure 3: (a) Comparison of methods on different benchmarks reveals that guiding LLM to dy-
+namically choose the appropriate reasoning method enables MRP to achieve consistently better
+performanceacrossalltasks. (b)Thearithmeticandharmonicaverageperformancesofapplyinga
+specificreasoningapproachtoallbenchmarksdemonstratethatMRPconsistentlyexcelsinoverall
+evaluation.
+Metrics To prevent any method from skewing the results due to exceptional performance on a
+specifictask,wereportedboththearithmeticmeanaccuracyandtheharmonicmeanaccuracyof
+eachmethodacrossallbenchmarks.
+Models Weusedgpt-3.5-turbo2andgpt-4-turbo3withidenticalpromptstocomparetheeffectof
+modelsizeonmeta-reasoningability.
+Baselines Weselectsevenpopularreasoningmethodsasbaselines. Thesemethodsinclude:
+1. Chain-of-Thoughts: breakingdownproblemsintoaseriesofcoherentreasoningsteps[27].
+2. Tree-of-Thoughts: exploringmultiplereasoningpathsandself-evaluatingchoicestosolve
+complexproblems[32].
+3. Analogicalprompting: self-generatingfew-shotsbasedonpastexperiencesandrelated
+problems[33].
+4. Self-Refine: self-evaluatingforrefinementandcontinuouslyimprovingtheoutput[17].
+5. Solo Performance Prompting: simulating multiple personas to collaboratively solve
+complextasks[26].
+6. Step-BackPrompting: abstracthigh-levelconceptsandprinciplestoguidethereasoning
+process[38].
+7. SimToM:enablingperspective-takingtounderstandthecharacter’sbeliefsandgoals[28]
+2AzureOpenAI,ModelName:gpt-35-turbo,APIVersion:0301
+3AzureOpenAI,ModelName:gpt-4,APIVersion:1106-Preview
+5Table 2: Experiments with GPT3.5: Comparison of performance on benchmarks using Meta-
+Reasoning Prompting versus using other methods independently. Bold represents the best per-
+formance,andunderlinerepresentsthesecond-bestperformance.
+Method GSM8K Gameof24 TriviaCW HotpotQA BigToM Code MMLU MacroAvg.
+COT 0.831 0.030 0.414 0.187 0.610 0.578 0.675 0.416
+TOT 0.810 0.100 0.155 0.360 0.430 0.797 0.735 0.352
+Analogical 0.825 0.060 0.324 0.197 0.660 0.729 0.721 0.433
+Self-Refine 0.716 0.030 0.213 0.167 0.650 0.796 0.543 0.372
+SPP 0.823 0.160 0.536 0.217 0.540 0.684 0.689 0.469
+STEP-BACK 0.817 0.010 0.536 0.190 0.570 0.642 0.788 0.452
+SimTom 0.586 0.040 0.240 0.177 0.460 0.599 0.503 0.315
+MRP(our) 0.781 0.050 0.346 0.187 0.600 0.759 0.722 0.433
+3.2 MainResults
+Meta-ReasoningPromptingperformsbestoncomprehensivetasks Asshownintable1,MRP
+consistentlyexhibitsrobustperformanceacrossmultiplebenchmarks. MRPachievesthesecond-best
+in4of7tasks,includingGameof24,TriviaQA,BigToMandCode. Thisimpressiveperformance
+acrossawiderangeoftasksdemonstratesMRP’sabilitytoeffectivelyselectandapplyappropriate
+reasoningmethodstailoredtothespecificrequirementsofeachtask. Intermsofoverallperformance,
+MRP attains the highest across the 7 tasks, with an average of 0.772. In contrast, although TOT
+excelsincertaintaskssuchasGSM8KandGameof24,itperformslessimpressivelyinothers. We
+observenoticeableperformancegapscomparedwithMRPintaskssuchasBigToM(0.43VS0.57)
+andCode(0.765VS0.867). ThisconsistentexcellenceacrossallbenchmarksunderscoresMRP’s
+advantages,demonstratingitsabilitytomaintainimpressiveperformanceacrossdiversetaskdomains
+(asshowninfigure4).
+Meta-reasoningcapabilityisinfluencedbythebasemodelcapability Asillustratedintable2,
+whiletheperformancewithGPT-4issatisfactory,theexperimentalresultswithGPT-3.5indicate
+thattheeffectivenessofMRPissuboptimal. Erroranalysisrevealedthemainissues: ScoringError,
+Self-opinion,FactualError,andReasoningError. Thisindicatesthatwhenthemodel’scapabilities
+arelimited,itcannothavesufficientawarenessofitsownreasoningabilitiesandthemeta-issues
+behindthereasoningproblems. Thisperformancedropalsoappearsinotherreasoningmethods,
+whichalsoindicatesthatthecapabilityofmeta-reasoning,likeotherreasoningabilities,improvesas
+themodelbecomesmorepowerful.
+Meta-ReasoningPromptingislesseffective
+forsimpletasksbutsignificantlyimproved
+formoredifferentiatedtasks Fromtheex-
+perimentalresults(seefigure5),itcanbeseen
+thatMRPandothermethodsshowequalcom-
+petitiveness on GSM8K, the accuracy of all
+thereasoningmethodsisabove90%,butthe
+differentiationbetweentheaccuracyofeach
+method is not very high, it can be seen that
+whenthetaskissimpler,itisharderforMRP
+toreflectitsownadvantages,butMRPmethod
+Figure 5: Performance of methods on GSM8K
+isbetterthaneachmethodonthemorediffi-
+benchmark
+cultandcomprehensiveButtheMRPmethod
+issignificantlybetterthantheothermethodsinthemoredifficultandcomprehensivetasks.
+4 RelatedWorks
+4.1 ReasoningwithLLMs
+Prompt-basedreasoningmethodshavebecomeakeytechnologyforenhancingthecapabilitiesof
+pretrainedlargelanguagemodels(LLMs). TheChain-of-Thought(CoT)prompting[27], andits
+6Figure4: Theinferenceprocessoflargelanguagemodels(LLMs)undermeta-reasoningprompting.
+variants [37, 39, 2, 12, 25], such as Tree of thoughts (TOT) [32], Graph of thoughts (GOT) [1],
+enhancesLLMs’abilitytodecomposecomplextasksintosmaller,manageabletasks,utilizingstruc-
+turedapproachestoexploreproblem-solvingpathways. Numerousstudieshavedemonstratedthe
+exceptionalperformanceofprompt-basedreasoningmethodsacrossvariousdomainsandbench-
+marks.[17,28,38,20,23]Someresearchershaveevenemployedanalogicalreasoning[34,7,33],
+enablinglargemodelstogeneratesimilarquestionsbasedonuserqueriesandsubsequentlysum-
+marizesolutionsbasedontheanswerstothesequestions. Whileindependentreasoningmethods
+havebeenproventoimproveLLMperformancefromdifferentperspectives,theystillfailtomeet
+integratedproblems.
+TherearealsosomemethodstoenhanceLLMreasoningthroughensemblemechanismsortuning.
+X-of-Thoughts improves the success rate of LLM on arithmetic problems by integrating three
+methods[15]. Itproposesatrial-and-erroriterativemechanismthatallowsLLMtoautonomously
+7repeat attempts to find a final solution. Ni et al.blending off-the-shelf benchmarks to create a
+comprehensive,integratedLLMassessment[18]. Mixtural-Of-Prompts(MoP)dynamicallymanage
+andoptimizeprompttuningacrossheterogeneoustasksanddatadistributions,significantlyreducing
+perplexityandmitigatinginterferenceinmulti-taskscenarios[6]. Someresearchersfine-tunesmaller
+models with a well-prepared dataset inspired by preference learning to achieve reasoning power
+comparabletoalargermodel[35,22,29]. Theypresentproblem-methodcoupleddatasetsandshow
+howtoimprovethemodel’sgraspofinferenceskillsatthedatalevel. However,thereisstillalackof
+researchtoexplorethemeta-reasoningabilityofLLMstochoosereasoningmethods.
+4.2 MetaReasoning
+Meta-reasoningisacrucialcognitiveprocessinhumanintelligence,involvingtherecognitionand
+interpretation of reasoning to select optimal methods based on past experiences [9]. In artificial
+intelligence,itreferstoefficientlydeployingcomputationalresourcesforinformeddecision-making
+in specific situations [4, 5]. Recently, some works develop routing or buffer systems to improve
+performance,usingsupervisedlearningalgorithms[21],rewardmodel-basedtechniques,andother
+methods[10,16,24]. Huetal. createdabenchmarktoevaluatethesemethods’effectiveness[13].
+Zengetal. notedtheneglectofmeta-reasoninginindependentLLMsandproposedabenchmarkto
+evaluatereasoningrationality[36]. In[30],theauthorsintroduceameta-buffertostoreaseriesof
+high-levelthoughtsdistilledfromproblem-solvingprocessesacrossvarioustasks. Thisapproach
+alignswiththeinherentlogicofmetareasoning. However,MRPachievessimpleandefficientmeta-
+cognitiveeffectsbydirectlyunleashingthemetareasoningcapabilitiesofLLMthroughprompts,
+withoutintroducingcomplicatedmechanisms.
+5 ConclusionsandOutlook
+ThispaperintroducesMeta-ReasoningPrompting(MRP),anovelandefficientapproachinspired
+byhumanmeta-reasoning, designedtoenhancetheadaptabilityandefficiencyoflargelanguage
+models(LLMs). Bydynamicallyselectingandapplyingthemostsuitablereasoningmethodforeach
+task,MRPenablesLLMstooptimizeperformanceacrossdiverseproblemdomains,achievingnear
+state-of-the-artresultsincomprehensivebenchmarks.
+OurexperimentsdemonstratethatMRPsignificantlyimprovesLLMs’abilitytohandletasksrequiring
+ablendofdifferentreasoningstrategies, particularlyinlargermodelslikeGPT-4. Thisdynamic
+adaptabilityhighlightsMRP’spotentialtoaddressthelimitationsoftraditionalreasoningtechniques,
+offeringamoreflexibleandeffectivesolutionforvariedandcomplextasks.
+Lookingahead,futureresearchcouldexploretheintegrationofMRPintotrainingdatasetstofurther
+enhance LLMs’ general reasoning abilities. Additionally, combining MRP with other advanced
+reasoning techniques could yield further improvements in model performance. Overall, MRP
+represents a significant step forward in developing more intelligent, efficient, and adaptable AI
+systems,capableofmeetingthediversedemandsofreal-worldproblem-solving.
+6 Limitations
+Ourstudyinvestigatesthemeta-reasoningmechanismsofLLMsbydynamicallyselectingsuitable
+methods to enhance their performance across various reasoning tasks without introducing new
+knowledge or training efforts. Currently, Meta-Reasoning Prompting (MRP) selects the highest-
+scoringmethodforeachtask. However,drawingfromhumancognitiveprocesses,tacklingcomplex
+problems often involves combining multiple reasoning methods. Future research will explore
+mechanismssuchasTop-Probability(Top-P)orTop-Ktoallowmodelstoensemblerelevantmethods,
+potentiallyachievingbetterperformance.
+Ourexperimentalresultsindicatethatthemeta-reasoningabilityofLLMsisinfluencedbythecapabil-
+itiesofthemodelsthemselves. Forinstance,GPT-4’sMeta-ReasoningPromptingshowssignificantly
+greaterimprovementcomparedtoGPT-3.5,whichalignswithourexpectations. Nonetheless,wecan
+furtherenhancethesmallermodel’smeta-reasoningcapabilitiesthroughinstructiontuninginfuture
+works.
+8Duetospaceconstraintsandlimitedresources,ourexperimentsprimarilytestedthemostrepresen-
+tativeLLMs(GPT-4andGPT-3.5). Wedidnotfullycovertheperformanceofotheropen-source
+orclosed-sourcemodels. However,webelievethattheexperimentalresultsontheserepresentative
+LLMsprovidesufficientinsightsandimplications.
+References
+[1] Maciej Besta, Nils Blach, Ales Kubicek, Robert Gerstenberger, Michal Podstawski, Lukas
+Gianinazzi,JoannaGajda,TomaszLehmann,HubertNiewiadomski,PiotrNyczyk,etal. Graph
+ofthoughts: Solvingelaborateproblemswithlargelanguagemodels. InProceedingsofthe
+AAAIConferenceonArtificialIntelligence,pages17682–17690,2024.
+[2] SijiaChen,BaochunLi,andDiNiu. Boostingofthoughts: Trial-and-errorproblemsolving
+withlargelanguagemodels. arXivpreprintarXiv:2402.11140,2024.
+[3] KarlCobbe,VineetKosaraju,MohammadBavarian,MarkChen,HeewooJun,LukaszKaiser,
+MatthiasPlappert,JerryTworek,JacobHilton,ReiichiroNakano,etal. Trainingverifiersto
+solvemathwordproblems. arXivpreprintarXiv:2110.14168,2021.
+[4] MichaelT.CoxandAnitaRaja. Metareasoning: AnIntroduction. Metareasoning,2011.
+[5] MichaelTCoxandAnitaRaja. Metareasoning: Thinkingaboutthinking. MITPress,2011.
+[6] ChenDun,MirianDelCarmenHipolitoGarcia,GuoqingZheng,AhmedHassanAwadallah,
+AnastasiosKyrillidis,andRobertSim. Sweepingheterogeneitywithsmartmops: Mixtureof
+promptsforllmtaskadaptation. arXivpreprintarXiv:2310.02842,2023.
+[7] TaoFeng,PengruiHan,GuanyuLin,GeLiu,andJiaxuanYou. Thought-retriever: Don’tjust
+retrieverawdata,retrievethoughts. InICLR2024Workshop: HowFarAreWeFromAGI,2024.
+[8] KanishkGandhi,Jan-PhilippFränken,TobiasGerstenberg,andNoahGoodman. Understanding
+socialreasoninginlanguagemodelswithlanguagemodels. AdvancesinNeuralInformation
+ProcessingSystems,36,2024.
+[9] ThomasLGriffiths,FrederickCallaway,MichaelBChang,ErinGrant,PaulMKrueger,and
+FalkLieder. Doingmorewithless: meta-reasoningandmeta-learninginhumansandmachines.
+CurrentOpinioninBehavioralSciences,29:24–30,2019.
+[10] Surya Narayanan Hari and Matt Thomson. Tryage: Real-time, intelligent routing of user
+promptstolargelanguagemodel. arXivpreprintarXiv:2308.11601,2023.
+[11] DanHendrycks,CollinBurns,StevenBasart,AndyZou,MantasMazeika,DawnSong,and
+Jacob Steinhardt. Measuring massive multitask language understanding. arXiv preprint
+arXiv:2009.03300,2020.
+[12] HanxuHu,HongyuanLu,HuajianZhang,Yun-ZeSong,WaiLam,andYueZhang. Chain-of-
+symbolpromptingelicitsplanninginlargelangaugemodels. arXivpreprintarXiv:2305.10276,
+2023.
+[13] QitianJasonHu,JacobBieker,XiuyuLi,NanJiang,BenjaminKeigwin,GauravRanganath,
+KurtKeutzer,andShriyashKaustubhUpadhyay. Mars: Abenchmarkformulti-llmalgorithmic
+routingsystem. InICLR2024Workshop: HowFarAreWeFromAGI,2024.
+[14] Mandar Joshi, Eunsol Choi, Daniel S Weld, and Luke Zettlemoyer. Triviaqa: A large
+scale distantly supervised challenge dataset for reading comprehension. arXiv preprint
+arXiv:1705.03551,2017.
+[15] TengxiaoLiu,QipengGuo,YuqingYang,XiangkunHu,YueZhang,XipengQiu,andZheng
+Zhang. Plan,verifyandswitch:Integratedreasoningwithdiversex-of-thoughts. InProceedings
+ofthe2023ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,pages2807–
+2822,2023.
+9[16] Xiaoding Lu, Adian Liusie, Vyas Raina, Yuwen Zhang, and William Beauchamp. Blend-
+ing is all you need: Cheaper, better alternative to trillion-parameters llm. arXiv preprint
+arXiv:2401.02994,2024.
+[17] AmanMadaan,NiketTandon,PrakharGupta,SkylerHallinan,LuyuGao,SarahWiegreffe,Uri
+Alon,NouhaDziri,ShrimaiPrabhumoye,YimingYang,etal. Self-refine: Iterativerefinement
+withself-feedback. AdvancesinNeuralInformationProcessingSystems,36,2024.
+[18] JinjieNi,FuzhaoXue,XiangYue,YuntianDeng,MahirShah,KabirJain,GrahamNeubig,
+andYangYou. Mixeval: Derivingwisdomofthecrowdfromllmbenchmarkmixtures. arXiv
+preprintarXiv:2406.06565,2024.
+[19] RuchirPuri,DavidSKung,GeertJanssen,WeiZhang,GiacomoDomeniconi,VladimirZolotov,
+JulianDolby,JieChen,MihirChoudhury,LindseyDecker,etal. Codenet: Alarge-scaleaifor
+codedatasetforlearningadiversityofcodingtasks. arXivpreprintarXiv:2105.12655,2021.
+[20] PranabSahoo, AyushKumarSingh, SriparnaSaha, VinijaJain, SamratMondal, andAman
+Chadha. Asystematicsurveyofpromptengineeringinlargelanguagemodels: Techniquesand
+applications. arXivpreprintarXiv:2402.07927,2024.
+[21] TalShnitzer,AnthonyOu,MírianSilva,KateSoule,YuekaiSun,JustinSolomon,NeilThomp-
+son,andMikhailYurochkin. Largelanguagemodelroutingwithbenchmarkdatasets. arXiv
+preprintarXiv:2309.15789,2023.
+[22] SainbayarSukhbaatar,OlgaGolovneva,VasuSharma,HuXu,XiVictoriaLin,BaptisteRozière,
+JacobKahn,DanielLi,Wen-tauYih,JasonWeston,etal. Branch-train-mix: Mixingexpertllms
+intoamixture-of-expertsllm. arXivpreprintarXiv:2403.07816,2024.
+[23] MiracSuzgunandAdamTaumanKalai. Meta-prompting: Enhancinglanguagemodelswith
+task-agnosticscaffolding. arXivpreprintarXiv:2401.12954,2024.
+[24] Junlin Wang, Jue Wang, Ben Athiwaratkun, Ce Zhang, and James Zou. Mixture-of-agents
+enhanceslargelanguagemodelcapabilities. arXivpreprintarXiv:2406.04692,2024.
+[25] XuezhiWang, JasonWei, DaleSchuurmans, QuocLe, EdChi, SharanNarang, Aakanksha
+Chowdhery,andDennyZhou.Self-consistencyimproveschainofthoughtreasoninginlanguage
+models. arXivpreprintarXiv:2203.11171,2022.
+[26] ZhenhailongWang,ShaoguangMao,WenshanWu,TaoGe,FuruWei,andHengJi. Unleashing
+cognitivesynergyinlargelanguagemodels: Atask-solvingagentthroughmulti-personaself-
+collaboration. arXivpreprintarXiv:2307.05300,1(2):3,2023.
+[27] JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,FeiXia,EdChi,QuocVLe,
+DennyZhou, etal. Chain-of-thoughtpromptingelicitsreasoninginlargelanguagemodels.
+Advancesinneuralinformationprocessingsystems,35:24824–24837,2022.
+[28] Alex Wilf, Sihyun Shawn Lee, Paul Pu Liang, and Louis-Philippe Morency. Think twice:
+Perspective-takingimproveslargelanguagemodels’theory-of-mindcapabilities. arXivpreprint
+arXiv:2311.10227,2023.
+[29] BowenXu,ShaoyuWu,KaiLiu,andLuluHu. Mixture-of-instructions: Comprehensivealign-
+mentofalargelanguagemodelthroughthemixtureofdiversesystempromptinginstructions.
+arXivpreprintarXiv:2404.18410,2024.
+[30] Ling Yang, Zhaochen Yu, Tianjun Zhang, Shiyi Cao, Minkai Xu, Wentao Zhang, Joseph E
+Gonzalez,andBinCui. Bufferofthoughts: Thought-augmentedreasoningwithlargelanguage
+models. arXivpreprintarXiv:2406.04271,2024.
+[31] ZhilinYang,PengQi,SaizhengZhang,YoshuaBengio,WilliamWCohen,RuslanSalakhut-
+dinov,andChristopherDManning. Hotpotqa: Adatasetfordiverse,explainablemulti-hop
+questionanswering. arXivpreprintarXiv:1809.09600,2018.
+[32] Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Tom Griffiths, Yuan Cao, and Karthik
+Narasimhan. Treeofthoughts: Deliberateproblemsolvingwithlargelanguagemodels. Ad-
+vancesinNeuralInformationProcessingSystems,36,2024.
+10[33] MichihiroYasunaga,XinyunChen,YujiaLi,PanupongPasupat,JureLeskovec,PercyLiang,
+EdHChi,andDennyZhou. Largelanguagemodelsasanalogicalreasoners. arXivpreprint
+arXiv:2310.01714,2023.
+[34] JunchiYu,RanHe,andRexYing. Thoughtpropagation: Ananalogicalapproachtocomplex
+reasoningwithlargelanguagemodels. arXivpreprintarXiv:2310.03965,2023.
+[35] LifanYuan,GanquCui,HanbinWang,NingDing,XingyaoWang,JiaDeng,BojiShan,Huimin
+Chen,RuobingXie,YankaiLin,etal. Advancingllmreasoninggeneralistswithpreference
+trees. arXivpreprintarXiv:2404.02078,2024.
+[36] Zhongshen Zeng, Pengguang Chen, Shu Liu, Haiyun Jiang, and Jiaya Jia. Mr-gsm8k: A
+meta-reasoningrevolutioninlargelanguagemodelevaluation,2024.
+[37] XufengZhao,MengdiLi,WenhaoLu,CorneliusWeber,JaeHeeLee,KunChu,andStefan
+Wermter. Enhancingzero-shotchain-of-thoughtreasoninginlargelanguagemodelsthrough
+logic. arXivpreprintarXiv:2309.13339,2023.
+[38] HuaixiuStevenZheng,SwaroopMishra,XinyunChen,Heng-TzeCheng,EdHChi,QuocV
+Le,andDennyZhou. Takeastepback: Evokingreasoningviaabstractioninlargelanguage
+models. arXivpreprintarXiv:2310.06117,2023.
+[39] YuchengZhou,XiuboGeng,TaoShen,ChongyangTao,GuodongLong,Jian-GuangLou,and
+JianbingShen.Threadofthoughtunravelingchaoticcontexts.arXivpreprintarXiv:2311.08734,
+2023.
+A ImplementationDetails
+A.1 DatasetDetails
+Table3showsthesplitandnumberofexamplesusedforevaluationsinGSM8K,Gameof24,Trivia
+CreativeWriting,HotpotQA,BigTOM,CodeReadabilityandMMLU.ThedatasetsizesofGSM8K,
+Gameof24,TriviaCreativeWritingareconsistentwiththesizeusedinthereferences. Tocontrolcost,
+werandomlytested100-300sampleofdatafromHotpotQA,BigTOM,andCodeReadabilityand
+MMLU.Despiteoftheeconomicconsideration,wefoundthatonthisdatascale,MRPhasachieved
+significantresults.
+Table3: DatasetSplitandNumberofExamples
+Domain Dataset NumberofExamples
+ArithmeticReasoning GSM8K 1319
+ComplexMathematicalReasoning Gameof24 100
+CreativeWriting TriviaCreativeWriting 100
+Multi-hopReasoning HotpotQA 300
+SocialReasoning BigTOM 100
+ComputerCode CodeReadability 300
+STEM MMLU 151
+A.2 SourcePromptsoftheReasoningMethodsUsedinThisPaper
+11Figure6: PromptofCOT
+Figure7: PromptofSim-TomPrompting
+12Figure8: PromptofTOT
+Figure9: PromptofAnalogicalPrompting
+13Figure10: PromptofSELF-REFINE
+14Figure11: PromptofSTEP-BACKPrompting
+15Figure12: PromptofSPPPrompting
+16Figure13: PromptofSPPPrompting
+17

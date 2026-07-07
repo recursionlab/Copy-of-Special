@@ -1,0 +1,793 @@
+Zero-shot Cross-lingual Transfer of Prompt-based Tuning
+with a Unified Multilingual Prompt
+LianzheHuang , ShumingMa ,DongdongZhang ,FuruWei andHoufengWang
+∗
+† ‡ ‡ ‡ †
+MOEKeyLabofComputationalLinguistics,PekingUniversity
+†
+MicrosoftResearchAsia
+‡
+{hlz, wanghf}@pku.edu.cn
+{shumma, dozhang, fuwei}@microsoft.com
+Abstract
+Train Test
+It’s [mask]. Food is great. 它是 [mask]。这家餐馆很糟糕。
+Prompt-based tuning has been proven effec- (It’s [mask]. This restaurant is terrible.)
+tive for pretrained language models (PLMs).
+Model
+While most of the existing work focuses on
+the monolingual prompts, we study the mul-
+tilingual prompts for multilingual PLMs, es- ✔ good ❌ 好的 (good)
+{
+peciallyinthezero-shotcross-lingualsetting. [mask] ❌ average ❌ ⼀般的 (average) [mask]
+To alleviate the effort of designing different ❌ bad ✔ 差的 (bad)
+prompts for multiple languages, we propose
+a novel model that uses a unified prompt for 😊 (positive) 🙁 (negative)
+all languages, called UniPrompt. Different
+fromthediscretepromptsandsoftprompts,the
+unifiedpromptismodel-basedandlanguage-
+agnostic. Specifically, the unified prompt
+is initialized by a multilingual PLM to pro-
+ducelanguage-independentrepresentation,af-
+terwhichisfusedwiththetextinput. During
+inference, the prompts can be pre-computed
+so that no extra computation cost is needed.
+Tocollocatewiththeunifiedprompt,wepro-
+poseanewinitializationmethodforthetarget
+labelwordtofurtherimprovethemodel’strans-
+ferability across languages. Extensive exper-
+iments show that our proposed methods can
+significantly outperform the strong baselines
+acrossdifferentlanguages. Wereleasedataand
+codetofacilitatefutureresearch1.
+1 Introduction
+Pre-trained language models (PLMs) have been
+proven to be successful in various downstream
+tasks(Devlinetal.,2019;Yangetal.,2019;Con-
+neau et al., 2020). Prompt-tuning is one of the
+effectivewaystoinduceknowledgefromPLMsto
+improvedownstreamtaskperformanceespecially
+whenthelabeleddataisnotsufficient(Brownetal.,
+2020; Gao et al., 2021; Le Scao and Rush, 2021;
+ZhaoandSchütze,2021). Theessenceofprompt-
+tuning is to precisely design task input structure
+sothatitcanimitatethepre-trainingprocedureof
+∗ContributionduringinternshipatMicrosoft.
+1The data and the code of this paper are available at
+https://github.com/mojave-pku/UniPrompt.
+Proceedingsofthe2022ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,pages11488–11497
+December7-11,2022©2022AssociationforComputationalLinguistics
+{
+Figure 1: An example of zero-shot cross-
+lingual transfer of prompt-based tuning.
+Theunderlinepartoftheinputwith[mask]token is
+template.
+PLMsandbetterinducetheknowledgefromthem.
+Forexample,toclassifythesentimentpolarityof
+the source sentence “Food is great”, a template
+“It’s[mask].” isconstructedbeforethesourceinput
+where the accurate label is masked. In this way,
+thesentiment-relatedwordslike‘good’,‘bad’,and
+‘average’ispredictedatthemaskedpositionwith
+probabilities on the target side, over which a ver-
+balizer is leveraged to project the final sentiment
+labels.
+Previously, most work on prompt-based tun-
+ing (Gao et al., 2021; Zhang et al., 2021) mainly
+considers the monolingual prompts. However,
+it is not straightforward when applying to multi-
+lingual tasks due to absent multilingual prompts
+thatheavilyrelyonnativelanguageexpertstode-
+sign both the templates and label words. An al-
+ternative way to build multilingual prompts is to
+machine-translate source prompts into target lan-
+guages. But it is still infeasible for low-resource
+languages as the translation quality is hard to be
+guaranteed. Otherworkalsoconsidersusingsoft
+prompts that consist of continuous vectors. Al-
+thoughitreducesthecostofbuildingpromptsfor
+multiplelanguages,themismatchbetweenthepro-
+11488ceduresofpre-trainingandprompt-tuningbrings parts: template representation and label word
+many obstacles to the desired tasks, because the initialization.
+softpromptsneveroccurinthemodelpre-training Fortemplate,weusetwoindependentencoder
+stage. towers,whicharethetemplatetowerandthecon-
+In this work, we focus on the zero-shot cross- text tower. The template tower is to encode the
+lingualtransferofprompt-basedtuning. Asshown prompt’s template, while the context tower is for
+in Figure 1, the model is trained on the source theorigintextinput. Bothtowersareinitializedby
+language(English),whiletestedontheotherlan- thebottomlayersofthemultilingualPLM.After
+guage (Chinese). We explore the approaches to that,therepresentationsofthetemplateandcontext
+use a unified multilingual prompt that can trans- are concatenated as the input of the fusion tower.
+fer across languages. We propose a novel model, Thefusiontowerisinitializedbythetoplayersof
+calledUniPrompt,whichtakesthemeritsofboth multilingualPLMs. Thisismotivatedbytheprevi-
+discretepromptsandsoftprompts. UniPromptis ousstudies(Sabetetal.,2020),whichfoundthat
+model-based and language-independent. It is ini- thelowerlayersofthepre-trainedlanguagemodel
+tializedbyamultilingualPLMthattakesEnglish are related to language transfer, while the higher
+promptsasinputandproduceslanguage-agnostic layers are related to the actual semantics. There-
+representation benefit from the transferability of fore,itcangetridofthedependencyofthetemplate
+multilingualPLMs. Duringinference,theprompts onthespecificlanguage,butalsoretaintheability
+canbepre-computedsothatnoextracomputation ofpromptstoactivatethepotentialknowledgeof
+cost is introduced. In this way, we can alleviate PLMs. Since the output of the prompt tower can
+theeffectsofpromptengineeringfordifferentlan- bepre-computedbeforeinference,themodelwill
+guages, while reserving the ability of PLMs. To notintroduceadditionalparametersorcomputation
+better collocate with the unified prompt, we pro- costsintheinferencestage.
+poseanewinitializationmethodforthelabelwords
+Forlabelwords,weuseartificialtokenssothat
+insteadofusingthelanguagemodelheadfromthe
+itislanguage-agnostic. Previousstudiesalsohave
+PLM.Thisprovestofurtherimprovethemodel’s
+explored methods to use artificial tokens in label
+transferabilityacrosslanguages.
+words (Hambardzumyan et al., 2021). Different
+Weconductedextensiveexperimentson5target from these works, we have a novel initialization
+languageswithdifferentscalesofdata. Experimen- methodforthelabelwords. Specifically,wemini-
+talresultsprovethatUniPromptcansignificantly
+mizethedistancebetweenthelabelwordsandthe
+outperform the strong baselines across different
+sentence embeddings before fine-tuning. This is
+settings. We summarize the contributions of this
+achievedbytakingasimpleaverageofthesentence
+paperasfollows: embeddings in the same class as the label words.
+Inthisway,thelabelwordsnotonlyhaveagood
+• We propose a unified prompt for zero-shot
+startingpointbutalsoarelanguage-independent.
+cross-linguallanguageunderstanding,which
+islanguage-independentandreservetheabil-
+2.2 Two-towerPromptEncoder
+ityofmultilingualPLMs.
+Asacross-lingualunifiedprompt,ifitdirectlyuses
+• We propose a novel label word initializa-
+theexistingtokensfromthevocabulary,itwillbe
+tionmethodtoimprovethetransferabilityof
+biasedtowardssomespecificlanguages,whichwill
+promptsacrosslanguages.
+harmthecross-lingualtransferduetothegapbe-
+tween languages. To alleviate this problem, the
+• We conduct experiments in 5 languages to
+firstgoalofdesigningatemplateinthistaskis: the
+provetheeffectivenessofthemodel,andde-
+templatemustnotdependonanyspecificlanguage.
+signadetailedablationexperimenttoanalyze
+Anintuitiveideatoachievethisgoalistousesoft
+theroleofeachmodule.
+prompt,whichisartificialtokensthathavenothing
+2 UniPrompt todowithspecificlanguages. However,thesearti-
+ficialtokens: i)willnotbeadequatelytraineddue
+2.1 Overview
+tolittleamountofdatainfew-shotscenarios;ii)do
+ThemajordifferencesbetweenUniPromptandthe notappearinthepre-trainingstage. Therefore,the
+existingprompt-basedmethodsmainlylieintwo goaloftheprompt,whichistoactivatethepotential
+11489En De Es Fr Ja Zh
+Averagecharactersperreview 178.8 207.9 151.3 159.4 101.4 51.0
+Numberofreviewsfortraining/development k 5 - - - - -
+×
+Numberofreviewsfortesting - 5,000 5,000 5,000 5,000 5,000
+Table1: StatisticsofMARCdatausedinourpaper. kisthenumberoftrainingsamplesperclass.
+Fusion Tower init PLM Encoder Layer p+1
+Template Context init Tower Tower PLM Encoder Layer 1
+template context
+{ 1 ~ p
+{
+[s2](soft label for average)
+……
+label word i It’s [mask]. The food is great.
+label word j [s1](soft label for positive)
+It’s [mask]. The restaurant is average.
+…… verbalizer
+label word m It’s [mask]. The restaurant is good.
+…… lm-head [s3](soft label for bad)
+Out: Label j token1 It’s [mask]. The food is terrible.
+token2
+LM Head …… It’s [mask]. The restaurant is terrible.
+[s1]
+[s2]
+p+1 ~ n [s3] It’s [mask]. The food is just so so.
+Figure3: Anexampleofourproposedsoftlabelwords
+initialization. Wefirstencodesentenceswithprompts
+by the original PLM, and then use the average of the
+representationsof[mask]withthesamelabelasthe
+initializationofthesoftlabelword.
+Figure 2: Overview of Two-tower Prompt Encoder.
+TemplateTowerandContextTowerarebothinitialized
+by 1 p encoder layers of PLMs. Fusion Tower is
+∼ initializedwiththetopn playersofPLM:
+initializedby(p+1) nencoderlayersofPLMs. n −
+∼
+meansthetotalnumberofthePLMsencoderlayers.
+H ′ = [H t′;H s′] (3)
+H = FusionTower(H ′) (4)
+knowledgeofPLMs,maynotbeachieved. Given
+wherenmeansthetotalnumberoftheencoderlay-
+the problems of soft prompt, the second goal of
+ersand[;]meansthesplicingoperation. Withthe
+designingtemplatescanbedrawn: tominimizethe
+helpofthemultilingualPLM,thetemplatetower
+gapsbetweenthepre-trainingandprompt-tuning.
+canmakethetemplateeasytotransferacrosslan-
+To achieve these goals, we now describe our guages.
+method to model the prompts, called two-tower
+2.3 InitializationofSoftLabelWords
+prompt encoder. The overview of the two-tower
+promptencoderisshowninFigure2. Accordingto Withthetwo-towerpromptencoder,weareableto
+thepreviouswork,thebottomlayersofPLMsen- makethetemplatemorelanguage-agnostic. Asfor
+codetheinformationrelatedtospecificlanguageto- labelwords,ifweusetherealtokens,theyshould
+kens/grammar,whilethetoplayersofPLMsmodel correspondtosomespecificlanguages,whichare
+thesemanticinformation. Therefore,weduplicate difficult to transfer. Therefore, we use soft label
+thebottomplayersofPLMencodersastwoinde- words,i.e. artificialtokens,toachievethegoalof
+pendentencodertowerstoencodethetemplateand languageindependence.
+contextrespectively. Formally,wecandefinethem To further reduce the gaps between the pre-
+as: trainingandfine-tuningofsoftlabelwords,wepro-
+poseanovelinitializationofthelabelwordswhich
+isshowninAlgorithm1. Andwealsobringanex-
+H t′ = TemplateTower(X t) (1) ampleforthisalgorithminFigure3. Ifweregard
+H s′ = ContextTower(X s) (2) the output projection matrix as the word embed-
+dings of label words, the objective of fine-tuning
+is to minimize the distance between the encoder
+whereX ,X areembeddingsoftemplateandcon-
+t s outputsandthecorrespondinglabelwordembed-
+text.
+ding. Therefore,ifthelabelwordembeddingshave
+Thenweconcatenatetheoutputsofthetwoen- alreadybeenclosetotheencoderoutputs,itwillbe
+coders as the input of the fusion tower which is agoodstartingpointforthemodels. Motivatedby
+11490Algorithm1InitializationofSoftLabelWords Algorithm2OverallWorkflowofUniPrompt
+1: Input:
+originalpre-trainedlanguagemodelθ0,
+1: Input:
+pre-trainedlanguagemodelθ0,prompt
+alltrainingcasesC withlabeli,promptwith p,casescwithlabel
+i
+[mask]tokenp 2: foreachlabelido
+2: foreachcasec j inC i do 3: groupallthecaseswithlabeliasC i
+3: form the prompt input c ′j for encoding: 4: initializesoftlabelwordx i ←Algorithm1
+c p+c (θ0,p,C )
+′j
+←
+j i
+4: encode the sequence c ′j without gradients: 5: endfor
+H j
+←
+θ0(c ′j) 6: foreachtrainingcasec j do
+5: gettherepresentationof[mask]tokenhm j 7: prompt and c j are sent into the two-
+fromH towerpromptencoderforencoding,respec-
+j
+j j
+6: endfor tively: H t ← TemplateTower(p), H c ←
+7: average all the hm as the representation x i ContextTower(c j)
+j j
+of the soft label word for label i: x i
+←
+8: The two vectors H t′,H t′ are stitched
+Avg(hm),j C together and fed into the fusion tower
+j ∈ i
+8: return x i to get the final representation Hj
+j j ←
+FusionTower(H t′;H t′)
+9: get the label by the prediction result of
+this,weproposetocomputetheencoderoutputsof maskLMtask: y maskLM(hm)
+alltrainingsamples,groupthemaccordingtotheir ← j
+10: endfor
+labels,andthentakeasimpleaverageofallencoder
+outputsineachgrouptoinitializethelabelwords.
+Note that for few-shot learning, the computation The loss function in our model is the cross-
+L
+costofpre-computingencoderoutputsissmall. In entropyloss,whichcanbedefinedas:
+this way, the models will have good priors to the
+= g log(logit ), (7)
+downstreamtaskswhilereservingtheknowledge L − y y
+fromthePLMs.
+whereg isthe“one-hotvector”ofgoldlabels.
+y
+Formally, we construct soft label word L for
+i
+each label i, and group the training samples into
+The overall workflow of our proposed
+C accordingtotheirlabels. Then,weconcatenate
+i UniPromptisshowninAlgorithm2.
+thetrainingexampleswiththecorrespondingtem-
+platestocomputetheencoderoutputs. Wetakethe 3 Experiments
+averageofthe[mask]representationshm inthe
+3.1 Datasets
+encoderoutputsineachgrouptoinitializethelabel
+words. Theembeddingx ofthelabelwordL can WechoosetheMultilingualAmazonReviewsCor-
+i i
+bedefinedas:
+pus(MARC)2(Keungetal.,2020)forexperiments,
+whichisalarge-scalemultilingualtextclassifica-
+x i = Avg(hm c ),c ∈ C i (5) tion dataset with the licence provided by Ama-
+zon3. The MARC dataset is available in 6 lan-
+where Avg means average pooling, C is the set
+i guagesincludingEnglish,German,French,Span-
+containingthetrainingcaseswithlabeli.
+ish,Japanese,andChinese. Thegoalofthisdataset
+2.4 Training istopredictthestarratinggivenbythereviewerto
+theproductbasedontheirproductreviews(from
+Similar to the previous prompt-based tuning
+1 to 5 stars, the higher the star rating, the more
+method,weusethedistributionprobabilityoflabel
+satisfiedtheyare).
+wordsforclassification:
+IntheMARCdataset,thenumberofsamplesin
+exp(Wy hm)
+eachcategoryisexactlythesame, andwefollow
+logit = lh (6)
+y
+y
+exp(W ly h′hm) theirsettingstotakethesamesamplesforeachcat-
+′∈Y
+egorytoformfew-shottraininganddevelopment
+where isthesetoP falllabels,Wi istheparam-
+Y lh 2https://registry.opendata.aws/amazon-reviews-ml/
+eterscorrespondingtothelabelifromtheoutput
+3https://github.com/awslabs/open-data-
+projectionmatrix(i.e. labelwordembeddings). docs/blob/main/docs/amazon-reviews-ml/license.txt
+11491k Model De Es Fr Ja Zh Average
+VanillaFinetune 27.94 8.38 26.80 5.96 27.38 6.48 25.86 5.08 25.95 6.51 26.79
+± ± ± ± ±
+TranslationPrompt 30.76 4.48 31.70 3.46 26.77 3.49 27.46 4.52 21.56 2.30 27.65
+± ± ± ± ±
+4 EnglishPrompt 33.52 5.14 33.01 3.61 33.32 3.54 32.23 2.25 30.97 4.87 32.61
+± ± ± ± ±
+SoftPrompt 29.26 9.28 30.74 3.22 31.10 5.72 28.96 0.76 28.26 3.56 29.66
+± ± ± ± ±
+UniPrompt 31.70 5.42 30.79 5.73 30.97 6.29 30.21 6.37 28.70 4.40 30.47
+± ± ± ± ±
+VanillaFinetune 31.95 7.07 29.74 7.38 31.79 6.41 28.70 5.30 29.67 7.25 30.37
+± ± ± ± ±
+TranslationPrompt 33.04 1.04 35.22 1.16 28.93 1.51 30.10 2.38 23.62 2.80 30.18
+± ± ± ± ±
+8 EnglishPrompt 36.96 1.94 36.12 0.98 36.70 1.38 33.95 4.21 32.97 2.71 35.34
+± ± ± ± ±
+SoftPrompt 33.30 3.22 32.88 2.34 33.28 2.44 30.05 3.87 29.46 4.22 31.79
+± ± ± ± ±
+UniPrompt 38.58 2.96 37.68 3.38 37.88 3.80 35.72 5.60 34.57 5.69 36.89
+± ± ± ± ±
+VanillaFinetune 40.10 5.46 38.37 3.55 38.73 3.59 36.20 4.82 35.94 5.74 37.87
+± ± ± ± ±
+TranslationPrompt 36.62 1.72 36.88 1.14 32.48 2.90 31.98 1.42 24.20 2.14 32.43
+± ± ± ± ±
+16 EnglishPrompt 39.13 3.63 37.84 3.34 38.58 1.90 35.90 4.44 35.05 5.59 37.30
+± ± ± ± ±
+SoftPrompt 37.25 3.57 34.96 2.74 35.18 3.20 34.64 2.76 34.20 4.44 35.24
+± ± ± ± ±
+UniPrompt 43.53 5.11 41.43 4.39 41.71 5.21 39.55 4.41 38.62 2.82 40.97
+± ± ± ± ±
+VanillaFinetune 45.48 2.74 42.09 4.21 43.14 2.42 40.86 4.74 41.39 1.61 42.59
+± ± ± ± ±
+TranslationPrompt 39.29 3.25 38.46 1.96 34.75 4.23 34.76 2.52 26.88 5.64 34.83
+± ± ± ± ±
+32 EnglishPrompt 42.04 2.32 40.39 1.51 41.33 2.39 39.06 2.34 37.72 3.60 40.11
+± ± ± ± ±
+SoftPrompt 40.58 1.48 38.29 2.05 39.50 2.28 38.80 1.90 35.90 4.94 38.61
+± ± ± ± ±
+UniPrompt 49.29 2.11 46.74 1.28 47.47 1.03 45.94 1.98 43.62 1.16 46.61
+± ± ± ± ±
+VanillaFinetune 49.85 2.73 45.74 3.18 47.72 2.76 44.68 3.80 43.84 1.76 46.37
+± ± ± ± ±
+TranslationPrompt 41.70 3.72 40.93 1.85 37.24 3.54 36.75 1.03 29.72 2.06 37.27
+± ± ± ± ±
+64 EnglishPrompt 45.63 4.25 43.41 4.33 44.18 3.30 41.43 3.65 39.63 2.13 42.86
+± ± ± ± ±
+SoftPrompt 44.49 2.97 40.73 3.35 42.15 3.79 41.91 3.09 40.36 4.36 41.93
+± ± ± ± ±
+UniPrompt 51.75 1.57 47.64 1.70 49.54 0.98 45.99 1.75 45.55 3.13 48.09
+± ± ± ± ±
+VanillaFinetune 51.84 1.82 49.09 1.17 49.52 1.20 47.74 3.12 45.81 1.73 48.80
+± ± ± ± ±
+TranslationPrompt 42.99 2.99 41.16 1.52 36.78 1.58 37.12 1.92 29.46 2.96 37.50
+± ± ± ± ±
+128 EnglishPrompt 49.36 2.96 45.70 2.18 45.98 3.42 44.12 2.84 43.97 1.31 45.83
+± ± ± ± ±
+SoftPrompt 48.06 1.60 42.64 3.94 43.41 4.01 45.22 1.64 44.19 1.43 44.70
+± ± ± ± ±
+UniPrompt 53.18 1.28 49.74 0.98 50.22 0.68 48.48 1.30 46.47 1.31 49.62
+± ± ± ± ±
+VanillaFinetune 53.06 1.24 50.05 1.57 50.47 1.33 47.93 3.63 46.40 2.72 49.58
+± ± ± ± ±
+TranslationPrompt 46.44 1.04 43.06 1.30 38.76 1.44 38.49 1.79 29.40 3.62 39.23
+± ± ± ± ±
+256 EnglishPrompt 51.66 0.60 47.90 2.52 48.18 2.32 47.32 1.70 44.77 1.27 47.97
+± ± ± ± ±
+SoftPrompt 50.81 0.83 44.92 1.76 45.29 1.97 47.36 1.56 44.24 2.64 46.52
+± ± ± ± ±
+UniPrompt 54.36 1.16 51.13 0.83 51.56 0.86 49.66 1.64 47.57 1.29 50.86
+± ± ± ± ±
+Table2: Mainresults. kisthenumberoftrainingsamplesperclass(i.e. k-shot).
+sets. In our experiments, we randomly sample k workischallenging,especiallyforthemultilingual
+casesfromeachcategory, k 5casesintotal, to few-shotscenarios. Accordingtoourexperiments,
+×
+form new training and development sets, and the vanillafine-tuningonlygetsanaverageaccuracyof
+test set remains unchanged. An overview of the 26.79inthe4-shotsetting. Therefore,webelieve
+datasetisshowninTable1,andsomestatisticsare thebenchmarkissound.
+directlytakenfromKeungetal.(2020). Oursource
+languageisEnglish,whichisthelanguageusedfor 3.2 ExperimentalSetup
+thetraininganddevelopmentsets. Thetargetlan- Our method is based on XLM-RoBERTa-base
+guages,whichincludetheremaining5languages,
+model (Conneau et al., 2020), which is a widely
+areusedforthetestset.
+used multilingual pretrained language model.
+Thetaskanddatasetweusedarerepresentative We implement our model with HuggingFace
+and challenging. Text classification is one of the Transformers(Wolfetal.,2020)andcodere-
+fundamentalproblemsforNLP.Italsoprovestobe leasedbyGaoetal.(2021). Weoptimizeourmod-
+agoodtestbedforfew-shotlearningaccordingto elswithalearningrateof1e-5. Thebatchsizeis
+thepreviouswork. TheMARCdatasetusedinthis set to 8. We train each model for 1000 steps and
+11492evaluateper100steps,thebestcheckpointisused 3.4 MainResults
+forthefinalprediction. Thenumberoflayersused
+ThemainexperimentalresultsareshowninTable2.
+forpromptandcontexttowersissetto9. Themax
+Ascanbeseenfromtheexperimentalresults,our
+sequence length of the model is set to 512. For
+modeloutperformsallthelistedbaselinemodelsat
+eachexperimentreportedinthepaper,weuse5dif-
+alldatascalesexceptslightlylowerthanEnglish
+ferentrandomseedstosample5differentfew-shot
+Promptinthecaseofaverysmallamountofdata
+training/developmentdatasetfromtheoriginalone.
+(k = 4).
+Werunthemodelwiththesamerandomseedsas
+Fromtheperspectiveofdatascales,ourmodel
+theonefordatasetsamplingandreporttheaverage
+performs very well on medium data sizes (k =
+results.
+16,32,64), with an average 2% higher accuracy
+Wealsowanttointroducethenumberoftrain-
+thanthestrongestbaseline. Especiallywhenk =
+able parameters. Since we do not freeze the pa-
+32,theaccuracyismorethan4%higherthanthe
+rameters during training, the trainable parameter
+strongest baseline, which fully proves the ability
+numberofthebaselineisthetotalparameternum-
+ofourmodelinfew-shotcross-lingualtransfer. As
+ber of XLM-RoBERTa-base. During the train-
+thesizeofthedatacontinuestoincrease,themodel
+ingofourmodel,thereisanadditionalnumberof
+leads by a smaller margin. But even if the data
+parametersfromthetemplatetower. Thespecific
+scalereachesk = 256,theaccuracyofourmodel
+number is related to the number of layers (L) of
+isstillatleast1%higherthanallotherbaselines.
+thetemplatetower,whichwillbringanadditional
+Next, we discuss the comparison with each
+parameternumberofL p,wherepisthenumber
+∗ baselineseparately. First,ourmodeloutperforms
+ofparametersforeachlayer. Duringinference,our
+VanillaFinetunemodelsonalllanguagesanddata
+modelusesatemplatetoweroutputcache,andthe
+scales. Webelievethereasonsfortheworseperfor-
+numberofparametersisthesameasthebaseline.
+manceofVanillaFinetuneinclude: i)inthevanilla
+fine-tunemodel,atask-relatedlinearlayerisadded
+3.3 Baselines
+on the top of PLMs. This layer is randomly ini-
+Wecomparethemodelwiththefollowingbaseline tializedandrequiresmoretrainingdatatobefully
+models,allparametersinthebaselinemodelsare trained, which results in failure on low-resource
+notfrozen: tasks. ii)failingtoexploitthelatentknowledgein
+VanillaFinetuneaddatask-dependentlinearlayer large-scaleunlabeledcorpuslikeprompt.
+afterthepretrainedlanguagemodelforclassifica- Second,ourmodelalsoperformsbetterthanthe
+tion(Devlinetal.,2019). Translation Prompt model (Zhao and Schütze,
+Translation Prompt proposed by Zhao and 2021). Convertingthepromptdirectlyusingama-
+Schütze (2021), which uses the source language chinetranslationmodelisindeedanintuitiveand
+promptfortrainingandtranslatesthepromptinto less expensive method. But there are also some
+thetargetlanguagebymachinetranslationmodel problems. i)themodelwillbelimitedbythema-
+fortesting. chinetranslationmodel,potentiallycausingerror
+English Prompt proposed by Lin et al. (2021), propagation. ii)sincethetranslatedpromptmodel
+whichtrainsandtestsbypromptsinthesourcelan- hasneverbeenseenduringtraining,themodelcan-
+guage(English). notbeproperlyfine-tunedaccordingtothedataset
+Soft Prompt uses artificial tokens instead of dis- situation,whichmayalsoleadtoperformanceloss.
+cretetokensastemplates,thelabelwordsarestill Next, we discuss English Prompt, which di-
+inthesourcelanguage. rectly use the prompt from the source language.
+The baseline models above are all imple- TheEnglishPromptsfitsthetrainingdatawhich
+mented by us on the same codebase, ini- is also in English, so when the data scale is very
+tialized by the same pre-trained language small (k = 4), this method achieves the best re-
+model, and the hyper-parameters, including sults. Butastheamountofdatagetsslightlylarger
+max_steps, eval_steps, batch_size, (k = 8, whichisstillaverysmallscale), theper-
+learning_rate, max_seq_length, and so formance of English Prompt is not as good as
+on,areconsistent. Allexperimentsareperformed UniPrompt. Thekeypointofthetaskinthispaper
+on the same computing cluster with the same istoenhancethecross-languagetransferabilityof
+dockerimage. themodel. SincethePLMsarenottrainedbycross-
+114930.46 4.1 DiscussiononTwo-towerPromptEncoder
+0.44
+We first discuss the Two-tower Prompt Encoder.
+0.42
+Accordingtoitssetting,wediscusstheeffectsof
+0.4
+thenumberoflayersandthepretrainedmodelson
+0.38
+modelperformanceseparately.
+0.36
+0.34 4.1.1 NumberofLayers
+0.32
+Asdiscussedabove,thereasonwhytheTwo-tower
+0.3
+PromptEncoderworksisthatitsplitsthebottom
+1 2 3 4 5 6 7 8 9 10 11
+encoders of PLMs, which are considered syntax-
+Figure 4: The effect of different number of template related, into two separate encoder towers, mak-
+towerandcontexttower’slayers. Exceptforthenumber ingthepromptfreefromlanguage-specificdepen-
+of layers, the other settings are the same as the main dencies. At the same time, when entering the
+experiment. top encoder of PLMs, which is considered to be
+semantically related, the two representations are
+fused,therebystimulatingthepotentialknowledge
+language splicing texts in the pre-training phase,
+ofPLMsinthepre-trainingstage.
+sowhenanEnglishpromptiscombinedwiththe
+AkeyquestionabouttheTwo-towerPromptEn-
+contextinanotherlanguageinthetestingphaseof
+coder is the dividing line between the top and
+cross-lingualtransfer, therewillbegapswiththe
+bottom layers of PLMs. In response to this, we
+pre-training phase, which results in performance
+conductedexperimentsontheen->dedata,and
+loss.
+the experimental results are shown in the Figure
+Finally,ourmodelalsohasbetterperformance
+4. Fromtheexperimentalresults,wecanseethat
+thanSoftPrompt. Althoughthesoftprompthas
+the dividing line we expect is at 9 out of 12 lay-
+nothing to do with the specific language and is
+ers,about75%oftheencoderlayersofthePLMs.
+consistentduringtrainingandtesting. Buti)ithas
+Before the dividing line, as the number of the in-
+notappearedinthepre-trainingstage,soitmaybe
+dependent lower and syntax-related encoder lay-
+difficulttoactivatethelatentknowledgeinthepre-
+ersincreases,theeffectofdecouplingtheprompt
+training stage. And ii) in low-resource scenarios,
+fromthespecificlanguagebecomesbetter. There-
+the completely randomly initialized soft prompt
+fore,theperformanceofthemodelisgraduallyim-
+cannotbefullytrained.
+proved. Afterthedividingline,withtheincreaseof
+Wenotethatthestandarddeviationoftheexper-
+thenumberofindependentlayers,althoughtheabil-
+imentalresultsisrelativelylargeduetothesmall
+ity to decouple with specific languages becomes
+scaledataoffew-shotsettings,whichmayleadto
+stronger,thenumberoflayersleftforthefusionof
+confusionaboutwhethertheperformancegainis
+template and context becomes less, and too little
+significant,especiallytheperformancedifference
+fusionlimitsthecapacitypromptforactivatingthe
+between the vanilla fine-tune and our model on
+latentknowledgeduringthepre-trainingphase,so
+some data scales. For this we selected the orig-
+modelperformancegraduallydecreases.
+inal experimental results of vanilla fine-tune and
+our UniPrompt in all 5 languages (de/es/fr/ja/zh)
+4.1.2 PretrainedModels
+whenk = 16forthestatisticaltest,theresultsindi-
+Another point worth discussing about the Two-
+catethattheperformancedifferencebetweenour
+towerPromptEncoderisthepretrainedlanguage
+methodandvanillafine-tuneisstatisticallysignifi-
+modelsfortemplatetowerinitialization. Inourex-
+cant.
+periments,thetemplatetowerisinitializedfromthe
+corresponding layers of the encoders of multilin-
+4 Analysis
+gualPLMslikethecontext/fusiontower. Therefore,
+Inthissection,wewillanalyzethemodelindetail we analyze whether the improvement is brought
+to verify the effectiveness of each module of the bythetransferabilityfromthemultilingualPLM.
+model. Allexperimentalsetupsinthissectionare Since in the original model, the prompt is initial-
+identicaltothemainexperimentsunlessotherwise izedwiththesourcelanguage,thatis,theEnglish
+stated, and all experiments are based on 16-shot prompt. An intuitive idea is to use the English
+data. monolingual PLMs for template tower initializa-
+11494Initialization De Es Fr Ja Zh Average
+RandomInitialization 40.24 6.48 39.60 3.32 40.25 5.45 37.80 4.34 37.51 3.71 39.08
+± ± ± ± ±
+RoBERTa-base 38.96 4.56 37.85 3.75 37.90 2.94 36.14 3.10 36.05 5.13 37.38
+± ± ± ± ±
+XLM-RoBERTa-base 43.53 5.11 41.43 4.39 41.71 5.21 39.55 4.41 38.62 2.82 40.97
+± ± ± ± ±
+Table3: Resultsofanalysisonthetemplatetowerinitialization.
+pre-training stage will be weakened, resulting in
+Experiments (1) (2) (3) (4)
+performanceloss.
+Actual Label Label Words Then,wecomparethemodelswithandwithout
+😊 good [s1] initialization. It shows that the initialization of
+😐 average [s2] labelwordsresultsinasignificantgain,provingour
+☹ bad [s3] motivationthatinitializationisimportantforlabel
+corresponding words. Wealsocompareourinitializationmethod
+Init. By lm-head random dynamic
+word in lm-head
+withtheoriginalPLMinitialization. Compared(3)
+with (4), it proves that our initialization method
+Table 4: The comparison of the settings of ablation iseffectivetoimprovecross-lingualperformance.
+study.
+This is because our initialization method for the
+labelwordscanreducethegapsbetweenthepre-
+trainingandthefine-tuning.
+tion. ComparedwithmultilingualPLMs,English
+PLMsdonothavetheabilityofcross-lingualtrans-
+5 RelatedWork
+fer, which helps us ablate the effects of transfer-
+ability. Inaddition,wealsocomparewithrandom 5.1 Prompt-basedtuning
+initialization, which should not benefit from the
+The proposal of GPT-3 inspired the research on
+PLMs. TheresultsareshowninTable3.
+prompt (Brown et al., 2020). The key to prompt
+From the experimental results, it can be seen
+tuningistoreasonablyimitatethepre-trainingpro-
+that using multilingual PLMs, which have cross-
+cess of the PLM model, so as to maximize the
+lingualtransferability,achievethebestresults. And
+implicitknowledgelearnedbythemodelfromthe
+there is a notable phenomenon that even if the
+large-scaleunlabeledcorpus. Mostoftheexisting
+template is based on the source language, initial-
+template-basedresearchfocusesonhowtodesign
+izingthetemplatetowerbythemonolingualPLM
+orsearchforthebesttemplatesuitablefordown-
+RoBERTa(Liuetal.,2019)performsworsethan
+streamtasks(LeScaoandRush,2021;Zhangetal.,
+randominitialization. Thisindicatesthatthecross-
+2021;LiandLiang,2021),butdoesnotfocuson
+lingualtransferabilityismuchmoreimportantthan
+optimization from aspects such as model param-
+theeffectofthePLMsitselfforourmethod.
+eters or structure. As for label words, almost all
+modelsarestillusingdiscretetokensaslabelwords.
+4.2 DiscussiononLabelWords
+Hambardzumyanetal.(2021)proposedtousearti-
+We also conduct the ablation study to verify the ficialtokensaslabelwords,buttheyusedrandomly
+effectofoursoftlabelwordsinitializationmethod. initializedlabelwordsanddidnotconsiderfinding
+Thecomparisonofthesettingsofthe4groupsof a better initialization for them, which may bring
+experimentsisshowninTable4. Theexperimental performanceloss.
+resultsareshowninTable5. First,wecomparesoft
+5.2 Zero-shotCross-lingualTransfer
+labelwordswithdiscretelabelwords. Theexperi-
+mentalresultsshowthatremovingsoftlabelsleads At a time when labeling resources are expensive,
+to a significant drop in performance. This illus- theresearchonZero-shotCross-lingualTextClassi-
+tratesthenecessityofdecouplinglabelwordsfrom ficationisquitevaluable. Pastresearchinthisarea
+specific languages in cross-lingual tasks. There isusuallybasedoncross-tasktransferlearning,that
+willbegapsinthepre-trainingstagebyusingdis- is,themodelisfirsttrainedonadatasetofresource-
+cretetokensthatdependonspecificlanguagesas rich tasks, and then fine-tuned on specific low-
+label words during cross-language transfer, and resourcedownstreamtasks(Pruksachatkunetal.,
+theabilityofpromptstoactivateknowledgeinthe 2020;Zhaoetal.,2021). Asresearchonprompts
+11495LabelWords De Es Fr Ja Zh Average
+(1)DiscreteLabels 38.94 2.46 37.84 1.26 37.57 1.87 36.80 3.64 34.78 4.02 37.19
+± ± ± ± ±
+(2)SoftLabels 40.64 2.20 38.90 0.98 39.97 2.27 37.51 2.79 37.24 2.10 38.85
+± ± ± ± ±
+(3)(2)+PLMInit. 42.22 4.28 40.51 2.03 40.60 3.02 37.94 3.12 37.81 2.51 39.82
+± ± ± ± ±
+(4)(2)+ourInit. 43.53 5.11 41.43 4.39 41.71 5.21 39.55 4.41 38.62 2.82 40.97
+± ± ± ± ±
+Table5: Ablationstudyonthelabelwords.
+progresses, prompts have been found to perform model.
+wellonlow-resourcetasks(Brownetal.,2020;Liu
+Limitations
+etal.,2021a). Butmostoftheresearchonprompt-
+basedtextclassificationismonolingual(Gaoetal.,
+Our UniPrompt is more suitable for low re-
+2021; Liu et al., 2021b). And there are some
+source scenarios. With the growth of the data
+problemswiththefewmultilingualstudies. Zhao
+scale,theadvantagesofUniPromptbecomeminor.
+and Schütze (2021) first uses a prompt-based ap-
+Thisisalsoverifiedbytheexistingprompt-based
+proach on this task. They propose a hard prompt
+methods. Promptcanstimulatethepotentialknowl-
+basedonmachinetranslation,butthisapproachre-
+edgeofPLMinthepre-trainingstage,whichmay
+liesonmachinetranslationmodelsandmayintro-
+begeneralandmaynotmatchthedomainknowl-
+duceadditionalerrors. Theyalsoproposedtouse
+edge of downstream tasks. In the case of a small
+softprompts. Althoughitcanbedecoupledfrom
+datascale,thisgeneralknowledgecangreatlyhelp
+thespecificlanguage,therearestillgapsbetween
+themodeltojudgewithlimiteddomainknowledge.
+the randomly initialized soft prompt and the pre-
+With the growth of the data scale, the model can
+trainingstage. Linetal.(2021)proposestouseEn-
+summarize the corresponding knowledge which
+glishpromptswithnon-Englishexamples,butthey
+is adapted to the task from the domain data, and
+didnotconsiderdecouplingthespecificlanguage
+the importance of general knowledge brought by
+fromtheviewofthemodelstructure,andstillused
+promptdecreasesrelatively.
+discretetokensaslabelwords. Winataetal.(2021)
+performsfew-shotmultilingualmulti-classclassi- Currently,ourmethodisonlyapplicabletonatu-
+ficationwithoutupdatingparametersbyapplying rallanguageunderstandingtasks. Thisisdeter-
+binarypredictionandconsideringtheconfidence minedbytheselectedPLMmodel,typeofprompt,
+scores of boolean tokens. Although freezing pa- andmodelstructure. Webelievethatsomeofthe
+rameters has the advantage of the model training ideasinthispapercanbeusedinnaturallanguage
+cost,themodelcannotbefine-tunedaccordingto generation, which remains to be further investi-
+the actual task, which may lead to performance gatedbysubsequentresearch.
+loss.
+Acknowledgments
+6 Conclusion
+TheworkissupportedbyNationalNaturalScience
+Foundation of China under Grant No.62036001
+Inthispaper,weproposeanewprompt-basedtun-
+andPKU-BaiduFund(No. 2020BD021). Thecor-
+ingmethodforzero-shotcross-lingualtextclassi-
+respondingauthorofthispaperisHoufengWang.
+fication. Forthetwokeyelementsoftheprompt,
+werespectivelygivesolutionsunderthistaskset-
+ting. For templates, we use a two-tower prompt
+References
+encoder for encoding, which not only decouples
+specificlanguagesbutalsopreservestheabilityof TomBBrown,BenjaminMann,NickRyder,Melanie
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+promptstoactivatethelatentknowledgeofthelan-
+Neelakantan,PranavShyam,GirishSastry,Amanda
+guage model. For label words, we use soft label
+Askell,etal.2020. Languagemodelsarefew-shot
+wordsanddynamicinitializationmethods,which learners. arXivpreprintarXiv:2005.14165.
+also achieve the goal of decoupling specific lan-
+AlexisConneau,KartikayKhandelwal,NamanGoyal,
+guages. Theexperimentalresultsprovetheutility
+Vishrav Chaudhary, Guillaume Wenzek, Francisco
+of our model, and we also design experiments to
+Guzmán, Édouard Grave, Myle Ott, Luke Zettle-
+carry out detailed analysis of the settings of our moyer,andVeselinStoyanov.2020. Unsupervised
+11496cross-lingualrepresentationlearningatscale. InPro- 2020. Intermediate-tasktransferlearningwithpre-
+ceedings of the 58th Annual Meeting of the Asso- trained language models: When and why does it
+ciationforComputationalLinguistics,pages8440– work? InACL2020,pages5231–5247.
+8451.
+MasoudJaliliSabet,PhilippDufter,FrançoisYvon,and
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and HinrichSchütze.2020. Simalign: Highqualityword
+KristinaToutanova.2019. Bert: Pre-trainingofdeep alignmentswithoutparalleltrainingdatausingstatic
+bidirectionaltransformersforlanguageunderstand- andcontextualizedembeddings. InFindingsofthe
+ing. InProceedingsofthe2019Conferenceofthe AssociationforComputationalLinguistics: EMNLP
+NorthAmericanChapteroftheAssociationforCom- 2020.
+putationalLinguistics: HumanLanguageTechnolo-
+gies,Volume1(LongandShortPapers),pages4171– GentaIndraWinata,AndreaMadotto,ZhaojiangLin,
+4186. RosanneLiu,JasonYosinski,andPascaleFung.2021.
+Languagemodelsarefew-shotmultilinguallearners.
+Tianyu Gao, Adam Fisch, and Danqi Chen. 2021. InProceedingsofthe1stWorkshoponMultilingual
+Makingpre-trainedlanguagemodelsbetterfew-shot RepresentationLearning,pages1–15.
+learners. InAssociationforComputationalLinguis-
+tics(ACL). Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+Chaumond,ClementDelangue,AnthonyMoi,Pier-
+Karen Hambardzumyan, Hrant Khachatrian, and ricCistac,TimRault,RémiLouf,MorganFuntowicz,
+JonathanMay.2021. Warp: Word-leveladversarial JoeDavison,SamShleifer,PatrickvonPlaten,Clara
+reprogramming. arXivpreprintarXiv:2101.00121. Ma,YacineJernite,JulienPlu,CanwenXu,TevenLe
+Scao, Sylvain Gugger, Mariama Drame, Quentin
+PhillipKeung,YichaoLu,GyörgySzarvas,andNoahA Lhoest,andAlexanderM.Rush.2020. Transform-
+Smith.2020. Themultilingualamazonreviewscor- ers: State-of-the-artnaturallanguageprocessing. In
+pus. In Proceedings of the 2020 Conference on Proceedings of the 2020 Conference on Empirical
+EmpiricalMethodsinNaturalLanguageProcessing Methods in Natural Language Processing: System
+(EMNLP),pages4563–4568. Demonstrations,pages38–45,Online.Association
+forComputationalLinguistics.
+Teven Le Scao and Alexander M Rush. 2021. How
+manydatapointsisapromptworth? InProceedings Zhilin Yang, Zihang Dai, Yiming Yang, Jaime Car-
+ofthe2021ConferenceoftheNorthAmericanChap- bonell,RussRSalakhutdinov,andQuocVLe.2019.
+teroftheAssociationforComputationalLinguistics: Xlnet: Generalizedautoregressivepretrainingforlan-
+HumanLanguageTechnologies,pages2627–2636. guageunderstanding. Advancesinneuralinforma-
+tionprocessingsystems,32.
+Xiang Lisa Li and Percy Liang. 2021. Prefix-tuning:
+Optimizingcontinuouspromptsforgeneration. arXiv NingyuZhang,LuoqiuLi,XiangChen,ShuminDeng,
+preprintarXiv:2101.00190. Zhen Bi, Chuanqi Tan, Fei Huang, and Huajun
+Chen.2021. Differentiablepromptmakespre-trained
+XiVictoriaLin,TodorMihaylov,MikelArtetxe,Tianlu
+language models better few-shot learners. arXiv
+Wang,ShuohuiChen,DanielSimig,MyleOtt,Na-
+preprintarXiv:2108.13161.
+manGoyal,ShrutiBhosale,JingfeiDu,etal.2021.
+Few-shotlearningwithmultilinguallanguagemodels. MengjieZhaoandHinrichSchütze.2021. Discreteand
+arXivpreprintarXiv:2112.10668. softpromptingformultilingualmodels. InProceed-
+ingsofthe2021ConferenceonEmpiricalMethods
+PengfeiLiu,WeizheYuan,JinlanFu,ZhengbaoJiang,
+inNaturalLanguageProcessing,pages8547–8555.
+HiroakiHayashi,andGrahamNeubig.2021a. Pre-
+train, prompt, and predict: A systematic survey of Mengjie Zhao, Yi Zhu, Ehsan Shareghi, Ivan Vulic´,
+promptingmethodsinnaturallanguageprocessing. RoiReichart,AnnaKorhonen,andHinrichSchütze.
+arXivpreprintarXiv:2107.13586. 2021. Acloserlookatfew-shotcrosslingualtransfer:
+The choice of shots matters. In ACL 2021, pages
+Xiao Liu, Kaixuan Ji, Yicheng Fu, Zhengxiao Du,
+5751–5767.
+Zhilin Yang, and Jie Tang. 2021b. P-tuning v2:
+Prompt tuning can be comparable to fine-tuning
+universallyacrossscalesandtasks. arXivpreprint
+arXiv:2110.07602.
+YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,Man-
+dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,
+Luke Zettlemoyer, and Veselin Stoyanov. 2019.
+Roberta: A robustly optimized bert pretraining ap-
+proach. arXivpreprintarXiv:1907.11692.
+Yada Pruksachatkun, Jason Phang, Haokun Liu,
+PhuMonHtut,XiaoyiZhang,RichardYuanzhePang,
+ClaraVania,KatharinaKann,andSamuelBowman.
+11497

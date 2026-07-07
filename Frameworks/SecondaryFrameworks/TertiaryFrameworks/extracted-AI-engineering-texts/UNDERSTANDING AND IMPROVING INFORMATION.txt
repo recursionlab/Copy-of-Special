@@ -1,0 +1,1717 @@
+PublishedasaconferencepaperatICLR2020
+UNDERSTANDING AND IMPROVING INFORMATION
+TRANSFER IN MULTI-TASK LEARNING
+SenWu∗ HongyangR.Zhang∗ ChristopherRe´
+StanfordUniversity UniversityofPennsylvania StanfordUniversity
+ABSTRACT
+Weinvestigatemulti-tasklearningapproachesthatuseasharedfeaturerepresen-
+tationforalltasks. Tobetterunderstandthetransferoftaskinformation,westudy
+an architecture with a shared module for all tasks and a separate output module
+for each task. We study the theory of this setting on linear and ReLU-activated
+models. Our key observation is that whether or not tasks’ data are well-aligned
+cansignificantlyaffecttheperformanceofmulti-tasklearning. Weshowthatmis-
+alignment between task data can cause negative transfer (or hurt performance)
+and provide sufficient conditions for positive transfer. Inspired by the theoreti-
+calinsights,weshowthataligningtasks’embeddinglayersleadstoperformance
+gains for multi-task training and transfer learning on the GLUE benchmark and
+sentiment analysis tasks; for example, we obtain a 2.35% GLUE score average
+improvement on 5 GLUE tasks over BERT using our alignment method.
+LARGE
+WealsodesignanSVD-basedtaskreweightingschemeandshowthatitimproves
+therobustnessofmulti-tasktrainingonamulti-labelimagedataset.
+1 INTRODUCTION
+Multi-task learning has recently emerged as a powerful paradigm in deep learning to obtain lan-
+guage(Devlinetal.(2018);Liuetal.(2019a;b))andvisualrepresentations(Kokkinos(2017))from
+large-scaledata. Byleveragingsuperviseddatafromrelatedtasks, multi-tasklearningapproaches
+reducetheexpensivecostofcuratingthemassiveper-tasktrainingdatasetsneededbydeeplearning
+methodsandprovideasharedrepresentationwhichisalsomoreefficientforlearningovermultiple
+tasks.Whileinsomecases,greatimprovementshavebeenreportedcomparedtosingle-tasklearning
+(McCann et al. (2018)), practitioners have also observed problematic outcomes, where the perfor-
+mances of certain tasks have decreased due to task interference (Alonso and Plank (2016); Bingel
+andSøgaard(2017)). Predictingwhenandforwhichtasksthisoccursisachallengeexacerbatedby
+thelackofanalytictools. Inthiswork,weinvestigatekeycomponentstodeterminewhethertasks
+interfereconstructivelyordestructivelyfromtheoreticalandempiricalperspectives. Basedonthese
+insights,wedevelopmethodstoimprovetheeffectivenessandrobustnessofmulti-tasktraining.
+Therehasbeenalargebodyofalgorithmicandtheoreticalstudiesforkernel-basedmulti-tasklearn-
+ing, but less is known for neural networks. The conceptual message from the earlier work (Bax-
+ter (2000); Evgeniou and Pontil (2004); Micchelli and Pontil (2005); Xue et al. (2007)) show that
+multi-task learning is effective over “similar” tasks, where the notion of similarity is based on the
+single-task models (e.g. decision boundaries are close). The work on structural correspondence
+learning (Ando and Zhang (2005); Blitzer et al. (2006)) uses alternating minimization to learn a
+sharedparameterandseparatetaskparameters. ZhangandYeung(2014)useaparametervectorfor
+eachtaskandlearntaskrelationshipsvial regularization,whichimplicitlycontrolsthecapacityof
+2
+themodel. Theseresultsaredifficulttoapplytoneuralnetworks: itisunclearhowtoreasonabout
+neuralnetworkswhosefeaturespaceisgivenbylayer-wiseembeddings.
+Todeterminewhethertwotasksinterfereconstructivelyordestructively,weinvestigateanarchitec-
+turewithasharedmoduleforalltasksandaseparateoutputmoduleforeachtask(Ruder(2017)).
+SeeFigure 1for anillustration. Ourmotivating observationisthat inaddition tomodel similarity
+whichaffectsthetypeofinterference,taskdatasimilarityplaysasecond-ordereffectaftercontrol-
+lingmodelsimilarity. Toillustratetheidea, weconsiderthreetaskswiththesamenumberofdata
+∗Equalcontribution.Correspondenceto{senwu,hongyang,chrismre}@cs.stanford.edu
+1PublishedasaconferencepaperatICLR2020
+Task-Specific Modules (A)
+𝐴* 𝐴+ 𝐴, … 𝐴-$+ 𝐴-$* 𝐴-
+Shared Modules (B) … …
+More Points Fewer points
+𝑋* 𝑋+ 𝑋, … 𝑋-$+ 𝑋-$* 𝑋-
+Multiple Tasks (X)
+Figure 1: An illustration of Figure2: Positivevs. Negativetransferisaffectedbythedata
+themulti-tasklearningarchitecture – not just the model. See lower right-vs-mid. Task 2 and 3
+withasharedlowermoduleB and havethesamemodel(dottedlines)butdifferentdatadistribu-
+ktask-specificmodules{A }k . tions. Noticethedifferenceofdataincircledareas.
+i i=1
+samples where task 2 and 3 have the same decision boundary but different data distributions (see
+Figure 2 for an illustration). We observe that training task 1 with task 2 or task 3 can either im-
+proveorhurttask1’sperformance,dependingontheamountofcontributingdataalongthedecision
+boundary! Thisobservationshowsthatbymeasuringthesimilaritiesofthetaskdataandthemodels
+separately,wecananalyzetheinterferenceoftasksandattributethecausemoreprecisely.
+Motivatedbytheaboveobservation,westudythetheoryofmulti-tasklearningthroughtheshared
+module in linear and ReLU-activated settings. Our theoretical contribution involves three compo-
+nents: the capacity of the shared module, task covariance, and the per-task weight of the training
+procedure. The capacity plays a fundamental role because, if the shared module’s capacity is too
+large,thereisnointerferencebetweentasks;ifitistoosmall,therecanbedestructiveinterference.
+Then,weshowhowtodetermineinterferencebyproposingamorefine-grainednotioncalledtask
+covariancewhichcanbeusedtomeasurethealignmentoftaskdata. Byvaryingtaskcovariances,
+weobservebothpositiveandnegativetransfersfromonetasktoanother! Wethenprovidesufficient
+conditionswhichguaranteethatonetaskcantransferpositivelytoanothertask,providedwithsuffi-
+cientlymanydatapointsfromthecontributortask. Finally,westudyhowtoassignper-taskweights
+forsettingswheredifferenttaskssharethesamedatabuthavedifferentlabels.
+Experimental results. Our theory leads to the design of two algorithms with practical interest.
+First,weproposetoalignthecovariancesofthetaskembeddinglayersandpresentempiricalevalu-
+ationsonwell-knownbenchmarksandtasks. On5tasksfromtheGeneralLanguageUnderstanding
+Evaluation (GLUE) benchmark (Wang et al. (2018b)) trained with the BERT model by De-
+LARGE
+vlinetal.(2018),ourmethodimprovestheresultofBERT bya2.35%averageGLUEscore,
+LARGE
+which is the standard metric for the benchmark. Further, we show that our method is applicable
+to transfer learning settings; we observe up to 2.5% higher accuracy by transferring between six
+sentimentanalysistasksusingtheLSTMmodelofLeietal.(2018).
+Second,weproposeanSVD-basedtaskreweightingschemetoimprovemulti-tasktrainingforset-
+tingswheredifferenttaskshavethesamefeaturesbutdifferentlabels. OntheChestX-ray14dataset,
+wecompareourmethodtotheunweightedschemeandobserveanimprovementof0.4%AUCscore
+on average for all tasks . In conclusion, these evaluations confirm that our theoretical insights are
+applicabletoabroadrangeofsettingsandapplications.
+2 THREE COMPONENTS OF MULTI-TASK LEARNING
+Westudymulti-tasklearning(MTL)modelswithasharedmoduleforalltasksandaseparateoutput
+moduleforeachtask. Weask: WhatarethekeycomponentstodeterminewhetherornotMTLis
+betterthansingle-tasklearning(STL)?Inresponse,weidentifythreecomponents: modelcapacity,
+taskcovariance,andoptimizationscheme. Aftersettingupthemodel,webrieflydescribetherole
+ofmodelcapacity.Wethenintroducethenotionoftaskcovariance,whichcomprisesthebulkofthe
+section. Wefinishbyshowingtheimplicationsofourresultsforchoosingoptimizationschemes.
+2PublishedasaconferencepaperatICLR2020
+2.1 MODELINGSETUP
+Wearegivenktasks.Letm idenotethenumberofdatasamplesoftaski.Fortaski,letX
+i
+∈Rmi×d
+denoteitscovariatesandlety
+i
+∈ Rmi denoteitslabels, wheredisthedimensionofthedata. We
+haveassumedthatallthetaskshavethesameinputdimensiond. Thisisnotarestrictiveassumption
+and is typically satisfied, e.g. for word embeddings on BERT, or by padding zeros to the input
+otherwise. Ourmodelassumestheoutputlabelis1-dimensional. Wecanalsomodelamulti-label
+problemwithktypesoflabelsbyhavingktaskswiththesamecovariatesbutdifferentlabels. We
+consideranMTLmodelwithasharedmoduleB ∈ Rd×r andaseparateoutputmoduleA ∈ Rr
+i
+fortaski,wherer denotestheoutputdimensionofB. SeeFigure1fortheillustration. Wedefine
+theobjectiveoffindinganMTLmodelasminimizingthefollowingequationoverBandtheA ’s:
+i
+k
+(cid:88)
+f(A ,A ,...,A ;B)= L(g(X B)A ,y ), (1)
+1 2 k i i i
+i=1
+whereLisalossfunctionsuchasthesquaredloss. Theactivationfunctiong :R→Risappliedon
+everyentryofX B. Inequation1,alldatasamplescontributeequally. Becauseofthedifferences
+i
+betweentaskssuchasdatasize,itisnaturaltore-weighttasksduringtraining:
+k
+(cid:88)
+f(A ,A ,...,A ;B)= α ·L(g(X B)A ,y ), (2)
+1 2 k i i i i
+i=1
+Thissetupisanabstractionofthehardparametersharingarchitecture(Ruder(2017)). Theshared
+moduleB providesauniversalrepresentation(e.g.,anLSTMforencodingsentences)foralltasks.
+Eachtask-specificmoduleA isoptimizedforitsoutput. Wefocusontwomodelsasfollows.
+i
+Thesingle-tasklinearmodel.Thelabelsyofeachtaskfollowalinearmodelwithparameterθ ∈Rd:
+y = Xθ +ε. Every entry of ε follows the normal distribution N(0,σ2) with variance σ2. The
+functiong(XB)=XB. Thisisawell-studiedsettingforlinearregression(Hastieetal.(2005)).
+The single-task ReLU model. Denote by ReLU(x) = max(x,0) for any x ∈ R. We will also
+consideranon-linearmodelwhereXθ goesthroughtheReLUactivationfunctionwitha ∈ Rand
+θ ∈Rd:y =a·ReLU(Xθ)+ε,whichappliestheReLUactivationonXθentrywise. Theencoding
+functiong(XB)thenmapstoReLU(XB).
+Positivevs. negativetransfer. Forasourcetaskandatargettask,wesaythesourcetasktransfers
+positivelytothetargettask,iftrainingboththroughequation1improvesoverjusttrainingthetarget
+task(measuredonitsvalidationset). Negativetransferistheconverseofpositivetransfer.
+Problemstatement. Ourgoalistoanalyzethethreecomponentstodeterminepositivevs. negative
+transferbetweentasks:modelcapacity(r),taskcovariances({X(cid:62)X }k )andtheper-taskweights
+i i i=1
+({α }k ). Wefocusonregressiontasksunderthesquaredlossbutwealsoprovidesyntheticexper-
+i i=1
+imentsonclassificationtaskstovalidateourtheory.
+Notations.ForamatrixX,itscolumnspanisthesetofalllinearcombinationsofthecolumnvectors
+ofX. LetX†denoteitspseudoinverse. Givenu,v ∈Rd,cos(u,v)isequaltou(cid:62)v/((cid:107)u(cid:107)·(cid:107)v(cid:107)).
+2.2 MODELCAPACITY
+Webeginbyrevisitingtheroleofmodelcapacity,i.e.theoutputdimensionofB(denotedbyr).We
+showthatasaruleofthumb,rshouldbesmallerthanthesumofcapacitiesoftheSTLmodules.
+Example. Supposewehaveklinearregressiontasksusingthesquaredloss,equation1becomes:
+k
+(cid:88)
+f(A ,A ,...,A ;B)= (cid:107)X BA −y (cid:107)2. (3)
+1 2 k i i i
+F
+i=1
+Theoptimalsolutionofequation3fortaskiisθ = (X(cid:62)X )†X(cid:62)y ∈ Rd. Henceacapacityof1
+i i i i i
+sufficesforeachtask. Weshowthatifr ≥k,thenthereisnotransferbetweenanytwotasks.
+3PublishedasaconferencepaperatICLR2020
+Same covariance (Source: Task 2) Diff. covariance (Source: Task 3)
+Positive Transfer Positive Transfer Positive Transfer
+0.2 0.2 0.2
+0.1 0.1 0.1
+0 0 0
+−0.1 −0.1 −0.1
+Negative Transfer Negative Transfer Negative Transfer
+−0.2 −0.2 −0.2
+2000 4000 6000 8000 2000 4000 6000 8000 2000 4000 6000 8000
+# Data samples of source task # Data samples of source task # Data samples of source task
+(a) Linear regression tasks (b) Logistic classification tasks (c) ReLU regression tasks
+LTS
+-
+LTM
+:.freP
+s'ksat
+tegraT
+Source vs. target (Task 1):
+Figure3: Performanceimprovementofatargettask(Task1)byMTLwithasourcetaskvs. STL.
+Red: positivetransferwhenthesourceisTask2,whichhasthesamecovariancematrixwithtarget.
+Green: negative (to positive) transfer when the source is Task 3, which has a different covariance
+fromthetarget,asits#ofsamplesincreases. Seetheexamplebelowforthedefinitionofeachtask.
+Proposition1. Letr ≥k. ThereexistsanoptimumB(cid:63) and{A(cid:63)}k ofequation3whereB(cid:63)A(cid:63) =
+i i=1 i
+θ ,foralli=1,2,...,k.
+i
+Toillustratetheidea, aslongasB(cid:63) contains{θ }k initscolumnspan, thereexistsA(cid:63) suchthat
+i i=1 i
+B(cid:63)A(cid:63) = θ , which is optimal for equation 3 with minimum error. But this means no transfer
+i i
+amonganytwotasks. Thiscanhurtgeneralizationifataskhaslimiteddata,inwhichcaseitsSTL
+solutionoverfitstrainingdata,whereastheMTLsolutioncanleverageothertasks’datatoimprove
+generalization. TheproofofProposition1anditsextensiontoReLUsettingsareinAppendixA.1.
+Algorithmic consequence. The implication is that limiting the shared module’s capacity is nec-
+essary to enforce information transfer. If the shared module is too small, then tasks may interfere
+negativelywitheachother.Butifitistoolarge,thentheremaybenotransferbetweentasks.InSec-
+tion3.3,weverifytheneedtocarefullychoosemodelcapacityonawiderangeofneuralnetworks
+includingCNN,LSTMandmulti-layerperceptron.
+2.3 TASKCOVARIANCE
+Toshowhowtoquantifytaskdatasimilarity,weillustratewithtworegressiontasksunderthelinear
+model without noise: y = X θ and y = X θ . By Section 2.2, it is necessary to limit the
+1 1 1 2 2 2
+capacity of the shared module to enforce information transfer. Therefore, we consider the case of
+r =1. Hence,thesharedmoduleBisnowad-dimensionalvector,andA ,A arebothscalars.
+1 2
+AnaturalrequirementoftasksimilarityisfortheSTLmodelstobesimilar,i.e. |cos(θ ,θ )|tobe
+1 2
+large.Toseethis,theoptimalSTLmodelfortask1is(X(cid:62)X )−1X(cid:62)y =θ .Henceif|cos(θ ,θ )|
+1 1 1 1 1 1 2
+is1,thentasks1and2canshareamodelB ∈Rd whichiseitherθ or−θ . ThescalarA andA
+1 1 1 2
+canthentransformBtobeequaltoθ andθ .
+1 2
+Isthisrequirementsufficient? Recallthatinequation3,thetaskdataX andX arebothmultiplied
+1 2
+byB. Iftheyarepoorly“aligned”geometrically,theperformancecouldsuffer. Howdoweformal-
+izethegeometrybetweentaskalignment? Inthefollowing,weshowthatthecovariancematricesof
+X andX ,whichwedefinetobeX(cid:62)X andX(cid:62)X ,capturesthegeometry.Wefix|cos(θ ,θ )|to
+1 2 1 1 2 2 1 2
+becloseto1toexaminetheeffectsoftaskcovariances. InAppendixA.2.1wefixtaskcovariances
+toexaminetheeffectsofmodelcosinesimilarity. Concretely,equation3reducesto:
+X B X B
+maxh(B)=(cid:104) 1 ,y (cid:105)2+(cid:104) 2 ,y (cid:105)2, (4)
+B∈Rd (cid:107)X 1B(cid:107) 1 (cid:107)X 2B(cid:107) 2
+whereweapplythefirst-orderoptimalityconditiononA andA andsimplifytheequation.Specif-
+1 2
+ically, we focus on a scenario where task 1 is the source and task 2 is the target. Our goal is to
+determinewhenthesourcetransferstothetargetpositivelyornegativelyinMTL.Determiningthe
+typeoftransferfromtask2totask1canbedonesimilarly. Answeringthequestionboilsdownto
+studyingtheangleorcosinesimilaritybetweentheoptimumofequation4andθ .
+2
+Example.InFigure3,weshowthatbyvaryingtaskcovariancesandthenumberofsamples,wecan
+observebothpositiveandnegativetransfers. TheconceptualmessageisthesameasFigure2; we
+4PublishedasaconferencepaperatICLR2020
+Algorithm1Covariancealignmentformulti-tasktraining
+Require: TaskembeddinglayersX
+1
+∈Rm1×d,X
+2
+∈Rm2×d,...,X
+k
+∈Rmk×d,sharedmoduleB
+Parameter: AlignmentmatricesR ,R ,...,R ∈Rd×dandoutputmodulesA ,A ...,A ∈Rr
+1 2 k 1 2 k
+1: LetZ =X R ,for1≤i≤k.
+i i i
+Considerthefollowingmodifiedloss(withBbeingfixed):
+fˆ(A ,...,A ;R ,...,R )=(cid:80)k L(g(Z B)A ,y )=(cid:80)k L(g(X R B)A ,y )
+1 k 1 k i=1 i i i i=1 i i i i
+2: MinimizefˆbyalternativelyapplyingagradientdescentupdateonA andR ,givenasampleddatabatch
+i i
+fromtaski.
+OtherimplementationdetailsaredescribedinAppendixB.3.
+describethedatagenerationprocessinmoredetail. Weuse3tasksandmeasurethetypeoftransfer
+fromthesourcetothetarget. Thex-axisisthenumberofdatasamplesfromthesource. They-axis
+isthetarget’sperformanceimprovementmeasuredonitsvalidationsetbetweenMTLminusSTL.
+Datageneration. Wehave|cos(θ 1,θ 2)| ≈ 1(say0.96). Fori ∈ {1,2,3},letR
+i
+⊆ Rmi×d denote
+arandomGaussianmatrixdrawnfromN(0,1). LetS ,S ⊆ {1,2,...,d}betwodisjointsetsof
+1 2
+sized/10. Fori = 1,2,letD beadiagonalmatrixwhoseentriesareequaltoalargevalueκ(e.g.
+i
+κ=100)forcoordinatesinS and1otherwise. LetQ ⊆Rd×d denoteanorthonormalmatrix,i.e.
+i i
+Q(cid:62)Q isequaltotheidentitymatrix,orthogonalizedfromarandomGaussianmatrix.
+i i
+Then,wedefinethe3tasksasfollows. (i)Task1(target): X =R Q D andy =X θ . (ii)Task
+1 1 1 1 1 1 1
+2(sourcetaskforredline):X =R Q D andy =X θ .(iii)Task3(sourcetaskforgreenline):
+2 2 1 1 2 2 2
+X = R Q D andy = X θ . Task1and2havethesamecovariancematricesbuttask1and3
+3 3 2 2 3 3 2
+havedifferentcovariancematrices. Intuitively,thesignalsoftask1and3lieindifferentsubspaces,
+whicharisefromthedifferenceinthediagonalsofD andtheorthonormalmatrices.
+i
+Analysis. Unless the source task has lots of samples to estimate θ , which is much more than the
+2
+samplesneededtoestimateonlythecoordinatesofS ,theeffectoftransferringtothetargetissmall.
+1
+WeobservesimilarresultsforlogisticregressiontasksandforReLU-activatedregressiontasks.
+Theory. Werigorouslyquantifyhowmanydatapointsisneededtoguaranteepositivetransfer. The
+folklore in MTL is that when a source task has a lot of data but the related target task has limited
+data, then the source can often transfer positively to the target task. Our previous example shows
+that by varying the source’s number of samples and its covariance, we can observe both types of
+transfer. Howmuchdatadoweneedfromthesourcetoguaranteeapositivetransfertothetarget?
+Weshowthatthisdependsontheconditionnumbersofbothtasks’covariances.
+Theorem 2 (informal). For i = 1,2, let y = X θ +ε denote two linear regression tasks with
+i i i i
+parameters θ ∈ Rd and m number of samples. Suppose that each row of the source task X is
+i i 1
+drawn independently from a distribution with covariance Σ ⊆ Rd×d and bounded l -norm. Let
+1 2
+c=κ(X )sin(θ ,θ )andassumethatc≤1/3. Denoteby(B(cid:63),A(cid:63),A(cid:63))theoptimalMTLsolution.
+2 1 2 1 2
+Withhighprobability,whenm isatleastontheorderof(κ2(Σ )·κ4(X )·(cid:107)y (cid:107)2)/c4,wehave
+1 1 2 2
+1 (cid:107)ε (cid:107)
+(cid:107)B(cid:63)A(cid:63)−θ (cid:107)/(cid:107)θ (cid:107)≤6c+ 2 . (5)
+2 2 2 1−3c(cid:107)X θ (cid:107)
+2 2
+RecallthatforamatrixX, κ(X)denotesitsconditionnumber. Theorem2quantifiesthetrendin
+Figure3,wheretheimprovementsfortask2reachestheplateauwhenm becomeslargeenough.
+1
+Theparameterchereindicateshowsimilarthetwotasksare. Thesmallersin(θ ,θ )is,thesmaller
+1 2
+c is. As an example, if sin(θ ,θ ) ≤ δ/κ(X ) for some δ, then equation 5 is at most O(δ) +
+1 2 2
+(cid:107)ε (cid:107)/(cid:107)X θ (cid:107).1 Theformalstatement,itsproofanddiscussionsontheassumptionsaredeferredto
+2 2 2
+AppendixA.2.2.
+TheReLUmodel.WeshowasimilarresultfortheReLUmodel,whichrequiresresolvingthechal-
+lengeofanalyzingtheReLUfunction. WeuseageometriccharacterizationfortheReLUfunction
+underdistributionalinputassumptionsbyDuetal.(2017).TheresultisdeferredtoAppendixA.2.3.
+1Theestimationerrorofθ isupperboundedbytask2’ssignal-to-noiseratio(cid:107)ε (cid:107)/(cid:107)X θ (cid:107). Thisdepen-
+2 2 2 2
+dencearisesbecausethelinearcomponentA(cid:63)fitstheprojectionofy toX B(cid:63). SoevenifB(cid:63)isequaltoθ ,
+2 2 2 2
+therecouldstillbeanestimationerroroutofA(cid:63),whichcannotbeestimatedfromtask1’sdata.
+2
+5PublishedasaconferencepaperatICLR2020
+Algorithm2AnSVD-basedtaskre-weightingscheme
+Input: ktasks:(X,y )∈(Rm×d,Rm);arankparameterr∈{1,2,...,k}
+i
+Output: Aweightvector:{α ,α ,...,α }
+1 2 k
+1: Letθ =X(cid:62)y .
+i i
+2: U ,D ,V =SVD (θ ,θ ,...,θ ),i.e.thebestrank-rapproximationtotheθ ’s.
+r r r r 1 2 k i
+3: Letα =(cid:107)θ(cid:62)U (cid:107),fori=1,2,...,k.
+i i r
+Algorithmicconsequence. Animplicationofourtheoryisacovariancealignmentmethodtoim-
+provemulti-tasktraining.Forthei-thtask,weaddanalignmentmatrixR beforeitsinputX passes
+i i
+throughthesharedmoduleB. Algorithm1showstheprocedure.
+Wealsoproposeametriccalledcovariancesimilarityscoretomeasurethesimilaritybetweentwo
+tasks. Given X
+1
+∈ Rm1×d and X
+2
+∈ Rm2×d, we measure their similarity in three steps: (a) The
+covariancematrixisX(cid:62)X . (b)Findthebestrank-r approximationtobeU D U(cid:62) ,where
+1 1 1 1,r1 1,r1 1,r1
+r ischosentocontain99%ofthesingularvalues. (c)Applystep(a),(b)toX ,computethescore:
+1 2
+(cid:107)(U D1/2)(cid:62)U D1/2(cid:107)
+Covariancesimilarityscore := 1,r1 1,r1 2,r2 2,r2 F . (6)
+(cid:107)U D1/2(cid:107) ·(cid:107)U D1/2(cid:107)
+1,r1 1,r1 F 2,r2 2,r2 F
+ThenicepropertyofthescoreisthatitisinvarianttorotationsofthecolumnsofX andX .
+1 2
+2.4 OPTIMIZATIONSCHEME
+Lastly,weconsidertheeffectofre-weightingthetasks(ortheirlossesinequation2).Whendoesre-
+weightingthetaskshelp? Inthispart,weshowausecaseforimprovingtherobustnessofmulti-task
+traininginthepresenceoflabelnoise. Thesettingsinvolvinglabelnoisecanarisewhensometasks
+only have weakly-supervised labels, which have been studied before in the literature (e.g. Mintz
+etal.(2009);PentinaandLampert(2017)). Westartbydescribingamotivatingexample.
+Consider two tasks where task 1 is y = Xθ and task 2 is y = Xθ +ε . If we train the two
+1 2 2
+tasks together, the error ε will add noise to the trained model. However, by up weighting task 1,
+2
+wereducethenoisefromtask2andgetbetterperformance. Torigorouslystudytheeffectoftask
+weights,weconsiderasettingwhereallthetaskshavethesamedatabutdifferentlabels.Thissetting
+arisesforexampleinmulti-labelimagetasks. Wederivetheoptimalsolutioninthelinearmodel.
+Proposition3. Letthesharedmodulehavecapacityr ≤k. Givenktaskswiththesamecovariates
+X ⊆ Rm×d butdifferentlabels{y }k . LetX befullrankandUDV(cid:62) beitsSVD.LetQ Q(cid:62) be
+i i=1 r r
+the best rank-r approximation to (cid:80)k α U(cid:62)y y(cid:62)U. Let B(cid:63) ⊆ Rd×r be an optimal solution for
+i=1 i i i
+there-weightedloss. ThenthecolumnspanofB(cid:63)isequaltothecolumnspanof(X(cid:62)X)−1VDQ .
+r
+WecanalsoextendProposition3toshowthatalllocalminimaofequation3areglobalminimain
+thelinearsetting. WeleavetheprooftoAppendixA.3. Weremarkthatthisresultdoesnotextend
+tothenon-linearReLUsettingandleavethisforfuturework.
+Based on Proposition 3, we provide a rigorous proof of the previous example. Suppose that X is
+full rank, (X(cid:62)X)†X[α y ,α y ]) = [α θ,α θ +α (X(cid:62)X)−1Xε ]. Hence, when we increase
+1 1 1 2 1 2 2 2
+α ,cos(B(cid:63),θ)increasescloserto1.
+1
+Algorithmicconsequence. Inspiredbyourtheory,wedescribeare-weightingschemeinthepres-
+ence of label noise. We compute the per-task weights by computing the SVD over X(cid:62)y , for
+i
+1 ≤ i ≤ k. The intuition is that if the label vector of a task y is noisy, then the entropy of y is
+i i
+small. Therefore,wewouldliketodesignaprocedurethatremovesthenoise. TheSVDprocedure
+does this, where the weight of a task is calculated by its projection into the principal r directions.
+SeeAlgorithm2forthedescription.
+6PublishedasaconferencepaperatICLR2020
+𝐴# 𝐴$ 𝐴% … 𝐴&’$ 𝐴&’# 𝐴&
+Shared Modules (LSTM/BERT) 𝑍
+,
+𝐼# 𝑅$ 𝑅% … 𝑅&’$ 𝑅&’# 𝑅&
+𝐸
+Task Embeddings ,
+𝑋# 𝑋$ 𝑋% … 𝑋&’$ 𝑋&’# 𝑋&
+Figure4: Illustrationofthecovariancealignmentmoduleontaskembeddings.
+3 EXPERIMENTS
+Wedescribeconnectionsbetweenourtheoreticalresultsandpracticalproblemsofinterest.Weshow
+threeclaimsonrealworlddatasets.(i)ThesharedMTLmoduleisbestperformingwhenitscapacity
+issmallerthanthetotalcapacitiesofthesingle-taskmodels.(ii)Ourproposedcovariancealignment
+methodimprovesmulti-tasktrainingonavarietyofsettingsincludingtheGLUEbenchmarksand
+sixsentimentanalysistasks. Ourmethodcanbenaturallyextendedtotransferlearningsettingsand
+we validate this as well. (iii) Our SVD-based reweighed scheme is more robust than the standard
+unweightedschemeonmulti-labelimageclassificationtasksinthepresenceoflabelnoise.
+3.1 EXPERIMENTALSETUP
+Datasetsandmodels. Wedescribethedatasetsandmodelsweuseintheexperiments.
+GLUE:GLUEisanaturallanguageunderstandingdatasetincludingquestionanswering,sentiment
+analysis, text similarity and textual entailment problems. We choose BERT as our model,
+LARGE
+whichisa24layertransformernetworkfromDevlinetal.(2018). Weusethisdatasettoevaluate
+howAlgorithm1worksonthestate-of-the-artBERTmodel.
+Sentiment Analysis: This dataset includes six tasks: movie review sentiment (MR), sentence sub-
+jectivity(SUBJ),customerreviewspolarity(CR),questiontype(TREC),opinionpolarity(MPQA),
+andtheStanfordsentimenttreebank(SST)tasks.
+Foreachtask,thegoalistocategorizesentimentopinionsexpressedinthetext. Weuseanembed-
+dinglayer(withGloVeembeddings2)followedbyanLSTMlayerproposedbyLeietal.(2018)3.
+ChestX-ray14: Thisdatasetcontains112,120frontal-viewX-rayimagesandeachimagehasupto
+14diseases. Thisisa14-taskmulti-labelimageclassificationproblem. WeusetheCheXNetmodel
+fromRajpurkaretal.(2017),whichisa121-layerconvolutionalneuralnetworkonalltasks.
+For all models, we share the main module across all tasks (BERT for GLUE, LSTM for
+LARGE
+sentiment analysis, CheXNet for ChestX-ray14) and assign a separate regression or classification
+layerontopofthesharedmoduleforeachtasks.
+Comparison methods. For the experiment on multi-task training, we compare Algorithm 1 by
+trainingwithourmethodandtrainingwithoutit. Specifically,weapplythealignmentprocedureon
+thetaskembeddinglayers. SeeFigure4foranillustration,whereE denotestheembeddingoftask
+i
+i,R denotesitsalignmentmoduleandZ =E R istherotatedembedding.
+i i i i
+For transfer learning, we first train an STL model on the source task by tuning its model capacity
+(e.g. the output dimension of the LSTM layer). Then, we fine-tune the STL model on the target
+taskfor5-10epochs. ToapplyAlgorithm1,weaddanalignmentmoduleforthetargettaskduring
+fine-tuning.
+Fortheexperimentonreweightedschemes,wecomputetheper-taskweightsasdescribedinAlgo-
+rithm 2. Then, we reweight the loss function as in equation 2. We compare with the reweighting
+techniquesofKendalletal.(2018). Informally,thelatterusesGaussianlikelihoodtomodelclassi-
+2http://nlp.stanford.edu/data/wordvecs/glove.6B.zip
+3Wealsotestedwithmulti-layerperceptronandCNN.Theresultsaresimilar(cf.AppendixB.5).
+7PublishedasaconferencepaperatICLR2020
+COLA −0.6 4.3 −2.4 1 LSTM Baseline
+Covariance
+Alignment
+MRPC −0.6 5.8 −1.9 2.7
+QNLI 4.3 5.8 0.1 0.7
+RTE −2.4 −1.9 0.1 1.1
+SST 1 2.7 0.7 1.1
+COLA MRPC QNLI RTE SST
+(a)MTLonGLUEover10taskpairs
+ycaruccA
+0.95
+0.90
+0.85
+0.80
+0.75
+CR MPQA MR SUBJTREC
+(b)Transferlearningonsixsentimentanalysistasks
+Figure5: PerformanceimprovementsofAlgorithm1byaligningtaskembeddings.
+ficationoutputs. Theweights,definedasinverselyproportionaltothevariancesoftheGaussian,are
+optimizedduringtraining. Wealsocomparewiththeunweightedloss(cf. equation1)asabaseline.
+Metric. We measure performance on the GLUE benchmark using a standard metric called the
+GLUEscore,whichcontainsaccuracyandcorrelationscoresforeachtask.
+Forthesentimentanalysistasks,wemeasuretheaccuracyofpredictingthesentimentopinion.
+For the image classification task, we measure the area under the curve (AUC) score. We run five
+differentrandomseedstoreporttheaverageresults. TheresultofanMTLexperimentisaveraged
+overtheresultsofallthetasks,unlessspecifiedotherwise.
+Forthetrainingproceduresandotherdetailsonthesetup,wereferthereadertoAppendixB.
+3.2 EXPERIMENTALRESULTS
+Wepresentusecasesofourmethodsonopen-sourcedatasets.Weexpectedtoseeimprovementsvia
+ourmethodsinmulti-taskandothersettings,andindeedwesawsuchgainsacrossavarietyoftasks.
+Improvingmulti-tasktraining. WeapplyAlgorithm1onfivetasks(CoLA,MRPC,QNLI,RTE,
+SST-2) from the GLUE benchmark using a state-of-the-art language model BERT . 4 We
+LARGE
+train the output layers {A } and the alignment layers {R } using our algorithm. We compare the
+i i
+averageperformanceoverallfivetasksandfindthatourmethodoutperformsBERT by2.35%
+LARGE
+averageGLUEscoreforthefivetasks. Fortheparticularsettingoftrainingtwotasks,ourmethod
+outperformsBERT on7ofthe10taskpairs. SeeFigure5afortheresults.
+LARGE
+Improvingtransferlearning.Whileourstudyhasfocusedonmulti-tasklearning,transferlearning
+isanaturallyrelatedgoal–andwefindthatourmethodisalsousefulinthiscase. Wevalidatethis
+bytraininganLSTMonsentimentanalysis. Figure5bshowstheresultwithSSTbeingthesource
+taskandtherestbeingthetargettask. Algorithm1improvesaccuracyonfourtasksbyupto2.5%.
+Reweightingtrainingforthesametaskcovariates.WeevaluateAlgorithm2ontheChestX-ray14
+dataset. ThissettingsatisfiestheassumptionofAlgorithm2,whichrequiresdifferenttaskstohave
+thesameinputdata.Acrossall14tasks,wefindthatourreweightingmethodimprovesthetechnique
+of Kendall et al. (2018) by 0.1% AUC score. Compared to training with the unweighted loss, our
+methodimprovesperformanceby0.4%AUCscoreoveralltasks.
+3.3 ABLATIONSTUDIES
+Modelcapacity.WeverifyourhypothesisthatthecapacityoftheMTLmodelshouldnotexceedthe
+totalcapacitiesoftheSTLmodel. WeshowthisonanLSTMmodelwithsentimentanalysistasks.
+Recall that the capacity of an LSTM model is its output dimension (before the last classification
+layer). We train an MTL model with all tasks and vary the shared module’s capacity to find the
+optimumfrom5to500. SimilarlywetrainanSTLmodelforeachtaskandfindtheoptimum.
+In Figure 1, we find that the performance of MTL peaks when the shared module has capacity
+100. ThisismuchsmallerthanthetotalcapacitiesofalltheSTLmodels. Theresultconfirmsthat
+4https://github.com/google-research/bert
+8PublishedasaconferencepaperatICLR2020
+Table1: Comparingthemodelcapacitybetween Figure 6: Covariance similarity score vs.
+MTLandSTL. performanceimprovementsfromalignment.
+Task STL MTL LSTM Covariance
+Alignment
+Cap. Acc. Cap. Acc.
+SST 200 82.3 90.8 Baseline
+MR 200 76.4 96.0
+CR 5 73.2 78.7
+100
+SUBJ 200 91.5 89.5 TREC,SUBJ
+CR,MR
+MPQA 500 86.7 87.0 MPQA,SUBJ
+CR, SUBJ
+TREC 100 85.7 78.7 TREC,SST
+Overall 1205 82.6 100 85.1
+stnemevorpmI
+ecnamrofreP
+0.04
+0.02
+0
+0.1 0.2 0.3 0.4 0.5
+Covariance similarity score
+constraining the shared module’s capacity is crucial to achieve the ideal performance. Extended
+resultsonCNN/MLPtosupportourhypothesisareshowninAppendixB.5.
+Task covariance. We apply our metric of task covariance similarity score from Section 2.3 to
+provideanin-depthstudyofthecovariancealignmentmethod. Thehypothesisisthat: (a)aligning
+thecovarianceshelps,whichwehaveshowninFigure5a;(b)thesimilarityscorebetweentwotasks
+increasesafterapplyingthealignment.Weverifythehypothesisonthesentimentanalysistasks.We
+usethesingle-taskmodel’sembeddingbeforetheLSTMlayertocomputethecovariance.
+First, we measure the similarity score using equation 6 between all six single-task models. Then,
+foreachtaskpair,wetrainanMTLmodelusingAlgorithm1. Wemeasurethesimilarityscoreon
+the trained MTL model. Our results confirm the hypothesis (Figure 6): (a) we observe increased
+accuracyon13of15taskpairsbyupto4.1%;(b)thesimilarityscoreincreasesforall15taskpairs.
+Optimizationscheme. WeverifytherobustnessofAlgorithm2. Afterselectingtwotasksfromthe
+ChestX-ray14 dataset, we test our method by assigning random labels to 20% of the data on one
+task. Thelabelsfortheothertaskremainunchanged.
+On 10 randomly selected pairs, our method improves over the unweighted scheme by an average
+1.0% AUC score and the techniques of Kendall et al. (2018) by an average 0.4% AUC score. We
+includemoredetailsofthisexperimentinAppendixB.5.
+4 RELATED WORK
+Therehasbeenalargebodyofrecentworkonusingthemulti-tasklearningapproachtotraindeep
+neural networks. Liu et al. (2019a); McCann et al. (2018) and subsequent follow-up work show
+state-of-the-artresultsontheGLUE benchmark, whichinspiredourstudyofanabstraction ofthe
+MTLmodel. RecentworkofZamiretal.(2018);Standleyetal.(2019)answerwhichvisualtasks
+to train together via a heuristic which involves intensive computation. We discuss several lines of
+studiesrelatedtothiswork. Forcompletereferences,werefertheinterestedreaderstothesurveyof
+Ruder(2017);ZhangandYang(2017)andthesurveysondomainadaptationandtransferlearning
+byPanandYang(2009);Kouw(2018)forreferences.
+Theoretical studies of multi-task learning. Of particular relevance to this work are those that
+studythetheoryofmulti-tasklearning. TheearlierworksofBaxter(2000);Ben-DavidandSchuller
+(2003)areamongthefirsttoformallystudytheimportanceoftaskrelatednessforlearningmultiple
+tasks. Seealsothefollow-upworkofMaurer(2006)whichstudiesgeneralizationboundsofMTL.
+A closely related line of work to structural learning is subspace selection, i.e. how to select a
+commonsubspaceformultipletasks. ExamplesfromthislineworkincludeObozinskietal.(2010);
+Wang et al. (2015); Fernando et al. (2013); Elhamifar et al. (2015). Evgeniou and Pontil (2004);
+Micchelli and Pontil(2005) study a formulation that extends support vector machine to the multi-
+tasksetting. SeealsoArgyriouetal.(2008);Pentinaetal.(2015);PentinaandBen-David(2015);
+PentinaandLampert(2017)thatprovidemorerefinedoptimizationmethodsandfurtherstudy. The
+work of Ben-David et al. (2010) provides theories to measure the differences between source and
+targettasksfortransferlearninginadifferentmodelsetup.Khodaketal.(2019);Kongetal.(2020);
+9PublishedasaconferencepaperatICLR2020
+Du et al. (2020) consider the related meta learning setting, which is in spirit an online setting of
+multi-tasklearning.
+Ourresultonrestrictingthemodelcapacitiesformulti-tasklearningisincontrastwithrecentthe-
+oretical studies on over-parametrized models (e.g. Li et al. (2018); Zhang et al. (2019a); Bartlett
+etal.(2020)),wherethemodelcapacitiesareusuallymuchlargerthantheregimeweconsiderhere.
+Itwouldbeinterestingtobetterunderstandmulti-tasklearninginthecontextofover-parametrized
+models with respect to other phenomenon such as double descent that has been observed in other
+contexts(Belkinetal.(2019)).
+Finally,Zhangetal.(2019b);Shuietal.(2019)considermulti-tasklearningfromtheperspectiveof
+adversarialrobustness. MahmudandRay(2008)considerusingKolmogorovcomplexitymeasure
+theeffectivenessoftransferlearningfordecisiontreemethods.
+Hardparametersharingvssoftparametersharing. Thearchitecturethatwestudyinthiswork
+is also known as the hard parameter sharing architecture. There is another kind of architecture
+calledsoftparametersharing. Theideaisthateachtaskhasitsownparametersandmodules. The
+relationships between these parameters are regularized in order to encourage the parameters to be
+similar. Other architectures that have been studied before include the work of Misra et al. (2016),
+wheretheauthorsexploretrainablearchitecturesforconvolutionalneuralnetworks.
+Domain adaptation. Another closely related line of work is on domain adaptation. The acute
+readermaynoticethesimilaritybetweenourstudyinSection2.3anddomainadaptation. Thecru-
+cialdifferencehereisthatweareminimizingthemulti-tasklearningobjective,whereasindomain
+adaptation the objective is typically to minimize the objective on the target task. See Ben-David
+etal.(2010);Zhangetal.(2019b)andthereferencesthereinforotherrelatedwork.
+Optimizationtechniques. Guoetal.(2019)useideasfromthemulti-armedbanditliteraturetode-
+velopamethodforweightingeachtask. Comparedtotheirmethod,ourSVD-basedmethodiscon-
+ceptuallysimplerandrequiresmuchlesscomputation. Kendalletal.(2018)deriveaweightedloss
+schme by maximizing a Gaussian likelihood function. Roughly speaking, each task is reweighted
+by 1/σ2 where σ is the standard deviation of the Gaussian and a penalty of logσ is added to the
+loss. Thevaluesof{σ } arealsooptimizedduringtraining. Theexactdetailscanbefoundinthe
+i i
+paper. The very recent work of Li and Vasconcelos (2019) show empirical results using a similar
+ideaofcovariancenormalizationonimagingtasksforcross-domaintransfer.
+5 CONCLUSIONS AND FUTURE WORK
+Westudiedthetheoryofmulti-tasklearninginlinearandReLU-activatedsettings. Weverifiedour
+theoryanditspracticalimplicationsthroughextensivesyntheticandrealworldexperiments.
+Our work opens up many interesting future questions. First, could we extend the guarantees for
+choosingoptimizationschemestonon-linearsettings? Second, alimitationofourSVD-basedop-
+timization scheduler is that it only applies to settings with the same data. Could we extend the
+method for heterogeneous task data? More broadly, we hope our work inspires further studies to
+betterunderstandmulti-tasklearninginneuralnetworksandtoguideitspractice.
+Acknowledgements. Thanks to Sharon Y. Li and Avner May for stimulating discussions dur-
+ing early stages of this work. We are grateful to the Stanford StatsML group and the anony-
+mous referees for providing helpful comments that improve the quality of this work. We grate-
+fully acknowledge the support of DARPA under Nos. FA87501720095 (D3M), FA86501827865
+(SDH),andFA86501827882(ASED);NIHunderNo. U54EB020405(Mobilize),NSFunderNos.
+CCF1763315(BeyondSparsity),CCF1563078(VolumetoVelocity),and1937301(RTML);ONR
+under No. N000141712266 (Unifying Weak Supervision); the Moore Foundation, NXP, Xilinx,
+LETI-CEA, Intel, IBM, Microsoft, NEC, Toshiba, TSMC, ARM, Hitachi, BASF, Accenture, Er-
+icsson, Qualcomm, Analog Devices, the Okawa Foundation, American Family Insurance, Google
+Cloud,SwissRe,andmembersoftheStanfordDAWNproject:Teradata,Facebook,Google,AntFi-
+nancial,NEC,VMWare,andInfosys. H.ZhangissupportedinpartbyGregoryValiant’sONRYIP
+award(#1704417). TheexperimentsarepartlyrunonStanford’sSOALcluster. 5 TheU.S.Govern-
+mentisauthorizedtoreproduceanddistributereprintsforGovernmentalpurposesnotwithstanding
+5https://5harad.com/soal-cluster/
+10PublishedasaconferencepaperatICLR2020
+any copyright notation thereon. Any opinions, findings, and conclusions or recommendations ex-
+pressedinthismaterialarethoseoftheauthorsanddonotnecessarilyreflecttheviews,policies,or
+endorsements,eitherexpressedorimplied,ofDARPA,NIH,ONR,ortheU.S.Government.
+REFERENCES
+He´ctor Mart´ınez Alonso and Barbara Plank. When is multitask learning effective? semantic se-
+quencepredictionundervaryingdataconditions. arXivpreprintarXiv:1612.02251,2016.
+Rie Kubota Ando and Tong Zhang. A framework for learning predictive structures from multiple
+tasksandunlabeleddata. JournalofMachineLearningResearch,6(Nov):1817–1853,2005.
+AndreasArgyriou,AndreasMaurer,andMassimilianoPontil.Analgorithmfortransferlearningina
+heterogeneousenvironment.InJointEuropeanConferenceonMachineLearningandKnowledge
+DiscoveryinDatabases,pages71–85.Springer,2008.
+Maria-FlorinaBalcan,YingyuLiang,DavidPWoodruff,andHongyangZhang. Matrixcompletion
+and related problems via strong duality. In 9th Innovations in Theoretical Computer Science
+Conference(ITCS2018),2018.
+PeterLBartlett,PhilipMLong,Ga´borLugosi,andAlexanderTsigler. Benignoverfittinginlinear
+regression. ProceedingsoftheNationalAcademyofSciences,2020.
+JonathanBaxter. Amodelofinductivebiaslearning. Journalofartificialintelligenceresearch,12:
+149–198,2000.
+Mikhail Belkin, Daniel Hsu, Siyuan Ma, and Soumik Mandal. Reconciling modern machine-
+learningpracticeandtheclassicalbias–variancetrade-off. ProceedingsoftheNationalAcademy
+ofSciences,116(32):15849–15854,2019.
+ShaiBen-DavidandRebaSchuller. Exploitingtaskrelatednessformultipletasklearning. InLearn-
+ingTheoryandKernelMachines,pages567–580.Springer,2003.
+ShaiBen-David,JohnBlitzer,KobyCrammer,AlexKulesza,FernandoPereira,andJenniferWort-
+manVaughan. Atheoryoflearningfromdifferentdomains. Machinelearning,79(1-2):151–175,
+2010.
+JoachimBingelandAndersSøgaard. Identifyingbeneficialtaskrelationsformulti-tasklearningin
+deepneuralnetworks. arXivpreprintarXiv:1702.08303,2017.
+JohnBlitzer,RyanMcDonald,andFernandoPereira. Domainadaptationwithstructuralcorrespon-
+dencelearning. InProceedingsofthe2006conferenceonempiricalmethodsinnaturallanguage
+processing,pages120–128.AssociationforComputationalLinguistics,2006.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep
+bidirectionaltransformersforlanguageunderstanding. arXivpreprintarXiv:1810.04805,2018.
+Simon S Du, Jason D Lee, Yuandong Tian, Barnabas Poczos, and Aarti Singh. Gradient de-
+scent learns one-hidden-layer cnn: Don’t be afraid of spurious local minima. arXiv preprint
+arXiv:1712.00779,2017.
+SimonSDu, WeiHu, ShamMKakade, JasonDLee, andQiLei. Few-shotlearningvialearning
+therepresentation,provably. arXivpreprintarXiv:2002.09434,2020.
+EhsanElhamifar,GuillermoSapiro,andSShankarSastry. Dissimilarity-basedsparsesubsetselec-
+tion. IEEEtransactionsonpatternanalysisandmachineintelligence,38(11):2182–2197,2015.
+Theodoros Evgeniou and Massimiliano Pontil. Regularized multi-task learning. In Proceedings
+of the tenth ACM SIGKDD international conference on Knowledge discovery and data mining,
+pages109–117.ACM,2004.
+BasuraFernando, AmauryHabrard, MarcSebban, andTinneTuytelaars. Unsupervisedvisualdo-
+mainadaptationusingsubspacealignment. InProceedingsoftheIEEEinternationalconference
+oncomputervision,pages2960–2967,2013.
+11PublishedasaconferencepaperatICLR2020
+HanGuo,RamakanthPasunuru,andMohitBansal. Autosem: Automatictaskselectionandmixing
+inmulti-tasklearning. arXivpreprintarXiv:1904.04153,2019.
+TrevorHastie,RobertTibshirani,JeromeFriedman,andJamesFranklin. Theelementsofstatistical
+learning: data mining, inference and prediction. The Mathematical Intelligencer, 27(2):83–85,
+2005.
+Minqing Hu and Bing Liu. Mining and summarizing customer reviews. In Proceedings of the
+tenth ACM SIGKDD international conference on Knowledge discovery and data mining, pages
+168–177.ACM,2004.
+AlexKendall,YarinGal,andRobertoCipolla.Multi-tasklearningusinguncertaintytoweighlosses
+forscenegeometryandsemantics. InProceedingsoftheIEEEConferenceonComputerVision
+andPatternRecognition,pages7482–7491,2018.
+Mikhail Khodak, Maria-Florina Balcan, and Ameet Talwalkar. Provable guarantees for gradient-
+basedmeta-learning. arXivpreprintarXiv:1902.10644,2019.
+Yoon Kim. Convolutional neural networks for sentence classification. arXiv preprint
+arXiv:1408.5882,2014.
+IasonasKokkinos. Ubernet: Trainingauniversalconvolutionalneuralnetworkforlow-,mid-,and
+high-levelvisionusingdiversedatasetsandlimitedmemory. InProceedingsoftheIEEEConfer-
+enceonComputerVisionandPatternRecognition,pages6129–6138,2017.
+Weihao Kong, Raghav Somani, Zhao Song, Sham Kakade, and Sewoong Oh. Meta-learning for
+mixedlinearregression. arXivpreprintarXiv:2002.08936,2020.
+Wouter M Kouw. An introduction to domain adaptation and transfer learning. arXiv preprint
+arXiv:1812.11806,2018.
+Tao Lei, Yu Zhang, Sida I Wang, Hui Dai, and Yoav Artzi. Simple recurrent units for highly par-
+allelizablerecurrence. InProceedingsofthe2018ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing,pages4470–4481,2018.
+Xin Li and Dan Roth. Learning question classifiers. In Proceedings of the 19th international
+conference on Computational linguistics-Volume 1, pages 1–7. Association for Computational
+Linguistics,2002.
+Yuanzhi Li, Tengyu Ma, and Hongyang Zhang. Algorithmic regularization in over-parameterized
+matrixsensingandneuralnetworkswithquadraticactivations. InConferenceOnLearningThe-
+ory,pages2–47,2018.
+Yunsheng Li and Nuno Vasconcelos. Efficient multi-domain learning by covariance normaliza-
+tion. InProceedingsoftheIEEEConferenceonComputerVisionandPatternRecognition,pages
+5424–5433,2019.
+Xiaodong Liu, Pengcheng He, Weizhu Chen, and Jianfeng Gao. Multi-task deep neural networks
+fornaturallanguageunderstanding. arXivpreprintarXiv:1901.11504,2019a.
+Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer Levy, Mike
+Lewis,LukeZettlemoyer,andVeselinStoyanov. Roberta: Arobustlyoptimizedbertpretraining
+approach. arXivpreprintarXiv:1907.11692,2019b.
+MMMahmudandSylvianRay. Transferlearningusingkolmogorovcomplexity: Basictheoryand
+empirical evaluations. In Advances in neural information processing systems, pages 985–992,
+2008.
+PasinManurangsiandDanielReichman. Thecomputationalcomplexityoftrainingrelu(s). arXiv
+preprintarXiv:1810.04207,2018.
+AndreasMaurer. Boundsforlinearmulti-tasklearning. JournalofMachineLearningResearch,7
+(Jan):117–139,2006.
+12PublishedasaconferencepaperatICLR2020
+BryanMcCann,NitishShirishKeskar,CaimingXiong,andRichardSocher. Thenaturallanguage
+decathlon: Multitasklearningasquestionanswering. arXivpreprintarXiv:1806.08730,2018.
+Charles A Micchelli and Massimiliano Pontil. Kernels for multi–task learning. In Advances in
+neuralinformationprocessingsystems,pages921–928,2005.
+MikeMintz,StevenBills,RionSnow,andDanJurafsky. Distantsupervisionforrelationextraction
+withoutlabeleddata. InProceedingsoftheJointConferenceofthe47thAnnualMeetingofthe
+ACLandthe4thInternationalJointConferenceonNaturalLanguageProcessingoftheAFNLP:
+Volume2-Volume2,pages1003–1011.AssociationforComputationalLinguistics,2009.
+Ishan Misra, Abhinav Shrivastava, Abhinav Gupta, and Martial Hebert. Cross-stitch networks for
+multi-task learning. In Proceedings of the IEEE Conference on Computer Vision and Pattern
+Recognition,pages3994–4003,2016.
+GuillaumeObozinski,BenTaskar,andMichaelIJordan.Jointcovariateselectionandjointsubspace
+selectionformultipleclassificationproblems. StatisticsandComputing,20(2):231–252,2010.
+SinnoJialinPanandQiangYang. Asurveyontransferlearning. IEEETransactionsonknowledge
+anddataengineering,22(10):1345–1359,2009.
+BoPangandLillianLee. Asentimentaleducation: Sentimentanalysisusingsubjectivitysumma-
+rizationbasedonminimumcuts. InProceedingsofthe42ndannualmeetingonAssociationfor
+ComputationalLinguistics,page271.AssociationforComputationalLinguistics,2004.
+BoPangandLillianLee. Seeingstars: Exploitingclassrelationshipsforsentimentcategorization
+withrespecttoratingscales. InProceedingsofthe43rdannualmeetingonassociationforcom-
+putationallinguistics,pages115–124.AssociationforComputationalLinguistics,2005.
+AnastasiaPentinaandShaiBen-David. Multi-taskandlifelonglearningofkernels. InInternational
+ConferenceonAlgorithmicLearningTheory,pages194–208.Springer,2015.
+AnastasiaPentinaandChristophHLampert. Multi-tasklearningwithlabeledandunlabeledtasks.
+In Proceedings of the 34th International Conference on Machine Learning-Volume 70, pages
+2807–2816.JMLR.org,2017.
+AnastasiaPentina,ViktoriiaSharmanska,andChristophHLampert. Curriculumlearningofmulti-
+pletasks. InProceedingsoftheIEEEConferenceonComputerVisionandPatternRecognition,
+pages5492–5500,2015.
+Pranav Rajpurkar, Jeremy Irvin, Kaylie Zhu, Brandon Yang, Hershel Mehta, Tony Duan, Daisy
+Ding,AartiBagul,CurtisLanglotz,KatieShpanskaya,etal. Chexnet:Radiologist-levelpneumo-
+niadetectiononchestx-rayswithdeeplearning. arXivpreprintarXiv:1711.05225,2017.
+Sebastian Ruder. An overview of multi-task learning in deep neural networks. arXiv preprint
+arXiv:1706.05098,2017.
+Changjian Shui, Mahdieh Abbasi, Louis-E´mile Robitaille, Boyu Wang, and Christian Gagne´.
+A principled approach for learning task similarity in multitask learning. arXiv preprint
+arXiv:1903.09109,2019.
+Richard Socher, Alex Perelygin, Jean Wu, Jason Chuang, Christopher D Manning, Andrew Ng,
+and Christopher Potts. Recursive deep models for semantic compositionality over a sentiment
+treebank. InProceedingsofthe2013conferenceonempiricalmethodsinnaturallanguagepro-
+cessing,pages1631–1642,2013.
+TrevorStandley,AmirRZamir,DawnChen,LeonidasGuibas,JitendraMalik,andSilvioSavarese.
+Whichtasksshouldbelearnedtogetherinmulti-tasklearning? arXivpreprintarXiv:1905.07553,
+2019.
+JoelATroppetal. Anintroductiontomatrixconcentrationinequalities. FoundationsandTrends(cid:13)R
+inMachineLearning,8(1-2):1–230,2015.
+13PublishedasaconferencepaperatICLR2020
+AlexWang,AmanpreetSingh,JulianMichael,FelixHill,OmerLevy,andSamuelBowman. Glue:
+Amulti-taskbenchmarkandanalysisplatformfornaturallanguageunderstanding.InProceedings
+of the 2018 EMNLP Workshop BlackboxNLP: Analyzing and Interpreting Neural Networks for
+NLP,pages353–355,2018a.
+Alex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R Bowman.
+Glue: Amulti-taskbenchmarkandanalysisplatformfornaturallanguageunderstanding. arXiv
+preprintarXiv:1804.07461,2018b.
+Xiaosong Wang, Yifan Peng, Le Lu, Zhiyong Lu, Mohammadhadi Bagheri, and Ronald M Sum-
+mers. Chestx-ray8: Hospital-scale chest x-ray database and benchmarks on weakly-supervised
+classificationandlocalizationofcommonthoraxdiseases.InProceedingsoftheIEEEconference
+oncomputervisionandpatternrecognition,pages2097–2106,2017.
+Yu Wang, David Wipf, Qing Ling, Wei Chen, and Ian James Wassell. Multi-task learning for
+subspacesegmentation. 2015.
+JanyceWiebe,TheresaWilson,andClaireCardie.Annotatingexpressionsofopinionsandemotions
+inlanguage. Languageresourcesandevaluation,39(2-3):165–210,2005.
+YaXue,XuejunLiao,LawrenceCarin,andBalajiKrishnapuram. Multi-tasklearningforclassifica-
+tionwithdirichletprocesspriors. JournalofMachineLearningResearch,8(Jan):35–63,2007.
+Amir R Zamir, Alexander Sax, William Shen, Leonidas J Guibas, Jitendra Malik, and Silvio
+Savarese. Taskonomy: Disentangling task transfer learning. In Proceedings of the IEEE Con-
+ferenceonComputerVisionandPatternRecognition,pages3712–3722,2018.
+Hongyang Zhang, Vatsal Sharan, Moses Charikar, and Yingyu Liang. Recovery guarantees for
+quadratictensorswithlimitedobservations. InInternationalConferenceonArtificialIntelligence
+andStatistics(AISTATS),2019a.
+Yu Zhang and Qiang Yang. A survey on multi-task learning. arXiv preprint arXiv:1707.08114,
+2017.
+YuZhangandDit-YanYeung. Aregularizationapproachtolearningtaskrelationshipsinmultitask
+learning. ACMTransactionsonKnowledgeDiscoveryfromData(TKDD),8(3):12,2014.
+YuchenZhang,TianleLiu,MingshengLong,andMichaelIJordan. Bridgingtheoryandalgorithm
+fordomainadaptation. arXivpreprintarXiv:1904.05801,2019b.
+14PublishedasaconferencepaperatICLR2020
+A MISSING DETAILS OF SECTION 2
+We fill in the missing details left from Section 2. In Section A.1, we provide rigorous arguments
+regardingthecapacityofthesharedmodule. InSectionA.2,wefillinthedetailsleftfromSection
+2.3, including the proof of Theorem 2 and its extension to the ReLU model. In Section A.3, we
+providetheproofofProposition3onthetaskreweightingschemes. Wefirstdescribethenotations.
+Notations. Wedefinethenotationstobeusedlateron. Wedenotef(x) (cid:46) g(x)ifthereexistsan
+absolute constant C such that f(x) ≤ Cg(x). The big-O notation f(x) = O(g(x)) means that
+f(x)(cid:46)g(x).
+Suppose A ∈ Rm×n, then λ (A) denotes its largest singular value and λ (A) denotes its
+max min
+min{m,n}-th largest singular value. Alternatively, we have λ (A) = min (cid:107)Ax(cid:107). Let
+min x:(cid:107)x(cid:107)=1
+κ(A) = λ (A)/λ (A)denotetheconditionnumberofA. LetIddenotestheidentitymatrix.
+max min
+Let U† denote the Moore-Penrose pseudo-inverse of the matrix U. Let (cid:107)·(cid:107) denote the Euclidean
+normforvectorsandspectralnormformatrices. Let(cid:107)·(cid:107) denotetheFrobeniusnormofamatrix.
+F
+Let(cid:104)A,B,=(cid:105)Tr(A(cid:62)B)denotetheinnerproductoftwomatrices.
+(cid:112)
+The sine function is define as sin(u,v) = 1−cos(u,v)2, where we assume that sin(u,v) ≥ 0
+whichiswithoutlossofgeneralityforourstudy.
+A.1 MISSINGDETAILSOFSECTION2.2
+We describe the full detail to show that our model setup captures the phenomenon that the shared
+module should be smaller than the sum of capacities of the single-task models. We state the fol-
+lowing proposition which shows that the quality of the subspace B in equation 1 determines the
+performanceofmulti-tasklearning. ThissupplementstheresultofProposition1.
+Proposition4. Intheoptimumoff(·)(equation1),eachA selectsthevectorvwithinthecolumn
+i
+span of g (X ) to minimize L(v,y ). As a corollary, in the linear setting, the optimal B can be
+B i i
+achievedatarotationmatrixB(cid:63) ⊆Rd×r bymaximizing
+k
+(cid:88)
+(cid:104)B(B(cid:62)X(cid:62)X B)†B(cid:62),X(cid:62)y y(cid:62)X (cid:105). (7)
+i i i i i i
+i=1
+Furthermore, anyB(cid:63) whichcontains{θ }k initscolumnsubspaceisoptimal. Inparticular, for
+i i=1
+suchaB(cid:63),thereexists{A(cid:63)}sothatB(cid:63)A(cid:63) =θ forall1≤i≤k.
+i i i
+Proof. RecalltheMTLobjectiveinthelinearsettingfromequation3asfollows:
+k
+minf(A ,A ,...,A ;B)=(cid:88) (X BA −y )2,
+1 2 k i i i
+i=1
+Note that the linear layer A can pick any combination within the subspace of B. Therefore, we
+i
+couldassumewithoutlossofgeneralitythatB isarotationmatrix. i.e. B(cid:62)B =Id. AfterfixingB,
+sinceobjectivef(·)islinearinA foralli,bythelocaloptimalitycondition,weobtainthat
+i
+A =(B(cid:62)X(cid:62)X B)†B(cid:62)X(cid:62)y
+i i i i i
+ReplacingthesolutionofA tof(·),weobtainanobjectiveoverB.
+i
+k
+(cid:88)
+h(B)= (cid:107)X B(B(cid:62)X(cid:62)X B)†B(cid:62)X(cid:62)y −y (cid:107)2.
+i i i i i i F
+i=1
+Next,notethat
+(cid:107)X B(B(cid:62)X(cid:62)X B)†B(cid:62)X(cid:62)y (cid:107)2 =Tr(y(cid:62)X B(B(cid:62)X(cid:62)X B)†B(cid:62)X(cid:62)y )
+i i i i i F i i i i i i
+=(cid:104)B(B(cid:62)X(cid:62)X B)B(cid:62),X(cid:62)y y(cid:62)X (cid:105),
+i i i i i i
+whereweusedthefactthatA†AA† =A†forA=B(cid:62)X(cid:62)X Binthefirstequation.Hencewehave
+i i
+shownequation7.
+15PublishedasaconferencepaperatICLR2020
+Forthefinalclaim,aslongasB(cid:63)contains{θ }k initscolumnsubspace,thenthereexistsA(cid:63)such
+i i=1 i
+thatB(cid:63)A(cid:63) =θ . TheB(cid:63) and{A(cid:63)}k areoptimalsolutionsbecauseeachθ isanoptimalsolution
+i i i i=1 i
+forthesingle-taskproblem.
+TheaboveresultonlinearregressionsuggeststheintuitionthatoptimizinganMTLmodelreduces
+tooptimizingoverthespanofB. Theintuitioncanbeeasilyextendedtolinearclassificationtasks
+aswellasmixturesofregressionandclassificationtasks.
+ExtensiontotheReLUsetting. Ifthesharedmodule’scapacityislargerthanthetotalcapacities
+of the STL models, then we can put all the STL model parameters into the shared module. As in
+thelinearsetting,thefinaloutputlayerA canpickouttheoptimalparameterforthei-thtask. This
+i
+remains an optimal solution to the MTL problem in the ReLU setting. Furthermore, there is no
+transferbetweenanytwotasksthroughthesharedmodule.
+A.2 MISSINGDETAILSOFSECTION2.3
+A.2.1 THEEFFECTOFCOSINESIMILARITY
+We consider the effect of varying the cosine similarity between single task models in multi-task
+learning. Wefirstdescribethefollowingpropositiontosolvethemulti-tasklearningobjectivewhen
+the covariances of the task data are the same. The idea is similar to the work of Ando and Zhang
+(2005)andweadaptithereforourstudy.
+Proposition5. Considerthereweightedlossofequation2withtheencodingfunctionbeinglinear,
+wheretheweightsare{α }k . Supposethetaskfeaturesofeverytaskhavethesamecovariance:
+i i=1
+X(cid:62)X = Σforall1 ≤ i ≤ k. LetΣ = VDV(cid:62) bethesingularvectordecomposition(SVD)ofΣ.
+i i
+Thentheoptimumoff(·)inequation3isachievedat:
+B(cid:63) =VD−1/2C(cid:63),
+whereC(cid:63)C(cid:63)(cid:62)isthebestrank-rapproximationsubspaceof(cid:80)k α U(cid:62)y y(cid:62)U andX =U DV(cid:62)
+i=1 i i i i i i i
+istheSVDofX ,foreach1≤i≤k.
+i
+Asacorollary, denotebyλ ,λ ,...,λ asthesingularvaluesofD−1V(cid:62)(cid:80)k α X(cid:62)y y(cid:62)X in
+1 2 k i=1 i i i i i
+decreasingorder. ThenthedifferencebetweenanMTLmodelwithhiddendimensionr andtheall
+thesingletaskmodelsisboundedby(cid:80)k λ2.
+i=r+1 i
+Proof. NotethatB(cid:63)isobtainedbymaximizing
+k
+(cid:88)
+(cid:104)B(B(cid:62)X(cid:62)X B)−1B(cid:62),α X(cid:62)y y(cid:62)X (cid:105)
+i i i i i i i
+i=1
+Let C = DV(cid:62)B. Clearly, there is a one to one mapping between B and C. And we have B =
+VD−1C. HencetheaboveisequivalenttomaximizingoverC ⊆Rd×r with
+k (cid:32) k (cid:33)
+(cid:88) (cid:88)
+(cid:104)C(C(cid:62)C)−1C(cid:62),D−1V(cid:62) α X(cid:62)y y(cid:62)X VD−1(cid:105)
+i i i i i
+i=1 i=1
+k
+(cid:88)
+=(cid:104)C(C(cid:62)C)−1C(cid:62), α U(cid:62)y y(cid:62)U (cid:105).
+i i i i i
+i=1
+Note that C(C(cid:62)C)−1C(cid:62) is a projection matrix onto a subspace of dimension r. Hence
+the maximum (denote by C(cid:63)) is attained at the best rank-r approximation subspace of
+(cid:80)k α U(cid:62)y y(cid:62)U .
+i=1 i i i i i
+To illustrate the above proposition, consider a simple setting where X is identity for every 1 ≤
+i
+i ≤ k, and y = e , i.e. the i-th basis vector. Note that the optimal solution for the i-th task is
+i i
+(X(cid:62)X )−1X(cid:62)y = y . Hencetheoptimalsolutionsareorthogonaltoeachotherforallthetasks,
+i i i i i
+withλ =1forall1≤i≤k. AndtheminimumSTLerroriszeroforalltasks.
+i
+16PublishedasaconferencepaperatICLR2020
+ConsidertheMTLmodelwithhiddendimensionr. ByProposition5, theminimumMTLerroris
+achieved by the best rank-r approximation subspace to (cid:80)k X(cid:62)y y(cid:62)X = (cid:80)k y y(cid:62). Denote
+i=1 i i i i i=1 i i
+theoptimumasB(cid:63). TheMTLerroris:
+r
+k k
+(cid:88) (cid:107)y (cid:107)2−(cid:104)(cid:88) y y(cid:62),B(cid:63)B(cid:63)(cid:62)(cid:105)=k−r.
+i i i r r
+i=1 i=1
+Differentdatacovariance. WeprovideupperboundsonthequalityofMTLsolutionsfordifferent
+datacovariance,whichdependontherelatednessofallthetasks. Thefollowingproceduregivesthe
+precisestatement. Considerk regressiontaskswithdata{(X ,y )}k . Letθ = (X(cid:62)X )†X(cid:62)y
+i i i=1 i i i i i
+denote the optimal solution of each regression task. Let W ⊆ Rd×k denote the matrix where the
+i-thcolumnisequaltoθ . ConsiderthefollowingprocedurefororthogonalizingW for1≤i≤k.
+i
+a) LetW i(cid:63) ∈Rddenotethevectorwhichmaximizes(cid:80)k i=1(cid:104) (cid:107)XX ii BB (cid:107),y i(cid:105)2overB ∈Rd;
+b) Denotebyλ =(cid:80)k (cid:104) XjW j(cid:63) ,y (cid:105)2;
+j j=1 (cid:107)XjW j(cid:63)(cid:107) j
+c) Foreach1≤i≤k,projectX W(cid:63)offfromeverycolumnofX . GotoStepa).
+i i i
+Proposition 6. Suppose that r ≤ d. Let B(cid:63) denote the optimal MTL solution of capacity r in
+the shared module. Denote by OPT = (cid:80)k ((cid:107)y (cid:107)2 −(cid:107)X (X(cid:62)X )†X(cid:62)y (cid:107)2). Then h(B(cid:63)) ≤
+i=1 i i i i i i
+OPT
+−(cid:80)d
+λ .
+i=r+1 i
+Proof. It suffices to show that OPT is equal to (cid:80)k λ . The result then follows since h(B(cid:63)) is
+i=1 i
+lessthantheerrorgivenbyW(cid:63),...,W(cid:63),whichisequaltoOPT −(cid:80)d λ .
+1 k i=r+1 i
+A.2.2 PROOFOFTHEOREM2
+WefillintheproofofTheorem2. First,werestatetheresultrigorouslyasfollows.
+Theorem 2. For i = 1,2, let (X i,y i) ∈ (Rmi×d,Rmi) denote two linear regression tasks with
+parametersθ ∈ Rd. SupposethateachrowofX isdrawnindependentlyfromadistributionwith
+i √ 1
+covarianceΣ ⊆Rd×dandboundedl -norm L. Assumethatθ(cid:62)Σ θ =1w.l.o.g.
+1 2 1 1 1
+Let c ∈ [κ(X )sin(θ ,θ ),1/3] denote the desired error margin. Denote by (B(cid:63),A(cid:63),A(cid:63)) the
+2 1 2 1 2
+optimalMTLsolution. Withprobability1−δovertherandomnessof(X ,y ),when
+1 1
+(cid:32) (cid:33)
+L(cid:107)Σ (cid:107)logd κ(Σ )κ2(X ) κ2(Σ )κ4(X ) 1
+m (cid:38)max 1 δ, 1 2 (cid:107)y (cid:107)2, 1 2 σ2log ,
+1 λ2 (Σ ) c2 2 c4 1 δ
+min 1
+wehavethat(cid:107)B(cid:63)A(cid:63)−θ (cid:107)/(cid:107)θ (cid:107)≤6c+ 1 (cid:107)ε (cid:107)/(cid:107)X θ (cid:107).
+2 2 2 1−3c 2 2 2
+WemakeseveralremarkstoprovidemoreinsightonTheorem2.
+• Theorem 2 guarantees positive transfers in MTL, when the source and target models are
+closeandthenumberofsourcesamplesislarge.WhiletheintuitionisfolkloreinMTL,we
+provideaformaljustificationinthelinearandReLUmodelstoquantifythephenomenon.
+• Theerrorbounddecreaseswithc,hencethesmallercisthebetter. Ontheotherhand,the
+requirednumberofdatapointsm increases. Hencethereisatrade-offbetweenaccuracy
+1
+andtheamountofdata.
+• cisassumedtobeatmost1/3. Thisassumptionariseswhenwedealwiththelabelnoise
+of task 2. If there is no noise for task 2, then this assumption is not needed. If there is
+noisefortask2, thisassumptionissatisfiedwhensin(θ ,θ )islessthan1/(3κ(X )). In
+1 2 2
+syntheticexperiments,weobservethatthedependenceonκ(X )andsin(θ ,θ )botharise
+2 1 2
+intheperformanceoftask2,cf. Figure3andFigure7,respectively.
+TheproofofTheorem2consistsoftwosteps.
+17PublishedasaconferencepaperatICLR2020
+a) WeshowthattheanglebetweenB(cid:63) andθ willbesmall. Oncethisisestablished,weget
+1
+aboundontheanglebetweenB(cid:63)andθ viathetriangleinequality.
+2
+b) WeboundthedistancebetweenB(cid:63)A andθ . Thedistanceconsistsoftwoparts. Onepart
+2 2
+comes from B(cid:63), i.e. the angle between B(cid:63) and θ . The second part comes from A , i.e.
+2 2
+theestimationerrorofthenormofθ ,whichinvolvesthesignaltonoiseratiooftasktwo.
+2
+Wefirstshowthefollowinggeometricfact,whichwillbeusedlaterintheproof.
+Fact7. Leta,b ∈ Rd denotetwounitvectors. SupposethatX ∈ Rm×d hasfullcolumnrankwith
+conditionnumberdenotedbyκ=κ(X). Thenwehave
+1
+|sin(Xa,Xb)|≥ |sin(a,b)|.
+κ2
+Proof. LetX = UDV(cid:62) betheSVDofX. SinceX hasfullcolumnrankbyassumption,wehave
+X(cid:62)X =XX(cid:62) =Id. Clearly,wehavesin(Xa,Xb)=sin(DV(cid:62)a,DV(cid:62)b). Denotebya(cid:48) =V(cid:62)a
+and b(cid:48) = V(cid:62)b. We also have that a(cid:48) and b(cid:48) are both unit vectors, and sin(a(cid:48),b(cid:48)) = sin(a,b). Let
+λ ,...,λ denotethesingularvaluesofX. Then,
+1 d
+(cid:16)
+(cid:80)d
+λ2a(cid:48)b(cid:48)(cid:17)2
+sin2(Da(cid:48),Db(cid:48))=1− i=1 i i i
+(cid:16) (cid:17)(cid:16) (cid:17)
+(cid:80)d λ2a(cid:48)2 (cid:80)d λ2b(cid:48)2
+i=1 i i i=1 i i
+(cid:80) λ2λ2(a(cid:48)b(cid:48) −a(cid:48)b(cid:48))2
+= 1≤i,j≤d i j i j j i
+(cid:16) (cid:17)(cid:16) (cid:17)
+(cid:80)d λ2a(cid:48)2 (cid:80)d λ2b(cid:48)2
+i=1 i i i=1 j i
+≥ λ4 min · (cid:88) (a(cid:48)b(cid:48) −a(cid:48)b(cid:48))2
+λ4 i j j i
+max 1≤i,j≤d
+d d d
+= 1 (((cid:88) a(cid:48)2)((cid:88) b(cid:48)2)−((cid:88) a(cid:48)b(cid:48))2)= 1 sin2(a(cid:48),b(cid:48)).
+κ4 i i i i κ4
+i=1 i=1 i=1
+Thisconcludestheproof.
+WefirstshowthefollowingLemma,whichboundstheanglebetweenB(cid:63)andθ .
+2
+Lemma8. InthesettingofTheorem2,withprobability1−δovertherandomnessoftaskone,we
+havethat
+|sin(B(cid:63),θ )|≤sin(θ ,θ )+c/κ(X ).
+2 1 2 2
+Proof. Wenotethath(B(cid:63))≥(cid:107)y 1(cid:107)2 bytheoptimalityofB(cid:63). Furthermore,(cid:104) (cid:107)XX 22 BB (cid:63)(cid:63) (cid:107),y 2(cid:105)≤(cid:107)y 2(cid:107)2.
+Henceweobtainthat
+X B(cid:63)
+(cid:104) 1 ,y (cid:105)2 ≥(cid:107)y (cid:107)2−(cid:107)y (cid:107)2.
+(cid:107)X B(cid:63)(cid:107) 1 1 2
+1
+Forthelefthandside,
+X B(cid:63) X B(cid:63)
+(cid:104) 1 ,y (cid:105)2 =(cid:104) 1 ,X θ +ε (cid:105)2
+(cid:107)X B(cid:63)(cid:107) 1 (cid:107)X B(cid:63)(cid:107) 1 1 1
+1 1
+X B(cid:63) X B(cid:63) X B(cid:63) X B(cid:63)
+=(cid:104) 1 ,X θ (cid:105)2+(cid:104) 1 ,ε (cid:105)2+2(cid:104) 1 ,X θ (cid:105)(cid:104) 1 ,ε (cid:105)
+(cid:107)X B(cid:63)(cid:107) 1 1 (cid:107)X B(cid:63)(cid:107) 1 (cid:107)X B(cid:63)(cid:107) 1 1 (cid:107)X B(cid:63)(cid:107) 1
+1 1 1 1
+Note that the second term is a chi-squared random variable with expectation σ2. Hence it is
+1
+(cid:113)
+bounded by σ2 log1 with probability at least 1 − δ. Similarly, the third term is bounded by
+1 δ
+(cid:113)
+2(cid:107)X θ (cid:107)σ log1 withprobability1−δ. Therefore,weobtainthefollowing:
+1 1 1 δ
+(cid:114)
+1
+(cid:107)X θ (cid:107)2cos2(X B(cid:63),X θ )≥(cid:107)y (cid:107)2−(cid:107)y (cid:107)2−(σ2+2σ (cid:107)X θ (cid:107)) log
+1 1 1 1 1 1 2 1 1 1 1 δ
+18PublishedasaconferencepaperatICLR2020
+Notethat
+(cid:107)y (cid:107)2 ≥(cid:107)X θ (cid:107)2+2(cid:104)X θ ,ε (cid:105)
+1 1 1 1 1 1
+(cid:114)
+1
+≥(cid:107)X θ (cid:107)2−2(cid:107)X θ (cid:107)σ log .
+1 1 1 1 1 δ
+Therefore,
+(cid:114)
+1
+(cid:107)X θ (cid:107)2cos2(X B(cid:63),X θ )≥(cid:107)X θ (cid:107)2−(cid:107)y (cid:107)2−(σ2+3σ (cid:107)X θ (cid:107)) log
+1 1 1 1 1 1 1 2 1 1 1 1 δ
+(cid:113)
+⇒sin2(X B(cid:63),X θ )≤ (cid:107)y 2(cid:107)2 + 4σ 1 log1 δ
+1 1 1 (cid:107)X θ (cid:107)2 (cid:107)X θ (cid:107)
+1 1 1 1
+ (cid:113) 
+⇒sin2(B(cid:63),θ 1)≤κ2(X 1) (cid:107)X(cid:107)y 2 θ(cid:107)2
+(cid:107)2
++ 4σ (cid:107)1
+X
+θlog (cid:107)1 δ  (byLemma7)
+1 1 1 1
+BymatrixBernsteininequality(seee.g. Troppetal.(2015)),whenm ≥10(cid:107)Σ (cid:107)logd/λ2 (Σ ),
+1 1 δ min 1
+wehavethat:
+(cid:13) (cid:13)
+(cid:13) (cid:13) (cid:13)m1 X 1(cid:62)X 1−Σ 1(cid:13) (cid:13) (cid:13)≤ 21 λ min(Σ 1).
+1
+Hence we obtain that κ2(X ) ≤ 3κ(Σ ) and (cid:107)X θ (cid:107)2 ≥ m · θ(cid:62)Σ θ /2 ≥ m /2 (where we
+1 1 1 1 1 1 1 1 1
+assumedthatθ(cid:62)Σ θ =1). Therefore,
+1 1 1
+ (cid:113) 
+sin2(B(cid:63),θ 1)≤3κ(Σ 1)(cid:107) my 22 /(cid:107) 42 + 4σ (cid:112)1 mlo /g 21 δ ,
+1 1
+which is at most c2/κ2(X ) by our setting of m . Therefore, the conclusion follows by triangle
+2 1
+inequality(notingthatbothcandsin(θ ,θ )arelessthan1/2).
+1 2
+BasedontheaboveLemma,wearenowtoreadytoproveTheorem2.
+ProofofTheorem2. NotethatintheMTLmodel,afterobtainingB(cid:63),wethensolvethelinearlayer
+for each task. For task 2, this gives weight value A(cid:63) := (cid:104)X θˆ,y (cid:105)/(cid:107)X θˆ(cid:107)2. Thus the regression
+2 2 2 2
+coefficientsfortask2isB(cid:63)A(cid:63).Fortherestoftheproof,wefocusonboundingthedistancebetween
+2
+B(cid:63)A(cid:63)andθ . Bytriangleinequality,
+2 2
+(cid:107)B(cid:63)A(cid:63) 2−θ 2(cid:107)≤ |(cid:104) (cid:107)X X2B B(cid:63) (cid:63),ε (cid:107)2 2(cid:105)| +(cid:12) (cid:12) (cid:12) (cid:12)(cid:104)X (cid:107)2 XB(cid:63) B,X (cid:63)(cid:107)2 2θ 2(cid:105) −(cid:107)θ 2(cid:107)(cid:12) (cid:12) (cid:12) (cid:12)+(cid:107)B(cid:63)(cid:107)θ 2(cid:107)−θ 2(cid:107). (8)
+2 2
+Notethatthesecondtermofequation8isequalto
+|(cid:104)X B(cid:63),X (θ −(cid:107)θ (cid:107)B(cid:63))(cid:105)|
+2 2 2 2 ≤κ(X )·(cid:107)θ −(cid:107)θ (cid:107)B(cid:63)(cid:107).
+(cid:107)X B(cid:63)(cid:107)2 2 2 2
+2
+Thefirsttermofequation8isboundedby
+(cid:107)ε (cid:107) (cid:107)ε (cid:107)(cid:107)θ (cid:107)
+2 ≤ 2 2 . (9)
+(cid:107)X B(cid:63)(cid:107) (cid:107)X θ (cid:107)−(cid:107)X (θ −(cid:107)θ (cid:107)B(cid:63))(cid:107)
+2 2 2 2 2 2
+Lastly,wehavethat
+(cid:107)θ −(cid:107)θ (cid:107)B(cid:63)(cid:107)2 =(cid:107)θ (cid:107)22(1−cos(B(cid:63),θ ))≤2(cid:107)θ (cid:107)2sin2(B(cid:63),θ )
+2 2 2 2 2 2
+ByLemma8,wehave
+|sin(B(cid:63),θ )|≤sin(θ ,θ )+c/κ(X )
+2 1 2 2
+19PublishedasaconferencepaperatICLR2020
+Therefore,weconcludethatequation9isatmost
+(cid:107)ε (cid:107)·(cid:107)θ (cid:107)
+√ 2 2 √
+(cid:107)X θ (cid:107)− 2λ (X )(cid:107)θ (cid:107)sin(θ ,θ )− 2cλ (X )(cid:107)θ (cid:107)
+2 2 max 2 2 1 2 min 2 2
+(cid:107)ε (cid:107)·(cid:107)θ (cid:107)
+≤ 2 2
+(cid:107)X θ (cid:107)−3cλ (X )(cid:107)θ (cid:107)
+2 2 min 2 2
+1 (cid:107)ε (cid:107)·(cid:107)θ (cid:107)
+≤ 2 2
+1−3c (cid:107)X θ (cid:107)
+2 2
+Thusequation8isatmostthefollowing.
+(cid:18) 1 (cid:107)ε (cid:107) √ (cid:19)
+(cid:107)θ (cid:107)· 2 + 2(κ(X )+1)·sin(B(cid:63),θ )
+2 1−3c(cid:107)X θ (cid:107) 2 2
+2 2
+(cid:18) (cid:19)
+1 (cid:107)ε (cid:107)
+≤(cid:107)θ (cid:107)· 2 +6c .
+2 1−3c(cid:107)X θ (cid:107)
+2 2
+HenceweobtainthedesiredestimationerrorofBA(cid:63).
+2
+A.2.3 EXTENSIONTOTHERELUMODEL
+In this part, we extend Theorem 2 to the ReLU model. Note that the problem is reduced to the
+followingobjective.
+ReLU(X B) ReLU(X B)
+maxg(B)=(cid:104) 1 ,y (cid:105)2+(cid:104) 2 ,y (cid:105)2 (10)
+B∈Rd (cid:107)ReLU(X 1B)(cid:107) 1 (cid:107)ReLU(X 2B)(cid:107) 2
+We make a crucial assumption that task 1’s input X follows the Gaussian distribution. Note that
+1
+making distributional assumptions is necessary because for worst-case inputs, even optimizing a
+single ReLU function under the squared loss is NP-hard (Manurangsi and Reichman (2018)). We
+stateourresultformallyasfollows.
+Theorem 9. Let (X 1,y 1) ∈ (Rm1×d,Rm1) and (X 2,y 2) ∈ (Rm2×d,Rm2) denote two
+tasks. Suppose that each row of X is drawn from the standard Gaussian distribution. And
+1
+y = a · ReLU(X θ ) + ε are generated via the ReLU model with θ ,θ ∈ Rd. Let
+i i i i i 1 2
+E(cid:2) (a ·ReLU(X θ ))2(cid:3) =1forevery1≤j ≤m withoutlossofgenerality,andletσ2denotethe
+i i i j 1 1
+varianceofeveryentryofε .
+1
+Suppose that c ≥ sin(θ ,θ )/κ(X ). Denote by (B(cid:63),A(cid:63),A(cid:63)) the optimal MTL solution of equa-
+1 2 2 1 2
+tion10. Withprobability1−δovertherandomnessof(X ,y ),when
+1 1
+(cid:18)
+dlogd 1 (cid:107)y
+(cid:107)2(cid:19)
+m (cid:38)max ( +logd), 2 ,
+1 c2 c2 c2
+wehavethattheestimationerrorisatmost:
+sin(B(cid:63),θ )≤sin(θ ,θ )+O(c/κ(X )),
+1 1 2 2
+|A(cid:63)−a | 1 (cid:107)ε (cid:107)
+2 2 ≤O(c)+ · 2
+a (1−O(c)) a ·ReLU((cid:107)X θ (cid:107))
+2 2 2 2
+Proof. The proof follows a similar structure to that of Theorem 2. Without loss of generality, we
+canassumethatθ ,θ arebothunitvectors. WefirstboundtheanglebetweenB(cid:63)andθ .
+1 2 1
+BytheoptimalityofB(cid:63),wehavethat:
+ReLU(X B(cid:63)) ReLU(X θ )
+(cid:104) 1 ,y (cid:105)2 ≥(cid:104) 1 1 ,y (cid:105)2−(cid:107)y (cid:107)2
+(cid:107)ReLU(X B(cid:63))(cid:107) 1 (cid:107)ReLU(X θ )(cid:107) 1 2
+1 1 1
+Fromthisweobtain:
+ReLU(X B(cid:63))
+a2·(cid:104) 1 ,ReLU(X B(cid:63))(cid:105)2
+1 (cid:107)ReLU(X B(cid:63))(cid:107) 1
+1
+(cid:114)
+1
+≥a2·(cid:107)ReLU(X θ )(cid:107)2−(cid:107)y (cid:107)2−(σ2+4a ·σ (cid:107)ReLU(X θ )(cid:107)) log (11)
+1 1 1 2 1 1 1 1 1 δ
+20PublishedasaconferencepaperatICLR2020
+Note that each entry of ReLU(X θ ) is a truncated Gaussian random variable. By the Hoeffding
+1 1
+bound,withprobability1−δwehave
+(cid:114)
+(cid:12) m (cid:12) m 1
+(cid:12)(cid:107)ReLU(X θ )(cid:107)2− 1(cid:12)≤ 1 log .
+(cid:12) 1 1 2 (cid:12) 2 δ
+As for (cid:104)ReLU(X B(cid:63)),ReLU(X θ )(cid:105), we will use an epsilon-net argument over B(cid:63) to show the
+1 1 1
+concentration. ForafixedB(cid:63),wenotethatthisisasumofindependentrandomvariablesthatare
+allboundedwithinO(logm δ1)withprobability1−δ. DenotebyφtheanglebetweenB(cid:63) andθ 1,
+astandardgeometricfactstatesthat(seee.g. Lemma1ofDuetal.(2017))forarandomGaussian
+vectorx∈Rd,
+E(cid:2) ReLU(x(cid:62)B(cid:63))·ReLU(x(cid:62)θ )(cid:3) = cosφ + cosφ(tanφ−φ) := g(φ) .
+x 1 2 2π 2
+Therefore,byapplyingBernstein’sinequalityandunionbound,withprobability1−ηwehave:
+(cid:114)
+1 2 1 m
+|(cid:104)ReLU(X B(cid:63)),ReLU(X θ )(cid:105)−m g(φ)/2|≤2 m g(φ)log + log log 1
+1 1 1 1 1 η 3 η δ
+Bystandardarguments,thereexistsasetofdO(d) unitvectorsS suchthatforanyotherunitvector
+u there exists uˆ ∈ S such that (cid:107)u−uˆ(cid:107) ≤ min(1/d3,c2/κ2(X )). By setting η = d−O(d) and
+2
+takeunionboundoverallunitvectorsinS,wehavethatthereexistsuˆ∈S satisfying(cid:107)B(cid:63)−uˆ(cid:107)≤
+min(1/d3,c2/κ2(X ))andthefollowing:
+2
+|(cid:104)ReLU(X uˆ),ReLU(X θ )(cid:105)−m g(φ(cid:48))/2|(cid:46)(cid:112) m dlogd+dlog2d
+1 1 1 1 1
+≤2m c2/κ2(X ) (byoursettingofm )
+1 2 1
+whereφ(cid:48)istheanglebetweenuˆandθ . Notethat
+1
+(cid:12) (cid:12)
+(cid:12)(cid:104)ReLU(X θˆ)−ReLU(X B(cid:63)),ReLU(X θ )(cid:105)(cid:12)≤(cid:107)X (uˆ−B(cid:63))(cid:107)·(cid:107)ReLU(X θ )(cid:107)
+(cid:12) 1 1 1 1 (cid:12) 1 1 1
+≤c2/κ2(X )·O(m )
+2 1
+Togetherwehaveshownthat
+|(cid:104)ReLU(X B(cid:63)),ReLU(X θ )(cid:105)−m g(φ(cid:48))/2|≤c2/κ2(X )·O(m ).
+1 1 1 1 2 1
+Combinedwithequation11,byoursettingofm ,itisnothardtoshowthat
+1
+g(φ(cid:48))≥1−O(c2/κ2(X )).
+2
+Notethat
+1−g(φ(cid:48)) = 1−cosφ(cid:48)−cosφ(cid:48)(tanφ(cid:48)−φ(cid:48))
+φ(cid:48)
+≤ 1−cosφ(cid:48) =2sin2 (cid:46)c2/κ2(X ),
+2 2
+which implies that sin2φ(cid:48) (cid:46) c2/κ2(X ) (since cosφ(cid:48) ≥ 0.9). Finally note that (cid:107)uˆ − B(cid:63)(cid:107) ≤
+2 2
+c2/κ2(X ),hence
+2
+(cid:107)uˆ−B(cid:63)(cid:107)2 =2(1−cos(uˆ,B(cid:63)))≥2sin2(uˆ,B(cid:63)).
+Overall,weconcludethatsin(B(cid:63),θ )≤O(c/κ(X )). Hence
+1 2
+sin(B(cid:63),θ )≤sin(θ ,θ )+O(c/κ(X )).
+2 1 2 2
+Fortheestimationofa ,wehave
+2
+(cid:12) (cid:12) (cid:12) (cid:12)(cid:104) (cid:107)R ReL eLU U(X (X2B B(cid:63)) (cid:63), )y (cid:107)2 2(cid:105) −a 2(cid:12) (cid:12) (cid:12) (cid:12)≤|(cid:104) (cid:107)R ReL eLU U(X (X2B B(cid:63) (cid:63)), )ε (cid:107)2 2(cid:105)|
+2 2
++a 2(cid:12) (cid:12) (cid:12) (cid:12)(cid:104)ReLU(X 2B(cid:63)) (cid:107), RR ee LL UU (( XX 2 BB (cid:63)(cid:63) )) (cid:107)−
+2
+ReLU(X 2θ 2)(cid:105)(cid:12) (cid:12) (cid:12)
+(cid:12)
+2
+Thefirstpartisatmost
+(cid:107)ε (cid:107) (cid:107)ε (cid:107)
+2 ≤ 2
+(cid:107)ReLU(X B(cid:63))(cid:107) (cid:107)ReLU(X θ )(cid:107)−(cid:107)ReLU(X θ )−ReLU(X B(cid:63))(cid:107)
+2 2 2 2 2 2
+1 (cid:107)ε (cid:107)
+≤ 2
+1−O(c)(cid:107)ReLU(X θ )(cid:107)
+2 2
+Similarly,wecanshowthatthesecondpartisatmostO(c). Therefore,theproofiscomplete.
+21PublishedasaconferencepaperatICLR2020
+A.3 PROOFOFPROPOSITION3
+In this part, we present the proof of Proposition 3. In fact, we present a more refined result, by
+showingthatalllocalminimaareglobalminimaforthereweightedlossinthelinearcase.
+k
+(cid:88)
+f(A ,A ,...,A ;B)= α (cid:107)X BA −y )(cid:107)2. (12)
+1 2 k i i i i
+F
+i=1
+The key is to reduce the MTL objective f(·) to low rank matrix approximation, and apply recent
+results by Balcan et al. (2018) which show that there is no spurious local minima for the latter
+problem.
+Lemma10. AssumethatX(cid:62)X = α Σwithα > 0forall1 ≤ i ≤ k. Thenallthelocalminima
+i i i i
+off(A ,...,A ;B)areglobalminimaofequation3.
+1 k
+Proof. We first transform the problem from the space of B to the space of C. Note that this is
+withoutlossofgenerality,sincethereisaonetoonemappingbetweenBandC withC =DV(cid:62)B.
+Inthiscase,thecorrespondingobjectivebecomesthefollowing.
+k
+(cid:88)
+g(A ,...,A ;B)= α ·(cid:107)U CA −y (cid:107)2
+1 k i i i i
+i=1
+k k
+(cid:88) √ √ (cid:88)
+= (cid:107)C( α A )− α U(cid:62)y (cid:107)2+ α ·((cid:107)y (cid:107)2−(cid:107)U(cid:62)y (cid:107)2)
+i i i i i i i i i
+i=1 i=1
+The latter expression is a constant. Hence it does not affect the optimization solution. For the
+√
+former,denotebyA ∈ Rr×k asstackingthe α A ’stogethercolumn-wise. Similarly,denoteby
+√ i i
+Z ∈Rd×k asstacking α U(cid:62)y togethercolumn-wise. Thenminimizingg(·)reducessolvinglow
+i i i
+rankmatrixapproximation: (cid:107)CA−Z(cid:107)2.
+F
+By Lemma 3.1 of Balcan et al. (2018), the only local minima of (cid:107)CA−Z(cid:107)2 are the ones where
+F
+CAisequaltothebestrank-rapproximationofZ. Hencetheproofiscomplete.
+NowwearereadytoproveProposition3.
+ProofofProposition3. By Proposition 5, the optimal solution of B(cid:63) for equation 12 is VD−1
+times the best rank-r approximation to α U(cid:62)y y(cid:62)U, where we denote the SVD of X as UDV(cid:62).
+i i i
+Denote by Q Q(cid:62) as the best rank-r approximation to U(cid:62)ZZ(cid:62)U, where we denote by Z =
+√ √ r r √
+[ α y , α y ,..., α y ] as stacking the k vectors to a d by k matrix. Hence the result of
+1 1 2 2 k k
+Proposition5showsthattheoptimalsolutionB(cid:63) isVD−1Q , whichisequalto(X(cid:62)X)−1XQr.
+r
+ByProposition4,theoptimalityofB(cid:63)isthesameuptotransformationsonthecolumnspace.Hence
+theproofiscomplete.
+To show that all local minima are also equal to (X(cid:62)X)−1XQr, we can simply apply Lemma 10
+andProposition3.
+Remark.ThisresultonlyappliestothelinearmodelanddoesnotworkonReLUmodels.Theques-
+tionofcharacterizingtheoptimizationlandscapeinnon-linearReLUmodelsisnotwell-understood
+basedonthecurrenttheoreticalunderstandingofneuralnetworks. Weleavethisforfuturework.
+22PublishedasaconferencepaperatICLR2020
+B SUPPLEMENTARY EXPERIMENTAL RESULTS
+We fill in the details left from our experimental section. In Appendix B.1, we review the datasets
+used in our experiments. In Appendix B.2, we describe the models we use on each dataset. In
+Appendix B.3, we describe the training procedures for all experiments. In Appendix B.4 and Ap-
+pendixB.5,weshowextendedsyntheticandrealworldexperimentstosupportourclaims.
+B.1 DATASETS
+We describe the synthetic settings and the datasets Sentiment Analysis, General Language Under-
+standingEvaluation(GLUE)benchmark,andChestX-ray14usedintheexperiments.
+Synthetic settings. For the synthetic experiments, we draw 10,000 random data samples with di-
+mensiond=100fromthestandardGaussianN(0,1)andcalculatethecorrespondinglabelsbased
+on the model described in experiment. We split the data samples into training and validation sets
+with9,000and1,000samplesineach. Forclassificationtasks,wegeneratethelabelsbyapplying
+a sigmoid function and then thresholding the value to binary labels at 0.5. For ReLU regression
+tasks,weapplytheReLUactivationfunctiononthereal-valuedlabels. Thenumberofdatasamples
+usedintheexperimentsvariesdependingonthespecification. Specifically,forthetaskcovariance
+experimentofFigure3,wefixtask1’sdatawithm = 9,000trainingdataandvarytask2’sdata
+1
+underthreesettings: (i)samerotationQ = Q butdifferentsingularvaluesD (cid:54)= D ; (ii)same
+1 2 1 2
+singularvaluesD =D butrandomrotationsQ (cid:54)=Q .
+1 2 1 2
+Sentimentanalysis.Forthesentimentanalysistask,thegoalistounderstandthesentimentopinions
+expressedinthetextbasedonthecontextprovided. Thisisapopulartextclassificationtaskwhich
+isusuallyformulatedasamulti-labelclassificationtaskoverdifferentratingssuchaspositive(+1),
+negative(-1),orneutral(0). Weusesixsentimentanalysisbenchmarksinourexperiments:
+• Moviereviewsentiment(MR):IntheMRdataset(PangandLee(2005)), eachmoviere-
+viewconsistsofasinglesentence. Thegoalistodetectpositivevs. negativereviews.
+• Sentencesubjectivity(SUBJ):TheSUBJdatasetisproposedinPangandLee(2004)and
+thegoalistoclassifywhetheragivensentenceissubjectiveorobjective.
+• Customer reviews polarity (CR): The CR dataset (Hu and Liu (2004)) provides customer
+reviewsofvariousproducts. Thegoalistocategorizepositiveandnegativereviews.
+• Questiontype(TREC):TheTRECdatasetiscollectedbyLiandRoth(2002). Theaimis
+toclassifyaquestioninto6questiontypes.
+• Opinionpolarity(MPQA):TheMPQAdatasetdetectswhetheranopinionispolarizedor
+not(Wiebeetal.(2005)).
+• Stanfordsentimenttreebank(SST):TheSSTdataset,createdbySocheretal.(2013),isan
+extensionoftheMRdataset.
+TheGeneralLanguageUnderstandingEvaluation(GLUE)benchmark. GLUEisacollection
+of NLP tasks including question answering, sentiment analysis, text similarity and textual entail-
+mentproblems. TheGLUEbenchmarkisastate-of-the-artMTLbenchmarkforbothacademiaand
+industry. We select five representative tasks including CoLA, MRPC, QNLI, RTE, and SST-2 to
+validate our proposed method. We emphasize that the goal of this work is not to come up with a
+state-of-the-art result but rather to provide insights into the working of multi-task learning. It is
+conceivablethatourresultscanbeextendedtotheentiredatasetaswell. Thisisleftforfuturework.
+MoredetailsabouttheGLUEbenchmarkcanbefoundintheoriginalpaper(Wangetal.(2018a)).
+ChestX-ray14. The ChestX-ray14 dataset (Wang et al. (2017)) is the largest publicly available
+chestX-raydataset. Itcontains112,120frontal-viewX-rayimagesof30,805uniquepatients. Each
+imagecontainsupto14differentthoracicpathologylabelsusingautomaticextractionmethodson
+radiology reports. This can be formulated as a 14-task multi-label image classification problem.
+The ChestX-ray14 dataset is a representative dataset in the medical imaging domain as well as in
+computer vision. We use this dataset to examine our proposed task reweighting scheme since it
+satisfiestheassumptionthatalltaskshavethesameinputdatabutdifferentlabels.
+23PublishedasaconferencepaperatICLR2020
+B.2 MODELS
+Syntheticsettings. Forthesyntheticexperiments,weusethelinearregressionmodel,thelogistic
+regressionmodelandaone-layerneuralnetworkwiththeReLUactivationfunction.
+Sentiment analysis. For the sentiment analysis experiments, we consider three different models
+includingmulti-layerperceptron(MLP),LSTM,CNN:
+• FortheMLPmodel,weaveragethewordembeddingsofasentenceandfeedtheresultinto
+atwolayerperceptron,followedbyaclassificationlayer.
+• For the LSTM model, we use the standard one-layer single direction LSTM as proposed
+byLeietal.(2018),followedbyaclassificationlayer.
+• FortheCNNmodel,weusethemodelproposedbyKim(2014)whichusesoneconvolu-
+tionallayerwithmultiplefilters,followedbyaReLUlayer,max-poolinglayer,andclassi-
+ficationlayer. WefollowtheprotocolofKim(2014)andsetthefiltersizeas{3,4,5}.
+We use the pre-trained GLoVe embeddings trained on Wikipedia 2014 and Gigaword 5 corpora 6.
+We fine-tune the entire model in our experiments. In the multi-task learning setting, the shared
+modulesincludetheembeddinglayerandthefeatureextractionlayer(i.e. theMLP,LSTM,orCNN
+model). Eachtaskhasitsseparateoutputmodule.
+GLUE. For the experiments on the GLUE benchmark, we use a state-of-the-art language model
+calledBERT(Devlinetal.(2018)). Foreachtask,weaddaclassification/regressionlayerontopit
+asourmodel. Foralltheexperiments,weusetheBERT uncasedmodel,whichisa24layer
+LARGE
+networkasdescribedinDevlinetal.(2018). Forthemulti-tasklearningsetting,wefollowthework
+of Liuetal.(2019a)anduseBERT asthesharedmodule.
+LARGE
+ChestX-ray14. For the experiments on the ChestX-ray14 dataset, we use the DenseNet model
+proposedbyRajpurkaretal.(2017)asthesharedmodule,whichisa121layernetwork. Foreach
+task,weuseaseparateclassificationoutputlayer.Weusethepre-trainedmodel7inourexperiments.
+B.3 TRAININGPROCEDURES
+Inthissubsection,wedescribethetrainingproceduresforourexperiments.
+Mini-batchSGD.WedescribethedetailsoftaskdatasamplinginourSGDimplementation.
+• For tasks with different features such as GLUE, we first divide each task data into small
+batches. Then, wemixallthebatchesfromalltasksandshufflerandomly. Duringevery
+epoch, a SGD step is applied on every batch over the corresponding task. If the current
+batchisfortaski,thentheSGDisappliedonA ,andpossiblyR orB dependingonthe
+i i
+setup. Theotherparametersforothertasksarefixed.
+• FortaskswiththesamefeaturessuchasChestX-ray14,theSGDisappliedonallthetasks
+jointlytoupdatealltheA ’sandBtogether.
+i
+Syntheticsettings. Forthesyntheticexperiments,wedoagridsearchoverthelearningratefrom
+{1e−4,1e−3,1e−2,1e−1}andthenumberofepochsfrom{10,20,30,40,50}. Wepickthe
+bestresultsforalltheexperiments. Wechoosethelearningratetobe1e−3,thenumberofepochs
+tobe30,andthebatchsizetobe50. Forregressiontask,wereporttheSpearman’scorrelationscore
+Forclassificationtask,wereporttheclassificationaccuracy.
+Sentimentanalysis. Forthesentimentanalysisexperiments,werandomlysplitthedataintotrain-
+ing, dev and test sets with percentages 80%, 10%, and 10% respectively. We follow the protocol
+ofLeietal.(2018)tosetupourmodelforthesentimentanalysisexperiments.
+Thedefaulthiddendimensionofthemodel(e.g. LSTM)issettobe200,butwevarythisparameter
+forthemodelcapacityexperiments. Wereporttheaccuracyscoreonthetestsetastheperformance
+metric.
+6http://nlp.stanford.edu/data/wordvecs/glove.6B.zip
+7https://github.com/pytorch/vision
+24PublishedasaconferencepaperatICLR2020
+LTS
+revo
+ecnamrofrep
+LTM
+)noitalerroc
+namraepS(
+0
+−0.2
+−0.4
+0 0.5 1.0
+Cosine distance between tasks
+(a)Linearregressiontasks
+LTS
+revo
+ecnamrofrep
+LTM
+)ycaruccA(
+0
+−0.1
+−0.2
+0 0.5 1.0
+Cosine distance between tasks
+(b)Logisticclassificationtasks
+LTS
+revo
+ecnamrofrep
+LTM
+)noitalerroc
+namraepS(
+0.02
+0
+−0.02
+−0.04
+0 0.5 1.0
+Cosine distance between tasks
+(c)RegressiontaskswithReLUnon-linearity
+LTS
+revo
+ecnamrofrep
+LTM
+)ycaruccA(
+0.05
+0
+−0.05
+0 0.5 1.0
+Cosine distance between tasks
+(d)ClassificationtaskswithReLUnon-linearity
+Figure7: ComparingMTLmodelperformanceoverdifferenttasksimilarity. For(a)and(c),MTL
+trains two regression tasks; For (b) and (d), MTL trains two classification tasks. For regression
+tasks, we use spearman correlation as model performance indicator. For classification tasks, we
+use accuracy as the metric. We report the average model performance over two tasks. The x-axis
+denotesthecosinedistance,i.e. 1−cos(θ ,θ ).
+1 2
+GLUE. For the GLUE experiments, the training procedure is used on the alignment modules and
+theoutputmodules. DuetothecomplexityoftheBERT module,whichinvolves24layersof
+LARGE
+non-lineartransformations.
+We fix the BERT module during the training process to examine the effect of adding the
+LARGE
+alignmentmodulestothetrainingprocess.Ingeneral,evenafterfine-tuningtheBERT module
+LARGE
+onasetoftasks,itisalwayspossibletoaddouralignmentmodulesandapplyAlgorithm1.
+Forthetrainingparameters,weapplygridsearchtotunethelearningratefrom{2e−5,3e−5,1e−5}
+andthenumberofepochsfrom{2,3,5,10}. Wechoosethelearningratetobe2e−5, thenumber
+ofepochstobe5,andwithbatchsize16foralltheexperiments.
+WeusetheGLUEevaluationmetric(cf. Wangetal.(2018b))andreportthescoresonthedevelop-
+mentsetastheperformancemetric.
+ChestX-ray14.FortheChestX-ray14experiments,weusetheconfigurationsuggestedbyRajpurkar
+etal.(2017)andreporttheAUCscoreonthetestsetafterfine-tuningthemodelfor20epochs.
+B.4 EXTENDEDSYNTHETICEXPERIMENTS
+VaryingcosinesimilarityonlinearandReLUmodels. Wedemonstratetheeffectofcosinesimi-
+larityinsyntheticsettingsforbothregressionandclassificationtasks.
+Synthetic tasks. We start with linear settings. We generate 20 synthetic task datasets (either for
+regressiontasks,orclassificationtasks)basedondatagenerationprocedureandvarythetasksimi-
+laritybetweentask1andtaski. Weruntheexperimentwithadifferentdatasetpairs(dataset1and
+dataseti).
+25PublishedasaconferencepaperatICLR2020
+Sim. 0.9 Sim. 0.5 Sim. 0.1
+Sim. 0.7 Sim. 0.3 stnemevorpmI
+ecnamrofreP
+Sim. 0.9 Sim. 0.5 Sim. 0.1
+Sim. 0.7 Sim. 0.3
+0.2
+0
+−0.2
+2000 4000 6000 8000
+# Data size
+(a)Regressiontaskswithnon-linearity
+stnemevorpmI
+ecnamrofreP
+0.1
+0
+−0.1
+−0.2
+2000 4000 6000 8000
+# Data size
+(b)Classificationtaskswithnon-linearity
+Figure8:Theperformanceimprovementonthetargettask(MTLminusSTL)byvaryingthecosine
+similarityofthetwotasks’STLmodels. WeobservethathighersimilaritybetweentheSTLmodels
+leadstobetterimprovementonthetargettask.
+Positive Transfer
+Baseline
+Algorithm 1
+Negative Transfer
+LTS
+-
+LTM
+:.freP
+s'ksat
+tegraT
+Positive Transfer
+0.2
+Baseline
+Algorithm 1
+0.1
+0
+−0.1
+Negative Transfer
+−0.2
+2000 4000 6000 8000
+# Data samples of source task
+(a)Linearregressiontasks
+LTS
+-
+LTM
+:.freP
+s'ksat
+tegraT
+0.2
+0.1
+0
+−0.1
+−0.2
+2000 4000 6000 8000
+# Data samples of source task
+(b)RegressiontaskswithReLUactivation
+Figure9: ComparingAlgorithm1tothebaselineMTLtrainingonthesyntheticexampleinSection
+2.3. Algorithm1correctsthenegativetransferphenomenonobservedinFigure3.
+Aftergeneratingthetasks,wecomparetheperformancegapbetweenMTLandSTLmodel.
+Results. FromFigure7aandFigure7a,wefindthatforbothregressionandclassificationsettings,
+withthelargertasksimilaritytheMTLoutperformsmorethanSTLmodelandthenegativetransfer
+couldoccurifthetasksimilarityistoosmall.
+ReLU settings. We also consider a ReLU-activated model. We use the same setup as the linear
+setting,butapplyaReLUactivationtogeneratethedata. SimilarresultsareshowninFigure7c,7d.
+Higher rank regimes for ReLU settings. We provide further validation of our results on ReLU-
+activatedmodels.
+Synthetictasks.Inthissyntheticexperiment,therearetwosetsofmodelparametersΘ ⊆Rd×rand
+1
+Θ ⊆ Rd×r (d = 100andr = 10). Θ isafixedrandomrotationmatrixandtherearem = 100
+2 1 1
+datapointsfortask1. Task2’smodelparameterisΘ =αΘ +(1−α)Θ(cid:48),whereΘ(cid:48)isalsoafixed
+2 1
+rotationmatrixthatisorthogonaltoΘ . Notethatαisthecosinevalue/similarityoftheprincipal
+1
+anglebetweenΘ andΘ .
+1 2
+We then generate X
+1
+⊆ Rm1×d and X
+2
+⊆ Rm2×d from Gaussian. For each task, the labels are
+y =ReLU(X Θ )e+ε ,wheree∈Rr istheallonesvectorandε isarandomGaussiannoise.
+i i i i i
+Giventhetwotasks,weuseMTLwithReLUactivationsandcapacityH = 10toco-trainthetwo
+tasks. Thegoalistoseehowdifferentlevelsofαorsimilarityaffectsthetransferfromtasktwoto
+taskone. NotethatthissettingparallelstheReLUsettingofTheorem9butappliestorankr =5.
+26PublishedasaconferencepaperatICLR2020
+MTL-Avg. peak
+MTL-Avg.
+STL-SST
+STL-MR
+STL-CR
+STL-SUBJ
+STL-MPQA
+STL-TREC
+LSTM
+ycaruccA
+0.9
+0.8
+0.7
+0.6
+0 100 200 300 400 500
+Model capacity
+Figure10: Crossvalidationtochoosethebestperformingmodelcapacityforeachmodel.
+MTL-Avg. peak
+STL-SST peak
+STL-MR peak
+MTL-Avg.
+STL-SST
+STL-MR MLP
+ycaruccA
+0.80 MTL-Avg. peak
+MTL-Avg. 0.78 STL-SST peak STL-SST
+STL-MR
+0.76
+STL-MR peak CNN
+0 100 200 300 400 500
+Model capacity
+ycaruccA
+0.90
+MTL-Avg. peak MTL-Avg.
+STL-SST 0.85 STL-SST peak STL-MR
+0.80
+STL-MR peak LSTM
+0 500 1000
+Model capacity
+ycaruccA
+0.90
+0.85
+0.80
+0.75
+0 100 200 300 400 500
+Model capacity
+Figure11: ValidationonMLP,CNNandLSTMmodelsforsentimentanalysistasks.
+Results. InFigure8weshowthatthedatasize,thecosinesimilaritybetweentheSTLsolutionsand
+the alignment of covariances continue to affect the rate of transfer in the new settings. The study
+showsthatourconceptualresultsareapplicabletoawiderangeofsettings.
+Evaluating Algorithm 1 on linear and ReLU-activated models. We consider the synthetic ex-
+ample in Section 2.3 to compare Algorithm 1 and the baseline MTL training. Recall that in the
+example,whenthesourceandtargettaskshavedifferentcovariancematrices,MTLcausesnegative
+transferonthetargettask. OurhypothesisinthisexperimentistoshowthatAlgorithm1cancorrect
+themisalignmentandthenegativetransfer.
+Synthetictasks. WeevaluateonbothlinearandReLUregressiontasks. Thelinearcasefollowsthe
+exampleinSection2.3.FortheReLUcase,thedataisgeneratedaccordingtothepreviousexample.
+Results.Figure9confirmsthehypothesis.WeobservethatAlgorithm1correctsthenegativetransfer
+in the regime where the source task only has limited amount of data. Furthermore, Algorithm 1
+matchesthebaselineMTLtrainingwhenthesourcetaskhassufficientlymanydatapoints.
+B.5 EXTENDEDABLATIONSTUDIES
+Cross validation for choosing model capacities. We provide a cross validation experiment to
+indicatehowwechoosethebestperformingmodelcapacitiesinFigure1. Thisisdoneonthesix
+sentimentanalysistaskstrainedwithanLSTMlayer.
+InFigure10,wevarythemodelcapacitiestoplotthevalidationaccuraciesoftheMTLmodeltrained
+withallsixtasksandtheSTLmodelforeachtask. TheresultcomplementsTable1inSection3.3.
+ChoosingmodelcapacitiesforCNNandMLP.Nextweverifyourresultonmodelcapacitiesfor
+CNNandMLPmodels. WeselecttheSSTandMRdatasetsfromthesentimentanalysistasksfor
+thisexperiment. WetrainallthreemodelsCNN,MLPandLSTMbyvaryingthecapacities.
+Results. FromFigure11weobservethatthebestperformingMTLmodelcapacityislessthantotal
+bestperformingmodelcapacitiesofSTLmodelonallmodels.
+27PublishedasaconferencepaperatICLR2020
+TheeffectoflabelnoiseonAlgorithm2.ToevaluatetherobustnessofAlgorithm2inthepresence
+oflabelnoise,weconductthefollowingexperiment. First,wesubsample10%oftheChestX-ray14
+dataset and select two tasks from it. Then, we randomly pick one task to add 20% of noise to its
+labelsbyrandomlyflippingthemwithprobability0.5.Wecomparetheperformanceoftrainingboth
+tasksusingourreweightingscheme(Algorithm2)vs. thereweightingtechniquesofKendalletal.
+(2018)andtheunweightedlossscheme.
+Results. On 10 randomly chosen task pairs, our method improves over the unweighted training
+schemeby1.0%AUCscoreand0.4%AUCscoreoverKendalletal.(2018)averagedoverthe10
+taskpairs. Figure12shows5exampletaskpairsfromourevaluation.
+Unweighted loss Kendall et al. Algorithm 2
+ecnamrofrep
+LTM
+0.8
+0.7
+0.6
+0.5
+0.4
+Consolidation Consolidation Consolidation Edema Fibrosis
+Cardiomegaly Edema Infiltration Atelectasis Consolidation
+Figure12: ComparingAlgorithm2totheunweightedschemeandKendalletal.(2018).
+28

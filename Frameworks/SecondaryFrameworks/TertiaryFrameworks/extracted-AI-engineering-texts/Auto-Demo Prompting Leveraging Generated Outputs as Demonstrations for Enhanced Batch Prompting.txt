@@ -1,0 +1,859 @@
+AUTO-DEMO PROMPTING: LEVERAGING GENERATED
+OUTPUTS AS DEMONSTRATIONS FOR ENHANCED
+BATCH PROMPTING
+LongyuFeng∗,∗ MengzeHong∗, ChenJasonZhang††
+HongKongPolytechnicUniversity
+ABSTRACT
+Batchpromptingisacommontechniqueinlargelanguagemodels(LLMs)used
+toprocessmultipleinputssimultaneously,aimingtoimprovecomputationaleffi-
+ciency. However, as batch sizes increase, performance degradation often occurs
+duetothemodel’sdifficultyinhandlinglengthycontextinputs. Existingmethods
+that attempt to mitigate these issues rely solely on batch data arrangement and
+majorityvotingratherthanimprovingthedesignofthebatchpromptitself.Inthis
+paper,weaddresstheselimitationsbyproposing“Auto-DemoPrompting,”anovel
+approachthatleveragesthequestion-outputpairsfromearlierquestionswithina
+batch as demonstrations for subsequent answer inference. We provide a formal
+theoretical analysis of how Auto-Demo Prompting functions within the autore-
+gressive generation process of LLMs, illustrating how it utilizes prior outputs to
+optimizethemodel’sinternalrepresentations. Ourmethodeffectivelybridgesthe
+gap between batch prompting and few-shot prompting, enhancing performance
+with only a slight compromise in token usage. Experimental results across five
+NLP tasks demonstrate its effectiveness in mitigating performance degradation
+and occasionally outperforming single prompts. Furthermore, it opens new av-
+enuesforapplyingfew-shotlearningtechniques,suchasdemonstrationselection,
+withinbatchprompting,makingitarobustsolutionforreal-worldapplications.
+1 INTRODUCTION
+Large language models (LLMs), such as GPT (Brown et al., 2020), and PaLM (Chowdhery et al.,
+2023),havedemonstratedanextraordinaryabilitytoperformin-contextlearning(ICL),wherethey
+utilizeprovidedexamplesorcontextualinformationtoadaptandsolveawiderangeofdownstream
+tasks.ThiscapabilityenablesLLMstogeneralizefromfew-shotorevenzero-shotexampleswithout
+requiring task-specific fine-tuning, significantly enhancing their versatility across diverse applica-
+tions(Songetal.,2023). ThesuccessofICLinthesemodelshighlightstheirpotentialaspowerful
+tools for natural language processing and as adaptable frameworks for learning in dynamic, data-
+constrainedenvironments,offeringbroaderimplicationsformachinelearningandAIresearch.
+Recently, thebatchprompting methodhasattractedgrowing researchinterest(Chengetal., 2023;
+Linetal.,2024;Fanetal.,2024),wheremodelsarepresentedwithasetofhomogeneousquestions
+- queries that share similar structure or content - within a single prompt. The main objective of
+batch prompting is to enhance interaction efficiency with LLMs by reducing computational costs,
+especiallybyminimizingthenumberoftokensprocessed. Bygroupingsimilarquestions,thistech-
+niquestreamlinesthemodel’shandlingofmultipletasks,optimizingresourceusagewhileensuring
+consistentperformanceacrossrepeatedorrelatedqueries. AsillustratedinFigure1(a),themodel
+processes multiple sentences with similar structures in a single batch, identifying and correcting
+grammatical errors for each input sentence. This demonstrates how batch prompting reduces to-
+kenusagewhenworkingwithstructurallysimilartasks. Moreover,advancementsinhardwareand
+algorithmic design have further expanded the capacity of LLMs to retain and process longer in-
+putcontexts,enablingmoreeffectivebatchprompting(Munkhdalaietal.,2024;Chenetal.,2023;
+Ainslieetal.,2023).
+∗Equalcontribution:longyu.feng@polyu.edu.hk,mengze.hong@connect.polyu.hk
+†ChenJasonZhangisthecorrespondingauthor:jason-c.zhang@polyu.edu.hk
+1
+4202
+tcO
+2
+]LC.sc[
+1v42710.0142:viXraBatch Prompt Auto-Demo Prompt
+Task Specification: You are a professional NLP expert at Task Specification: You are a professional NLP expert at
+sentence grammar check. sentence grammar check.
+========================== ==========================
+Requirement: Generate the answer following the format of the Requirement: Repeat the input data and generate the answer
+examples below. following the format of the examples below.
+========================== ==========================
+[input] [input]
+Input 1: XXXXX Input 1: XXXXX
+Input 2: XXXXX Input 2: XXXXX
+--- ---
+[output] [output]
+Label1: XXXXX {Input 1: XXXXX, Label1: XXXXX}
+Label2: XXXXX {Input 2: XXXXX, Label2: XXXXX}
+========================== ==========================
+Please generate labels for the [Batch_Size] data given the Please generate labels for the [Batch_Size] data given the
+instructions. instructions.
+Input 1: The plan was approved of by my mother. Input 1: The plan was approved of by my mother.
+Input 2: They'll be leaving. Input 2: They'll be leaving.
+Input 3: Boston was flown to. Input 3: Boston was flown to.
+Input 4: John will have been driving the car. Input 4: John will have been driving the car.
+Input 5: The coat does not fit you. Input 5: The coat does not fit you.
+Input 6: Lee never left. Input 6: Lee never left.
+Input 7: The roof is leak. Input 7: The roof is leak.
+..... .....
+Input 64: Heart disease is considered the leading cause of death Input 64: Heart disease is considered the leading cause of death
+in the United States. in the United States.
+=========================== ===========================
+Figure1: Example: a)BatchPromptingandb)Auto-DemoPrompting
+While batch prompting provides significant advantages in terms of efficiency, it also presents a
+fundamentalchallenge,ashandlinglengthycontextinputsisparticularlydifficultforLLMsbasedon
+transformers. Transformermodelsexperiencesignificantperformancedegradationwhenaccessing
+relevantinformationfromthemiddleoflongcontexts,leadingtoadeclineinoveralleffectiveness
+(Liuetal.,2024). ThisissuebecomesmorepronouncedintasksthatrequireLLMstoprocesslong
+contextual inputs. The root of the challenge lies in the quadratic complexity of the self-attention
+mechanismwithintransformers,wherecomputationalcostsincreasedramaticallywithinputlength.
+Asbatchpromptingisapplied,thecombinedinputlengthgrows,exacerbatingthisissueandfurther
+degrading model performance. Therefore, developing a more effective batch prompting strategy
+is crucial for mitigating these performance limitations and unlocking the potential of large-scale
+applicationsinin-contextlearning,particularlyfortasksinvolvinglongsequencesofinputdata.
+FromtheinternalrepresentationsofLLMs,weobservethatbatchpromptingsharessimilaritieswith
+few-shotprompting,atechniquethathasprovencrucialinenhancingtheperformanceofLLMsby
+providingafewexampledemonstrations(Brownetal.,2020). However,anintriguingcontradiction
+emerges: while few-shot prompting typically boosts performance, batch prompting often results
+in performance degradation. It was found that batch prompting can sometimes outperform single
+promptsintaskswithsmallerbatchsizes(Chengetal.,2023),yetthislineofinvestigationremains
+underexplored. Thisraisesakeyquestion: Couldwebridgethegapbetweenbatchpromptingand
+few-shotpromptingtoleveragethebenefitsofboth?
+Interestingly, previous research has found that even when incorrect labels are present in few-shot
+demonstrationsduringin-contextlearning,thedecreaseinaccuracyisgenerallyminimal,typically
+between0%and5%(Minetal.,2022).Thissuggeststhatusingmodel-generatedanswersasdemon-
+strationsinfew-shotpromptsisaviableapproach,regardlessofthepotentialformodelhallucination
+orlimitationsthatmayleadtoincorrectanswers.
+In this paper, we tackle the performance degradation problem from the perspective of connecting
+few-shotpromptingwithbatchprompting. Akeyinsightemerges: theoutputsgeneratedduring
+earlieriterationsofautoregressiveLLMscan,withproperdesign,beautomaticallyrecognized
+asdemonstrationsforsubsequenttextgeneration,withoutneedingtoexplicitlyincludethem
+in the prompt. Building on this, we propose “Auto-Demo Prompting,” a novel batch prompting
+techniquethatinstructsthemodeltorepeateachquestionbeforeansweringit. Themodelthenau-
+2tomaticallytreatstheresultingquestion-answerpairsasdemonstrationsforthefollowingquestions
+inthebatch,eliminatingtheneedtomanuallypackthemintotheinputprompt.
+As illustrated in Figure 1 (b), Auto-Demo Prompting directs the model to produce a sequence of
+question-answerpairsinsteadofjustanswers. Thisstructureensuresthat,duringtheautoregressive
+generation process, each subsequent question in the batch has access to the generated question-
+answer pairs from the previous iterations. Consequently, all questions in the auto-demo prompt
+effectively receive 0 to N − 1 additional demonstrations, potentially mitigating the performance
+degradationassociatedwithlongcontextinputs.
+By integrating demonstrations directly into the batch prompting process, our method not only en-
+hances the model’s capacity to manage longer inputs but also improves overall task performance,
+aligning batch prompting more closely with the proven success of few-shot prompting. To assess
+theeffectivenessofAuto-DemoPrompting,weconductedextensiveexperimentsusingmainstream
+models, GPT-4oandGPT-4o-mini, acrossavarietyofdownstreamtasks. Theresultsdemonstrate
+thattheproposedmethodsignificantlyimprovesmodelperformanceinbothanefficientandinter-
+pretableway. Ourcontributionscanbesummarizedasfollows:
+1. Theproposed“Auto-DemoPrompting”representsapioneeringeffortinconstructingfew-
+shot demonstrations directly within the LLM’s inference. While previous research has
+focusedonvariousexternalfactorsassociatedwithbatchprompts,ourapproachuniquely
+modifiesthebatchpromptdesigntoenablethemodeltogeneratedemonstrationsaspartof
+itsoutputprocess.
+2. Throughextensivecomparisonsbetweenfew-shotpromptingandbatchprompting,wepro-
+posedandvalidatedthehypothesisthatAuto-DemoPromptingisapproximatelyequivalent
+tobatchpromptingsupplementedwithfew-shotdemonstrations. Allexperimentalresults
+showedthatAuto-DemoPromptingoutperformedtraditionalbatchprompting,supporting
+ourhypothesisandaddressingthelimitationofperformancedegradationinbatchprompt.
+3. WediscoveredthatbatchdataselectioninAuto-DemoPromptinginfluencestheselection
+of demonstrations (question-answer pairs) during the autoregressive generation steps of
+inference. Byemployingacommondemonstrationselectiontechnique,ourresultsshowed
+significantimprovementscomparedtorandombatchdataselection.
+4. Theexperimentalresultsshowthat“Auto-DemoPrompting+BatchDataSelection,”with
+batchsizesof16and32,outperformsthesinglepromptswithabatchsizeof1. Thishigh-
+lights the considerable potential of integrating additional few-shot prompting techniques
+into Auto-Demo Prompt to serve as an efficient alternative to traditional single prompts
+withenhancedaccuracyandefficiency.
+2 AUTO-DEMO PROMPTING
+Prompt engineering is essential for unlocking the capabilities of large language models (Marvin
+et al., 2023). Typically, a standard prompt consists of a task description and a single data point,
+leadingtothedevelopmentofvariouspromptingtechniquestoenhanceLLMperformanceondown-
+streamtasks(Sahooetal.,2024;Bestaetal.,2024;Wangetal.,2023;Weietal.,2022). However,
+relyingonsinglepromptslimitsinferencetojustonedatapoint,makingthisapproachlessefficient
+forlarge-scaledatasetsorreal-worldapplications. Incontrast,BatchPromptingallowsforthepro-
+cessingofmultipledatapointsinasingleinference. Chengetal.(2023)suggeststhatwhilebatch
+promptingperformswellwithsmallerbatchsizes,thereisatendencyforperformancetodeclineas
+batchsizesgrow. Additionally,Linetal.(2024)notedthatvaryingtheorderofbatchdatacanyield
+different results, proposing the integration of these outcomes through majority voting to enhance
+overallperformance.
+Unlikepreviousworks,Auto-DemoPromptingaimstomaximizethepotentialofbatchprompting
+andenhanceitsperformanceduringsingleinferenceoflargelanguagemodels. Thismethodguides
+LLMs to generate a question-answer pair for each input question in the batch, rather than simply
+providingananswer. Byinnovatingthedesignofbatchpromptswithanewoutputcontrolformat,
+Auto-Demo Prompting ensures that LLMs maintain a consistent output structure across all ques-
+tions. A key factor in this process is the autoregressive generation mechanism of the decoder in
+LLMs,whichfacilitatescoherentandcontextuallyrelevantoutputgeneration.
+3Auto-Demo Prompt + Single Prompt
+Batch Data Selection
+Task Specification: You are a professional NLP
+expert at sentence grammar check. Please
+generate the labels given the instructions. Task Specification: ~
+Task Specification: You are a ========================== Question 0;
+p grr ao mfe mss aio rn ca hl e N ckL .P P e lex ap se ert g a et n s ee rn att ee n tc he e R g thee enq eu eri xr a ae t mm e pte h ln eet s : a bR n ee s lp w oe wea r .t ft oh lle o i wn ip nu gt t d ha et a fo a rn md at of Q Q ...u u ..e e .s st ti io on n 4 16 5; ;
+labels given the instructions. ==========================
+Question: The plan was approved of [Input] Question 50; Batch 1
+by my mother. Question 0：XXXXX
+Question 1：XXXXX
+--- Task Specification: ~
+Batching [Output] Question 1;
+{ {Q Qu ue es st ti io on n 0 1: : X XX XX XX XX X, , L La ab be el l 0 1: : X XX XX XX XX X} } Question 89;
+========================== Question 15;
+Please generate labels for the N data given the ......
+instructions. Question 59; Batch 2
+Question 1: The plan was approved of by my
+mother.
+Question 2: They'll be leaving.
+Question 3: Boston was flown to. Question 4: John will have been driving the car. Task Specification: ~
+Question 5: The coat does not fit you. Question 6;
+Question 6: Lee never left. Question 69;
+Q ...u ..estion 7: The roof is leak. Q ...u ..e .stion 59;
+Question N: Heart disease is considered the
+leading cause of death in the United States. Question 99; Batch K
+==========================
+Large Language Model
+Inference
+Input
+Demonstration Autoregressive Generation
+Output
+1th
+0 0
+2th 0 0
+A B C D E
+1 1
+3th 0 0 1 1
+Autoregressive
+Decoder
+N-th 0 0 1 1 ... n-1 n-1 2 2
+n n
+<s> B C D Question N-1
+Answer
+Demonstration (Question + Answer)
+Batch Size = N
+........
+....
+Auto-Demo Prompt
+Task Specification: You are a
+professional NLP expert at sentence
+grammar check. Please generate the
+labels given the instructions.
+Question: Heart disease is
+considered the leading cause of
+death in the United States.
+A
+No. Batch = K
+Figure2: Auto-DemoPrompting: Singlepromptsarecombinedintoabatchpromptwithaspecial
+outputcontrolforgeneratingquestion-answerpairs,alongwithoptionalbatchdataselection. This
+prompt is fed into the autoregressive generation process of a decoder-only LLM, forming demon-
+strationsforsubsequentgeneration.
+2.1 AUTOREGRESSIVEGENERATIONPROCESSINLARGELANGUAGEMODEL
+LargeLanguageModelscanbeclassifiedintothreecategories: encoder-only,encoder-decoder,and
+decoder-only. ThemainstreamLLMsareprimarilydecoder-onlyandencoder-decodermodels. The
+GPT series developed by OpenAI, including notable examples such as GPT-3, GPT-4, and GPT-
+4o, consists entirely of decoder-only models and marks significant milestones in the evolution of
+4generativelanguagemodels. TheLlamaseriesrepresentsopen-sourceLLMsthatarealsodecoder-
+only. Incontrast, examplesofencoder-decodermodelsincludeT5(Raffeletal.,2020)andBART
+(Lewis,2019). Thispaperfocusesspecificallyondecoder-onlyLLMs,wherethedecodergenerates
+one token at each step of the autoregressive generation process. A single inference of an LLM
+typically requires multiple steps to produce a complete answer, with the token generated at the
+previousstepaddedtothecurrentinput,servingasthenewinputforthenexttoken. Thisiterative
+processoftokengenerationisknownasautoregressivegeneration.
+Based on the generation mechanism of LLMs, we introduce a key insight into the autoregressive
+generationprocess: theoutputsfromearlierstepscanserveaspromptsordemonstrationsforgen-
+erating subsequent tokens. By employing batch prompting, the model can process multiple input
+datasequentially,enablingconsistentandrepetitiveresponses. Thisperiodicityallowsfortheuseof
+answers from earlier questions as demonstrations for later ones, thereby enhancing coherence and
+contextretentionthroughoutthegenerationprocess.
+2.2 AUTOREGRESSIVEGENERATIONOFDEMONSTRATIONS
+AsillustratedinFigure2,Auto-DemoPromptingcreatssaloopwheredemonstrationsaregenerated
+inanautoregressivemannerduringtheinferenceofLLMs. ThistechniqueguidesLLMstoproduce
+question-answer pairs that align with the format of demonstrations used in context learning. Due
+totheautoregressivenatureoftokengeneration,thepreviouslygeneratedoutputisappendedtothe
+currentinputforthenextstep,servingasademonstrationforallsubsequentquestionsinthebatch.
+WhenthebatchsizeisN,therewillbe{1,2,3,...,N −1}demonstrationsformedintheprocess.
+Suppose the batch size of Auto-Demo Prompting is denoted by N. The batch of questions
+can be represented as Q = {q ,q ,...,q }, and the corresponding answers are denoted by
+1 2 N
+A = {a ,a ,...,a }. Let F denote the inference of the LLM. To illustrate the relationships
+1 2 N
+amongcurrentbatchprompting,Auto-DemoPrompting,andfew-shotdemonstrationsinin-context
+learning,wecomparetheformulationsoftheLLMinferenceprocessinthesepromptingapproaches.
+Method1Few-ShotPrompting
+Formulation: F(a |Q ,{(q ,a )}n−1) ∀n∈{0,1,...,N}
+n 1:n−1 i i i=1
+Example:
+1: F(a 1|q 1)
+2: F(a 2|(q 1,a 1))
+3: ...
+4: F(a n|(q 1,a 1),(q 2,a 2),...,(q n−1,a n−1))
+Method2BatchPrompting(BP)
+Formulation: F(a |BP+Q ,{a }n−1) ∀n∈{0,1,...,N}
+n 1:n i i=1
+Example:
+1: F(a 1|BP+q 1)
+2: F(a 2|BP+q 1q 2,a 1)
+3: ...
+4: F(a n|BP+q 1q 2...q n,a 1a 2...a n−1)
+Method3Auto-DemoPrompting(ADP)
+Formulation: F((q ,a )|ADP+Q ,{(q ,a )}n−1) ∀n∈{0,1,...,N}
+n n 1:n−1 i i i=1
+Example:
+1: F((q 1,a 1)|ADP+q 1)
+2: F((q 2,a 2)|ADP+q 1q 2,(q 1,a 1))
+3: ...
+4: F((q n,a n)|ADP+q 1q 2...q n−1,(q 1,a 1),(q 2,a 2),...,(q n−1,a n−1))
+5Based on the comparison, we illustrate that Auto-Demo Prompting effectively combines conven-
+tional batch prompting and few-shot prompting by modifying the output format to enhance in-
+contextlearningcapabilities. Wecanexpressthisrelationshipusinganapproximateequality:
+Auto-DemoPrompting≈BatchPrompting+Few-ShotDemonstrations (1)
+This approximate equality underscores the significance of Auto-Demo Prompting. As shown in
+Figure1(b),itaddsjusttwoadditionallinestotheBatchPrompt,representingaminormodification.
+Nevertheless, this small change greatly enhances the autoregressive generation of demonstrations
+duringLLMinferenceandplaysacrucialroleinimprovingtheperformanceofbatchprompting.
+2.3 BATCHDATASELECTION
+IntheproposedAuto-DemoPromptingframework,batchdataselection-aconventionaltechnique
+forimprovingbatchpromptingperformance-canbeviewedasdemonstrationselection. Asillus-
+tratedinMethod3,thebatcheddata(i.e.,questions)isalsopresentwithinthequestion-answerpairs
+generatedbytheLLM,whichserveasdemonstrationsforsubsequentquestions. Therefore,wepro-
+pose the following hypothesis: the selection of batched data in Auto-Demo Prompting achieves a
+similareffecttotheselectionofdemonstrationsinfew-shotprompting.
+BatchDataSelection≈DemonstrationSelection (2)
+Basedonthishypothesis,demonstrationselectionmethodscanbeeffectivelyadaptedforbatchdata
+selectioninAuto-DemoPrompting. Currentapproachestodemonstrationselectionarediverse,uti-
+lizing criteria such as similarity, mutual information, perplexity, and diversity (Yang et al., 2023).
+Notably,demonstrationselectionbasedontextsimilarityhasproveneffectivefortextpairclassifi-
+cationandmultiple-choicetasks(Pengetal.,2024;Suetal.,2024).
+Inspiredbydemonstrationselectionmethod,wedesignedthe”BatchDataSelectionwithRetrieval”
+algorithmtoidentifysimilarquestionswithinasinglebatch. AsdetailedinAlgorithm1,thisalgo-
+rithm features a data retrieval loop aimed at gathering similar data into one batch. For each batch
+with size N, a target data point is randomly selected. Subsequently, the N −1 most similar data
+pointsareidentifiedusinganembeddingmodeltocalculatethepairwisesimilarity.
+Algorithm1BatchDataSelectionwithRetrieval
+1: Input: batchsize=N,datasetD ={d 1,d 2,...,d |D|},batcheddataBD ={}
+2: Output: BD
+3: ford i ∈Ddo
+4: temp batch={d i}
+5: ford j ∈Ds.td j ̸=d ido
+6: Calculatesimilaritybetweend iandd j usingembeddingmodel
+7: ifd j isamongthemostsimilar(N −1)then
+8: temp batch.add(d j)
+9: endif
+10: endfor
+11: BD.add(temp batch)
+12: endfor
+3 EXPERIMENTS
+3.1 EXPERIMENTALSETTINGS
+We conducted comparative experiments between Auto-Demo Prompting and conventional batch
+promptingacrossvariousNLPtasks,includingquestionanswering(BoolQ),mathematicalreason-
+ing(GSM8K,SVAMP),textualentailment(RTE),andparaphrasedetection(QuoraQuestionPairs,
+QQP).Specifically,thebatchdataselectionexperimentswerefocusedontheRTEandQQPdatasets
+toassesstheeffectivenessofourapproach.
+63.1.1 DATASETS
+BoolQ: The Boolean Questions (BoolQ) dataset comprises 15,942 yes/no questions derived from
+real-worldqueriestotheGooglesearchengine(Clarketal.,2019). Eachexampleincludesaques-
+tion, passage, and answer, with an optional page title for context. The dataset is split into 9,427
+trainingexamplesand3,270validationexamples,notedforitscomplexityrequiringadvancedrea-
+soningandentailmentinference.
+RTE:TheRecognizingTextualEntailment(RTE)dataset,compiledfromtheRTE1,RTE2,RTE3,
+andRTE5challenges(Poliak,2020),includes2,490trainingsamples,277validationsamples,and
+3,000testingsamples. Itfeaturespremise-hypothesispairs,eachlabeledtoindicatetheirentailment
+relationship,makingitavaluableresourceforadvancingnaturallanguageinferenceresearch.
+GSM8K: The Grade School Math 8K (GSM8K) dataset consists of 8,500 diverse grade school
+mathwordproblemsdesignedformulti-stepreasoningtasks(Cobbeetal.,2021). Itisdividedinto
+7,500trainingproblemsand1,000testproblems,witheachproblemrequiring2to8stepstosolve.
+Solutions are provided in a step-by-step format, and the dataset is available in both standard and
+”Socratic”formats,whichincludemeta-reasoningprompts.
+QQP:TheQuoraQuestionPairs(QQP)datasetcontainsover400,000questionpairsfromtheQuora
+platform, each labeled to indicate semantic equivalence. This dataset is essential for tasks like
+paraphrasingandduplicatequestionidentification,enablingresearcherstoexplorevariousmachine
+learningtechniquesforsemantictextualsimilarity(Wangetal.,2017).
+SVAMP:TheSVAMPdatasetfeatures1,000simplemathwordproblemsaimedatassessingNLP
+models, designed for up to fourth-grade level and involving single-variable equations (Patel et al.,
+2021). Created to challenge models with variations of existing problems, it tests their contextual
+understandingandproblem-solvingaccuracy.
+3.1.2 IMPLEMENTATIONS
+We evaluate Auto-Demo Prompt with varying batch sizes over GPT-4o-mini and GPT-4o. The
+promptsusedforthedifferentdatasetsareprovidedinAppendixA.
+Embedding Model for Batch Data Selection: The embedding model utilized is
+“iic/nlp corom sentence-embedding english-base,” available on the ModelScope platform.
+This model is a dual-tower text representation architecture that employs the CoROM model as
+its foundation for the pre-trained language model. The training data is derived from the official
+open-sourceMSMARCOPassageRankingdataset(Bajajetal.,2018).
+Parameters: Allexperimentswereconductedinanin-contextlearningsetting,withoutanymodel
+training or fine-tuning. The temperature for model inference was consistently set to 0 to ensure
+uniformityinresponses. Batchsizesweresetto1/16/32forthegpt-4o-mini,whichhasamaximum
+outputtokenlimitof16k,andto8or16forthegpt-4o,withamaximumoutputtokenlimitof8k.
+3.2 RESULTSANDDISCUSSIONS
+As shown in Figure 3, the proposed method, highlighted in red, consistently outperforms Batch
+Promptinmostexperiments,allowingLLMstogeneratelongeroutputswithoutcompromisingper-
+formance. This highlights the beneficial impact of Auto-Demo Prompting, where the generated
+question-answer pairs enhance the accuracy of subsequent questions within the same batch. No-
+tably,whenappliedwithGPT-4oontheGSM8Kdataset,Auto-DemoPromptachievedanaccuracy
+of 95.7% with a batch size of 16, surpassing the 95.3% accuracy of the single prompt (batch size
+= 1). A similar trend was observed with the SVAMP dataset, demonstrating the effectiveness of
+Auto-DemoPromptinginimprovingtheperformanceofconventionalbatchprompts.
+Our findings align with previous research that highlights few-shot prompting as an effective strat-
+egyforenhancingmodelaccuracy, particularlyindatasets thatnecessitatesophisticatedreasoning
+steps(Weietal.,2022). TheproposedmethoddemonstratedsignificanteffectivenessontheBoolQ
+dataset, which consists of naturally occurring yes/no questions that often require complex reason-
+ing. Incontrast,theeffectivenessofAuto-DemoPromptislesspronouncedinsimplerdatasetslike
+70.95
+0.90
+0.85
+0.80
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o-mini on gsm8k
+1.00
+w
+w/o
+0.95
+0.90
+0.85
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o on gsm8k
+0.95
+w
+w/o
+0.90
+0.85
+0.80
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o-mini on svamp
+1.00
+w
+w/o
+0.95
+0.90
+0.85
+1 8 16
+Batch Size
+ycaruccA
+gpt-4o on svamp
+w
+w/o
+0.95
+0.90
+0.85
+0.80
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o-mini on BoolQ
+1.00
+w
+w/o
+0.95
+0.90
+0.85
+1 8 16
+Batch Size
+ycaruccA
+gpt-4o-mini on BoolQ
+0.95
+w
+w/o
+0.90
+0.85
+0.80
+1 16 32 48
+Batch Size
+ycaruccA
+gpt-4o-mini on RTE
+0.95
+w
+w/o
+0.90
+0.85
+0.80
+1 8 16
+Batch Size
+ycaruccA
+gpt-4o on RTE
+w
+w/o
+0.95
+0.90
+0.85
+0.80
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o-mini on QQP
+0.95
+w
+w/o
+0.90
+0.85
+0.80
+1 16 32
+Batch Size
+ycaruccA
+gpt-4o on QQP
+w
+w/o
+Figure3: Experimentalresults: accuracyforAuto-DemoPrompt(“w”)vs. BatchPrompt(“w/o”)
+acrossdifferentmodelsandbatchsizes.
+RTE and QQP, as the GPT-4o model performs relatively well on these tasks without the need for
+additionalprompting.
+3.2.1 BATCHDATASELECTIONEXPERIMENTS
+To validate the hypothesis stated in Equation 2, we conducted experiments on the RTE and QQP
+datasetstoevaluatetheeffectivenessofselectingsimilarquestionsforbatchdataselectionwithinthe
+Auto-DemoPromptingframework. AsshowninFigure4,the’BatchDataSelectionwithRetrieval’
+algorithmconsistentlyimprovesaccuracycomparedtorandomlyselectedbatcheddata. Theresults
+oftheseexperimentscloselyalignwiththeeffectivenessoffew-shotdemonstrationselectionbased
+onsimilarity,asbothapproachesleadtosignificantperformanceimprovements.
+Surprisingly, the results indicate that experiments utilizing larger batch sizes significantly outper-
+form those employing a single prompt (i.e., batch size 1). For the RTE dataset, the Auto-Demo
+Prompting approach with a batch size of 48 using the gpt-4o-mini model achieved an accuracy of
+89.5%,surpassingthe88.8%accuracyobtainedwithasingleprompt. Similarly,thegpt-4omodel
+withabatchsizeof16achievedanaccuracyof90.3%,exceedingthe88.4%accuracyofthesingle
+promptapproach. IntheQQPdataset,thebatchsizeof32withthegpt-4omodelyieldedanaccu-
+racyof87.3%,whichis2.0%higherthantheresultfromthesingleprompt. Thesefindingssuggest
+that the proposed method not only addresses the limitation of performance degradation associated
+withlargerbatchsizes,butfurtherenhancesoverallperformancebyleveragingpreviousquestionsas
+demonstrationsintheautoregressivegenerationprocess. Thisimprovementalignscloselywiththe
+effectsofmany-shotlearningandunderscorestheimportanceofincorporatingmultipleexamplesin
+thepromptingprocess.
+80.95
+0.90
+0.85
+0.80
+1 16 32 48
+batch size
+ycaruccA
+gpt-4o-mini on RTE gpt-4o-mini on QQP gpt-4o on RTE gpt-4o on QQP
+0.95 0.95 0.95
+w w w
+w/o w/o w/o
+w/o+bds w/o+bds w/o+bds
+w+bds w+bds w+bds
+0.90 0.90 0.90
+0.85 0.85 0.85
+w
+w/o
+w/o+bds
+w+bds
+0.80 0.80 0.80
+1 16 32 1 16 32 1 16 32
+batch size batch size batch size
+Figure 4: Experimental results for Batch Data Selection: Auto-Demo Prompting (“w”) vs. Batch
+Prompting(“w/o”);“+bds”signifiestheapplicationofbatchdataselectionwithretrieval.
+3.2.2 DISCUSSION
+TheresultsofourexperimentsunderscorethesignificantpotentialofAuto-DemoPrompting. These
+findingscorroborateourearlierobservationsregardingequations1and2,demonstratingthatAuto-
+Demo Prompting consistently enhances Batch Prompting across most experimental scenarios. It
+isparticularlynoteworthytheperformanceimprovementobservedwhenbatchdataselectionisap-
+plied. Bygroupingsimilardatawithineachbatch,wefoundthatAuto-DemoPromptingwithlarger
+batchsizesoutperformedconfigurationsutilizingabatchsizeofone,whichisthestandardprompt
+usedinmainstreamLLMapplications.Thisadvancementsignifiesapromisingavenueforachieving
+bothenhancedperformanceandincreasedefficiency.
+Furthermore,recentresearchby(Agarwaletal.,2024)demonstratesthatmany-shotdemonstrations
+can outperform few-shot demonstrations, a trend observed across various domains (Jiang et al.,
+2024;Moayedpouretal.,2024). AstheinputandoutputlengthlimitsofLLMscontinuetoexpand,
+theadoptionofamoreeffectivebatchdataselectionmethodislikelytoenhancetheseperformance
+gains,furthersolidifyingthebenefitsofourapproach. Giventhediverseandnumerousdemonstra-
+tionselectionmethodsavailableforin-contextlearning,theoptimalchoicecanvaryacrossdifferent
+datasets. This variability encourages future research to evaluate their effectiveness and to develop
+novelapproachesthatarebettersuitedfortheAuto-DemoPrompting.
+4 RELATED WORK
+4.1 BATCHPROMPTING
+BatchpromptinghasemergedasasignificantareaofresearchinLLMstofacilitateefficientbatch
+processing of many data points simultaneously. Cheng et al. (2023) first introduced the concept
+of batch prompting to reduce computational costs, with experiments focusing on batch sizes of
+fewerthansixdemonstratingcomparableperformancetostandardprompting. Buildingonthis,Lin
+etal.(2024)proposed“BatchPrompt,”whichhighlightsthevariabilityinresultscausedbydifferent
+dataordersandintroducesaself-consistencymethodtoaddressthesediscrepancies. Withitscost-
+saving benefits, batch prompting has been applied in various NLP applications; for instance, Fan
+etal.(2024)proposedaframeworkutilizingacovering-baseddemonstrationselectionstrategyfor
+entityresolution,effectivelybalancingmatchingaccuracyandcomputationalcost,whileZhangetal.
+(2023)exploredtheimpactofbatchsizeonseveraldatapreprocessingtasks.
+4.2 DEMONSTRATIONSELECTIONININ-CONTEXTLEARNING
+Toimprovetheperformanceofin-contextlearning,previousstudieshaveexploredtheoptimization
+oftheselectionandarrangementoffew-shotdemonstrations(Rubinetal.,2022;Zhangetal.,2022;
+Wu et al., 2023; Fu et al., 2023; Zhou et al., 2023). It was found that the choice of demonstra-
+tions is both data-dependent and model-dependent, leading to the proposal of a selection method
+thatconsidersbothfactors(Pengetal.,2024). Empiricalresearchby(Minetal.,2022)hasdemon-
+stratedthatpreservingthestructuredformatofdemonstrations,whichconsistsoftext-labelpairs,is
+9essential for optimal performance. They also found that randomly altering the labels within these
+demonstrationshasanegligibleeffectonperformance,providingafoundationforourresearch.
+Our work diverges from previous research in several key aspects. While existing studies have ex-
+ploredbatchpromptinganditsapplications,theyoftenoverlooktherelationshipbetweenfew-shot
+prompting and batch prompting, which we believe presents an emerging opportunity for directly
+enhancingbatchprompting. Toaddressthisgap,weintroducedtheAuto-DemoPrompt,whichnot
+onlyimprovesperformancebutalsooffersgreaterinterpretabilitybyestablishingaclosealignment
+withtheprinciplesofin-contextlearninganddemonstrationselectiontechniques.
+5 CONCLUSION
+Inthispaper,weintroducetheAuto-DemoPrompt,anovelbatchpromptingmethodaimedatim-
+proving the performance of batch prompting. We provide a comprehensive overview of its oper-
+ational mechanism and clarify the key concepts that establish the relationship between few-shot
+demonstrationsinin-contextlearningandbatchprompting. Importantly,weshowthat’BatchData
+Selection’canbeconceptualizedas’DemonstrationSelection’withintheframeworkofAuto-Demo
+Prompting,facilitatingthetransferofinsightsfromfew-shotlearningresearchtoourapproach. Our
+extensiveexperimentsvalidatetheeffectivenessofAuto-DemoPrompting,underscoringitssignifi-
+canceastheinputandoutputlengthsofLLMsincrease. Astheselengthsexpand,theimportanceof
+efficientandhigh-performingbatchpromptingmethods,suchasAuto-DemoPromptingcombined
+with Batch Data Selection, will become increasingly pronounced. Further research is encouraged
+to investigate demonstration selection in greater detail, as well as to explore the potential syner-
+gies between Auto-Demo Prompting and other emerging techniques such as prompt learning and
+explainableAI.Bydelvingdeeperintotheseareas,wecanuncovernewinsightsthatmayenhance
+the adaptability and effectiveness of LLMs, ultimately paving the way for advancements in their
+applicationstowardachievingartificialgeneralintelligence(AGI).
+REFERENCES
+RishabhAgarwal,AviSingh,LeiMZhang,BerndBohnet,LuisRosias,StephanieC.Y.Chan,Biao
+Zhang, AleksandraFaust, andHugoLarochelle. Many-shotin-contextlearning. InICML2024
+Workshop on In-Context Learning, 2024. URL https://openreview.net/forum?id=
+goi7DFHlqS.
+JoshuaAinslie,JamesLee-Thorp,MichieldeJong,YuryZemlyanskiy,FedericoLebron,andSumit
+Sanghai. GQA: Training generalized multi-query transformer models from multi-head check-
+points. In The 2023 Conference on Empirical Methods in Natural Language Processing, 2023.
+URLhttps://openreview.net/forum?id=hmOwOZWzYE.
+Payal Bajaj, Daniel Campos, Nick Craswell, Li Deng, Jianfeng Gao, Xiaodong Liu, Rangan Ma-
+jumder,AndrewMcNamara,BhaskarMitra,TriNguyen,MirRosenberg,XiaSong,AlinaStoica,
+SaurabhTiwary,andTongWang.Msmarco:Ahumangeneratedmachinereadingcomprehension
+dataset,2018. URLhttps://arxiv.org/abs/1611.09268.
+Maciej Besta, Nils Blach, Ales Kubicek, Robert Gerstenberger, Michal Podstawski, Lukas Gian-
+inazzi, Joanna Gajda, Tomasz Lehmann, Hubert Niewiadomski, Piotr Nyczyk, et al. Graph of
+thoughts: Solving elaborate problems with large language models. In Proceedings of the AAAI
+ConferenceonArtificialIntelligence,volume38,pp.17682–17690,2024.
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhari-
+wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agar-
+wal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh,
+Daniel Ziegler, Jeffrey Wu, Clemens Winter, Chris Hesse, Mark Chen, Eric Sigler, Mateusz
+Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec
+Radford, Ilya Sutskever, and Dario Amodei. Language models are few-shot learners. In
+H. Larochelle, M. Ranzato, R. Hadsell, M.F. Balcan, and H. Lin (eds.), Advances in Neu-
+ral Information Processing Systems, volume 33, pp. 1877–1901. Curran Associates, Inc.,
+2020. URL https://proceedings.neurips.cc/paper_files/paper/2020/
+file/1457c0d6bfcb4967418bfb8ac142f64a-Paper.pdf.
+10ShouyuanChen,ShermanWong,LiangjianChen,andYuandongTian. Extendingcontextwindow
+of large language models via positional interpolation, 2023. URL https://arxiv.org/
+abs/2306.15595.
+Zhoujun Cheng, Jungo Kasai, and Tao Yu. Batch prompting: Efficient inference with large lan-
+guage model APIs. In Mingxuan Wang andImed Zitouni (eds.), Proceedings of the2023 Con-
+ference on Empirical Methods in Natural Language Processing: Industry Track, pp. 792–810,
+Singapore,December2023.AssociationforComputationalLinguistics. doi: 10.18653/v1/2023.
+emnlp-industry.74. URLhttps://aclanthology.org/2023.emnlp-industry.74.
+Aakanksha Chowdhery, Sharan Narang, Jacob Devlin, Maarten Bosma, Gaurav Mishra, Adam
+Roberts, Paul Barham, Hyung Won Chung, Charles Sutton, Sebastian Gehrmann, et al. Palm:
+Scaling language modeling with pathways. Journal of Machine Learning Research, 24(240):
+1–113,2023.
+ChristopherClark,KentonLee,Ming-WeiChang,TomKwiatkowski,MichaelCollins,andKristina
+Toutanova. Boolq: Exploringthesurprisingdifficultyofnaturalyes/noquestions. arXivpreprint
+arXiv:1905.10044,2019.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser,
+Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, et al. Training verifiers to
+solvemathwordproblems. arXivpreprintarXiv:2110.14168,2021.
+Meihao Fan, Xiaoyue Han, Ju Fan, Chengliang Chai, Nan Tang, Guoliang Li, and Xiaoyong Du.
+Cost-effective in-context learning for entity resolution: A design space exploration. In 2024
+IEEE40thInternationalConferenceonDataEngineering(ICDE),pp.3696–3709.IEEE,2024.
+YaoFu,HaoPeng,AshishSabharwal,PeterClark,andTusharKhot. Complexity-basedprompting
+formulti-stepreasoning. InTheEleventhInternationalConferenceonLearningRepresentations,
+2023. URLhttps://openreview.net/forum?id=yf1icZHC-l9.
+YixingJiang,JeremyAndrewIrvin,JiHunWang,MuhammadAhmedChaudhry,JonathanHChen,
+and Andrew Y. Ng. Many-shot in-context learning in multimodal foundation models. In ICML
+2024WorkshoponIn-ContextLearning,2024. URLhttps://openreview.net/forum?
+id=j2rKwWXdcz.
+MLewis.Bart:Denoisingsequence-to-sequencepre-trainingfornaturallanguagegeneration,trans-
+lation,andcomprehension. arXivpreprintarXiv:1910.13461,2019.
+Jianzhe Lin, Maurice Diesendruck, Liang Du, and Robin Abraham. Batchprompt: Accomplish
+more with less. In The Twelfth International Conference on Learning Representations, 2024.
+URLhttps://openreview.net/forum?id=Agyicd577r.
+NelsonF.Liu,KevinLin,JohnHewitt,AshwinParanjape,MicheleBevilacqua,FabioPetroni,and
+Percy Liang. Lost in the middle: How language models use long contexts. Transactions of the
+AssociationforComputationalLinguistics,12:157–173,2024. doi: 10.1162/tacl a 00638. URL
+https://aclanthology.org/2024.tacl-1.9.
+GgaliwangoMarvin,NakayizaHellen,DaudiJjingo,andJoyceNakatumba-Nabende. Promptengi-
+neeringinlargelanguagemodels. InInternationalconferenceondataintelligenceandcognitive
+informatics,pp.387–402.Springer,2023.
+SewonMin,XinxiLyu,AriHoltzman,MikelArtetxe,MikeLewis,HannanehHajishirzi,andLuke
+Zettlemoyer. Rethinkingtheroleofdemonstrations: Whatmakesin-contextlearningwork? In
+Yoav Goldberg, Zornitsa Kozareva, and Yue Zhang (eds.), Proceedings of the 2022 Conference
+on Empirical Methods in Natural Language Processing, pp. 11048–11064, Abu Dhabi, United
+Arab Emirates, December 2022. Association for Computational Linguistics. doi: 10.18653/v1/
+2022.emnlp-main.759. URLhttps://aclanthology.org/2022.emnlp-main.759.
+Saeed Moayedpour, Alejandro Corrochano-Navarro, Faryad Sahneh, Alexander Koetter, Jiˇr´ı
+Vymeˇtal, Lorenzo Kogler Anele, Pablo Mas, Yasser Jangjoo, Sizhen Li, Michael Bailey, Marc
+Bianciotto, Hans Matter, Christoph Grebner, Gerhard Hessler, Ziv Bar-Joseph, and Sven Jager.
+Many-shotin-contextlearningformolecularinversedesign. InICML2024AIforScienceWork-
+shop,2024. URLhttps://openreview.net/forum?id=vJMp5Ms0Ba.
+11TsendsurenMunkhdalai,ManaalFaruqui,andSiddharthGopal. Leavenocontextbehind: Efficient
+infinitecontexttransformerswithinfini-attention. arXivpreprintarXiv:2404.07143,2024.
+Arkil Patel, Satwik Bhattamishra, and Navin Goyal. Are NLP models really able to solve sim-
+ple math word problems? In Kristina Toutanova, Anna Rumshisky, Luke Zettlemoyer, Dilek
+Hakkani-Tur,IzBeltagy,StevenBethard,RyanCotterell,TanmoyChakraborty,andYichaoZhou
+(eds.), Proceedings of the 2021 Conference of the North American Chapter of the Association
+for Computational Linguistics: Human Language Technologies, pp. 2080–2094, Online, June
+2021.AssociationforComputationalLinguistics. doi: 10.18653/v1/2021.naacl-main.168. URL
+https://aclanthology.org/2021.naacl-main.168.
+KeqinPeng,LiangDing,YanchengYuan,XueboLiu,MinZhang,YuanxinOuyang,andDacheng
+Tao. Revisitingdemonstrationselectionstrategiesinin-contextlearning. InLun-WeiKu,Andre
+Martins,andVivekSrikumar(eds.),Proceedingsofthe62ndAnnualMeetingoftheAssociation
+for Computational Linguistics (Volume 1: Long Papers), pp. 9090–9101, Bangkok, Thailand,
+August 2024. Association for Computational Linguistics. doi: 10.18653/v1/2024.acl-long.492.
+URLhttps://aclanthology.org/2024.acl-long.492.
+Adam Poliak. A survey on recognizing textual entailment as an NLP evaluation. In Steffen
+Eger, Yang Gao, Maxime Peyrard, Wei Zhao, and Eduard Hovy (eds.), Proceedings of the
+FirstWorkshoponEvaluationandComparisonofNLPSystems,pp.92–109,Online,November
+2020. Association for Computational Linguistics. doi: 10.18653/v1/2020.eval4nlp-1.10. URL
+https://aclanthology.org/2020.eval4nlp-1.10.
+ColinRaffel,NoamShazeer,AdamRoberts,KatherineLee,SharanNarang,MichaelMatena,Yanqi
+Zhou,WeiLi,andPeterJLiu. Exploringthelimitsoftransferlearningwithaunifiedtext-to-text
+transformer. Journalofmachinelearningresearch,21(140):1–67,2020.
+Ohad Rubin, Jonathan Herzig, and Jonathan Berant. Learning to retrieve prompts for in-context
+learning. InMarineCarpuat,Marie-CatherinedeMarneffe,andIvanVladimirMezaRuiz(eds.),
+Proceedingsofthe2022ConferenceoftheNorthAmericanChapteroftheAssociationforCom-
+putational Linguistics: Human Language Technologies, pp. 2655–2671, Seattle, United States,
+July 2022. Association for Computational Linguistics. doi: 10.18653/v1/2022.naacl-main.191.
+URLhttps://aclanthology.org/2022.naacl-main.191.
+PranabSahoo,AyushKumarSingh,SriparnaSaha,VinijaJain,SamratMondal,andAmanChadha.
+A systematic survey of prompt engineering in large language models: Techniques and applica-
+tions. arXivpreprintarXiv:2402.07927,2024.
+Yuanfeng Song, Yuanqin He, Xuefang Zhao, Hanlin Gu, Di Jiang, Haijun Yang, Lixin Fan, and
+Qiang Yang. A communication theory perspective on prompting engineering methods for large
+languagemodels,2023. URLhttps://arxiv.org/abs/2310.18358.
+Yi Su, Yunpeng Tai, Yixin Ji, Juntao Li, Yan Bowen, and Min Zhang. Demonstration augmen-
+tation for zero-shot in-context learning. In Lun-Wei Ku, Andre Martins, and Vivek Srikumar
+(eds.), Findings of the Association for Computational Linguistics ACL 2024, pp. 14232–14244,
+Bangkok, Thailand and virtual meeting, August 2024. Association for Computational Linguis-
+tics. doi: 10.18653/v1/2024.findings-acl.846. URLhttps://aclanthology.org/2024.
+findings-acl.846.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H. Chi, Sharan Narang, Aakanksha
+Chowdhery,andDennyZhou. Self-consistencyimproveschainofthoughtreasoninginlanguage
+models. In The Eleventh International Conference on Learning Representations, 2023. URL
+https://openreview.net/forum?id=1PL1NIMMrw.
+Zhiguo Wang, Wael Hamza, and Radu Florian. Bilateral multi-perspective matching for natu-
+ral language sentences. In Proceedings of the Twenty-Sixth International Joint Conference on
+Artificial Intelligence, IJCAI-17, pp. 4144–4150, 2017. doi: 10.24963/ijcai.2017/579. URL
+https://doi.org/10.24963/ijcai.2017/579.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,FeiXia,EdChi,QuocVLe,Denny
+Zhou,etal. Chain-of-thoughtpromptingelicitsreasoninginlargelanguagemodels. Advancesin
+neuralinformationprocessingsystems,35:24824–24837,2022.
+12ZhiyongWu,YaoxiangWang,JiachengYe,andLingpengKong. Self-adaptivein-contextlearning:
+Aninformationcompressionperspectiveforin-contextexampleselectionandordering. InAnna
+Rogers,JordanBoyd-Graber,andNaoakiOkazaki(eds.), Proceedingsofthe61stAnnualMeet-
+ing of the Association for Computational Linguistics (Volume 1: Long Papers), pp. 1423–1436,
+Toronto,Canada,July2023.AssociationforComputationalLinguistics. doi: 10.18653/v1/2023.
+acl-long.79. URLhttps://aclanthology.org/2023.acl-long.79.
+Zhao Yang, Yuanzhe Zhang, Dianbo Sui, Cao Liu, Jun Zhao, and Kang Liu. Representative
+demonstration selection for in-context learning with two-stage determinantal point process. In
+HoudaBouamor,JuanPino,andKalikaBali(eds.),Proceedingsofthe2023ConferenceonEm-
+pirical Methods in Natural Language Processing, pp. 5443–5456, Singapore, December 2023.
+Association for Computational Linguistics. doi: 10.18653/v1/2023.emnlp-main.331. URL
+https://aclanthology.org/2023.emnlp-main.331.
+HaochenZhang, YuyangDong, ChuanXiao, andMasafumiOyamada. Largelanguagemodelsas
+datapreprocessors,2023. URLhttps://arxiv.org/abs/2308.16361.
+Yiming Zhang, Shi Feng, and Chenhao Tan. Active example selection for in-context learning. In
+Yoav Goldberg, Zornitsa Kozareva, and Yue Zhang (eds.), Proceedings of the 2022 Conference
+onEmpiricalMethodsinNaturalLanguageProcessing,pp.9134–9148,AbuDhabi,UnitedArab
+Emirates, December 2022. Association for Computational Linguistics. doi: 10.18653/v1/2022.
+emnlp-main.622. URLhttps://aclanthology.org/2022.emnlp-main.622.
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han, Keiran Paster, Silviu Pitis, Harris Chan, and
+JimmyBa. Largelanguagemodelsarehuman-levelpromptengineers. InTheEleventhInterna-
+tional Conference on Learning Representations, 2023. URL https://openreview.net/
+forum?id=92gvk82DE-.
+A AUTO-DEMO PROMPT DESIGN
+Table1: Theauto-demopromptdesignforBoolQdataset
+Auto-DemoPromptforBoolQDataset
+Instruction You are a professional NLP expert at Question Answering annotation. Please
+generatelabelsgiveninstructions.Youwillbegiven[BATCH-SIZE]passageswithquestions
+eachtime,asinput. Eachinputincludesa‘passage’anda‘question’aboutthepassage. Your
+goalistodeterminewhethertheanswertothequestionisyesornoandclassify,asbelow:
+PossibleAnswer:
+[class0]: iftheansweris‘No’
+[class1]: iftheansweris‘Yes’.
+Youwillbegiven[BATCH-SIZE]inputseachtime.
+============
+Requirement: Repeat the input data and generate the answer following the format of the
+examplesbelow.
+{Input1: xxxxx,Label1: [classX]}
+{Input2: xxxxx,Label2: [classX]}
+============
+Pleasemakesureeachgeneratedlabelisinformatof[classX].
+Pleasemakesuretogenerate[BATCH-SIZE]labels.
+13Table2: Theauto-demopromptdesignforGSM8Kdataset
+Auto-DemoPromptforGSM8KDataset
+Instruction: You will be given [BATCH-SIZE] math problems. These problems take be-
+tween2and8stepstosolve, andsolutionsprimarilyinvolveperformingasequenceofele-
+mentarycalculationsusingbasicarithmeticoperationstoreachthefinalanswer.
+Theansweris[numericresult]
+Youwillbegiven[BATCH-SIZE]inputseachtime.
+============
+Requirement:Repeattheinputdataandgeneratethecalculationresultsfollowingtheformat
+oftheexamplesbelow.
+{Input1: xxxxx,Reasoning: xxxxx,Answer: Theansweris[number]}
+{Input2: xxxxx,Reasoning: xxxxx,Answer: Theansweris[number]}
+============
+Pleasemakesuretowriteaseriesofintermediatereasoningsteps.
+Pleaseensurethefinalsentenceis”Theanswerisxxx”,wheretheanswershouldbeanumber.
+Pleasemakesuretogenerate[BATCH-SIZE]labels.
+Table3: Theauto-demopromptdesignforQQPdataset
+Auto-DemoPromptforQQPDataset
+Instruction: YouareaprofessionalNLPexpertatduplicatequestiondetection. Yourgoalis
+todeterminewhethertwoquestionsareduplicatesofeachother.
+PossibleAnswer:
+[class1]: iftheyhavethesamemeaning(semanticallyequivalent).
+[class0]: iftheydoNOThavethesamemeaning.
+Youwillbegiven[BATCH-SIZE]questionpairseachtime.
+============
+Requirement: Repeat the input data and generate the answer following the format of the
+examplesbelow.
+{Questionpair0: (Question1: xxxxx;Question2: xxxxx),Answer: [classX]}
+{Questionpair1: (Question1: xxxxx;Question2: xxxxx),Answer: [classX]}
+============
+Pleasemakesureeachgeneratedlabelisintheformatof[classX].
+Pleasemakesuretogenerate[BATCH-SIZE]labels.
+14Table4: Theauto-demopromptdesignforRTEdataset
+Auto-DemoPromptforRTEDataset
+Instruction:YouareaprofessionalNLPexpertatsentencepairrelationshipannotation.You
+willbegiven[BATCH-SIZE]sentencepairsfromtheTextualEntailmentRecognitiondataset
+eachtime, asinput. Eachdataincludesasentencepair, “Premise”and“Hypothesis”. Your
+goalistoclassifythesentencepairintotwoclassesasbelow:
+PossibleAnswer:
+[class1]: thegivenHypothesisandPremisearelogicalandfollowing(entailment)toeachother.
+[class0]: thegivenHypothesisandPremiseareNOTfollowing(entailment)toeachother.
+Youwillbegiven[BATCH-SIZE]sentencepairseachtime.
+============
+Requirement: Repeat the input data and generate the answer following the format of the
+examplesbelow.
+{Sentencepair0: Premise: xxxxx,Hypothesis: xxxxx,Label: [classX]}
+{Sentencepair1: Premise: xxxxx,Hypothesis: xxxxx,Label: [classX]}
+============
+Pleasemakesureeachgeneratedlabelisintheformatof[classX].
+Pleasemakesuretogenerate[BATCH-SIZE]labels.
+Table5: Theauto-demopromptdesignforSVAMPdataset
+Auto-DemoPromptforSVAMPDataset
+Instruction: Youwillbegiven[BATCH-SIZE]mathproblems. Eachonehasabodyanda
+question,pleasereadthemandgivetheequationandanswer.
+Youwillbegiven[BATCH-SIZE]inputseachtime.
+============
+Requirement:Repeattheinputdataandgeneratethecalculationresultsfollowingtheformat
+oftheexamplesbelow.
+{Input0: Body: xxxx,Question: xxxx,Equation: xxxx,Answer: Theansweris[number]}
+{Input1: Body: xxxx,Question: xxxx,Equation: xxxx,Answer: Theansweris[number]}
+============
+Please make sure the final sentence is “The answer is xxx”, and the answer should be a
+number.
+Pleasemakesuretogenerate[BATCH-SIZE]labelseachtime.
+15B EXPERIMENTAL RESULTS
+Table6: Experimentalresults: ”w”denotestheAuto-BatchPrompt,”w/o”denotestheconventional
+batchprompt,and”bs”referstothebatchsize.
+Dataset Model(Method) bs=1 bs=8 bs=16 bs=32 bs=48
+gpt-4o-mini(w) 0.926 - 0.890 0.887 -
+gpt-4o-mini(w/o) 0.913 - 0.853 0.847 -
+GSM8k
+gpt-4o(w) 0.953 0.947 - 0.957 -
+gpt-4o(w/o) 0.953 0.947 - 0.927 -
+gpt-4o-mini(w) 0.900 - 0.877 0.857 -
+gpt-4o-mini(w/o) 0.887 - 0.817 0.803 -
+SVAMP
+gpt-4o(w) 0.940 0.900 - 0.940 -
+gpt-4o(w/o) 0.920 0.878 - 0.900 -
+gpt-4o-mini(w) 0.870 - 0.859 0.863 0.866
+gpt-4o-mini(w/o) 0.888 - 0.845 0.845 0.837
+gpt-4o-mini(DataSelection,w) - - 0.881 0.870 0.895
+gpt-4o-mini(DataSelection,w/o) - - 0.874 0.867 0.859
+RTE
+gpt-4o(w) 0.895 0.895 - 0.899 -
+gpt-4o(w/o) 0.884 0.899 - 0.899 -
+gpt-4o(DataSelection,w) - 0.899 - 0.903 -
+gpt-4o(DataSelection,w/o) - 0.899 - 0.884 -
+gpt-4o-mini(w) 0.897 - 0.893 0.897 -
+gpt-4o-mini(w/o) 0.887 - 0.880 0.870 -
+BoolQ
+gpt-4o(w) 0.920 0.917 - 0.920 -
+gpt-4o(w/o) 0.917 0.907 - 0.917 -
+gpt-4o-mini(w) 0.837 - 0.803 0.823 -
+gpt-4o-mini(w/o) 0.837 - 0.807 0.823 -
+gpt-4o-mini(DataSelection,w) - - 0.820 0.830 -
+gpt-4o-mini(DataSelection,w/o) - - 0.817 0.820 -
+QQP
+gpt-4o(w) 0.857 0.870 - 0.847 -
+gpt-4o(w/o) 0.853 0.850 - 0.843 -
+gpt-4o(DataSelection,w) - - 0.877 0.873 -
+gpt-4o(DataSelection,w/o) - - 0.863 0.860 -
+16

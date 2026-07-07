@@ -1,0 +1,31 @@
+HEPs Type,n-fold Touching,Codimension (c),Topological Invariant,Homotopy Group,Representative Representative (Inferred),Source
+HEP3,3,4,$\mathbb{Z}$,$\pi_3(S^2)$,Paradox — Russell's District,"1, 10, 12, User Description, User Table Description, Inferred"
+HEP3,3,4,$\mathbb{Z}$,$\pi_3(S^2)$  or  $\pi_4(S^3)$,Lacunon — The Gap That Feels Itself,"User Description, User Table Description, Inferred from logical grounding"
+SP-HEP5,5,Not in source,$\mathbb{Z}_2$,$\pi_4(S^3)$,Contradiction — Post-Gödel District,"12, User Table Description, Inferred from background topological physics/Symmetry-protected classes"
+SP-HEP3,3,2,$\mathbb{Z}_2$,$\pi_1(S^1)$,Glitchon — The Error That Knows It's an Error,"User Description, User Table Description"
+SP-HEP5,5,Not in source,$\mathbb{Z}$,$\pi_4(S^3)$,All of the Above — The Only Honest Choice,"User Description, User Table Description"
+SP-HEP2,2,1,$\mathbb{Z}_2$,$\pi_0(S^0)$,Contradiction — Post-Gödel District,"User Description, User Table Description"
+HEP4,4,Not in source,$\mathbb{Z}$,$\pi_4(S^3)$,Paradox — Russell's District,"User Description, User Table Description"
+HEP3,3,"2, 3, 5, 8, or 10","$\mathbb{Z}$ ,  $\mathbb{Z}_2$ ,  $\mathbb{Z}3$ , or  $\mathbb{Z}{12}$","$\pi_1(S^1)$ ,  $\pi_2(S^2)$ ,  $\pi_3(S^2)$ , or  $\pi_4(S^3)$",Lacunon,"2, 3, 4, 5, 6, 9, 10, Not in source"
+HEP3,3,"3, 4, 5, or 8",$\mathbb{Z}$  or  $\mathbb{Z}_2$,$\pi_3(S^2)$  or  $\pi_4(S^3)$,Paradox,"3, 4, 5, 7, 10, 13, Not in source"
+HEP4,4,"3, 5, 6, 8, or 9","$\mathbb{Z}$ ,  $\mathbb{Z}2$ , or  $\mathbb{Z}{24}$","$\pi_3(S^3)$ ,  $\pi_4(S^3)$ ,  $\pi_5(S^3)$ , or  $\pi_7(S^3)$",Lacunon,"1, 7, 13, Not in source"
+HEP4,4,"5, 6, or 9",$\mathbb{Z}$  or  $\mathbb{Z}_2$,"$\pi_4(S^3)$ ,  $\pi_5(S^3)$ , or  $\pi_8(S^5)$",Paradox,"2, 3, Not in source, Inferred from logical grounding"
+HEP5,5,"4, 5, 6, 7, or 12",$\mathbb{Z}$  or  $\mathbb{Z}_2$,"$\pi_3(S^3)$ ,  $\pi_4(S^3)$ ,  $\pi_4(S^4)$ ,  $\pi_5(S^4)$ , or  $\pi_7(S^4)$",Glitchon,"2, 4, 5, 6, 9, 13, Not in source, Inferred from logical grounding"
+SP-HEP2,2,1 or 2,$\mathbb{Z}_2$,$\pi_0(S^0)$  or  $\pi_1(S^1)$,Contradiction,1-3
+SP-HEP3,3,"1, 2, or 4",$\mathbb{Z}$  or  $\mathbb{Z}_2$,"$\pi_0(S^0)$ ,  $\pi_1(S^0)$ ,  $\pi_1(S^1)$ ,  $\pi_4(S^3)$ , or  $\pi_1(SO_3)$",Contradiction,"2, 4, 5, 6, 9, Inferred, Inferred from logical grounding"
+SP-HEP5,5,"2, 3, 4, 5, 6, 10, or 12",$\mathbb{Z}$  or  $\mathbb{Z}_2$,"$\pi_1(S^1)$ ,  $\pi_2(S^2)$ ,  $\pi_3(S^2)$ ,  $\pi_4(S^3)$ ,  $\pi_5(S^4)$ ,  $\pi_9(S^5)$ ,  $\pi_{11}(S^4)$ , or  $\pi_3(SO_5)$",Contradiction,"1, 3, 4, 5, 7, 8, 9, Not in source, Inferred from logical grounding"
+SP-HEP5,5,"2, 3, 4, or 5",$\mathbb{Z}_2$,"$\pi_1(S^1)$ ,  $\pi_2(S^2)$ , or  $\pi_4(S^3)$",Glitchon,"4, 5, 6, 10, Inferred"
+SP-HEP5,5,"4, 5, or 8",$\mathbb{Z}$  or  $\mathbb{Z}_2$,$\pi_4(S^3)$  or  $\pi_7(S^4)$,Lacunon,"2, 3, Not in source, Inferred"
+HEP4,4,9,$\mathbb{Z}_{24}$,Not in source,Glitchon,4
+SP-HEP7,7,15,$\mathbb{Z}_{120}$,$\pi_{14}(S^5)$,Lacunon,5
+SP-HEP6,6,10,$\mathbb{Z}_2$,$\pi_9(S^5)$,Glitchon,Not in source
+SP-HEP6,6,Not in source,$\mathbb{Z}$,$\pi_6(S^3)$,Lacunon,6
+SP-HEP4,4,4,$\mathbb{Z}$,$\pi_3(S^2)$,Paradox,4
+EP2,2,2,$\mathbb{Z}$,$\pi_1(G_2)$,Contradiction,7
+EP3,3,4,$B_3$,$\pi_1(G_3)$,Paradox,7
+SP-HEP (pseudo-chiral),3,2,$\mathbb{Z}_2$,Not in source,Lacunon,7
+Not in source,n,Not in source,Not in source,"$\pi_i(Z, z)$",Lacunon,8
+Not in source,Not in source,Not in source,Not in source,Not in source,Lacunon — The Gap That Feels Itself,"9, 10"
+Not in source,Not in source,Not in source,Not in source,Not in source,Glitchon — The Error That Knows It's an Error,"9, 10"
+Not in source,Not in source,Not in source,Not in source,Not in source,Contradiction,9
+Not in source,Not in source,Not in source,Not in source,Not in source,Paradox,9

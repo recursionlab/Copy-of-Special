@@ -1,0 +1,785 @@
+Hierarchical Retrieval-Augmented Generation Model with
+Rethink for Multi-hop Question Answering
+XiaomingZhang∗ MingWang∗ XiaocuiYang∗
+NortheasternUniversity NortheasternUniversity NortheasternUniversity
+Shenyang,China Shenyang,China Shenyang,China
+zxm2282588541@gmail.com sci.m.wang@gmail.com neu.yangxiaocui@gmail.com
+DalingWang† ShiFeng YifeiZhang
+NortheasternUniversity NortheasternUniversity NortheasternUniversity
+Shenyang,China Shenyang,China Shenyang,China
+wangdaling@cse.neu.edu.cn fengshi@cse.neu.edu.cng zhangyifei@cse.neu.edu.cn
+Abstract ACMReferenceFormat:
+Multi-hopQuestionAnswering(QA)necessitatescomplexreason- XiaomingZhang,MingWang,XiaocuiYang,DalingWang,ShiFeng,andYifei
+Zhang.2018.HierarchicalRetrieval-AugmentedGenerationModelwithRe-
+ingbyintegratingmultiplepiecesofinformationtoresolveintri-
+thinkforMulti-hopQuestionAnswering.InProceedingsof (Conference
+catequestions.However,existingQAsystemsencounterchallenges
+acronym).ACM,NewYork,NY,USA,12pages.https://doi.org/XXXXXXX.
+suchasoutdatedinformation,contextwindowlengthlimitations,
+XXXXXXX
+andanaccuracy-quantitytrade-off.Toaddresstheseissues,we
+proposeanovelframework,theHierarchicalRetrieval-Augmented
+GenerationModelwithRethink(HiRAG),comprisingDecomposer,
+1 INTRODUCTION
+Definer,Retriever,Filter,andSummarizerfivekeymodules.We
+introduceanewhierarchicalretrievalstrategythatincorporates Multi-hopQuestionAnswering(QA)involvescomplexreasoning
+both sparse retrieval at the document level and dense retrieval byintegratingmultiplepiecesofinformationtoresolveintricate
+at the chunk level, effectively integrating their strengths. Addi- questions [6, 13, 28]. Unlike single-hop QA, where answers are
+tionally,weproposeasingle-candidateretrievalmethodtomiti- readilyavailable,complexquestionsrequiredecomposingtheorig-
+gatethelimitationsofmulti-candidateretrieval.Wealsoconstruct inalqueryintoaseriesoftargetedsub-questions.Theknowledge
+twonewcorpora,IndexedWikicorpusandProfileWikicorpus,to requiredtoanswereachsub-questionvaries,drawingfromboth
+address the issues of outdated and insufficient knowledge. Our internalknowledgeencodedinLargeLanguageModels(LLMs)and
+experimental results on four datasets demonstrate that HiRAG externalknowledgeretrievedfromlocalknowledgebases,such
+outperformsstate-of-the-artmodelsacrossmostmetrics,andour asWikipedia[9],oropensearchengineslikeGoogle[26,27].As
+IndexedWikicorpusiseffective.ThecodeforHiRAGisavailableat internalknowledgeisderivedfromlarge-scaledataandextensive
+https://github.com/2282588541a/HiRAG. pre-training,makingitchallengingtomodify,wefocusprimar-
+ilyonupdating,mining,andeffectivelyleveragingtheretrieved
+CCSConcepts knowledgetoenhanceQAperformance.
+Theselectionandintegrationofknowledgeretrievedfrommul-
+•Informationsystems→Combination,fusionandfederated
+tiple sources pose various challenges. Several key issues, such
+search.
+asoutdatedinformation,contextwindowlengthlimitations,and
+accuracy-quantitytrade-offissues,significantlyimpacttheperfor-
+Keywords
+manceofmulti-hopQAsystems.Firstly,newmulti-hopQAsystems
+LargeLanguageModels,HierarchicalRetrieval-AugmentedGener- oftenrelyonoutdatedandinsufficientknowledgewithinlocalized
+ation,IndexedWikicorpusCorpus,ProfileCorpus knowledgebases.AsillustratedinFigure1(b),aQAsystemsearches
+anoutdatedcorpus[9]toanswerthequeryWhoisthecurrentpresi-
+dentoftheUnitedStates?”,resultingintheincorrectanswer‘Donald
+∗Theseauthorscontributedequallytothisresearch.
+†Correspondingauthor Trump’.Similarly,theoutdatedcorpuscannotprovidereal-time
+updatesfornewlyreleasednews,movies,books,etc.Forinstance,
+itdoesnotincludethe2023movieTransformers:RiseoftheBeasts”,
+Permissiontomakedigitalorhardcopiesofallorpartofthisworkforpersonalor
+asshowninFigure1(c).Althoughoutdatedinformationcanbe
+classroomuseisgrantedwithoutfeeprovidedthatcopiesarenotmadeordistributed
+forprofitorcommercialadvantageandthatcopiesbearthisnoticeandthefullcitation mitigatedthroughonlineretrieval,excessiveretrievalintroduces
+onthefirstpage.Copyrightsforcomponentsofthisworkownedbyothersthanthe efficiencyandcostissues.Toaddressthis,wefirstupdatetheolder
+author(s)mustbehonored.Abstractingwithcreditispermitted.Tocopyotherwise,or
+corpusandconstructanentity-centric,morecomprehensivecorpus,
+republish,topostonserversortoredistributetolists,requirespriorspecificpermission
+and/orafee.Requestpermissionsfrompermissions@acm.org. IndexedWikicorpus,basedonWikipedia,toreducethereliance
+Conferenceacronym,2024, onover-searching.Additionally,toquicklyunderstandthebasic
+©2018Copyrightheldbytheowner/author(s).PublicationrightslicensedtoACM.
+informationofentities,wecreateacorpuscontainingsomebasic
+ACMISBN978-x-xxxx-xxxx-x/YY/MM
+https://doi.org/XXXXXXX.XXXXXXX informationofentities,ProfileWikicorpus.
+4202
+guA
+02
+]LC.sc[
+1v57811.8042:viXraConferenceacronym,2024,
+Trovatoetal.
+informationintheretrievedcontent.Thisnoisydatamaynotonly
+misleadtheLLMandexacerbateitshallucinationproblembutalso
+distractitsattention,causingittomissrelevantinformation.
+Toaddressthechallenges,weproposeanovelframeworkcalled
+theHierarchicalRetrieval-AugmentedGenerationModelwithRe-
+think(HiRAG),asillustratedinFigure4.HiRAGcomprisesfive
+keymodules,i.e.,Decomposer,Definer,Retriever,Filter,andSum-
+marizer.TheFiltermodulefurtherincorporatestwosubmodules,
+includingVerifyandRethink.Previousmethodstypicallyrelyon
+either sparse retrieval [18], which focuses on lexical matching,
+(a)Multi-hopQA. ordenseretrieval[31],whichleverageslatentembeddingsforse-
+manticmatching.Whilesomeapproachescombinetheresultsof
+thesetworetrievalmethodsattheoutputlevel[1,9,11],theydo
+notdeeplyintegratethestrengthsofeachretrievalmethodwithin
+theretrievalprocessitself.WeproposetheRetrievalmodulewhich
+incorporatesanewhierarchicalretrievalstrategy,performingmulti-
+levelretrievalfromthedocumentleveltothechunklevel.Initially,
+weemploysparseretrievalatthedocumentleveltoextractkey
+information,suchasentitynames,throughlexicalmatching.Sub-
+sequently,denseretrievalisusedtoretrievespecificinformationat
+thechunklevel,leveragingsemanticmatching.Wealsointroduce
+anovelretrievalmethod,single-candidateretrieval,asshownin
+(b)Outdatedknowledge. Figure2(b).Thismethodreturnsonlythemostsimilarchunkasthe
+retrievedknowledgeforeachdecomposedsub-question.However,
+selectingjustonecandidatedoesnotguaranteethecorrectnessof
+theanswer.Tomitigatethis,weapplytheFiltermoduletoassess
+theanswerbasedontheretrievedknowledge.Iftheanswertoa
+sub-questionisfoundtobeincorrect,weutilizetheRethinkmodule,
+inconjunctionwiththeRetrievalmodule,toselectanotherchunk
+astheretrievedknowledgetoanswerthequestion.Therethinking
+processisiterateduntiltheFiltermoduleconfirmstheansweras
+correct,therebyyieldingthesolutiontothecurrentsub-question.
+Thiscycleofdecomposition,retrieval,andansweringisrepeatedfor
+subsequentsub-questionsuntiltheDefinermoduledeterminesthat
+(c)Insufficientknowledge. thecurrentquestion,accompaniedbyitssub-answers,isanswer-
+able.Atthispoint,theSummarizermoduleisinvokedtogenerate
+Figure1:Outdatedknowledgeandinsufficientknowledge thefinalanswertothecurrentquestion.
+existingintheoldcorpus. Weconductexperimentsonfourdatasets,includingHotPotQA
+[28],2WikiMultihopQA[6],MuSiQue[20],andBamboogle[15],
+formulti-hopquestionansweringtasks.Theexperimentalresults
+Buildingonpreviousstudies[15,19,29],wedecomposetheorig- demonstratethatHiRAGoutperformsstate-of-the-artmodelsacross
+inalquestionintomulti-hopquestions,asillustratedinFigure1(a). allmetricsonthreedatasetswhileshowingadvancementsinsev-
+Eachsub-questionisansweredbasedonretrievedknowledge,and eralmetricsontheremainingdataset,andourIndexedWikicorpus
+theanswersarethenintegratedusingtheChain-of-Thought(CoT) iseffective.Ourmaincontributionsaresummarizedasfollows:
+approachtoderivethefinalanswer.Inlocalretrieval,moststudies,
+suchasFLARE[8]andMetaRAG[34],employaretrievalmethod • Toaddressthelimitationsofoutdatedandinsufficientknowl-
+thatinvolvessearchingthecorpusinchunksandreturningthetop edgeinexistingcorpora,weconstructtheIndexedWikicor-
+𝑛mostsimilarcandidatechunksasretrievedknowledge.Werefer pus,whichisorganizedbyentitynames.Subsequentexperi-
+tothismethodasmulti-candidateretrieval,asdepictedinFigure mentsdemonstratethatthiscorpusismorecomprehensive
+2(a).Intuitively,increasingthevalueof𝑛acquiresmoreknowledge, andlogicallystructured.Additionally,weproposethePro-
+therebyimprovingtheprobabilityofobtainingthecorrectanswer fileWikicorpus,whichextractsauxiliaryinformationonkey
+tothequery.However,theseapproachesfacetwosignificantchal- entitiestofurtherprovideeffectiveknowledge.
+lenges.Firstly,thecontextwindowlimitimposesanupperlimit • Weproposeanovelretrieval-augmentedgenerationframe-
+onthevalueof𝑛,preventingtheunlimitedexpansionofthere- work,HierarchicalRetrieval-AugmentedGenerationModel
+trievedcontentduetothemodel’scontextwindowsizeconstraints. withRethink(HiRAG),whichnotonlyintroducesahier-
+Secondly,theaccuracy-numbertradeoffarises,whereincreasing archicalretrievalmethodtointegratetheadvantagesofdif-
+𝑛alsoincreasestheamountofpotentiallyirrelevantorredundant ferentretrievaltechnologiesbutalsousessingle-candidateConferenceacronym,2024,
+HierarchicalRetrieval-AugmentedGenerationModelwithRethinkforMulti-hopQuestionAnswering
+President of the United States Vice President of the United States President-elect of the United States
+Who is the currentRetrival . t cJ c U . ho au .n T e ne r ir h dteB e Ue in dd i ntd a S ip te t ep t rn ea er d wte si es is hs d Si o t d e th ae n e .tn t . e- .t4 e s 6 leot ich f s t a t tn h ho 21d e ef C t T l T t l sh i h i yv br hu e i su i r rer tn t amr r ee re g e mei ipn n enf,t soc l y u rm, tm a ih nrei eb en rre e pn t pa hrt rd , e e ea sd c sr i ui e d iDt Ndri e ro o e An en nn f t n Ro s ta t i ult l a A3 4do yr l J t T lh io bhee re U aB r reni i d eit se e a n id r n e i S s t htt a c eh t u e e Nr s r4 . Ae6 n Rt th l A. ya. . n syd t sh c ti eu r mtr er e .e nn t p pr re es si id de en nt t 1 2io af l C i ln ivu c ir u nr me gn b ft oely rn m, t , erD po ri nn ea s il dd e nT. a t. r sd. u .d mit pio , n t here to a re foth ue r . i. s. T thh ee cap nre ds ii dd ae tn e t w-e hle oc I t. . n.. .. o df et xh de WUn ii kte id C S ot ra pte us s
+president of United States ... Corpus
+Retrival Who is the current
+Query president of United States
+Retrieved knowledge
+Answer Rethink Verify Verify Answer
+Donald Trump Retrieved knowledge Joe Biden
+(a)Multiplecandidatechunks. (b)Singlecandidatechunk.
+Figure2:Multiplecandidatechunksvs.singlecandidatechunk.Theknowledgewithinthesolidboxrepresentstheretrieved
+knowledge.Insubfigure2(b),theknowledgewithinthedottedboxwillbeconsideredasnewlyretrievedknowledgeonlyifthe
+answertothesub-questionisincorrect.
+retrieval to solve the problems currently encountered in Table1:OldCorpusvs.IndexedWikicorpus.
+multi-candidateretrieval.
+Corpus Numberofentities Numberofwords
+• Weconductcomprehensiveexperimentsonfourdatasetsand
+Oldcorpus(fromDPR) 3232908 2101532400
+verifytheeffectivenessofdifferentcomponentsinHiRAG.
+IndexedWikicorpus 6416724 2642615682
+TheexperimentalresultsdemonstratethatHiRAGoutper-
+formsstate-of-the-artmodelsonmostmetricsandconfirms
+theeffectivenessoftheIndexedWikicorpus.
+2 RELATEDWORK
+prompt-basedquerygeneration.Additionally,theconfidence-based
+Multi-hopQAisthetaskofansweringnaturallanguagequestions
+method,FLARE[8],generatesqueriesusinglow-confidencetokens.
+thatinvolveextractingandcombiningmultiplepiecesofinforma-
+However,moststudiesdirectlyfeedtheretrievalcontentintothe
+tionanddoingmultiplestepsofreasoning[12].Itcanbedividedinto
+generationmodel,ignoringtheevaluationandprocessingofthe
+twosteps,aretrieval(IR)steptoextractallrelevantcontextfrom
+retrievalcontent.Unlikethem,HiRAGhighlightstheimportanceof
+thecorpus,andareadingcomprehension(MRC)steptofindthe
+verifyingretrievedcontentandadjuststheretrievertoenhancethe
+answerfromthereadingresultcontext.IntheeraofLLM,research
+relevanceofresultswhenthequalityoftheretrievedinformation
+[5,14]findsthatontheonehand,LLMcanbeusedtocomplete
+issubpar.
+thedecompositionoftheproblemandachievemorefine-grained
+retrievalintheIRstep,andontheotherhand,Retrieval-Augmented
+Generationtechnologycanbeusedtoachievetheintegrationof 2.2 Chain-of-Thought(CoT)
+retrievalinformationintheMRCstep.
+InthetaskofMulti-hopQAinadditiontousingretrieval-enhanced
+generationtoobtainknowledge,CoTisalsoneededtoimprove
+2.1 Retrieval-AugmentedGeneration
+thelogic.CoTcansignificantlyenhancethereasoningcapabili-
+Retrieval-AugmentedGeneration(RAG)isacurrentresearchhotspot tiesofmodels[3].Forinstance,iterativeContext-AwarePrompter
+forMulti-hopQAtasks[10].Itcanintegratetheinternalknowl- [21]employsaniterativeapproachtoknowledgeacquisitionfrom
+edge of the model with the external knowledge retrieved. LLM the model to accomplish reasoning tasks. Similarly, LEAST-TO-
+canretrieveexternalcontentthroughRAGtoexpandtheirknowl- MOST [33] decomposes complex problems into a series of sub-
+edge base, thereby improving their ability to generate accurate problems,addressingeachstepmethodically.Inspiredbythecon-
+andcontextuallyrelevantresponses.Historically,variousstudies ceptofself-consistency[23],MCR[30]extendstheapplicationof
+attempttoadapttheuseofgenerativemodelstoimprovetheir self-consistencybeyondfinalresultstoincludeintermediatesteps,
+performance.Forinstance,REPLUG[17]usesdifferentretrieved therebyenhancingtheoverallaccuracyofreasoning.Following
+contenttogeneratecorrespondinganswersandthencombinethem. [33],wedesignacomprehensiveprompttoletthemodeldecom-
+Self-Rag[2]fine-tunesagenerationmodeltosimultaneouslypro- posethequestionintomultiplesub-questionsandfinallyintegrate
+duceanswersalongwithrelevance,support,andusefulnessscores. themultiplesub-answersintothefinalanswerthroughCoT.The
+Concurrently,severalmethodsformulti-hopQAemphasizethe maindifferencebetweenourworkandpreviousworkisthatwe
+contentandtimingofretrieval.Self-Ask[15]letsthemodelgener- donotdecomposetheproblemallatonce,butproceedinaloop,
+atesub-questionsandqueries,andcontinuouslyalternatebetween generatingonlyonesub-problemineachround;atthesametime,
+retrievalandgeneration.PROMPTAGATOR[4],Takeastepback wedesignamatchingDefinertorealizethejudgmentofwhether
+[32]focusonabstractinghigh-levelconceptsandutilizingLLMsfor theproblemcanbesolvedandexittheloop.Conferenceacronym,2024,
+Trovatoetal.
+Chunk 1
+（100words）
+Chunk 2
+（100words）
+Chunk # （100words）
+…
+Old Corpus
+Chunk $
+（100words）
+…
+Chunk 1
+（100words）
+Chunk 2
+（100words）
+Chunk % （100words）
+…
+Indexed Wikicorpus
+Chunk &
+（100words）
+…
+sub-answerstogeneratearesponsetotheoriginalquestion.Oth-
+erwise,theRetrieverextractsrelevantinformationrelatedtothe
+sub-questionthroughahierarchicalretrievalprocessatboththe
+Entity documentandchunklevels.Finally,theFilterverifiesthevalidity
+oftheretrievedcontent,generatesasub-answer,andre-evaluates
+theresultsiftheyarefoundtobeinaccurate.
+Entity Chunk &+1
+（100words） 4.1 NotationsandDefinitions
+For a multi-hop question,𝑥, we can decompose it into a series
+ofsub-questionsQ,whereanswerstoprevioussub-questionscan Entity
+informthegenerationofsubsequentsub-questions.Theobjectiveis
+Figure 3: Old corpus vs. Indexed Wikicorpus. In the new
+toiterativelyobtainthesetofsub-questionsQ={𝑞 𝑖} 𝑖| =Q 1| andtheir
+corpus,wespecializeinconstructingadocumentforeach correspondingsetofsub-answersA={𝑎 𝑖} 𝑖| =A 1| ,where𝑞 𝑖represents
+entityandthendividingitintochunks. the𝑖-thdecomposedsub-questionand𝑎 𝑖 itscorrespondingsub-
+answer.Ultimately,wecombineallsub-answerswiththeoriginal
+question,𝑥,togetthefinalanswer𝑜.Toaugmenttheabilityofthe
+3 INDEXEDWIKICORPUSANDPROFILE modeltoanswerquestions,weleverageexternalknowledgefrom
+theWikipediacorpus,denotedasD,whichcomprisesnumerous
+WIKICORPUS
+sub-documents.Eachsub-document,𝑑,containsrelevantcontent,
+Theimportanceofcorpuscannotbeoverstatedintherealmof includingatitle,𝑡,andbodytext.Foragivensub-question,we
+externalknowledgeacquisition.TheWikipediacorpusreleasedby firstemployaretrievertoidentifythemostrelevantsub-document,
+DPR[9]iswidelyrecognizedasastandardresource.However,as 𝑑 =𝑹𝒆𝒕𝒓𝒊𝒆𝒗𝒂𝒍(𝑞,D).Wethenpinpointthemostrelevantchunkof
+timeprogresses,thiscorpusfaceschallengessuchasknowledge text,𝑐,in𝑑.Finally,weutilizethemostrelevantchunktoanswerthe
+gapsandoutdatedinformation.Moreover,toaccommodatedense sub-questionusingaLLM,yieldingthesub-answer𝑎=𝑳𝑳𝑴(𝑞,𝑐).
+retrievalrequirements,thecorpusisdesignedtofragmententityin-
+formationintomultiplesegments,oftenresultinginincoherentdata 4.2 DecomposerandSummarizer
+representation.Toaddresstheselimitations,wedevelopanovel
+Buildinguponthepreviouswork [33],weusetheDecomposer
+WikipediacorpuscalledIndexedWikicorpusalongwithacorre-
+moduletobreakdowncomplexproblemsintomanageablesub-
+spondingkeyentityprofilecorpuscalledProfileWikicorpus.Our
+questionsleveragingthepromptengineering[22].Wedevelopa
+approachdifferssignificantlyfromitspredecessorinprioritizing
+comprehensivepromptfortheDecomposer,whichincludesitsback-
+thecoherenceofentityinformation.InIndexedWikicorpus,each
+ground,goals,constraints,workflow,examples,andinitialization.
+entryrepresentsacompleteentityasshowninFigure3,ensuring
+ThepromptoftheDecomposermoduleisformulatedasfollows:
+amorecomprehensiveandcohesiverepresentationofinformation.
+PromptofDecomposer:
+Buildinguponthisfoundation,wedrawinspirationfromtheWeb
+Background:
+versionofWikipediatoextractentityprofiles.Theseprofiles,cu-
+-Youareanexpertatanalyzingproblems...
+ratedbyWikipedia,encapsulatetheessentialinformationabout
+Goal:
+eachentity,whichissavedtoProfileWikicorpus.Dataanalysis
+Helpingtheuserdecomposethequestionandtelltheuseratthe
+aboutthenumberofwordsandentitiesasshowninTable1reveals
+righttimethattheproblemcanbesolved.
+thatournewcorpuscontainsahighervolumeofentityinformation Constraint:
+comparedtoitspredecessor.Furthermore,subsequentexperiments -Youcanonlydecomposethequestion,donotansweritdirectly...
+demonstratethesuperiorperformanceofourcorpusovertheolder Workflow:
+version. 1.Analysetheoriginalcomplexquestion...
+Example:
+4 HIERARCHICALRETRIEVAL-AUGMENTED ....
+Initialization:
+MODEL
+Now,afirstsimplequestion.
+Toaddressthechallengesinretrieval-augmentedgeneration,includ- Weinitializethemodelturn,𝑚𝑡,to0whichindicatestheroundof
+ingthelackofdeepintegrationbetweendifferentretrievalmethods thecurrentdecompositionproblem.Forthe𝑚𝑡-thiteration,theDe-
+andthepotentialintroductionofnoisefrommulti-candidatere-
+composermakesanewsub-questionwiththeprevioussub-answers,
+trieval,weproposeanovelframeworkcalledHiRAG.Thisframe- {𝑎 1,𝑎 2,...,𝑎 𝑚𝑡−1},andoriginalquestion,𝑥.Thenthe𝑫𝒆𝒇𝒊𝒏𝒆𝒓 de-
+workconsistsoffivekeycomponents:Decomposer,Summarizer,
+termines whether the original question can be solved with all
+Retriever,Definer,andFilter,asillustratedinFigure4.Thedetailed
+knownsub-answersbasedontheoutputof𝑫𝒆𝒄𝒐𝒎𝒑𝒐𝒔𝒆𝒓.There-
+algorithmispresentedinAlgorithm1inAppendixA.Specifically,
+fore,thisprocesscanbeformulatedasfollows:
+theDecomposerisdesignedtotacklecomplexquestionsbyde-
+composingthemintosmaller,moremanageablesub-questionsthat
+𝑞
+𝑚𝑡
+=𝑫𝒆𝒄𝒐𝒎𝒑𝒐𝒔𝒆𝒓({𝑎 1,𝑎 2...,𝑎 𝑚𝑡−1},𝑥),
+canbeeasilyanswered.TheDefinerthendetermineswhetherthe Judge=𝑫𝒆𝒇𝒊𝒏𝒆𝒓(𝑞 𝑚𝑡), (1)
+question can be solved. If it can, the Summarizer leverages the mt =mt+1.Conferenceacronym,2024,
+HierarchicalRetrieval-AugmentedGenerationModelwithRethinkforMulti-hopQuestionAnswering
+Figure4:TheframeworkoftheHierarchicalRetrieval-AugmentedGenerationMoelwithRethink(HiRAG),includingDe-
+composermodule,Definermodule,Retrievermodule,Filtermodule,andSummarizermodule.Theprocessbeginswiththe
+Decomposermodule,whichbreaksdowntheoriginalquestionintoseveralsub-questions.Eachsub-questionisthenforwarded
+totheRetrievermoduletoretrievepertinentknowledge.Forillustration,weconsiderthehandlingofthefirstsub-questionas
+anexample.TheknowledgeobtainedispassedtotheVerifymodule,whereeachsub-answerisevaluatedforaccuracy.Ifa
+sub-answerisverifiedascorrect,itisstoredinthesub-answerpool.Shoulditbeincorrect,arethinkingprocessisinitiated.
+Subsequentsub-questionsundergoasimilarsequenceofdecomposition,retrieval,andverification.Ultimately,allsub-answers,
+alongwiththeoriginalquestion,arecompiledbytheSummarizermoduletooutputthefinalanswer.Solidlinesdenoteitems
+thatarecurrentlybeingprocessed,whiledottedlinesindicateitemsthatarependingprocessingorareabouttobeaddressed.
+ThellamaiconrepresentsLLaMa-3-70BandtheChatGPTiconisGPT-3.5-turbointhispaper.
+IftheJudgereturnsaresultindicatingthattheoriginalquestioncan moreaccurateandrefinedretrievalprocess.Webeginbyobtaining
+besolved,wesendtheoriginalquestion,𝑥,withallsub-answers adecomposedquestion,𝑞,throughtheDecomposermodule.Next,
+beforethecurrentdecompositionroundtotheSummarizer.The weutilizetheLLMtoextracttheentityname,𝑒,fromthequestion.
+𝑺𝒖𝒎𝒎𝒂𝒓𝒊𝒛𝒆𝒓triestogeneratetheoutput𝑜whichcanbeformulated Wethenleveragethisentitynametoidentifythedocumentwith
+asfollows: thetitle,𝑡 𝑐,thatmostcloselymatchestheentitynameamongall
+availabledocumentsinthecorpus.Asthisstepprimarilyinvolves
+𝑜 =𝑺𝒖𝒎𝒎𝒂𝒓𝒊𝒛𝒆𝒓({𝑎 1,𝑎 2...,𝑎 𝑚𝑡},𝑥). (2)
+matchingentitynameswithindexes,lexicalmatchingtakesprece-
+dence.Therefore,weemploysparseretrieval[18]toimplement
+InAppendixA.1,wepresentexperimentalresultsinvestigating
+thisstep,capitalizingonitsstrengthsinlexicalmatching.
+therelationshipbetweenmodelperformance,asmeasuredbythe
+EM metric, and the number of model turns𝑚𝑡. The results are After we get the document with the title𝑡 𝑐, we look for the
+correspondinginformation,𝑝∗,intheProfileWikiCorpusandadd
+summarizedinTable7.
+ittotheretrievalresultifitexists.
+4.3 HierarchicalRetriever
+𝑒 =𝑳𝑳𝑴(𝑞),
+Inthissection,wedescribethedesignofanovelhierarchicalre-
+trievalmechanismthatenhancesretrievalaccuracyandprovides 𝑡 𝑐 =𝑺𝒑𝒂𝒓𝒔𝒆𝑹𝒆𝒕𝒓𝒊𝒆𝒗𝒂𝒍(𝑒,{𝑡 1,𝑡 2...,𝑡 𝑛}), (3)
+semanticclarificationincasesofambiguoussemantics.Ourap- 𝑝∗=𝑺𝒑𝒂𝒓𝒔𝒆𝑹𝒆𝒕𝒓𝒊𝒆𝒗𝒂𝒍(𝑡 𝑐,{𝑝 1,𝑝 2...,𝑝 𝑚}).
+proachemploysatwo-layerhierarchicalretrievalprocess.Thefirst
+layeridentifiesthemostrelevantdocumentswithinthecorpusat where𝑛 representsthenumberofdocumentsintheIndexdWi-
+thedocumentlevel,whilethesecondlayerlocatesthemostrelevant kiCorpusand𝑚representsthenumberofprofilesintheProfile
+chunkswithinthosedocumentsatthechunklevel,resultingina WikiCorpus.Conferenceacronym,2024,
+Trovatoetal.
+Duringtheprocessofquestiondecompositionandentityex- retrievalprocess,encompassingbothchunk-levelretrievaland
+traction,anotablechallengeemerges.TheuseofLLMsforboth document-levelretrievaltofacilitateamorecomprehensivesearch.
+sub-questiongenerationandentityinformationextractioncanlead Initially,iftheFilterdeterminesthattheproblemcannotbere-
+toinformationloss.Specifically,whensemanticlossoccurs,itis solved,itinitiatesarethinkatthechunklevel.Duringthisphase,
+oftencharacterizedbyahighsimilaritybetweentheextracteden- theresult,𝑑 𝑐,fromthefirst-tierretrievalbytheretrieverremains
+titynameandmultiplecandidatetitles.Tomitigatethisissue,the unchanged.Instead,modificationsaremadetothesecondtierof
+retrieverenhancesthesemanticsbyincorporatingcontextualin- theretriever,sequentiallyselectingchunkswithhighersimilar-
+formation. In the context of Multi-hop QA tasks, this semantic ityscoresfromthedividedchunks.Thisapproachisparticularly
+enrichmentdrawsupontwoprimarysources:theoriginalquestion effectivewhenthecorrectentityinformationandcorresponding
+andtheprecedinganswers.Byleveragingthiscontextualinforma- referencesareidentified,butthespecificchunkrequiredtoresolve
+tion,wefirstselectthemostrelevantdetailsandthengeneratea theproblemisnotfound.Ifthechunk-levelrethinkprovesunsuc-
+newquestionthatbettercapturestheintendedmeaning.Specifi- cessful,theprocessescalatestothedocumentlevel.Atthislevel,
+cally,wefirstselectananswer,𝑎∗,containingtheentity,𝑒,from adjustmentsaremadetothefirstleveloftheretrieverbyselecting
+thesetofsub-answers,A′ ={𝑎 1,𝑎 2...,𝑎 𝑚𝑡−1},whichincludesall titleswithhighersimilaritytotheentity,𝑒,fromthecandidatetitles.
+sub-answersfromprevious𝑚𝑡−1roundsandutilizeitasasupple- Notably,thistwo-tieredrethinkprocessoperatesasanestedloop,
+menttoourquery.Ifthisapproachyieldsnoresults,weinsteaduse whereeachhigher-levelrethinkinformsanddrivesthelower-level
+theoriginalquestion𝑥asthesupplementtoguideourinvestigation. rethinks,ensuringacomprehensiveandsystematicapproachto
+Wetheninstructthe𝑳𝑳𝑴togenerateanewquestion𝑞∗,whichis problem-solving.Concurrently,wealsoaddresstheissueofknowl-
+subsequentlyretrievedusingotherretrievalengines. edgebalanceduringtheretrievalprocess.Therapidadvancement
+ofLLMshasledtoasignificantincreaseinthequantityandqual-
+𝑎∗=𝑺𝒆𝒍𝒆𝒄𝒕({𝑎 1,𝑎 2...,𝑎 𝑚𝑡−1},𝑒), ityoftheirinternalknowledge.Asaresult,acriticalchallengein
+(4) RAGemerges:strikingabalancebetweentheexternalknowledge
+𝑞∗=𝑳𝑳𝑴(𝑞,𝑠).
+retrievedandtheinternalknowledgeofthemodel.Whileprevious
+where𝑺𝒆𝒍𝒆𝒄𝒕 istheprocessoffindingthecontextualinformation. research[25]hasfocusedondevelopingclassifierstotacklethis
+Uponobtainingtherelevantsub-document𝑑 𝑐 associatedwith challenge,weproposeanovelandstraightforwardapproach.By
+thetitle𝑡 𝑐,weproceedtosplititintouniformchunks,C={𝑐 1,𝑐 2,..., passingthenumberoffilterrethinksasaparametertotheclassifier,
+𝑐 𝑛}.Inthisphase,weprioritizesemanticmatchingandemploya weobservethatasthenumberofrethinksincreases,thesemantic
+denseretriever,Contriever[7],tofacilitatetheprocess.Thesimilar- similaritybetweenthemodelandtheretrievedcontentgenerally
+ityscoreiscalculatedbycomputingthedotproductofthevector decreases.
+representationsofthequestionandeachchunk.Thechunkwith Inthecontextofthesub-question,𝑞,iftheretrievedresultafter
+thehighestsimilarityscoreisthenselectedasthemostrelevant the𝑡-throundofrethinkfailstoyieldananswer,weproposein-
+chunk,denotedas,𝑐 𝑠. corporatingaprobability𝑦ofleveragingtheinternalknowledgeof
+themodeltoaddressthequestion.
+{𝑐 1,𝑐 2...,𝑐 𝑛}=𝑺𝒑𝒊𝒍𝒕(𝑑 𝑐),
+𝑆𝑖𝑚(𝑞,𝑐 𝑖)=<𝐸(𝑞),𝐸(𝑐 𝑖) >, ∀1≤𝑖 ≤𝑛,
+(5) 𝑦=
+(cid:16)𝑡 (cid:17)2
+. (7)
+𝑐
+𝑠
+=𝑎𝑟𝑔max 𝑆𝑖𝑚(𝑞,𝑐 𝑖), ∀1≤𝑖 ≤𝑛, 𝑚
+c𝑖∈C
+where𝑺𝒑𝒊𝒍𝒕 istheprocessofdividingthedocumentsintomany where𝑚isahyperparameterand𝑡 istheroundofrethink.Inour
+chunksandnisthenumberofchunks. experiment,themaximumnumberofretrievalsissetto4,where
+thevalueof𝑚weemployis5.Werecommendthat𝑚begreater
+4.4 Filter
+thanorequaltothemaximumnumberofretrievals.Thischoice
+Eventhemostadvancedretrievalenginescanstruggletoconsis- is the result of a trade-off. On one hand, the model should not
+tentlyretrievethemostaccuratecontent.Tomitigatetheimpactof abandonretrievalandresorttoitsinternalknowledgetoohastily,
+potentialretrievalengineerrors,weutilizeaspecializedfilter.This asthereliabilityofinternalknowledgecannotbeguaranteed.On
+filterisdesignedtoevaluateretrievalresultsandrefinetheretrieval theotherhand,itshouldalsoensurethatwhenexternalknowledge
+enginethroughaseriesofiterativeadjustmentswheninaccuracies issuboptimalandtheretrievalmethodfails,itcanattempttoutilize
+aredetected.Uponreceivingtheresultsfromtheretrievalengine𝑐 𝑠, uncertaininternalknowledgetoprovideananswer.
+𝑝∗,andthesub-question,𝑞,generatedbytheDecomposer,wefirst
+attempttoleveragea𝑳𝑳𝑴 togeneratearesponse,𝑟.Themodel
+5 EXPERIMENTSSETUP
+thenassesseswhetherthecurrentsub-question,𝑞canberesolved
+basedontheresponse,𝑟. 5.1 Datasets
+𝑟 =𝑳𝑳𝑴(𝑞,𝑐 𝑠,𝑝∗).
+(6)
+In our investigation, we conduct experiments on four datasets
+specificallydesignedfortheMulti-hopquestionansweringtask,
+Ifthequestioncanbesolved,theFilterpasses𝑟 astheanswer,𝑎,to namelyHotPotQA[28],2WikiMultiHopQA[6],MuSiQue[20],
+thesub-questiontotheDecomposer.However,whenfacedwithan andBamboogle[15].Weonlyusequestionsandanswersinthe
+unresolvablequestion,theFiltertriggersatwo-tieredrethinking dataset,withallexternalknowledgeretrieved.Conferenceacronym,2024,
+HierarchicalRetrieval-AugmentedGenerationModelwithRethinkforMulti-hopQuestionAnswering
+Table2:Experimentalresultsonfourdatasets.WithoutretrievalmeansonlyusingtheinternalknowledgeofLLMwhileWith
+retrievalmeansusingtheexternalknowledgefromtheretriever.HiRAGisdividedintoHiRAG(online)andHiRAG(local)
+accordingtowhetheritusesGoogleforretrievalaftersemanticsupplementation.Thebestresultsareinbold.
+HotpotQA 2WikiMultihopQA MuSiQue Bamboogle
+Settings Models
+EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall
+Direct 24.00 31.18 35.51 29.58 24.20 29.21 31.72 28.48 2.20 7.15 9.87 6.20 15.20 18.53 19.47 18.00
+CoT 31.80 43.16 44.14 45.34 26.80 35.26 34.14 39.32 8.20 19.07 19.91 20.84 52.80 64.97 65.32 67.47
+W/Oretrieval CoT-SC 33.40 44.95 45.61 47.65 29.00 36.62 35.62 40.21 10.00 20.33 21.10 21.89 52.80 63.55 63.83 64.30
+Self-Askw/oRet 26.40 37.82 38.54 41.07 28.80 37.50 36.77 40.50 9.20 19.29 19.36 22.22 51.20 59.05 58.92 60.80
+HiRAGw/oRet 36.40 47.46 49.39 48.07 37.20 46.24 45.08 49.23 13.20 25.22 26.82 25.78 60.80 69.95 69.66 71.57
+Direct 24.40 35.00 41.48 33.00 29.40 38.50 37.57 41.90 5.20 10.30 13.91 9.14 19.20 27.23 31.60 25.53
+ReAct 25.20 32.68 33.85 33.17 25.20 30.98 30.81 32.25 5.80 8.17 8.11 8.67 20.00 24.09 25.63 23.63
+Self-Ask 25.60 36.04 37.15 38.96 35.00 46.42 45.26 50.99 6.20 12.95 12.58 15.51 40.80 49.62 49.34 52.43
+W/retrieval Flare 41.60 54.37 56.32 55.54 40.60 52.05 50.34 57.07 13.39 26.22 27.72 27.51 46.34 57.71 57.50 58.27
+MetaRAG 36.80 48.43 50.41 49.16 23.15 30.38 29.79 32.52 8.40 17.23 18.64 18.25 23.20 30.36 31.20 30.33
+HiRAG(online) 40.48 52.51 53.98 53.70 50.38 65.30 63.22 63.22 14.65 26.03 26.58 28.15 60.00 70.34 70.68 71.50
+HiRAG(local) 42.52 54.98 57.16 57.16 52.29 63.95 61.99 70.27 11.11 21.99 21.89 25.72 53.17 64.79 65.81 66.27
+Table3:ResultofsubstitutionofdifferentLLMsasthebackbone,i.e.theiconofChatGPTinFigure4.Thebestresultsarein
+bold.
+HotpotQA 2WikiMultihopQA MiSiQue Bamgoole
+Onlineorlocal LLMs
+EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall
+Qwen2-7B 41.50 51.65 52.97 53.53 52.50 63.64 61.29 70.12 9.80 21.87 21.32 25.16 41.60 52.87 54.92 53.57
+LLaMa-3-8B 37.84 47.06 49.13 47.20 43.60 54.33 52.64 58.87 6.80 16.45 16.81 17.76 42.86 51.74 51.29 54.05
+Local
+LLaMa-3-70B 44.50 56.10 58.15 56.52 57.00 68.50 66.69 74.24 16.60 26.27 26.86 28.18 48.80 62.79 63.19 63.90
+HiRAG(GPT-3.5-turbo) 42.52 54.98 57.16 57.16 52.29 63.95 61.99 70.27 11.11 21.99 21.89 25.72 53.17 64.79 65.81 66.27
+Qwen2-7B 32.56 41.51 40.89 44.45 45.59 58.45 55.53 68.01 9.46 20.57 20.72 22.29 36.54 50.25 52.47 52.56
+LLaMa-3-8B 37.66 46.28 48.20 46.86 43.68 54.28 52.43 59.74 7.03 14.86 15.48 15.77 40.00 49.95 50.72 50.83
+Online
+LLaMa3-70-B 41.12 52.78 55.64 52.88 57.68 70.61 68.48 77.04 15.37 25.50 26.24 26.78 54.76 66.54 66.94 67.33
+HiRAG(GPT-3.5-turbo) 40.48 52.51 53.98 53.70 50.38 65.30 63.22 63.22 14.65 26.03 26.58 28.15 60.00 70.34 70.68 71.50
+5.2 Baselines Forlocalretrieval,weuseContriever-MSMARCO[7]andelastic
+Our baselines can be divided into two categories according to withtheBM25algorithm[16]asdenseretrieverandsparseretriever.
+whetherexternalknowledgeisretrieved:Withoutretrievalbase- Thedefaultmaximumnumberofretrievalsis4.ForHiRAG,weuse
+linesandWithretrievalbaselines.TheWithoutretrieval(W/ore- IndexedWikicorpusandProfileWikicorpusforretrievalwhilewe
+trieval)settingincludesfourbaselines.DirectPromptingdirectly usetheDPRcorpus[9]forretrievalinbaselines.Following[34],we
+usesthequestionasapromptforLLMtorespond.Forretrieval, employfourevaluationmetricstoassesstheperformanceofour
+directlyusethequestionasthequerytosearch.CoTPrompting model.Attheanswerlevel,weuseExactMatch(EM)todetermine
+[24]adds“Let’sthinkthisquestionstepbystep”aftertheinitial whetherthepredictedansweralignsperfectlywiththereference
+question.CoT-SC[23]consolidatesitsresponsesbyansweringthe answer. Additionally, at the token level, we adopt a more fine-
+samequestionmultipletimes.Self-Ask[15]enablesthemodelto grainedapproach,whichincludestoken-levelF1score,precision,
+decomposetheproblemintoaseriesofsub-questions,allowingit andrecall.FollowingMetaRAG[34],forcostconsiderations,we
+toanswerorretrieverelevantinformationforsub-questions.Direct sub-sample 500 questions from the validation set of HotPotQA,
+andSelf-Askmodelsbelongtotwoworkingmodes,sotheWith 2WikiMultiHopQA,andMuSiQueforexperimentswhileusingthe
+retrieval(W/retrieval)settingincludesfivebaselines.ReAct[29] fullsetofBamboogleforexperimentsasthequantityofBamboogle
+issimilartoself-ask,thedifferenceisthatreactwillextractthe issmall.
+querytoberetrievedfromthesub-questionsafterbreakingdown
+6 RESULTSANDANALYSIS
+theproblem,whileSelf-askwilldirectlyusethesub-questionsas
+thequery.Flare[8]usesaconfidence-basedstrategywhengenerat- 6.1 MainResults
+ingquestions.Itgeneratesquestionsabouttheless-confidentparts
+ThemainresultsareshowninTable2andrevealthefollowing
+ofthegeneratedcontentandretrievesthem.MetaRAG[34]gains
+notablefindings.(1)Ourproposedframework,HiRAG,exhibits
+insightsfrommetacognition,whichcanidentifylogicalerrorsin
+superiorperformanceacrossmultipleevaluationmetrics,outper-
+reasoningandusethethree-stepmetacognitiveregulationpipeline
+forming state-of-the-art methods on three out of four datasets.
+toidentifyandrepairdeficienciesininitialcognitiveresponses.
+Additionally,itdemonstratesimprovementsinseveralmetricson
+theremainingdataset.Thekeyadvantageofourapproachisits
+5.3 ImplementationDetails
+emphasisontheretrievalprocess,whichconsistentlyproduces
+WeuseGPT-3.5-turboasthebackendLLMforthemostpartwhile high-qualityresults.Thishighlightsthecrucialroleoftheretrieval
+usingLLaMa-3-70BfortheDecomposer.Forbaselines,weusethe componentinachievingexceptionaloutcomes.(2)IntheWithout
+familyofGPT-3.5asthebackendLLM.Foronlineretrieval,weuse Retrievalsetting,HiRAGsignificantlyoutperformsthebaselines,
+WikipediaandGooglethroughtheWikipediaAPIandSerperAPI. showcasingitseffectivenessinquestiondecompositionandanswerConferenceacronym,2024,
+Trovatoetal.
+Table4:AblationexperimentalresultsfortheRetrievermodule.
+HotpotQA 2WikiMultihopQA MuSiQue Bamgoole
+Onlineorlocal
+EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall
+HiRAG 42.52 54.98 57.16 57.16 52.29 63.95 61.99 70.27 11.11 21.99 21.89 25.72 53.17 64.79 65.81 66.27
+HiRAG(w/ochunk) 41.85 53.01 55.16 54.17 49.04 62.69 61.00 67.85 6.02 15.92 15.23 18.95 38.40 58.58 57.46 62.50
+HiRAG(w/odocument) 39.67 52.30 54.70 52.92 48.68 61.52 59.63 67.17 9.45 18.37 21.85 20.37 48.36 58.72 59.56 59.70
+HiRAG(w/ochunk+document) 39.57 50.36 50.52 51.04 47.50 53.87 52.62 56.70 5.51 13.97 13.95 15.35 42.53 53.37 54.79 54.02
+HiRAG(w/oProfileWikiCorpus) 40.98 52.84 54.51 53.96 50.67 65.04 63.09 71.09 10.81 21.54 20.81 25.68 51.61 63.39 65.59 64.78
+Table5:CorpusexperimentsbasedonFlare,suchasthecorpusgeneratedbyDPRandIndexedWikicorpus.
+HotpotQA 2WikiMultihopQA MuSiQue Bamboogle
+Corpus
+EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall EM F1 Precision Recall
+Oldcorpus(DPR) 41.60 54.37 56.32 55.54 40.60 52.05 50.34 57.07 13.39 26.22 27.72 27.51 46.34 57.71 57.50 58.27
+IndexedWikicorpus 43.00 55.06 56.95 55.65 50.00 62.27 60.30 68.15 13.60 25.62 26.55 26.58 49.60 60.20 60.28 61.13
+summarization.Thisisduetotheframework’sdesign,whichen- levelanddocumentlevel,weinvestigatetheimpactofthesecom-
+ablesautonomoussub-questiongenerationandterminationofthe ponentsontheoverallperformance.Theresults,presentedinTable
+loopwhentheoriginalproblemisresolvable.Ourapproachalsodif- 4,demonstratetheeffectivenessofourapproach.Ourmethodisde-
+fersfromself-askinitssegregationofsubtasksandimplementation signedtoimprovetheaccuracyofretrievedresultsthroughchunk
+ofeachsubtaskthroughaseparateprompt,resultinginsuperior levelanddocumentlevelrethink.Toisolatetheimpactofeach
+performance.(3)Acomparativeanalysisofresultsacrossdatasets level,weperformablationexperimentsbyeliminatingonelevel
+revealsthatHiRAGachievesthemostsignificantbreakthrough ofrethinkatatime.Specifically,weremovechunklevelrethink
+in2WikiMultiHopQA,withanotableimprovementofover12% byconsideringonlythehighest-scoringchunkwithinadocument
+in the EM index compared to the state-of-the-art method. This andremovedocumentlevelrethinkbyretrievingonlythehighest-
+isprimarilyattributedtothefactthatmostexternalknowledge scoringdocument.Theresultsshowthateliminatingeitherlevel
+requiredby2WikiMultiHopQAcanberetrievedfromWikipedia, ofrethinkleadstoadecreaseinperformance,confirmingtheim-
+andthequestionformatinthisdatasetisrelativelystandardized. portanceofbothchunklevelanddocumentlevelrethinkinour
+However,theMuSiQuedatasetposesagreaterchallengeduetothe hierarchicalretrievalapproach.Furthermore,weinvestigatethe
+complexityofthequestionsandtheinabilitytodirectlyretrieve influenceofknowledgeincorporatedintheProfileWikiCorpus.
+requiredknowledgefromWikipedia.Thiscomplexityaffectsour Ourfindingsindicatethatremovingthisknowledgecomponent
+framework’sabilitytoevaluateretrievalresults,diminishingthe leadstoadecreaseintheperformanceofHiRAG.
+effectivenessoftheresponse.
+6.4 IndexedWikicorpus
+6.2 Generalization WeconductexperimentsundertheFLAREframeworktoassessthe
+effectivenessofourcorpusinimprovingmodelperformance.As
+ToassessthegeneralizabilityofHiRAG,weconductaseriesof
+showninTable5,replacingtheexternalknowledgesourcewith
+experimentswherewesubstitutedifferentbasemodels,withthe
+ourcorpusleadstonotableadvancementsinExactMatch(EM)
+resultspresentedinTable3.Specifically,weevaluatetheperfor-
+scoresacrossfourdatasets,withthreedatasetsexperiencingim-
+manceofHiRAGwhenpairedwithseveralprominentbasemodels,
+provementsinallevaluatedmetrics.Thecomprehensivecoverage
+includingLLaMA-3-70B,LLaMA-3-8B,andQwen2-7B.Theresults
+andmeticulousentitynamesegmentationinourcorpusarekey
+demonstratethatourmethodexhibitsrobustnessandeffectiveness
+factorscontributingtotheseimprovements,enablingmoreefficient
+acrossdifferentbasemodels,showcasingitsadaptabilitytovarious
+retrievalandutilizationofrelevantinformation.
+modelarchitectures.WhenpairedwithLLaMA-3-70B,ourapproach
+achievesstate-of-the-artperformanceonmostdatasets,underscor-
+6.5 RetrieverModuleasPlug-in
+ingitsabilitytoenhancetheperformanceofstrongbasemodelsand
+highlightingitspotentialforwidespreadapplicability.Notably,to
+WeextractretrieverandfiltermodulesHiRAG,pairingthemwith
+ensureafaircomparisonwithexistingSOTAmodels,likeMeta-RAG,
+IndexedWikicorpusandProfileWikicorpustocreateanovelintelli-
+whichisbuiltonGPT-3.5-turbo,weusethesamebasemodelinour
+gentretriever.ThisapproachleveragesLLMstoevaluateandrefine
+experiments,eventhoughLLaMA-70Bhasshownbetterperformance.
+retrievalresults,differingfromtraditionalretrievers.Weconductex-
+Thisallowsforamoredirectandmeaningfulcomparisonofour perimentsonstandardizedRAGtasksforsingle-hopquestionsusing
+approachwithpriorwork. golddecomposedquestion-answerpairsfrom2WikiMultiHopQAand
+MuSiQuedatasets.Wecomparetheperformanceoffivemethods:
+(1)DirectAnswering,(2)SparseRetrievalwithElasticandBM25,(3)
+6.3 AblationExperiments
+DenseRetrievalwithContriever-MSMARCO,(4)HiRAG(Online),
+Weconductablationexperimentstoevaluatethecontributionsof and(5)HiRAG(Local).TheresultsinTable6clearlydemonstrate
+ourRetrievermodule,focusingonthehierarchicalretrievalap- thesuperiorityofourretrievalengineovertraditionalapproaches,
+proach.Byremovingtheprocessingduringrethinkingatthechunk withsignificantgainsobservedeveninlocalretrievalscenarios.Conferenceacronym,2024,
+HierarchicalRetrieval-AugmentedGenerationModelwithRethinkforMulti-hopQuestionAnswering
+Specifically,wereportamaximumimprovementofover9%inEM References
+metric,outperformingcurrentmainstreamretrievalengines.More- [1] NegarArabzadeh,XinyiYan,andCharlesLAClarke.2021. Predictingeffi-
+over,ourengineexhibitsrobustandcomprehensiveimprovements ciency/effectivenesstrade-offsfordensevs.sparseretrievalstrategyselection.In
+Proceedingsofthe30thACMInternationalConferenceonInformation&Knowledge
+acrossalldatasetsandevaluationmetrics,underscoringtheeffec- Management.2862–2866.
+tivenessofourhierarchicalretrievalmethod.Theabilityofour [2] AkariAsai,ZeqiuWu,YizhongWang,AvirupSil,andHannanehHajishirzi.2023.
+enginetoserveasaplug-in,augmentingtheperformanceofother
+Self-rag:Learningtoretrieve,generate,andcritiquethroughself-reflection.arXiv
+preprintarXiv:2310.11511(2023).
+methods,makesitavaluabletoolforachievingstate-of-the-art [3] ZhengChu,JingchangChen,QianglongChen,WeijiangYu,TaoHe,Haotian
+resultsinavarietyofapplications. Wang,WeihuaPeng,MingLiu,BingQin,andTingLiu.2023.Asurveyofchainof
+thoughtreasoning:Advances,frontiersandfuture.arXivpreprintarXiv:2309.15402
+(2023).
+[4] ZhuyunDai,VincentYZhao,JiMa,YiLuan,JianmoNi,JingLu,AntonBakalov,
+Table6:ComparisonofHiRAGasaPlug-inwithotherre-
+KelvinGuu,KeithBHall,andMing-WeiChang.2022.Promptagator:Few-shot
+trievalengines. denseretrievalfrom8examples.arXivpreprintarXiv:2209.11755(2022).
+[5] XinyaDu,JunruShao,andClaireCardie.2017.Learningtoask:Neuralquestion
+generationforreadingcomprehension.arXivpreprintarXiv:1705.00106(2017).
+[6] XanhHo,Anh-KhoaDuongNguyen,SakuSugawara,andAkikoAizawa.2020.
+Dataset Retrievalmethod EM F1 Precision Recall Constructingamulti-hopqadatasetforcomprehensiveevaluationofreasoning
+steps.arXivpreprintarXiv:2011.01060(2020).
+Direct 10.93 16.59 17.04 17.42 [7] GautierIzacard,MathildeCaron,LucasHosseini,SebastianRiedel,PiotrBo-
+Sparseretrival 49.28 54.91 55.69 55.99 janowski,ArmandJoulin,andEdouardGrave.2021. Unsuperviseddensein-
+2WikiMultihopQA Denseretrieval 46.06 54.10 55.85 54.96 formationretrievalwithcontrastivelearning. arXivpreprintarXiv:2112.09118
+HiRAG(online) 57.46 76.33 75.75 79.66 (2021).
+HiRAG(local) 55.22 73.77 73.00 77.23 [8] ZhengbaoJiang,FrankFXu,LuyuGao,ZhiqingSun,QianLiu,JaneDwivedi-Yu,
+YimingYang,JamieCallan,andGrahamNeubig.2023.Activeretrievalaugmented
+Direct 9.61 12.29 12.62 12.85 generation.arXivpreprintarXiv:2305.06983(2023).
+Sparseretrieval 26.60 33.77 34.92 34.67 [9] VladimirKarpukhin,BarlasOğuz,SewonMin,PatrickLewis,LedellWu,Sergey
+MuSiQue Denseretrieval 29.99 38.95 39.97 40.64 Edunov,DanqiChen,andWen-tauYih.2020.Densepassageretrievalforopen-
+HiRAG(online) 52.10 73.01 74.09 76.82 domainquestionanswering.arXivpreprintarXiv:2004.04906(2020).
+HiRAG(local) 32.13 44.06 42.48 48.14 [10] PatrickLewis,EthanPerez,AleksandraPiktus,FabioPetroni,VladimirKarpukhin,
+NamanGoyal,HeinrichKüttler,MikeLewis,Wen-tauYih,TimRocktäschel,
+etal.2020.Retrieval-augmentedgenerationforknowledge-intensivenlptasks.
+AdvancesinNeuralInformationProcessingSystems33(2020),9459–9474.
+[11] YiLuan,JacobEisenstein,KristinaToutanova,andMichaelCollins.2021.Sparse,
+6.6 CaseStudy dense,andattentionalrepresentationsfortextretrieval. Transactionsofthe
+AssociationforComputationalLinguistics9(2021),329–345.
+WeprovideacasestudyinFigure5ofAppendixA.3todemon- [12] VaibhavMavi,AnubhavJangra,JatowtAdam,etal.2024.Multi-hopQuestion
+stratetheworkingsofourframework.Wegraduallygeneratesub-
+Answering.FoundationsandTrends®inInformationRetrieval17,5(2024),457–
+586.
+questions,retrievesub-questions,evaluatetheretrievalresults,and [13] VaibhavMavi,AnubhavJangra,andAdamJatowt.2022.Asurveyonmulti-hop
+answerthesub-question.Whentheretrievalresultsarenotideal, questionansweringandgeneration.arXivpreprintarXiv:2204.09140(2022).
+[14] SewonMin,EricWallace,SameerSingh,MattGardner,HannanehHajishirzi,and
+weuserethinktofindamoresatisfactoryresult.Finally,weuse
+LukeZettlemoyer.2019.Compositionalquestionsdonotnecessitatemulti-hop
+theanswerstoallsub-questionstogettheanswertotheoriginal reasoning.arXivpreprintarXiv:1906.02900(2019).
+question. [15] OfirPress,MuruZhang,SewonMin,LudwigSchmidt,NoahASmith,andMike
+Lewis.2022. Measuringandnarrowingthecompositionalitygapinlanguage
+models.arXivpreprintarXiv:2210.03350(2022).
+7 CONCLUSION [16] StephenRobertson,HugoZaragoza,etal.2009. Theprobabilisticrelevance
+framework:BM25andbeyond.FoundationsandTrends®inInformationRetrieval
+Wepresentanovelframeworkformulti-hopquestionanswering, 3,4(2009),333–389.
+addressingthechallengesofoutdatedandinsufficientknowledge, [17] WeijiaShi,SewonMin,MichihiroYasunaga,MinjoonSeo,RichJames,Mike
+Lewis,LukeZettlemoyer,andWen-tauYih.2023.Replug:Retrieval-augmented
+contextwindowlimitations,andaccuracy-quantitytrade-offs.Our black-boxlanguagemodels.arXivpreprintarXiv:2301.12652(2023).
+proposedframework,HiRAG,incorporatesahierarchicalretrieval [18] KrystaMSvoreandChristopherJCBurges.2009.Amachinelearningapproach
+strategy,single-candidateretrieval,andarethinkmechanismto
+forimprovedBM25retrieval.InProceedingsofthe18thACMconferenceonInfor-
+mationandknowledgemanagement.1811–1814.
+improvetheefficiencyandeffectivenessofknowledgeretrieval.The [19] HarshTrivedi,NiranjanBalasubramanian,TusharKhot,andAshishSabharwal.
+experimentalresultsdemonstratethatHiRAGoutperformsstate-of- 2022. Interleavingretrievalwithchain-of-thoughtreasoningforknowledge-
+intensivemulti-stepquestions.arXivpreprintarXiv:2212.10509(2022).
+the-artmodelsonmultipledatasets,confirmingtheeffectivenessof
+[20] HarshTrivedi,NiranjanBalasubramanian,TusharKhot,andAshishSabharwal.
+ourapproach.Additionally,ournewlyconstructedcorpora,Indexed 2022. MuSiQue:MultihopQuestionsviaSingle-hopQuestionComposition.
+Wikicorpuswhichisshowntobemorecomprehensiveandlogically
+TransactionsoftheAssociationforComputationalLinguistics10(052022),539–554.
+https://doi.org/10.1162/tacl_a_00475 arXiv:https://direct.mit.edu/tacl/article-
+organized,andProfileWikicorpus.Ourcontributionsprovidea
+pdf/doi/10.1162/tacl_a_00475/2020694/tacl_a_00475.pdf
+significantstepforwardinimprovingtheperformanceofmulti- [21] BoshiWang,XiangDeng,andHuanSun.2022.IterativelyPromptPre-trained
+hopQAtasks,andwebelievethatourframeworkandcorporawill
+LanguageModelsforChainofThought.InProceedingsofthe2022Conference
+onEmpiricalMethodsinNaturalLanguageProcessing,YoavGoldberg,Zornitsa
+bevaluableresourcesforfutureresearchinthisarea.Inthefuture, Kozareva,andYueZhang(Eds.).AssociationforComputationalLinguistics,
+we hope to expand our research on the retrieval-verify-rethink AbuDhabi,UnitedArabEmirates,2714–2730. https://doi.org/10.18653/v1/2022.
+emnlp-main.174
+pipelinetoachievemorefine-grainedandaccurateretrieval.
+[22] MingWang,YuanzhongLiu,XiaomingZhang,SonglianLi,YijieHuang,Chi
+Zhang,DalingWang,ShiFeng,andJigangLi.2024. LangGPT:Rethinking
+Acknowledgments StructuredReusablePromptDesignFrameworkforLLMsfromtheProgramming
+Language.arXivpreprintarXiv:2402.16929(2024).
+ThisresearchissupportedbytheNationalNaturalScienceFounda- [23] XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,SharanNarang,
+AakankshaChowdhery,andDennyZhou.2022.Self-consistencyimproveschain
+tionofChina(No.62272092,No.62172086,andNo.62106039).Conferenceacronym,2024,
+Trovatoetal.
+ofthoughtreasoninginlanguagemodels.arXivpreprintarXiv:2203.11171(2022). A.2 AlgorithmofHiRAG
+[24] JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,FeiXia,EdChi,
+Forclarity,weoutlinetheworkflowoftheHiRAGframeworkin
+QuocVLe,DennyZhou,etal.2022.Chain-of-thoughtpromptingelicitsreasoning
+inlargelanguagemodels.Advancesinneuralinformationprocessingsystems35 Algorithm1,providingastep-by-stepillustrationofourmethod.
+(2022),24824–24837. ThisalgorithmcontainstheMainfunction,Decomposefunction,
+[25] KevinWu,EricWu,andJamesZou.2024.Clasheval:Quantifyingthetug-of-war
+betweenanllm’sinternalpriorandexternalevidence.Preprint(2024). RewriteAndAnswerQuestionfunctionandRetrievalfunction.The
+[26] KevinWu,EricWu,andJamesZou.2024.HowfaithfulareRAGmodels?Quan- Decomposefunctionandthemainfunctioncompletethedecom-
+tifyingthetug-of-warbetweenRAGandLLMs’internalprior. arXivpreprint
+positionandfinalsummaryoftheproblem,theRetrievalfunction
+arXiv:2404.10198(2024).
+[27] ShichengXu,LiangPang,HuaweiShen,XueqiCheng,andTat-SengChua. describesthehierarchicalRetrievalandtheprocessoftheFilter,and
+2024. Search-in-the-Chain:InteractivelyEnhancingLargeLanguageModels theRewriteAndAnswerQuestionfunctiondescribesoursolution
+withSearchforKnowledge-intensiveTasks.InProceedingsoftheACMonWeb
+Conference2024.1362–1373. whenthesemanticsarefoundtobeincomplete.
+[28] ZhilinYang,PengQi,SaizhengZhang,YoshuaBengio,WilliamCohen,Ruslan
+Salakhutdinov,andChristopherD.Manning.2018. HotpotQA:ADatasetfor A.3 CaseStudy
+Diverse,ExplainableMulti-hopQuestionAnswering.InProceedingsofthe2018
+ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,EllenRiloff, WeillustratetheeffectivenessoftheHiRAGframeworkthrougha
+DavidChiang,JuliaHockenmaier,andJun’ichiTsujii(Eds.).Associationfor casestudyonamulti-hopquestion,asdepictedinFigure5.Specifi-
+ComputationalLinguistics,Brussels,Belgium,2369–2380. https://doi.org/10.
+18653/v1/D18-1259 cally,theoriginalquestionpresentedinthefigureisdecomposed
+[29] ShunyuYao,JeffreyZhao,DianYu,NanDu,IzhakShafran,KarthikNarasimhan, intotwosub-questions,whicharethenretrievedandverifiedina
+andYuanCao.2022.React:Synergizingreasoningandactinginlanguagemodels.
+layeredmanner.Sub-questionsthatfailverificationarere-evaluated
+arXivpreprintarXiv:2210.03629(2022).
+[30] OriYoran,TomerWolfson,BenBogin,UriKatz,DanielDeutch,andJonathan througharethinkprocess.Notably,thesecondsub-questioninthe
+Berant.2023.Answeringquestionsbymeta-reasoningovermultiplechainsof figureyieldsthecorrectresultaftermultiplechunk-levelrethinks.
+thought.arXivpreprintarXiv:2304.13007(2023).
+Ultimately,wecombinethesub-answerstoformthefinalanswer
+[31] WayneXinZhao,JingLiu,RuiyangRen,andJi-RongWen.2024. Densetext
+retrievalbasedonpretrainedlanguagemodels:Asurvey.ACMTransactionson totheoriginalquestion.
+InformationSystems42,4(2024),1–60.
+[32] HuaixiuStevenZheng,SwaroopMishra,XinyunChen,Heng-TzeCheng,EdH
+Chi,QuocVLe,andDennyZhou.2023.Takeastepback:Evokingreasoningvia
+abstractioninlargelanguagemodels.arXivpreprintarXiv:2310.06117(2023).
+[33] DennyZhou,NathanaelSchärli,LeHou,JasonWei,NathanScales,XuezhiWang,
+DaleSchuurmans,ClaireCui,OlivierBousquet,QuocLe,etal.2022.Least-to-
+mostpromptingenablescomplexreasoninginlargelanguagemodels. arXiv
+preprintarXiv:2205.10625(2022).
+[34] YujiaZhou,ZhengLiu,JiajieJin,Jian-YunNie,andZhichengDou.2024.Metacog-
+nitiveRetrieval-AugmentedLargeLanguageModels. arXiv:2402.11626[cs.CL]
+A APPENDIX
+A.1 ExperimentaboutModelTurn
+Weinvestigatetherelationshipbetweenthenumberofmodelturn
+and the EM score, focusing exclusively on instances where the
+frequencyexceeded1%.AspresentedinTable7,ourresultsshow
+thatthemodelachievesrelativelyhighEMwhenthenumberof
+jumpsis2and5.Thiscanbeattributedtothefactthatmostof
+ourtestdatasetsconsistoftwo-hopproblems.Whenthemodel
+successfullydecomposestheproblemintosub-problemsthatalign
+withthedataset,ityieldsbetterresults.Additionally,sinceweset
+themaximumnumberofdecomposedsub-problemsto5,themodel
+performswellwhenitbreaksdowntheproblemintomoredetailed
+andgranularcomponents.
+Table7:Analyzetherelationshipbetweenthenumberof
+modelturnandEM.
+Models 1 2 3 4 5
+HotpotQA 47.37 49.76 33.59 27.66 44.44
+2WikiMultihopQA 14.27 45.25 33.93 72.26 57.14
+MuSiQue ∼ 24.84 17.93 5.30 ∼
+Bamboogle ∼ 64.04 50.00 42.86 66.67Conferenceacronym,2024,
+HierarchicalRetrieval-AugmentedGenerationModelwithRethinkforMulti-hopQuestionAnswering
+Figure5:CasestudyofHiRAGprocess.Conferenceacronym,2024,
+Trovatoetal.
+Algorithm1:DescriptionoftheprocessofHiRAG.
+Input :Multi-hopquestion: 𝑥;LargeLanguageModel:LLM;
+Initialize:Decomposerounds:𝑤;Corpus:𝐷 ={𝑑 1,𝑑 2...,𝑑 𝑚};Previousanswers:𝐴={𝑎 1,𝑎 2...,𝑎 𝑤−1}; Previousquestions:
+𝑄 ={𝑞 1,𝑞 2...,𝑞 𝑤−1};Rethinkrounds:𝑡;Threshold:𝑡ℎ 1,𝑡ℎ 2,𝑡ℎ 3.
+Output :Finalanswer:𝑜.
+1
+FunctionDecompose(𝑥,𝑤,𝐴):
+2
+𝑞=LLM(𝑥,𝑤,𝐴);//Usetheoriginalquestionandprevioussub-answerstogetnewsub-question
+3
+return𝑞;
+4
+FunctionRewriteAndAnswerQuestion(𝑞,𝐴,𝑥,𝐷,𝑒):
+//Thereisthecaseofsemanticincompleteness
+5
+6
+𝐼𝑛𝑐𝐹𝑙𝑎𝑔=Flase;
+7
+foreach𝑎
+𝑖
+in𝐴do
+8 if𝑒in𝑎 𝑖 then
+9
+𝑞∗=LLM(𝑞,𝑎 𝑖);//rewritethequestion
+10
+𝐼𝑛𝑐𝐹𝑙𝑎𝑔=True;
+11
+if𝐼𝑛𝑐𝐹𝑙𝑎𝑔==𝐹𝑙𝑎𝑠𝑒then
+//previoussub-answersdon’tcontainquestion’sentity
+12
+13
+𝑞∗=LLM(𝑞,𝑥);//rewritethequestion
+14
+𝑐 𝑠=Google(𝑞∗);𝑎 𝑤=LLM(𝑐 𝑠,𝑞);
+15 return𝑎 𝑤 ;
+16
+FunctionRetrieval(𝑞,𝐷,𝑥,𝐴):
+17
+𝑒 =LLM(𝑞);𝑡 =0;//gettheentityname
+18
+whileTruedo
+19
+𝑡 =𝑡+1;
+20
+𝑑 𝑠=SparseRetrieval(𝑒,𝐷,𝑡);//getthedocument
+21 if𝑙𝑒𝑛(𝑑 𝑠) >𝑡ℎ 1then
+//Multipleentitieshavehighsimilarityandthereissemanticincompleteness
+22
+23
+returnRewriteAndAnswerQuestion(𝑞,𝐴,𝑥,𝐷,𝑒);
+24
+𝑐 𝑠=DenseRetrieval(𝑑 𝑠,𝑞,𝑡);//getthechunk
+25
+𝐶𝑎𝑛𝑆𝑜𝑙𝑣𝑒𝑑=LLM(𝑐 𝑠,𝑞);//withtheretrievalchunkcanLLMsolvethequestion
+26
+if𝐶𝑎𝑛𝑆𝑜𝑙𝑣𝑒𝑑 ==”𝑦𝑒𝑠”then
+//LLMcansolvethequestion
+27
+28
+𝑎 𝑤=LLM(𝑐 𝑠,𝑞);//gettheanswerforthequestion?
+29 return𝑎 𝑤 ;
+30 else
+31
+if𝑡 >=𝑡ℎ 2and(𝑡 mod𝑡ℎ 2==0)then
+//thechunklevelrethinkfail,gotothedocumentlevelrethink
+32
+33
+𝑑 𝑠=SparseRetrieval(𝑒,𝐷,𝑡);//getotherdocument
+34 if𝑡 >=𝑡ℎ 3then
+//Toomanyattempts,emptyresultreturned
+35
+36 return”;
+//gotothechunklevelrethink
+37
+38
+FunctionMain(𝑥,𝑤,𝐷,𝐴,𝑄):
+39
+𝑞=Decompose(𝑥,𝑤,𝐴);
+40
+whilenot(𝑞==“That’senough”or𝑞in𝑄)do
+41
+𝑎
+𝑤
+=Retrieval(𝑞,𝐷,𝑥,𝐴); //Gettheanswer.
+42
+𝑤 =𝑤+1;
+43
+𝑞=Decompose(𝑥,𝑤,𝐴);
+44
+𝑂𝑢𝑡𝑝𝑢𝑡 =LLM(𝑥,𝐴);//Gettheoutputfororiginalquestionusingallsub-answers.
+45
+return𝑂𝑢𝑡𝑝𝑢𝑡;

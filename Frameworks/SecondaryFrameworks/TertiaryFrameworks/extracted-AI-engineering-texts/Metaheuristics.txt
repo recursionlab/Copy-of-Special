@@ -1,0 +1,1648 @@
+Plum: Prompt Learning using Metaheuristics
+RuiPan1*, ShuoXing2*, ShizheDiao1*, WenheSun1*†, XiangLiu1†,
+KashunShum1, JipengZhang1, RenjiePi1, TongZhang3
+1TheHongKongUniversityofScienceandTechnology 2TexasA&MUniversity
+3UniversityofIllinoisUrbana-Champaign
+{rpan,sdiaoaa,ksshumab,jzhanggr,rpi}@ust.hk, shuoxing@tamu.edu,
+sunwenhe@mail.nankai.edu.cn, xliu886@connect.hkust-gz.edu.cn,
+tongzhang@tongzhang-ml.org
+Abstract techniquesarecommonlyemployed,suchasfine-
+tuning(Chiangetal.,2023),adaptermethods(Hu
+Sincetheemergenceoflargelanguagemodels,
+etal.,2021;Dettmersetal.,2023),alignmentap-
+promptlearninghasbecomeapopularmethod
+proaches(Ouyangetal.,2022;Dongetal.,2023),
+foroptimizingandcustomizingthesemodels.
+andpromptlearning(Sunetal.,2022b;Diaoetal.,
+Special prompts, such as Chain-of-Thought,
+2022). Notably, prompt learning distinguishes it-
+haveevenrevealedpreviouslyunknownreason-
+ingcapabilitieswithinthesemodels. However, self from other methods by eliminating the need
+theprogressofdiscoveringeffectiveprompts forgradientinformationfrommodels,resultingin
+has been slow, driving a desire for general substantially reduced memory consumption and
+promptoptimizationmethods. Unfortunately, computational resource requirements. Further-
+fewexistingpromptlearningmethodssatisfy
+more, prompt learning often yields interpretable
+thecriteriaofbeingtruly"general",i.e.,auto-
+outcomes,whichhelpresearchersandengineersin-
+matic, discrete, black-box, gradient-free, and
+tuitivelyunderstanditseffectiveness,therebybeing
+interpretableallatonce. Inthispaper,weintro-
+ducemetaheuristics,abranchofdiscretenon- beneficialininspiringmoregeneralizableprompts
+convex optimization methods with over 100 for various tasks (Prasad et al., 2022; Guo et al.,
+options, as a promising approach to prompt 2023;Yuetal.,2023).
+learning. Withinourparadigm,wetestsixtyp-
+Sincetheintroductionofpromptengineeringand
+icalmethods: hillclimbing,simulatedanneal-
+prompt learning, significant advancements have
+ing,geneticalgorithmswith/withoutcrossover,
+beenmadeinthediscoveryofeffectiveprompts. A
+tabusearch,andharmonysearch,demonstrat-
+ingtheireffectivenessinwhite-boxandblack- noteworthyillustrationisChain-of-Thought(COT),
+box prompt learning. Furthermore, we show wherebythesimpleinclusionofaccuratededuction
+thatthesemethodscanbeusedtodiscovermore steps for few-shot examples within the original
+human-understandablepromptsthatwerepre-
+promptempowersLLMstoachievesubstantialper-
+viouslyunknowninbothreasoningandimage
+formance improvements in reasoning tasks (Wei
+generationtasks,openingthedoortoacornu-
+et al., 2022b). An even more impressive result
+copiaofpossibilitiesinpromptoptimization.
+is Zero-shot-COT (Kojima et al., 2022), where
+1 Introduction addingthemagicphrase“Let’sthinkstepbystep”
+producesaremarkableaccuracygainofover10%
+The advent of powerful large language models acrossmultiplemodelsengagedinadiversespec-
+(LLMs)(Devlinetal.,2018;Radfordetal.,2019; trumofreasoningtasks.
+Brownetal.,2020;Teametal.,2023;Roziereetal.,
+However, the quest for such highly effective
+2023;Touvronetal.,2023a,b)haspavedtheway
+promptsremainsunfulfilled,underscoringtheneed
+for numerous real-world applications, including
+fortoolsthatacceleratethediscoveryprocess. Ide-
+multi-round chat (OpenAI, 2023; Touvron et al.,
+ally,thesepromptlearningtoolsshouldpossessa
+2023b),instructionfollowing(Ouyangetal.,2022)
+notable level of generality, while simultaneously
+and reasoning (Roziere et al., 2023; Azerbayev
+meetingthefollowingcriteria:
+etal.,2023). Tofurtherenhancetheperformanceof
+LLMsinspecificdomains,additionaloptimization • Automatic: sincehumaninvolvementsarenor-
+mallyexpensiveandtime-consuming.
+* Equalcontribution.
+• Discrete: as commercial LLMs usually
+† WorkdoneduringinternshipattheHongKongUniver-
+sityofScienceandTechnology. provide APIs that only accept discrete in-
+2177
+FindingsoftheAssociationforComputationalLinguistics:ACL2024,pages2177–2197
+August11-16,2024©2024AssociationforComputationalLinguisticsputs(OpenAI,2023;Teametal.,2023). task. Promptingmethodscanbecategorizedinto
+• Black-box: applicabletoblack-boxLLMs. discrete prompts (Davison et al., 2019; Wallace
+et al., 2019; Jiang et al., 2020; Shin et al., 2020;
+• Gradient-free: hence still possess the good
+Haviv et al., 2021; Yuan et al., 2021; Gao et al.,
+propertyoflowmemorycostandtimecost.
+2021; Ben-David et al., 2022; Su et al., 2022a;
+• Interpretable: thusresearcherscanunderstand
+Diao et al., 2022; Datta et al., 2023; Pan et al.,
+thelogicsbehinditseffectivenessandextend
+2024)andcontinuousprompts(Hambardzumyan
+itsapplicationswithease.
+et al., 2021; Zhong et al., 2021; Han et al., 2021;
+Regretfully,tothebestofourknowledge,only
+Li and Liang, 2021; Qin and Eisner, 2021; Liu
+a limited number of prompt learning methods
+etal.,2021a)basedontheformatofprompts. Dis-
+meet the criteria for being considered “general”
+crete prompts are typically represented as token
+as per the aforementioned definition. Manual
+sequencesornaturallanguagephrases,whilecon-
+prompt engineering techniques employing hand-
+tinuouspromptsaredesignedassequencesofvec-
+craftedprompts(Mishraetal.,2021;Kojimaetal.,
+tors. Significantadvancementshavebeenmadein
+2022;Bsharatetal.,2023)lackautomation,while
+leveragingLLMsforreasoningtasksusingchain-
+continuouspromptlearningapproaches(Liuetal.,
+of-thoughtpromptingtechniques. Notableprogress
+2021a; Li and Liang, 2021) fail to satisfy the
+isevidencedbytheresearchof Weietal.(2022a);
+requirements of discreteness and interpretability.
+Wangetal.(2022);Zhouetal.(2023);Zhangetal.
+Promptlearningmethodsemployingreinforcement
+(2022);Shumetal.(2023);Diaoetal.(2023), in
+learning (Deng et al., 2022) often necessitate an
+which well-structured prompts guide the models
+additionalneuralnetwork,thelearningprocessof
+to showcase superior reasoning capabilities, sur-
+whichistypicallynon-interpretable,andtheirthe-
+passing previous benchmarks. Further studies in
+oreticalguaranteesareonlyattainableunderstrin-
+prompt attacks (Yu et al., 2023; Zhu et al., 2023)
+gentassumptions.
+have also utilized several of these advancements
+In this paper, we present a novel approach to
+toimprovetherobustnessofmodernLLMs. How-
+simultaneouslyachievethesedesirableproperties
+ever,mostofthepriorstudiesonpromptinghave
+by integrating prompt learning with metaheuris-
+been limited to a white-box setting, requiring ac-
+tics. Bytreatingpromptlearningasanon-convex
+cess to all parameters of a large language model.
+discreteoptimizationproblemwithinablack-box
+The reliance on white-box optimization methods
+framework,weharnessthepotentialofmetaheuris-
+hasbecomelesspracticalinlightofthewidespread
+tics,whichofferinterpretableandautomatedopti-
+useofclosed-sourceblack-boxmodels.
+mizationprocesses. Moreover,thisdomainofopti-
+mizationresearchencompassesavastarrayofover
+2.2 Black-BoxPromptLearning
+100distinctalgorithms(Hussainetal.,2019),ush-
+Black-box prompt learning (BPL) (Diao et al.,
+eringinanewparadigmforpromptlearning. Many
+2022;Sunetal.,2022b,a)representsapromisingre-
+of these algorithms even boast robust theoretical
+searchdirectionthattunespromptswithoutrequir-
+guarantees, ensuring the discovery of both local
+ing access to the parameters and gradients of the
+and even global optimal solutions within limited
+underlying LLMs. BPL proves particularly valu-
+time frames (Locatelli, 2000; Glover and Hanafi,
+ableforclosed-sourcemodels,whichhavedemon-
+2002;Schmitt,2004;Dorigoetal.,2006;Heetal.,
+strated superior performance compared to open-
+2018).
+sourcemodels(Liangetal.,2022). Thisadvance-
+2 RelatedWork mentallowsfortheeffectiveoptimizationofclosed-
+sourcemodels,overcomingthepreviouslimitations
+2.1 PromptLearning
+posed by the unavailability of model parameters.
+Prompt-based learning is an effective approach Similartowhite-boxprompts,black-boxprompts
+thatharnessesthepoweroflargelanguagemodels can be categorized into discrete prompts (Diao
+(LLMs)tofacilitatedownstreamtasksbyextracting etal.,2022;Prasadetal.,2022;Dengetal.,2022;
+relevantknowledge. Thisapproachoffersseveral Houetal.,2022;Chengetal.,2023)andcontinu-
+advantages,notablyintermsofcomputationalef- ousprompts(Sunetal.,2022b,a;Suetal.,2022b).
+ficiency, as only a small set of parameters needs However,intheblack-boxsetting,discreteprompts
+tobeoptimized,incontrasttotraditionalmethods provemorepracticalastheinterfaceofLLMsonly
+that require fine-tuning the entire LLM for each acceptsdiscreteinputsandcannotprocesscontinu-
+2178ousvectors. promptlearningremainslargelyunexplored, pre-
+senting rich opportunities for further research in
+2.3 Metaheuristics
+thisdirection.
+There have been efforts combining the power of
+3 Methods
+metaheuristicswithblack-boxpromptlearningin
+the past literature. For instance, GrIPS (Prasad In this paper, we propose Prompt learning using
+et al., 2022) applied greedy search methods, as metaheuristic(Plum),ageneralparadigmthaten-
+well as simulated annealing (Kirkpatrick et al., ablestheapplicationofnumerousmetaheuristicsin
+1983), to search better prompts with simple edit thesettingofdiscreteblack-boxpromptlearning.
+operationssuchasaddition,swap,paraphrase,and Based on this framework, the flexible composi-
+deletion. GPS (Xu et al., 2022) utilized genetic tionofdifferenttechniquesbecomespossible,lead-
+algorithmsforfew-shotpromptlearning,improv- ing to a “template” for designing general prompt
+inghandcraftedpromptsonmultipletasks. Addi- learningalgorithms,guaranteedtosimultaneously
+tionally,KumarandTalukdar(2021)andLuetal. satisfythepropertiesofautomatic,discrete,black-
+(2021)investigatedtheimpactofexampleordersin box,gradient-free,andinterpretable.
+few-shotlearningsettings,respectivelyimproving
+performancethroughtheuseofgeneticalgorithms 3.1 PluminGeneral
+and alternate search heuristics. However, these
+Algorithm1PluminGeneral
+methodsarelimitedintheirapplicability,focusing
+Required:
+onspecificpromptlearningsettingsandfailingto
+(1)Awell-definedneighborset (p)for p Ω;
+fullyexploretheinherentpotentialofdiscreteop- N ∀ ∈
+(2)ametaheuristicsalgorithm ;
+timization, which is a bridge between black-box A
+(3) metaheuristics-dependent hyperparameters θ
+prompt learning and general metaheuristics. As
+andfunctions .
+anattempttoovercomethislimitation,(Guoetal., F
+2023)investigatedtheperformanceofcombining
+the rephrasing power of LLMs with Genetic Al- Input: An initialized prompt p 0 and an ob-
+jectivef(p)tobemaximized(orminimized).
+gorithmandDifferentialEvolution,showingsupe-
+riorperformanceoverhand-craftedprompts. How- 1: p ,θ, ,f(p 0, )
+∗ ←AN F M
+ever, compared with our work, Guo et al. (2023) 2: returnp
+∗
+focusedmoreonleveragingtheparaphrasingabil-
+ityofLLMsandrestrictedsearchstrategytoonly The framework of Plum is outlined in Algo-
+evolutionaryalgorithms,whichisasubsetofmeta- rithm1,whichencompassesfourfundamentaland
+heuristics. orthogonal elements. The first element is a well-
+Metaheuristics is a well-established and versa- definedneighborhood ( )inthediscreteprompt
+N ·
+tilebranchofdiscreteoptimization,knownforits searchspace. Inpractice,anyoperationsthattrans-
+effectiveness in solving various non-convex opti- form a prompt into another prompt can be used
+mization problems. This field has witnessed the to define such neighborhoods. For instance, edit
+developmentofover100differentmethods(Hus- operationsinGrIPS(Prasadetal.,2022)cancon-
+sain et al., 2019), which have been successfully vertapromptp = [Let,us,think]toanewprompt
+appliedtoawiderangeofproblemdomains. For p = [Let,us,brainstorm] via paraphrase, and all
+′
+instance, they have been utilized in Neural Ar- suchpossibleconversionsformpromptp’sneigh-
+chitecture Search (Elsken et al., 2019; Liu et al., borhood
+2021b), Travelling Salesman Problem (Ouaarab
+(p) = p e ,s.t.p = edit(p,e) .
+′ ′
+et al., 2014; Hussain et al., 2017; Grabusts et al., N { |∃ ∈ E }
+2019), and Program Search (Chen et al., 2023). Thisabstractionofneighborhooddecouplesprompt
+Prominent algorithms in this field include simu- transformationsandsearchalgorithms,makingthe
+latedannealing(Kirkpatricketal.,1983),genetic flexiblecombinationofthosetechniquespossible.
+algorithms (Holland, 1992), tabu search (Glover, The second part is the core metaheuristics ,
+A
+1986), harmony search (Geem et al., 2001), ant such as simulated annealing (Kirkpatrick et al.,
+colony optimization (Dorigo and Gambardella, 1983), tabu search (Glover, 1986), genetic algo-
+1997), among others. However, the integration rithms(Holland,1992). Anydiscreteoptimization
+of these powerful metaheuristics with black-box metaheuristicscanfitintothispart.
+2179Neighborhood Metaheuristics Hyperparameter
+Name
+(p) θ F
+N A
+HillClimbing - - Plum-HC
+Temperature
+SimulatedAnnealing - Plum-SA
+scheduleT(i)
+GeneticAlgorithms
+ktournamentselections - Plum-GA-M
+(mutationonly)
+Candidates
+GeneticAlgorithms 1)ktournamentselections; Crossoverfunction:
+afterediting Plum-GA-C
+(Prasadetal.,2022) (withcrossover) 2)p mutation:mutationrate ⟨p 1,p 2 ⟩→p
+Tabufunction:
+TabuSearch N slotsinTabulist Plum-TS
+tabu ,p 0,1
+⟨T ⟩→{ }
+1)N H harmonysearchmemory;
+2)k snumberofsegments;
+3)HMCR [0,1]:harmony
+HarmonySearch ∈ - Plum-HS
+memoryconsideringrate;
+4)PAR [0,1]:pitchingadjust
+∈
+rate
+Table1: ImplementedPlumalgorithms.
+Notably,variousmetaheuristicscomewiththeir metaheuristics under the setting of prompt learn-
+own specific hyperparameters and functions that ing. By combining the edit operations employed
+need to be considered within the Plum paradigm. in GrIPS (Prasad et al., 2022) with simulated an-
+Forinstance,inthecaseofsimulatedannealing,a nealing(Kirkpatricketal.,1983),wedevelopedan
+temperatureschedulerisrequiredforregulatingthe algorithm capable of recovering global optimum
+annealing speed, where an appropriate schedule withpropertemperaturescheduler (Granvilleetal.,
+can greatly improve the search efficiency. Sim- 1994). In this context, we define the global opti-
+ilarly, general genetic algorithms incorporate a mum as the prompt that maximizes the objective
+“crossover” operation, which swaps segments of functionf(p)withinthesetofreachableprompts
+twopromptsandservesasaglobalsearchmecha- startingfromtheinitialpromptp .
+0
+nismtoexpanditssearchscope. Furthermore,replacingsimulatedannealingwith
+During the optimization process, the objective genetic algorithms gives birth to Plum-GA-M and
+istomaximize(orminimize)aprovidedfunction Plum-GA-C, whose metaheuristics prototypes are
+f(p),whichtypicallycorrespondstotask-specific proven to converge to global optimum given spe-
+performance metrics of the target LLM. For in- cific mutation and crossover operations (Schmitt,
+stance,underthesettingofGPT-3-babbage(Brown 2004). Compared with Plum-GA-M, Plum-GA-C
+etal.,2020)onCommonsenseQuestionAnswer- adopts an extra operation of crossover, which
+ing(Talmoretal.,2019),thefunctionf(p)repre- enables more aggressive searches. Intuitively,
+sents the final accuracy achieved by augmenting Plum-GA-C > Plum-GA-M > Plum-SA > Plum-HC
+GPT-3-babbage with the prompt p. The primary intermsoftheirexplorationpower,whichisatthe
+goalofthemetaheuristicsistosearchfortheopti- expenseofincreasedsearchstepsandthenumber
+mumpwhichmaximizesthisaccuracy. ofevaluationsoftheobjectivefunctionf(p).
+ByclearlystatingthosekeycomponentsinPlum, Similarly,adoptingTabuSearch(Glover,1986)
+wearenowpreparedtoinstantiatePlumwithspe- and Harmony Search (Geem et al., 2001) brings
+cificmetaheuristicsandneighborhooddefinitions forthPlum-TSandPlum-HS,bothareAPI-efficient
+thatcanperformreal-worldpromptlearningtasks. methodsaccordingtoourexperiments. HereTabu
+Search introduces a Tabu list to prohibit certain
+3.2 PluminPractice
+candidatesfrombeingrevisited,henceavoidsthe
+Asaproofofconcept,werealizePlumwithseveral search process from getting stuck in a local op-
+popular metaheuristics, as listed in Table 1. De- timum. Meanwhile, Harmony Search obtains its
+tailedpseudocodesofthosemethodsareavailable inspirationfrommusicalcomposition,utilizinga
+inAppendixC. harmony search memory with past prompts and
+Allthosealgorithmsaresuccessfulproductsof generatesthenewpromptbycombiningsegments
+2180[You] [need to] [read and [You] [need to] [take the time
+[ t aY a no s w [u k s a e c]w r c,i o cP l ‘ r o[a l Y d nar ] e i tne s n edn [ ’ g n t b tc e o ta ]1 r or .g ei ‘ tfv N hue o eln ’l y ]a Crossover s[ eaY nn ao td su e ] nu ‘ cn Y[ ed eP n e s]ea r ’ er s [de t ot a rn ot n t o d ‘c ] Nl]2 oa [ ’s[r st ]e ih .a fed y u s t ‘n e o pd n oe t c sr e l is n a tt c s ia e s vn s i ed f ’] y ] , o ] r[ [ t a [ ‘h n t ne d h e e gi my an o tp au iu sr vt et d’a es ] lk . e] t e[is [ unY do eu r] s t[ an ne ded ] t [M o tu h]t e [a irt nee pa ud t and t s t oo e o r n u t c ‘n e l nd n a ee c s gr e s as s i tt f i]a y v,n e ]d ’[ ] a [ ]n t .d h[ pet amh y r e o aa u psi r h n r‘p t apu a sot s es k i] t i[ vi es ’
+sentences], [and your task] [is
+[You will] [be given a swap t ‘o p oc sl ia ts is vi ef ’y o] r [ ‘t nh ee gm a ta is v e’]. add
+task], [read and understand] [You] [need to] [read and
+[the sentence] [to classify [You] [need to] [read and understand] [the input sentences],
+as ‘Yes’ or ‘No’]. u ‘n nd ee gr as tt ia vn ed ’] ] , [t [h ae nm d a ys o u‘ rp o ts ai st ki ]v e [’ i so r t o [ [a tn hd e iy no pu ur t t sa es nk t] e n[ ci es s t ]o [c tl ha es ms i af sy ]
+Offspring classify] [the input sentences]. ‘positive’ or ‘negative’].
+Crossover Mutate Pegasus
+Sentence: She ate 3
+Evolutionary Search Strategy You will be given a slices of pizza and
+task, read and went to bed.
+understand the + Question: What
+sentence to classify happened when Katie
+as ‘Yes’ or ‘No’. took the pizza out
+[You] [will be given a task], ... [and anwser ‘Yes’ or of the oven?
+‘No’]. Discrete Prompt
+Pre-trained inputs
+Parser Language
+Model API
+You will be given a task, ... and anwser ‘Yes’ or ‘No’.
+Yes
+You will be given a task, ... and anwser ‘Yes’ or ‘No’.
+Response
+Figure1: IllustrationofPlum-GA-CanditspossibleextensionwithLLMs.
+fromthem. applyPEGASUS(Zhangetal.,2020b)asthepara-
+phrase model to obtain new phrases. The upper
+3.3 Plum-GA-C
+right corner of Figure 1 provides an illustrative
+Here we illustrate one specific algorithm depictionofthemutationprocess.
+Plum-GA-CasanexampleofinstantiatingaPlum
+Crossover Crossoverisacombinationofeditop-
+algorithm. Plum-GA-C contains three stages:
+erationsacrosstwoprompts. Toperformcrossover,
+parsing,editing,andscoring,whicharedescribed
+wedivideeachpromptintotwosub-sequencesat
+asfollows.
+arandomlyselectedposition. Fromeachprompt,
+3.3.1 Stage1: Parsing werandomlychooseonesub-sequenceandthese
+Initially, we parse the initial prompt I into a se- selectedsub-sequencesarethencombinedtocre-
+quenceofphrasesusingaCRF-basedconstituency ateanewsequenceastheprompt. Theupperleft
+parser (Zhang et al., 2020a). Subsequently, we cornerofFigure1providesavisualrepresentation
+iteratively merge the leaf nodes of the obtained ofthecrossoverprocess.
+constituencytreeuntilseveraldisjointphrase-level
+3.3.3 Stage3: Scoring
+constituentsaregenerated.
+Theoptimizationprocessreliesonperformancesig-
+3.3.2 Stage2: Editing nalsacquiredthroughthescoringprocess. Initially,
+Mutation Mutationisacombinationofeditop- we construct a score set S = (x 1,y 1),(x 2,y 2),
+{
+erationsinsidetheprompt. FollowingPrasadetal. ...,(x n,y n) by randomly sampling n examples
+}
+(2022),weintroducefourmutationoperationsin- fromthetrainingsplit. Subsequently,ascorefunc-
+cluding: delete, add, swap, and paraphrase. tioniscomputedbasedontheaccuracyofpredic-
+delete randomly drops some phrases while tions.
+addition adds some randomly sampled phrases
+backatarandomposition. swapswapstwophrases, 3.4 Plum-HS
+and paraphrase replaces a phrase with a new WealsointroducePlum-HS,anovelalgorithmthat
+phrase generated by a paraphrasing model. We integrates Harmony Search into prompt learning.
+2181Notably, it marks the first instance of Harmony Methods Accuracy(%)
+Search being successfully applied to prompt op-
+BBT(Sunetal.,2022b) 53.67 1.71‡
+timization tasks. The process is quite similar to BDPL(Diaoetal.,2022) 53.13± 0.61
+±
+composingnewsongs,wherenewpromptsaregen- GrIPS(Prasadetal.,2022) 53.67 0.87
+±
+APO(Pryzantetal.,2023) 54.63 0.37
+eratedbycombiningsegmentsfrompastprompts Plum-HC 53.83± 0.46
+together. Theprocedurestartswithabaseprompt Plum-SA 53.92± 0.41
+Plum-GA-M 53.21± 0.60
+pendingtobeoptimized,whichisfirstdividedinto Plum-GA-C 54.38± 0.47
+segmentsofwords,andinsertedintotheharmony Plum-TS 54.18± 0.05
+memory. Plum-HS 55.04± 0.56
+±
+Ateachiteration,anewpromptisgeneratedby
+composing k segments from prompts in the har- Table2: Impactofdifferentsearchstrategieswithtask-
+s
+mony search memory, where the j-th segment is agnosticinstructionandInstruction-Onlypromptswith
+gpt2-largeasbackbones. Herewesetthetimelimitto
+theexactcopyofthej-thsegmentfromarandomly
+45minutesforallmethods.
+sampledpromptinthememory. Afterthiscompo-
+Weincorporateerrorbarsforallreportedresultsin
+‡
+sitionprocedure,apitchfinetuningprocessisthen
+thispapertoillustratethevariability,where represents
+applied,whicheditsthesegmentwithasmallprob- ±
+aplusorminusthestandarddeviation.
+abilityinasimilarmannerasthemutationopera-
+tioninSection3.3.2. Theonlydifferenceisthatit
+utilizestwokindsofpitchchangeoperations: small inpromptlearning.
+pitchchangeswhichonlydoparaphrasing,andbig
+4.1 PlumforWhite-BoxPromptLearning
+pitchchangeswhichincludealleditingoperators.
+The generated new prompt is then evaluated and Dataset Ourexperimentsareconductedonasub-
+inserted back into the harmony search memory, set of the Natural-Instructions datasets v2.6 re-
+wherethememoryonlyretainsN promptswith lease(Mishraetal.,2022),specificallyfocusingon
+H
+topscores. eightbinaryclassificationtasks(task019,task021,
+Intuitivelyspeaking, Plum-HShasasimilarex- task 022, task 050, task 069, task 137, task 139,
+plorationpowerasPlum-GA-Candadoptsamore andtask195). Thisdatasetevaluatestheinstruction
+flexiblemannertoreplacelongsegmentsinthemid- followingabilityofmodels,whereproperprompt
+dleoftheprompt. Accordingtoourexperiments, designplaysanimportantrole.
+itisalsoAPI-efficient,whichachievesbetterper-
+Baselines We compare our method with three
+formancewhileconsumingsignificantlyfewerAPI
+popularpromptlearningmethods:
+callscomparedtoothermethods.
+• BDPL (Diao et al., 2022): using variance-
+Besides Plum-GA-C and Plum-HS, details of
+reducedpolicygradientalgorithmtoestimate
+otheralgorithmsarealsoavailableinAppendixC.
+thegradientsofparametersinthecategorical
+distributionofeachdiscreteprompt.
+4 Experiments
+• BBT(Sunetal.,2022b): optimizingcontinu-
+Weconductthreetypesofexperimentstodemon- ouspromptsbycovariancematrixadaptation
+strate the empirical superiority of proposed algo- evolutionstrategy.
+rithms. As a starting point, we first show Plum’s • GrIPS (Prasad et al., 2022): generating dis-
+computationalefficiencybyapplyingthemtogen- cretepromptsbyperformingphrase-levelop-
+eralpromptlearningtaskswithwhite-boxmodels, erations,andselectingthebestones.
+wherePlumproducesnontrivialimprovementsover
+• APO(Pryzantetal.,2023): automaticallyim-
+baselineswithinafixedtimelimit. Wefurtherin-
+prove the initial prompt using beam search
+vestigatePlumonpromptlearningtaskswithblack-
+guidedbytextual“gradient”.
+box models, where only discrete-input APIs are
+available. Onthesetasks,Plumalsoobtainssignifi- ExperimentSetup Tomakethecomparisonfair
+cantperformancegainswithmuchfewerAPIcalls. forallalgorithms,wefollowthesameeditingop-
+Eventually,weshowthatPlumiscapableofdiscov- eratorsasGrIPS(Prasadetal.,2022),whichgen-
+ering effective prompt patterns in both Chain-of- erally generates discrete prompts by performing
+Thoughtandtext-to-imagegenerationtasks,mak- phrase-leveloperationsandselectingthebestones.
+ingitapromisingparadigmforboostingresearch We utilize GPT2-large (Radford et al., 2019) for
+2182Max Batch API
+Backbone Methods Accuracy(%)
+Iteration Size Calls
+BDPL(Diaoetal.,2022) 50 32 57.38 10000
+GrIPS(Prasadetal.,2022) 10 4 54.41 0.55 7740
+GPT3-babbage Plum-HC 50 20 56.25± 0.27 10588
+(withoutAPICallslimit) Plum-SA 50 20 54.92± 0.78 13900
+Plum-GA-M 50 20 56.04± 0.97 10098
+Plum-GA-C 50 20 56.63± 0.97 13367
+Plum-TS 50 20 54.63± 0.83 1752
+Plum-HS 50 20 59.63± 0.80 5494
+±
+BDPL 40 32 56.25 –
+GrIPS 10 4 54.41 0.55 –
+GPT3-babbage Plum-HC 50 20 55.21± 0.48 –
+(withAPICallslimit8000) Plum-SA 50 20 56.87± 1.62 –
+Plum-GA-M 50 20 55.63± 0.47 –
+Plum-GA-C 50 20 57.75± 0.74 –
+Plum-TS 50 20 54.92± 1.26 –
+Plum-HS 50 20 59.75± 0.81 –
+±
+Table3: Impactofdifferentsearchstrategieswithtask-agnosticinstructionandInstruction-Onlypromptswith
+GPT3asbackbone.
+thebackbonemodelofpromptlearning. Toaccom- Plum-HS achieves the best performance. Specifi-
+modatecomputationalresourcelimitations,weset cally, Plum-HS obtains this superior performance
+the batch size to 1 and the time-out threshold of at a cost of much fewer API calls, rendering it a
+the searching process to 45 minutes for all meth- promisingcandidateforotherprompt-tuningtasks.
+ods. Allmethodsaregivenatask-agnosticinstruc- Itisalsoworthnoticingthatgivenapproximately
+tion: You will be given a task. Read and under- thesameamountofAPIcalls,allPlumalgorithms
+standthetaskcarefully,andappropriatelyanswer surpassGrIPSbyanon-trivialmargin.
+[list_of_labels]. Here [list_of_labels] serves as
+a placeholder to be replaced by an actual list of 4.3 PlumforPromptDiscovery
+labels. Text-to-ImageGeneration Asdemonstratedby
+imagesinTable4,Plumcanalsobeappliedtotext-
+Results As demonstrated in Table 2, with lim-
+to-image generation tasks and obtain non-trivial
+ited time resources, Plum can provide generally
+improvements even without the assistance of ex-
+on-parorbetterperformancethanbaselineprompt
+ternal LLMs like GPT-3 (Brown et al., 2020).
+learningmethods. Itisworthnoticingthatthisis
+By utilizing an offline image evaluator called
+achieved even without the need for model gradi-
+PickScore (Kirstain et al., 2023), optimizing im-
+entsoranyassistancefromexternalLLMs,which
+age relevance to the original prompt can be for-
+showsthepotentialofPlumforofflinepromptop-
+mulatedasablack-boxpromptlearningproblem,
+timization scenarios where efficiency is of great
+whereaprompt’sscoreisdefinedastheaveraged
+importance. More experimental results are avail-
+PickScoreoftheimagesgeneratedfromtheprompt.
+ableinAppendixB.1.
+PickScoreisaCLIP-basedscoringfunctiontrained
+4.2 PlumforBlack-BoxPromptLearning onacorpusofhigh-qualityimagetextpairdataset.
+This makes improving the image quality quanti-
+ExperimentalSetup Theexperimentalsetupfol-
+tatively possible. For example, in the fourth im-
+lowsthesamesettingaswhite-boxpromptlearning,
+age of Table 4, where the image topic is “cat in
+except for the backbone model, where we adopt
+alibrary”,Plum-HSaugmentstheoriginalprompt
+GPT3-babbageinstead. NoticethatBBT(Sunetal.,
+“A cat prowling in a library at night, books and
+2022b)isnolongerapplicableinthissettingsince
+shadows, silent observer”, and replaces it with a
+itrequirescontinuousgradientsinitspromptlearn-
+high-score prompt “A Is that true? Not at all cat
+ingprocesses.
+prowlinginshadowsAndbooksshadows”. Notice
+Results Table 3 lists the performance of Plum- theresultantprompthighlightsthekeyinformation
+series algorithms, where under both scenarios “cat,books,shadows”andappendsaprefix“Isthat
+of a limited number of iterations and API calls, true?” withasenseofmystery. Tothebestofour
+2183(a)SD-2.1(768 768resolution,AveragePickScore=50.0)
+×
+(b)Plum-HSaugmentedSD-2.1(768 768resolution,AveragePickScore=80.6)
+×
+Table 4: Plum-HS augmented prompts for stable-diffusion-2-1. Image topics: Top: 1) Starry night, 2) An
+underwatercity,3)Reflection,4)Catinalibrary,5)Moonlightbathesblossom;Bottom: 1)Moonlightandcity
+lights,2)Boundary,3)Sunglareonaskyscraper,4)Fierybeast,5)Sunflower.
+knowledge,thispatternwasunexploredbeforeand Furthermore, it is observed that the quality of
+canbebeneficialforfuturepromptengineeringde- the prompts can be enhanced by incorporating a
+velopmentinthisfield. Moreexperimentalresults morecomprehensiveandlucidexplanationofthe
+anddetailsareavailableinAppendixA. statement. To illustrate, in a case of prompting
+forAQuA,GPT3.5providesaninitialexplanation
+Reasoning AnotherimportantfeatureofPlumis oftheterm‘keystrokes’with‘(theactofpressing
+itscompatibilitywithexternalLLMsearchopera- a key on a keyboard)’ to ensure clarity, and fur-
+torsforparaphrasing,whichallowsthediscovery thergivesaprecisedescriptionfortherange‘from
+ofinterpretablepromptpatterns. Weapplythisver- 1 to 500’ with ‘(inclusive)’. This suggests that
+sionofPlumtoimprovetask-orientedLLMs’per- knowledge-augmented prompt learning methods
+formance, wherethedetailedcasesarepresented canbebeneficialforblack-boxprompttuning.
+inTable6ofAppendixA.Viastudyingthecharac-
+teristicsofthesearchedprompts,wefoundthatthe 5 Discussion
+performanceofinitialpromptscanbeboostedby
+furthercompletionofthelogicalchain. Thisway, PlumwithLLM-drivenMutators LLM-based
+thelogicalcoherenceofpromptscanbeimproved prompt tuning methods are emerging as one of
+while still retaining their intended meaning. For themostcompetitiveapproachesinpromptlearn-
+instance,‘Ifthereare3carsintheparkinglotand ing. RecentworkslikePryzantetal.(2023);Guo
+2morecarsarrive,howmanycarsareinthepark- etal.(2023)haveshownsignificantperformance
+ing lot (total number of cars in the parking lot + improvements through utilizing the LLM-driven
+2)’,whereGPT-3completesthecontentinsidethe promptmutators,highlightingthesuccessofsuch
+parentheses,leadingtoaneasierChain-of-Thought approaches. Compared with them, Plum offers a
+reasoningforLLMs. complementaryandorthogonalparadigm. Forex-
+2184ample,byincorporatingtheLLM-basedoperators • ForPlum-TS,althoughitsperformanceisnot
+inPlumalgorithms,ourChain-of-Thoughttaskex- the best, it achieves on-par performance as
+perimentsinAppendixB.2demonstrateeffective- GrIPSin 4timesfewerAPIcalls(asshown
+nessingeneratinghigh-quality,interpretablefew- in Table 3). This advantage makes Plum-TS
+shot-CoT prompts for reasoning tasks (as shown anextremelyfavorablechoiceforapplications
+in Table 6). This suggests that LLMs can be a withlimitedbudgetsorAPIcallquotas.
+powerful tool for prompt exploration within the
+6 Conclusion
+Plum paradigm, particularly when computational
+resourcesareabundant. In this paper, a novel paradigm of prompt learn-
+ingisproposed. Byformulatingpromptlearning
+StrengthsofDifferentPlumAlgorithms Inboth
+asablack-boxdiscreteoptimizationproblem,we
+white-boxandblack-boxsettings,ourexperiments
+areabletoapplyvariousmetaheuristicsalgorithms
+demonstratethatPlum-HSachievessignificantper-
+to help discover effective prompts, while guar-
+formance gains on prompt tuning tasks against
+anteeing the whole process to be automatic, dis-
+baselines and the other Plum algorithms. This is
+crete, gradient-free, interpretable, and applicable
+because it takes into account the composability
+toblack-boxmodels. SixtypicalPlumalgorithms,
+of different prompt segments, which can be seen
+HillClimbing,SimulatedAnnealing,GeneticAl-
+as an extension of evolutionary algorithms. No-
+gorithm(MutationOnly),GeneticAlgorithm(with
+tably, in tasks like image generation (detailed in
+Crossover),TabuSearch,andHarmonySearchall
+Section4.3),weobservethatupdatestodifferent
+obtainnon-trivialimprovementsoverGrIPSonin-
+segments can occur in parallel, highlighting this
+struction following tasks. Furthermore, with the
+approach’sefficiency.
+assistance of metaheuristics-based prompt learn-
+Ontheotherhand,whiletwobaselinemethods
+ing,wearecapableofdiscoveringnewpatternsof
+may have superior performance over most other
+effectivepromptsunexploredinthepast.
+Plumalgorithms,thosemetaheuristicspossessnice
+propertiesthatcanbebeneficialforthecommunity. Limitations
+• Plum-HCstandsoutforitssimplicityandeffi- As an early step of bridging metaheuristics and
+ciencyamongPlumfamily. Itsharesthesame promptlearninginaunifiedparadigm,weonlyim-
+formofGrIPS(Prasadetal.,2022)andisone plementsixalgorithmstoprovethevalidityofthis
+ofthemostcommonlyadoptedparadigmsin concept. Nevertheless, there are still a bunch of
+LLM-based methods. Plum-HC can serve as otherpotentialmetaheuristicsthatcanbeincorpo-
+afoundationalalgorithmfordevelopingnew ratedintothisframework,producingmoreempiri-
+mutators. Itsstraightforwardnatureallowsfor callyusefulmethodsforsolvingreal-worldprob-
+easierdebuggingandcomparisonwhendevel- lems. WehopePlumisjustastartingpoint,more
+oping more complex algorithms in the Plum metaheuristics,suchasParticleSwarmOptimiza-
+family. tion (Kennedy and Eberhart, 1995), Ant Colony
+Optimization(DorigoandGambardella,1997)and
+• For Plum-SA, it boasts a quite simple form,
+Cuckoosearch(YangandDeb,2009)canbecom-
+which only differs one line from Plum-HC.
+bined with more neighborhood definitions, like
+Crucially,itguaranteestofindtheglobalop-
+retrieval-basedcompletionsandmultimodal,toin-
+timum with the infinite time horizon. This
+spiremorepracticalalgorithms,whichcaneventu-
+characteristicmakesitvaluableforfuturethe-
+ally help us find a way to properly communicate
+oreticalanalysesofdiscretepromptlearning.
+withLargeLanguageModels.
+• Plum-GA-MandPlum-GA-C,thegeneticalgo- Thepotentialrisksofthisworkarethegeneral
+rithm, can be considered one of the most risksofblackprompttuningmethods,wheremore
+widely adopted algorithms in evolutionary powerfulpromptlearningalgorithmsenablemore
+search,whoseresultscanbeusefulforfuture powerfulpromptattackapproaches. Nevertheless,
+comparisons on the same tasks for other re- thesilverliningisthatmostpromptattackmethods
+searchers. Additionally,ourexperimentsalso normallyintermgenerateadversarialsamplesthat
+demonstratethatthesealgorithmsachievesu- helpimprovetherobustnessofmodels,whichcan
+periorperformancecomparedtobaselineap- beconsideredbeneficialinthelongterm.
+proaches.
+2185References Xing,andZhitingHu.2022. Rlprompt: Optimizing
+discrete text prompts with reinforcement learning.
+ZhangirAzerbayev,HaileySchoelkopf,KeiranPaster,
+arXivpreprintarXiv:2205.12548.
+MarcoDosSantos,StephenMcAleer,AlbertQJiang,
+JiaDeng,StellaBiderman,andSeanWelleck.2023. Tim Dettmers, Artidoro Pagnoni, Ari Holtzman, and
+Llemma: Anopenlanguagemodelformathematics. LukeZettlemoyer.2023. Qlora: Efficientfinetuning
+arXivpreprintarXiv:2310.10631. ofquantizedllms. arXivpreprintarXiv:2305.14314.
+EyalBen-David,NadavOved,andRoiReichart.2022. Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+PADA:Example-basedpromptlearningforon-the- KristinaToutanova.2018. Bert: Pre-trainingofdeep
+flyadaptationtounseendomains. Transactionsofthe bidirectionaltransformersforlanguageunderstand-
+AssociationforComputationalLinguistics,10:414– ing. arXivpreprintarXiv:1810.04805.
+433.
+ShizheDiao,ZhichaoHuang,RuijiaXu,XuechunLi,
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie YongLin,XiaoZhou,andTongZhang.2022. Black-
+Subbiah,JaredDKaplan,PrafullaDhariwal,Arvind boxpromptlearningforpre-trainedlanguagemodels.
+Neelakantan,PranavShyam,GirishSastry,Amanda arXivpreprintarXiv:2201.08531.
+Askell,etal.2020. Languagemodelsarefew-shot
+learners. Advancesinneuralinformationprocessing Shizhe Diao, Pengcheng Wang, Yong Lin, and Tong
+systems,33:1877–1901. Zhang. 2023. Active prompting with chain-of-
+thoughtforlargelanguagemodels.
+Sondos Mahmoud Bsharat, Aidar Myrzakhan, and
+ZhiqiangShen.2023. Principledinstructionsareall HanzeDong,WeiXiong,DeepanshuGoyal,RuiPan,
+youneedforquestioningllama-1/2,gpt-3.5/4. arXiv Shizhe Diao, Jipeng Zhang, Kashun Shum, and
+preprintarXiv:2312.16171. TongZhang.2023. Raft: Rewardrankedfinetuning
+for generative foundation model alignment. arXiv
+XiangningChen,ChenLiang,DaHuang,EstebanReal, preprintarXiv:2304.06767.
+KaiyuanWang,YaoLiu,HieuPham,XuanyiDong,
+ThangLuong,Cho-JuiHsieh,etal.2023. Symbolic Marco Dorigo, Mauro Birattari, and Thomas Stutzle.
+discoveryofoptimizationalgorithms. arXivpreprint 2006. Antcolonyoptimization. IEEEcomputational
+arXiv:2302.06675. intelligencemagazine,1(4):28–39.
+JialeCheng,XiaoLiu,KehanZheng,PeiKe,Hongning MarcoDorigoandLucaMariaGambardella.1997. Ant
+Wang, Yuxiao Dong, Jie Tang, and Minlie Huang. colonysystem: acooperativelearningapproachto
+2023. Black-box prompt optimization: Aligning thetravelingsalesmanproblem. IEEETransactions
+largelanguagemodelswithoutmodeltraining. arXiv onevolutionarycomputation,1(1):53–66.
+preprintarXiv:2311.04155.
+ThomasElsken,JanHendrikMetzen,andFrankHutter.
+WL Chiang, Z Li, Z Lin, Y Sheng, Z Wu, H Zhang, 2019. Neural architecture search: A survey. The
+LZheng,SZhuang,YZhuang,JEGonzalez,etal. JournalofMachineLearningResearch,20(1):1997–
+2023. Vicuna: Anopen-sourcechatbotimpressing 2017.
+gpt-4with90%*chatgptquality,mar.2023.
+Tianyu Gao, Adam Fisch, and Danqi Chen. 2021.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Makingpre-trainedlanguagemodelsbetterfew-shot
+MarkChen,HeewooJun,LukaszKaiser,Matthias learners. In Proceedings of the 59th Annual Meet-
+Plappert, Jerry Tworek, Jacob Hilton, Reiichiro ingoftheAssociationforComputationalLinguistics
+Nakano, Christopher Hesse, and John Schulman. andthe11thInternationalJointConferenceonNatu-
+2021. TrainingVerifierstoSolveMathWordProb- ralLanguageProcessing(Volume1: LongPapers),
+lems. arXiv. pages3816–3830,Online.AssociationforComputa-
+tionalLinguistics.
+Siddhartha Datta, Alexander Ku, Deepak Ramachan-
+dran,andPeterAnderson.2023. Promptexpansion Zong Woo Geem, Joong Hoon Kim, and Gobichetti-
+foradaptivetext-to-imagegeneration. arXivpreprint palayamVasudevanLoganathan.2001. Anewheuris-
+arXiv:2312.16720. ticoptimizationalgorithm: harmonysearch. simula-
+tion,76(2):60–68.
+Joe Davison, Joshua Feldman, and Alexander Rush.
+2019. Commonsenseknowledgeminingfrompre- MorGeva,DanielKhashabi,EladSegal,TusharKhot,
+trainedmodels. InProceedingsofthe2019Confer- DanRoth,andJonathanBerant.2021. DidAristotle
+enceonEmpiricalMethodsinNaturalLanguagePro- UseaLaptop? AQuestionAnsweringBenchmark
+cessingandthe9thInternationalJointConference withImplicitReasoningStrategies. Transactionsof
+onNaturalLanguageProcessing(EMNLP-IJCNLP), theAssociationforComputationalLinguistics,9:346–
+pages1173–1178,HongKong,China.Association 361.
+forComputationalLinguistics.
+FredGlover.1986. Futurepathsforintegerprogram-
+MingkaiDeng,JianyuWang,Cheng-PingHsieh,Yihan mingandlinkstoartificialintelligence. Computers
+Wang,HanGuo,TianminShu,MengSong,EricP &operationsresearch,13(5):533–549.
+2186FredGloverandSaıdHanafi.2002. Tabusearchand KashifHussain,MohdNajibMohdSalleh,ShiCheng,
+finiteconvergence. DiscreteAppliedMathematics, and Yuhui Shi. 2019. Metaheuristic research: a
+119(1-2):3–36. comprehensivesurvey. Artificialintelligencereview,
+52(4):2191–2233.
+PeterGrabusts,JurijsMusatovs,andVladimirGolenkov.
+2019. Theapplicationofsimulatedannealingmethod MojanJavaheripiandSébastienBubeck.2024. Phi-2:
+foroptimalroutedetectionbetweenobjects. Proce- Thesurprisingpowerofsmalllanguagemodels.
+diaComputerScience,149:95–101.
+ZhengbaoJiang,FrankF.Xu,JunAraki,andGraham
+Vincent Granville, Mirko Krivánek, and J-P Rasson. Neubig. 2020. How can we know what language
+1994. Simulatedannealing: Aproofofconvergence. modelsknow? TransactionsoftheAssociationfor
+IEEEtransactionsonpatternanalysisandmachine ComputationalLinguistics,8:423–438.
+intelligence,16(6):652–656.
+James Kennedy and Russell Eberhart. 1995. Particle
+QingyanGuo,RuiWang,JunliangGuo,BeiLi,Kaitao swarm optimization. In Proceedings of ICNN’95-
+Song, Xu Tan, Guoqing Liu, Jiang Bian, and Yu- international conference on neural networks, vol-
+jiuYang.2023. Connectinglargelanguagemodels ume4,pages1942–1948.IEEE.
+withevolutionaryalgorithmsyieldspowerfulprompt
+ScottKirkpatrick,CDanielGelattJr,andMarioPVec-
+optimizers. arXivpreprintarXiv:2309.08532.
+chi.1983. Optimizationbysimulatedannealing. sci-
+Karen Hambardzumyan, Hrant Khachatrian, and ence,220(4598):671–680.
+JonathanMay.2021. WARP:Word-levelAdversarial
+YuvalKirstain,AdamPolyak,UrielSinger,Shahbuland
+ReProgramming. InProceedingsofthe59thAnnual
+Matiana,JoePenna,andOmerLevy.2023. Pick-a-
+Meeting of the Association for Computational Lin-
+pic: Anopendatasetofuserpreferencesfortext-to-
+guisticsandthe11thInternationalJointConference
+imagegeneration. arXivpreprintarXiv:2305.01569.
+onNaturalLanguageProcessing(Volume1: Long
+Papers),pages4921–4933,Online.Associationfor
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu-
+ComputationalLinguistics.
+takaMatsuo,andYusukeIwasawa.2022. Largelan-
+guagemodelsarezero-shotreasoners. arXivpreprint
+Xu Han, Weilin Zhao, Ning Ding, Zhiyuan Liu,
+arXiv:2205.11916.
+and Maosong Sun. 2021. PTR: Prompt Tuning
+with Rules for Text Classification. ArXiv preprint,
+RikKoncel-Kedziorski,SubhroRoy,AidaAmini,Nate
+abs/2105.11259.
+Kushman,andHannanehHajishirzi.2016. MAWPS:
+Amathwordproblemrepository. InProceedingsof
+AdiHaviv,JonathanBerant,andAmirGloberson.2021.
+the2016ConferenceoftheNorthAmericanChapter
+BERTese: LearningtospeaktoBERT. InProceed-
+oftheAssociationforComputationalLinguistics:Hu-
+ingsofthe16thConferenceoftheEuropeanChap-
+manLanguageTechnologies,pages1152–1157,San
+teroftheAssociationforComputationalLinguistics:
+Diego, California. Association for Computational
+MainVolume,pages3618–3623,Online.Association
+Linguistics.
+forComputationalLinguistics.
+SawanKumarandParthaTalukdar.2021. Reordering
+Xing-ShiHe,FanWang,YanWang,andXin-SheYang.
+exampleshelpsduringpriming-basedfew-shotlearn-
+2018. Globalconvergenceanalysisofcuckoosearch
+ing. arXivpreprintarXiv:2106.01751.
+usingmarkovtheory. InNature-inspiredalgorithms
+andappliedoptimization,pages53–67.Springer. Xiang Lisa Li and Percy Liang. 2021. Prefix-tuning:
+Optimizingcontinuouspromptsforgeneration. arXiv
+JohnHHolland.1992. Geneticalgorithms. Scientific
+preprintarXiv:2101.00190.
+american,267(1):66–73.
+Percy Liang, Rishi Bommasani, Tony Lee, Dimitris
+BairuHou,JoeO’Connor,JacobAndreas,ShiyuChang,
+Tsipras, Dilara Soylu, Michihiro Yasunaga, Yian
+andYangZhang.2022. Promptboosting: Black-box
+Zhang,DeepakNarayanan,YuhuaiWu,AnanyaKu-
+text classification with ten forward passes. arXiv
+mar, et al. 2022. Holistic evaluation of language
+preprintarXiv:2212.09257.
+models. arXivpreprintarXiv:2211.09110.
+Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan
+Xiao Liu, Yanan Zheng, Zhengxiao Du, Ming Ding,
+Allen-Zhu, Yuanzhi Li, Shean Wang, Lu Wang,
+YujieQian,ZhilinYang,andJieTang.2021a. Gpt
+and Weizhu Chen. 2021. Lora: Low-rank adap- understands,too. arXivpreprintarXiv:2103.10385.
+tation of large language models. arXiv preprint
+arXiv:2106.09685. Yuqiao Liu, Yanan Sun, Bing Xue, Mengjie Zhang,
+GaryGYen,andKayChenTan.2021b. Asurveyon
+Abid Hussain, Yousaf Shad Muhammad, M Nau- evolutionaryneuralarchitecturesearch. IEEEtrans-
+man Sajid, Ijaz Hussain, Alaa Mohamd Shoukry, actionsonneuralnetworksandlearningsystems.
+Showkat Gani, et al. 2017. Genetic algorithm for
+traveling salesman problem with modified cycle MarcoLocatelli.2000. Convergenceofasimulatedan-
+crossoveroperator. Computationalintelligenceand nealingalgorithmforcontinuousglobaloptimization.
+neuroscience,2017. JournalofGlobalOptimization,18(3):219–233.
+2187YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel, AlecRadford,JeffreyWu,RewonChild,DavidLuan,
+and Pontus Stenetorp. 2021. Fantastically ordered DarioAmodei,IlyaSutskever,etal.2019. Language
+prompts and where to find them: Overcoming modelsareunsupervisedmultitasklearners. OpenAI
+few-shot prompt order sensitivity. arXiv preprint blog,1(8):9.
+arXiv:2104.08786.
+BaptisteRoziere,JonasGehring,FabianGloeckle,Sten
+Shen-yun Miao, Chao-Chun Liang, and Keh-Yih Su. Sootla, Itai Gat, Xiaoqing Ellen Tan, Yossi Adi,
+2020. Adiversecorpusforevaluatinganddeveloping Jingyu Liu, Tal Remez, Jérémy Rapin, et al. 2023.
+Englishmathwordproblemsolvers. InProceedings Codellama:Openfoundationmodelsforcode. arXiv
+of the 58th Annual Meeting of the Association for preprintarXiv:2308.12950.
+ComputationalLinguistics,pages975–984,Online.
+AssociationforComputationalLinguistics. LotharMSchmitt.2004. Theoryofgeneticalgorithms
+ii: modelsforgeneticoperatorsoverthestring-tensor
+SwaroopMishra,DanielKhashabi,ChittaBaral,Yejin
+representation of populations and convergence to
+Choi, and Hannaneh Hajishirzi. 2021. Reframing
+globaloptimaforarbitraryfitnessfunctionunderscal-
+instructional prompts to gptk’s language. arXiv
+ing. TheoreticalComputerScience, 310(1-3):181–
+preprintarXiv:2109.07830.
+231.
+Swaroop Mishra, Daniel Khashabi, Chitta Baral, and
+TaylorShin,YasamanRazeghi,RobertL.LoganIV,Eric
+Hannaneh Hajishirzi. 2022. Cross-task generaliza-
+Wallace,andSameerSingh.2020. AutoPrompt:Elic-
+tionvianaturallanguagecrowdsourcinginstructions.
+itingKnowledgefromLanguageModelswithAuto-
+In Proceedings of the 60th Annual Meeting of the
+maticallyGeneratedPrompts. InProceedingsofthe
+AssociationforComputationalLinguistics(Volume
+2020ConferenceonEmpiricalMethodsinNatural
+1: LongPapers),pages3470–3487.
+LanguageProcessing(EMNLP),pages4222–4235,
+Online.AssociationforComputationalLinguistics.
+OpenAI.2023. Gpt-4technicalreport.
+AzizOuaarab,BelaïdAhiod,andXin-SheYang.2014. KaShun Shum, Shizhe Diao, and Tong Zhang. 2023.
+Discretecuckoosearchalgorithmforthetravelling Automaticpromptaugmentationandselectionwith
+salesmanproblem. NeuralComputingandApplica- chain-of-thoughtfromlabeleddata.
+tions,24(7):1659–1669.
+HongjinSu,JungoKasai,ChenHenryWu,WeijiaShi,
+LongOuyang,JeffreyWu,XuJiang,DiogoAlmeida, TianluWang,JiayiXin,RuiZhang,MariOstendorf,
+CarrollWainwright,PamelaMishkin,ChongZhang, LukeZettlemoyer,NoahASmith,etal.2022a. Se-
+SandhiniAgarwal,KatarinaSlama,AlexRay,etal. lectiveannotationmakeslanguagemodelsbetterfew-
+2022. Training languagemodelsto followinstruc- shotlearners. ArXivpreprint,abs/2209.01975.
+tions with human feedback. Advances in Neural
+InformationProcessingSystems,35:27730–27744. HsuanSu,PohanChi,Shih-ChengHuang,ChungHo
+Lam, Saurav Sahay, Shang-Tse Chen, and Hung-
+ShilongPan,ZhiliangTian,LiangDing,ZhenHuang,
+yi Lee. 2022b. Few-shot prompting toward con-
+Zhihua Wen, and Dongsheng Li. 2024. Pomp: trollable response generation. arXiv preprint
+Probability-drivenmeta-graphprompterforllmsin arXiv:2206.03931.
+low-resource unsupervised neural machine transla-
+tion.
+TianxiangSun,ZhengfuHe,HongQian,YunhuaZhou,
+Xuan-JingHuang, andXipengQiu.2022a. Bbtv2:
+Arkil Patel, Satwik Bhattamishra, and Navin Goyal.
+Towardsagradient-freefuturewithlargelanguage
+2021. AreNLPModelsreallyabletoSolveSimple
+models. InProceedingsofthe2022Conferenceon
+MathWordProblems? arXiv.
+EmpiricalMethodsinNaturalLanguageProcessing,
+pages3916–3930.
+Archiki Prasad, Peter Hase, Xiang Zhou, and Mohit
+Bansal. 2022. Grips: Gradient-free, edit-based in-
+Tianxiang Sun, Yunfan Shao, Hong Qian, Xuanjing
+structionsearchforpromptinglargelanguagemodels.
+Huang,andXipengQiu.2022b. Black-boxtuningfor
+arXivpreprintarXiv:2203.07281.
+language-model-as-a-service. InInternationalCon-
+Reid Pryzant, Dan Iter, Jerry Li, Yin Tat Lee, Chen- ferenceonMachineLearning,pages20841–20855.
+guang Zhu, and Michael Zeng. 2023. Automatic PMLR.
+prompt optimization with" gradient descent" and
+beamsearch. arXivpreprintarXiv:2305.03495. Alon Talmor, Jonathan Herzig, Nicholas Lourie, and
+JonathanBerant.2019. CommonsenseQA:Aques-
+GuanghuiQinandJasonEisner.2021. Learninghow tion answering challenge targeting commonsense
+toask: QueryingLMswithmixturesofsoftprompts. knowledge. InProceedingsofthe2019Conference
+InProceedingsofthe2021ConferenceoftheNorth oftheNorthAmericanChapteroftheAssociationfor
+AmericanChapteroftheAssociationforComputa- ComputationalLinguistics: HumanLanguageTech-
+tionalLinguistics: HumanLanguageTechnologies, nologies,Volume1(LongandShortPapers),pages
+pages5203–5212,Online.AssociationforComputa- 4149–4158,Minneapolis,Minnesota.Associationfor
+tionalLinguistics. ComputationalLinguistics.
+2188Gemini Team, Rohan Anil, Sebastian Borgeaud, BiaoZhang,IvanTitov,andRicoSennrich.2020a. Fast
+Yonghui Wu, Jean-Baptiste Alayrac, Jiahui Yu, interleavedbidirectionalsequencegeneration. InPro-
+Radu Soricut, Johan Schalkwyk, Andrew M Dai, ceedingsoftheFifthConferenceonMachineTrans-
+Anja Hauth, et al. 2023. Gemini: a family of lation,pages503–515.
+highlycapablemultimodalmodels. arXivpreprint
+arXiv:2312.11805. JingqingZhang,YaoZhao,MohammadSaleh,andPe-
+terLiu.2020b. Pegasus: Pre-trainingwithextracted
+HugoTouvron,ThibautLavril,GautierIzacard,Xavier gap-sentencesforabstractivesummarization. InIn-
+Martinet,Marie-AnneLachaux,TimothéeLacroix, ternationalConferenceonMachineLearning,pages
+BaptisteRozière,NamanGoyal,EricHambro,Faisal 11328–11339.PMLR.
+Azhar, et al. 2023a. Llama: Open and effi-
+cient foundation language models. arXiv preprint
+Peiyuan Zhang, Guangtao Zeng, Tianduo Wang, and
+arXiv:2302.13971.
+Wei Lu. 2024. Tinyllama: An open-source small
+languagemodel.
+Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-
+bert, Amjad Almahairi, Yasmine Babaei, Nikolay
+Zhuosheng Zhang, Aston Zhang, Mu Li, and Alex
+Bashlykov,SoumyaBatra,PrajjwalBhargava,Shruti
+Smola.2022. Automaticchainofthoughtprompting
+Bhosale, et al. 2023b. Llama 2: Open founda-
+inlargelanguagemodels.
+tion and fine-tuned chat models. arXiv preprint
+arXiv:2307.09288.
+ZexuanZhong,DanFriedman,andDanqiChen.2021.
+Eric Wallace, Shi Feng, Nikhil Kandpal, Matt Gard- Factual probing is [MASK]: Learning vs. learning
+ner,andSameerSingh.2019. Universaladversarial to recall. In Proceedings of the 2021 Conference
+triggersforattackingandanalyzingNLP. InProceed- of the North American Chapter of the Association
+ingsofthe2019ConferenceonEmpiricalMethods for Computational Linguistics: Human Language
+inNaturalLanguageProcessingandthe9thInter- Technologies,pages5017–5033,Online.Association
+nationalJointConferenceonNaturalLanguagePro- forComputationalLinguistics.
+cessing(EMNLP-IJCNLP),pages2153–2162,Hong
+Kong,China.AssociationforComputationalLinguis- Denny Zhou, Nathanael Schärli, Le Hou, Jason Wei,
+tics. Nathan Scales, Xuezhi Wang, Dale Schuurmans,
+ClaireCui,OlivierBousquet,QuocVLe,andEdH.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe, Chi. 2023. Least-to-most prompting enables com-
+EdChi,andDennyZhou.2022. Self-consistencyim- plex reasoning in large language models. In The
+proveschainofthoughtreasoninginlanguagemod- EleventhInternationalConferenceonLearningRep-
+els. arXivpreprintarXiv:2203.11171. resentations.
+JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+KaijieZhu,QinlinZhao,HaoChen,JindongWang,and
+Bosma,EdChi,QuocLe,andDennyZhou.2022a.
+XingXie.2023. Promptbench: Aunifiedlibraryfor
+Chainofthoughtpromptingelicitsreasoninginlarge
+evaluationoflargelanguagemodels. arXivpreprint
+languagemodels. arXivpreprintarXiv:2201.11903.
+arXiv:2312.07910.
+JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+Bosma,BrianIchter,FeiXia,EdChi,QuocLe,and A DiscoveredPromptPatterns
+DennyZhou.2022b. Chain-of-ThoughtPrompting
+ElicitsReasoninginLargeLanguageModels. arXiv. Text-to-Image Generation Several detailed
+promptsintext-to-imagegenerationtasksarepre-
+HanweiXu,YujunChen,YulunDu,NanShao,Yang-
+sented in Table 5. It can be observed that those
+gangWang,HaiyuLi,andZhilinYang.2022. Gps:
+Geneticpromptsearchforefficientfew-shotlearning. improvedpromptshaveatendencytofocusmore
+arXivpreprintarXiv:2210.17041. onkeydescriptiveelementsintheimage,suchas
+“shadows”,“shimmerinpetals”or“sunset”. The
+Xin-She Yang and Suash Deb. 2009. Cuckoo search
+augmentedpromptsalsouse“Thereis”or“They
+vialévyflights. In2009Worldcongressonnature
+&biologicallyinspiredcomputing(NaBIC),pages have”toemphasizethe mainthemeofthe image
+210–214.Ieee. andremoveotherdistractivewords.
+JiahaoYu,XingweiLin,andXinyuXing.2023. Gpt-
+Reasoning Herewepresentseveraltypicalcases
+fuzzer: Red teaming large language models with
+ofdiscoveredpromptpatternsforreasoningtasks,
+auto-generated jailbreak prompts. arXiv preprint
+arXiv:2309.10253. asshowninTable6. Itturnsoutthat1)completing
+the logical chain, 2) explaining the meaning of a
+WeizheYuan,GrahamNeubig,andPengfeiLiu.2021.
+term, or 3) providing additional clarification of a
+BARTScore: Evaluatinggeneratedtextastextgener-
+statementallhelpLLMsimproveperformancein
+ation. InAdvancesinNeuralInformationProcessing
+Systems. reasoningtasks.
+2189Topic OriginalImage ResultantImage OriginalPrompt AugmentedPrompt
+Cat in a li- A cat prowling in A Is that true? Not
+brary a library at night, at all cat prowl-
+booksandshadows, inginshadowsAnd
+silentobserver. booksshadows,
+Moonlight Moonlight bathes Moonlight bathes
+bathes blos- blossom grove, blossom silvery
+som petals shimmer in There is shimmer
+silvery lumines- inpetals
+cence
+Sunflower Sunflower field at Sunflower endless
+sunset,goldenhour, field sunset, at sun-
+endlesssummer. set,
+Moonlight Moonlight illumi- Moonlight illumi-
+bathes blos- natingatnight,dis- nating at night dis-
+som tantcitylights. tantcityTheyhave
+lights
+Glowing Illuminated fungi Illuminated fungi
+Mushroom cast ethereal light cast It’s something
+Forest indensewoodland The and It is ethe-
+realindense
+Table5: Plum-HSaugmentedpromptsforstable-diffusion-2-1
+.
+B AdditionalExperimentalResults nessandefficiencyofourproposedparadigm.
+B.1 PlumforWhite-BoxPromptLearning B.2 PlumforChain-of-Thought
+MoreexperimentalresultsonPhi-2(Javaheripiand The Plum paradigm offers a natural approach to
+Bubeck,2024)andTinyLlama(Zhangetal.,2024) obtaininghigh-qualityfew-shot-CoTpromptsfor
+areshowninTable7,wherewestillobserveon-par improvingLLM’sreasoningperformances. Toen-
+or better performance when compare Plum with surethatthisclassofpromptsstillremainslogical
+baselinemethods. Additionally,Figure2illustrates andinterpretableafteroptimization,wehavemade
+the performance (accuracy) of Plum-HS on the furtherimprovementstothesearchprocessbyin-
+Natural-Instructionsdatasetsubtasksasthenumber troducinganadditionalLLM.Specifically,ween-
+of iterations increases, highlighting the effective- couragethelanguagemodelstoprovideadditional
+2190Tasks SearchedPrompts
+Initial: Ifthereare3carsintheparkinglotand2morecarsarrive,howmanycarsareintheparking
+···
+GSM8K lot?
+···
+GPT3: Ifthereare3carsintheparkinglotand2morecarsarrive,howmanycarsareintheparking
+···
+lot (totalnumberofcarsintheparkinglot+2)?
+···
+Initial: Leahhad32chocolatesandhersisterhad42.Iftheyate35,howmanypiecesdotheyhave
+···
+ASDiv leftintotal?
+···
+GPT3.5: Leahhad32chocolatesandhersisterhad42 (totalnumberofchocolatesownedbyLeah
+···
+andhersister). Iftheyate35 (totalnumberofchocolateseatenbyLeahandhersister),howmany
+piecesdotheyhaveleftintotal (total numberofchocolatesremainingwithLeahandhersister)?
+···
+Initial: Howmanykeystrokesareneededtotypethenumbersfrom1to500?AnswerChoices:(a)
+···
+AQuA 1156(b)1392(c)1480(d)1562(e)1788.
+···
+GPT3.5: Howmanykeystrokes (theactofpressingakeyonakeyboard) areneededtotypethe
+···
+numbersfrom1to500 (inclusive)?AnswerChoices:(a)1156(b)1392(c)1480(d)1562(e)1788.
+···
+Initial: Whatdopeopleusetoabsorbextrainkfromafountainpen? AnswerChoices: (a)shirt
+···
+pocket(b)calligrapher’shand(c)inkwell(d)deskdrawer(e)blotter
+CSQA ···
+GPT3.5: What do people use to absorb extra ink (liquidusedforwritingorprinting) from a
+···
+fountainpen (apenthatusesareservoirofliquidinktowrite)?AnswerChoices:(a)shirtpocket(b)
+calligrapher’shand(c)inkwell(d)deskdrawer(e)blotter(apieceofabsorbentmaterialusedtosoakup
+excessinkortodryfreshlywrittenink)
+···
+Initial: Yesorno:Hydrogen’satomicnumbersquaredexceedsnumberofSpiceGirls?
+··· ···
+StrategyQA GPT3.5: Yesorno: Doeshydrogenhaveanatomicnumberof1 (thenumberofprotonsinthe
+···
+nucleusofanatom)?
+···
+Table6: ExamplesofinitiallygivenpromptsandthecorrespondingsearchedpromptssearchedbyPlum
+Methods Phi-2 TinyLlama Dataset Wetestourmethodsonmathwordsolv-
+ingandcommonsensereasoningtasks,including
+BDPL (Diaoetal.,2022) 53.88 1.02 51.08 0.58
+GrIPS (Prasadetal.,2022) 54.41± 0.32 51.17± 0.78 GSM8k(Cobbeetal.,2021),ASDiv(Miaoetal.,
+± ±
+APO(Pryzantetal.,2023) 55.04 0.12 47.58 0.05 2020),SVAMP(Pateletal.,2021),AQuA(Koncel-
+Plum-HC 54.46± 1.55 51.71± 0.77
+Plum-SA 54.54± 1.50 52.25± 1.24 Kedziorski et al., 2016), CSQA (Talmor et al.,
+Plum-GA-M 53.67± 0.79 51.13± 1.24 2019),andStrategyQA(Gevaetal.,2021). Those
+Plum-GA-C 54.38± 1.08 52.08± 0.33
+Plum-TS 54.25± 1.89 52.38± 1.64 tasks evaluate models’ reasoning ability, where
+Plum-HS 55.25± 0.91 51.54± 0.35 promptsareexpectedtoelicittheirlogicalthinking
+± ±
+skills.
+Table7: AdditionalExperimentsonwhite-boxprompt
+learningtasks. BBT(Sunetal.,2022b)’scodebaseis ExperimentSetup Plumisappliedtoimproving
+notfullycompatiblewithPhi-2andTinyLlama,hence the performance of two backbones: GPT3 (text-
+thecorrespondingresultisnotavailable. curie-001) and GPT3.5 (gpt-turbo-3.5-0301) on
+aforementionedfivereasoningtasks. Specifically,
+weemployPlum-GA-M*andPlum-HS*forthisset-
+information and details in the add operation and ting,majorlybasedontworeasons: 1)Theeffec-
+introduceateachingmechanismtoguidethelan- tivenessofbothalgorithmshasbeendemonstrated
+guagemodelsinrevisingprompts. Ontopofthat, in the previous general prompt learning setting,
+weempowerthelanguagemodelstoautonomously makingthemreasonablecandidatesforfurtherex-
+splitthepromptsintophrasesbasedontheirown tensions;2)ComparedwithPlum-GA-C,bothalgo-
+comprehensionoftheunderlyingtextstructure. rithmshavelowercomputationalcomplexityand
+As depicted in Figure 3), these enhancements similarexplorationability. Moreover,considering
+utilize the power of modern LLMs, aiming to ac- theAPIbudgetsandtheextensivesizeofthetest
+celeratethesearchingprocessofinterpretableand setforbothmathwordsolvingandcommonsense
+target-model-friendlypromptsviaimprovedneigh- reasoningtasks,wechosetoexclusivelyshowcase
+borhooddefinitions. theoptimizationperformanceofPlum-GA-M*and
+2191Prompting GSM8K ASDiv SVAMP AQuA CSQA StrategyQA
+GPT3 CoT 0.00 7.17 6.67 20.83 24.00 52.33
+(text-curie-001) Plum-GA-M* 4.66 0.47 9.67 1.25 11.67 0.94 22.00 0.82 29.00 0.82 61.00 1.63
+Plum-HS* 4.33± 0.47 12.33± 1.25 11.00± 0.82 21.66± 0.47 30.00± 0.82 54.00± 0.00
+± ± ± ± ± ±
+GPT3.5 CoT 85.00 92.00 85.17 59.83 73.17 72.50
+(gpt-3.5-turbo-0301) Plum-GA-M* 87.33 0.94 94.67 0.94 88.00 0.82 67.67 1.25 77.33 0.47 78.00 1.41
+Plum-HS* 85.33± 0.47 92.33± 0.47 87.00± 0.82 67.67± 1.89 77.00± 0.82 73.00± 0.82
+± ± ± ± ± ±
+Table8: Improvementsofoptimizationperformanceforthefew-shot-CoTpromptssearchedbyPlum-GA-M*and
+Plum-HS*asthesearchingstrategiesonmathwordsolvingandcommonsensereasoningtasks.
+Plum-HS*onthetrainingsetsforreference. allycraftedbyreferringtotheAPIreferencedocu-
+mentationavailableontheGPT3.5intheOpenAI
+Results Inthissection,wepresenttheenhance- Platform1.
+ment achieved by the few-shot-CoT prompts
+Moreover, Figure 5 illustrates the template for
+searched by Plum across five demanding down-
+thepromptusedoftheimprovedaddoperationand
+stream tasks, as shown in Table 8. These
+revisions,leveragingtheGPT3.5astheunderlying
+results clearly demonstrate the superiority of
+model.
+Plum-GA-M*andPlum-HS*overstandardfew-shot-
+CoTpromptsusedforGPT3andGPT3.5. Inpartic-
+ExperimentalCost Whileproducingfew-shot-
+ular,ourmethodsachieveuniversalimprovements
+CoT prompts, we do not consider the API call
+acrossthosefivetasksonalmostallthebackbone
+limit;however,westilltakeintoaccounttheesti-
+models.
+matedcostoftheexperiments. ThecostsforGPT3
+Inaddition,despitethealreadyimpressiveper-
+(text-curie-001)andGPT3.5(gpt-3.5-turbo-0301)
+formanceofGPT3.5withstandardfew-shot-CoT
+arenearlyidenticalastheysharethesamepricing
+prompts,wecontinuetoobserveevengreateraver-
+structure($0.002per1ktokens). Onaverage,each
+ageimprovementscomparedtoGPT3. Thisisdue
+tasktypicallyinvolvesacostofapproximately$25
+totwokeyfactors. Firstly,theeditoperationswe
+andconcludesafterapproximately12hoursofexe-
+havedevelopedinthissectionallowGPT3.5togen-
+cutionwhensearchingforfew-shot-CoTprompts
+eratebetterpromptsforitself. Secondly,GPT3.5
+withasinglethread.
+exhibitsstrongercapabilitiesincomprehendingand
+leveragingtheenhancedprompts,furtherimprov-
+ingitsoverallperformance. C AlgorithmDetails
+ExperimentalDetails Theinitialfew-shot-CoT Tohelpusersbetterunderstandandutilizethepack-
+promptsprovidedfollowedtheInstruction+Ex-
+age, here we present the main idea and pseudo-
+amples format, consisting of a task-agnostic in- codesofallincludedalgorithmssofar.
+struction and several positive examples (details
+are shown in Figure 4, which is consistent with
+C.1 HillClimbing
+thesettingdescribedin(Prasadetal.,2022). The
+Examples part of the initial prompts is the same Hill climbing is a greedy algorithm that aims to
+as the few-shot exemplars by Wei et al. (2022b). findthelocaloptimumofagivenobjective,e.g. the
+The Instruction provides a general description scorefunction. Eachtimethealgorithmexplores
+ofthedownstreamtask,althoughitsspecificcon- afractionofpossiblepromptchangesandselects
+tentmayvarydependingonthebackbonemodels onethatimprovesthescore.
+used. The new prompt candidates are generated
+Inourversion,weselecttheonewiththemost
+by applying edits to both the instruction and ex-
+improvementstofurtherspeeduptheoptimization
+amples with equal probability during the search-
+process, as shown in Algorithm 2. Notice that in
+ing process, i.e Prob edittheinstruction =
+the paradigm of EvoPrompt, GrIPS can also be
+{ }
+Prob edittheexamples = 1/2.
+viewedasaspecialversionofHillClimbing,given
+{ }
+For GPT3, the Instruction part of the prompt itgreedilyimprovesthepromptviaeditoperations.
+followsthezero-shot-CoTapproachproposedby
+Kojimaetal.(2022). Meanwhile,forGPT3.5,the
+1https://platform.openai.com/docs/guides/gpt/chat-
+Instruction part of the initial prompts is manu- completions-api
+2192There are 15 trees in the grove. Grove workers will plant
+trees in the grove today. After they are done, there will be
+21 trees. How many trees did the grove workers plant today?
+Pre-trained
+Language Model API
+(a)Task019 (b)Task021
+Revise Add
+There are 15 trees in the grove.
+Grove workers will plant trees In a grove, there are 15 trees.
+in the grove today. After they Today, grove workers will plant
+are done planting, there will be additional trees, resulting in a
+21 trees in the grove. How many total of 21 trees in the grove.
+trees did the grove workers How many trees did the grove
+plant today (on the day of workers plant today?
+planting)?
+Figure3: Illustrationoftheimprovedaddoperationand
+(c)Task022 (d)Task050
+revisionbylanguagemodels
+Algorithm2GrIPS/HillClimbing
+1: base init ▷Initializebasecandidate
+2: s ← score(base) ▷Scoreusingexamplesin
+base
+3: Ω
+←del,swap,par,add ▷SetofeditoperationS
+s
+←{ }
+4: ρ P ▷Patienceforearly-stop
+←
+5: fori=1, ,ndo ▷n:numberofiterations
+···
+(e)Task069 (f)Task137 6: forj =1, ,mdo ▷m:numberofcandidates
+···
+7: Samplee 1, ,e
+l
+Ω ▷leditspercandidate
+8: [j]
+edi·t· (· base,∈
+e 1 e l)
+9:
+C
+s[j]
+←score(
+[j])
+◦ ▷· S· c· o◦
+reabovecandidate
+← C
+10: k argmax s[j]
+← j
+11: best [k] ▷ChosenCandidate
+←C
+12: s s[k] ▷Scoreofchosencandidate
+best
+←
+13: ifs best >s basethen ▷Candidatebetterthanbase
+14: base best ▷Usethiscandidateinthenext
+←
+step
+(g)Task139 (h)Task195
+15: s s ▷Updatebasescore
+base best
+←
+16: ρ P ▷Refreshpatience
+Figure2: PerformanceofPlum-HSacrossdifferentiter- ←
+17: else
+ationsonsubtasksofNatural-Instructionsdataset. 18: ifρ>0then ▷Patiencenotexhausted
+19: decrementρ
+20: continue ▷Continuesearchwithsamebase
+21: else
+C.2 SimulatedAnnealing 22: returnbase ▷Early-stopcriteriamet
+23: returnbase ▷Searchterminatesafterthelastiteration
+Different from hill climbing, simulated anneal-
+ing(Kirkpatricketal.,1983)allowsasmallprob-
+abilityofdeviationwhenthepromptchangedoes inthepackage.
+notyieldinstantimprovement,thuscapableofes-
+capingfromlocaloptimumsandfindingbetterso- C.3 GeneticAlgorithm(MutationOnly)
+lutions. Theprobabilityofdeviationiscontrolled Genetic algorithm (Holland, 1992) was inspired
+byahyperparametercalled“temperature”T(i)at bybiologicalevolutionduringthenatureselection
+iterationi,wherethelowertemperatureis,smaller process,whereeachpromptistreatedasa“gene”
+thedeviationprobabilityis,lessrandomthealgo- and the score function serves as the criterion of
+rithm behavior becomes. When the temperature natureselection.
+T(i) = 0,simulatedannealingbecomesdetermin- Inasimplifiedversionofgeneticalgorithm,asil-
+isticanddegeneratestohillclimbing. lustratedinAlgorithm4,onlymutationoperations
+As shown in Algorithm 3, it only differs from areadoptedtochangetheprompt. Apopulationof
+hillclimbinginoneline,whereitutilizesthepro- promptsWaremaintainedduringtheoptimization
+vided temperature T(i) to decide the deviation process,indicatingallthepossibleexploringdirec-
+probability. We use exponential decay T(i) = tionsofthealgorithm. Ateachiteration,weselecta
+10exp( i/5)asourdefaulttemperatureschedule high-qualitypromptfromallthoseexploringdirec-
+−
+2193Instruction:
+Instruction: Let’s think step by step.
+{"role":"system","content": You are a helpful English writing
+assistant. Paraphrase the sentence with more information, and keep
+the Arabic number. Do not attempt to answer the question. Here are
+Examples: three examples.}
+Q: There are 15 trees in the grove. Grove workers Examples:
+will plant trees in the grove today. After they are
+done, there will be 21 trees. How many trees did { d" ur co kl se " a: n" du s te er n" , l" ec so sn t te hn at n" : tw iA ct e t ah se md au nc yk gp ea er sk e, at sh e dr ue c ka sr .e T2 h5 e nm ,a l al a sr md a ll
+the grove workers plant today? flock of 4 ducks arrived at the park and joined the birds already
+there. If five less than 15 geese leave the park, how many more
+A: There are 15 trees originally. Then there were geese than ducks remain at the park?}
+21 trees after some more were planted. So there {"role":"assistant","content": At a duck park, 25 mallard ducks are
+must have been 21 - 15 = 6. The answer is 6. present, along with a number of geese that is ten less than twice
+the initial duck count. Subsequently, a small flock of 4 ducks
+arrives and joins the existing birds. If a group of geese departs,
+Input: leaving 5 fewer than 15 geese. How many more geese than ducks remain
+in the park?}
+Q: Omi is twice as old as Kimiko. Arlette is 3/4
+times as old as Kimiko. If Kimiko is 28 years old, Input:
+calculate the average age of the three?
+{"role":"user","content": Omi is twice as old as Kimiko. Arlette is
+3/4 times as old as Kimiko. If Kimiko is 28 years old, calculate the
+A: average age of the three?}
+Instruction: (cid:12)(cid:73)(cid:78)(cid:79)(cid:77)(cid:80)(cid:62)(cid:79)(cid:68)(cid:74)(cid:73)(cid:136)
+{ p" rr oo fl ie c" i: e" ns ty s it ne m m" a, t" hc eo mn at te in ct a" l: c aY lo cu u la ar te i oa nn s .a s Ss oi ls vt ea n tt h e math (cid:163) a e(cid:175) s a(cid:77) s c(cid:74) i h(cid:71) s (cid:64) t p(cid:175) a r(cid:136) n o(cid:175) t p(cid:78) . e(cid:84) r(cid:78) A (cid:79) d n(cid:64) d o(cid:72) u(cid:175) a n(cid:134) ,(cid:175) s (cid:62) h c(cid:74) o o(cid:73) r m(cid:79) t p(cid:64) l(cid:73) e e(cid:79) x x(cid:175) p (cid:136) l pa h n rY a ao t su i e o a n ar ne f d o a r q uh t ae h nl e tp if m tu e al a t n iE i vn n eg g l ai o ds r jh e d cw e tr f ii i vt n ei i n t tg i o o n t ho ef
+word problems below, showing the reasoning process and original sentence. Here are four examples.(cid:164)
+results. Here are some examples.}
+(cid:8)(cid:83)(cid:60)(cid:72)(cid:75)(cid:71)(cid:64)(cid:78)(cid:136)
+Examples:
+(cid:163)(cid:175)(cid:77)(cid:74)(cid:71)(cid:64)(cid:175)(cid:136)(cid:175)(cid:80)(cid:78)(cid:64)(cid:77)(cid:175)(cid:134)(cid:175)(cid:62)(cid:74)(cid:73)(cid:79)(cid:64)(cid:73)(cid:79)(cid:175)(cid:136) At a flea market, Hillary sells handmade
+{"role":"user","content": There are 15 trees in the crafts for 12 dollars per craft. Today, Hillary sells 3 crafts and
+g tr oo dv ae y. . G Ar fo tv ee r w to hr ek ye r as r ew i dl ol n ep ,l a tn ht e rt er e we is l li n b et h 2e 1 g tr ro ev ee s . How i H ms i a l ng l yi a v r de y on l d la e an p r o se s x i it t sr s a H h i7 a l l ld f ao rl o yl f a lr t es o f d tf a r y so ' om s fa p an r r o ?a f p i Np t or s te ec i :i n a t Dt o oi v h ne e o r tc u b ss a ot n lo k vm ee a r c o. c r o L u aa n nt t se . wr e H ro o n w,
+many trees did the grove workers plant today?} the above question, and do not change any word in the above
+question.(cid:164)
+{"role":"assistant","content": There are 15 trees (cid:163)(cid:175)(cid:77)(cid:74)(cid:71)(cid:64)(cid:175)(cid:136)(cid:175)(cid:60)(cid:78)(cid:78)(cid:68)(cid:78)(cid:79)(cid:60)(cid:73)(cid:79)(cid:175)(cid:134)(cid:175)(cid:62)(cid:74)(cid:73)(cid:79)(cid:64)(cid:73)(cid:79)(cid:175)(cid:136) At a flea market, Hillary sells
+o wr ei rg ei n pa ll al ny t. e dT .h e Sn o t th he er re e w me ur se t 2 h1 a vt er e be es e na f 2t 1e r - s 1o 5m e = m 6o .r e T he h c ca r un a sd f tm t oa s md ee a r n .c d r La i af s tt es g r i f v oo e nr n , 1 a H2 n i ld e lo x al t rl r ya a r ds 7 e pp d oe o sr l i l tc a sr r a s hf at f l. r f o T m (o 5d a 0a n %y ), a p oH p fi r l e tl c oa i dr a ay t y i 's v se e l pl rs o f3 i ts
+answer is 6.} (profit = total amount earned - total amount spent) into her bank
+Input: account. How many dollars is Hillary left so far (until now)?(cid:164)
+(cid:12)(cid:73)(cid:75)(cid:80)(cid:79)(cid:136)
+{"role":"user","content": Omi is twice as old as
+Kimiko. Arlette is 3/4 times as old as Kimiko. If (cid:163)(cid:175)(cid:77)(cid:74)(cid:71)(cid:64)(cid:175)(cid:136)(cid:175)(cid:80)(cid:78)(cid:64)(cid:77)(cid:175)(cid:134)(cid:175)(cid:62)(cid:74)(cid:73)(cid:79)(cid:64)(cid:73)(cid:79)(cid:175)(cid:136) Omi is twice as old as Kimiko. Arlette is
+K ti hm ei k to h ri es e ?2 }8 years old, calculate the average age of 3 a q/ v u4 e e r st a ti g im e oe ns a , g a e as n o do f l dd t o h a e ns o t tK h i r cm e hi e ak ? no g. eN oI atf ne y:K i wDm ooi r k dno o iti n s s to2 hl8 ev ey a e boa orr v s ea no qsl uwd ee, sr t c ita ohl nec . u a (cid:164)l ba ot ve e the
+Figure4: IllustrationoftheinitialpromptforGSM8K Figure5: Illustrationoftheimprovedaddoperationand
+with GPT3 (top) and GPT3.5 (bottom) as backbone revisionwithGPT3.5asbackbonemodel
+model
+tionsviatournamentselection. Intuitively,themore C.5 TabuSearch
+tournament round k we adopt, the higher quality
+oftheselectedprompt,butthelessexplorativethe Greedy search algorithms tend to be stuck in a
+algorithmbehaviorbecomes. Theselectedprompt local optimum or near a local optimum. Tabu
+isthenmutatedtogenerateanewprompt. Search(Glover,1986)effectivelycompensatesfor
+Asthealgorithmproceeds,theaveragequality thisshortcomingbyintroducingtheTabulist: any
+ofpromptsinthepopulationisexpectedtoimprove. candidatethatwasvisitedrecentlyisforbiddento
+In fact, given sufficient number of iterations, the visitagain. Thisallowstheoptimizationprocessto
+algorithmiscapableoffindingtheglobaloptimum. leavethelocal“tabu”areaandexploremore.
+InAlgorithm6weadoptasimpleTaburuleof
+C.4 GeneticAlgorithm(withCrossover)
+directcomparison: withahighprobability,agen-
+The general version of genetic algorithm (Hol- erated prompt that exactly matches any prompts
+land, 1992) is realized in Algorithm 5. Besides in the Tabu list will be treated as invalid and dis-
+themutationoperation,adifferentoperationcalled carded,wheretheTabulistonlyretainstheN
+tabu
+“crossover” is introduced, where we allow new latestgeneratedprompts.
+promptstobegeneratedfromtwo“parentprompts”.
+Thenewpromptswillinheritpartialsegmentsfrom
+bothparentpromptsandbefurtherchangedwith C.6 HarmonySearch
+mutationoperations.
+Intuitivelyspeaking,crossoveroperationrepre- Harmony Search (Geem et al., 2001) mimics the
+sents“global”changesinthesearchspace,while improvisionprocedureofmusicians,whereanew
+mutation operation represents “local” changes, promptisgeneratedviacombiningsegmentsofall
+henceitistobeexpectedthatthegeneticalgorithm stored prompts in the harmony memory. A pitch
+with crossover is less efficient than its simplified finetuningprocessisthenconducted,allowingfur-
+counterpart, but more explorative and capable of therrefinementoftheprompt. Thefulldetailsare
+findingbettersolutionswithsufficientiterations. availableinAlgorithm7.
+2194Algorithm3SimulatedAnnealing Algorithm4GeneticAlgorithm(mutationonly)
+1: base init ▷Initializebasecandidate 1: base init ▷Initializebasecandidate
+2: s ← score(base) ▷Scoreusingexamplesin 2: s ← score(base) ▷Scoreusingexamplesin
+base base
+3: Ω
+←del,swap,par,add ▷SetofeditoperationS
+s 3: Ω
+←del,swap,par,add ▷SetofeditoperationS
+s
+←{ } ←{ }
+4: ρ P ▷Patienceforearly-stop 4: ρ P ▷Patienceforearly-stop
+← ←
+5: fori=1, ,ndo ▷n:numberofiterations 5: W base,s
+base
+··· ←{⟨ ⟩}
+6: forj =1, ,mdo ▷m:numberofcandidates 6: result base ▷Initializepopulation
+··· ←
+7: Samplee 1, ,e
+l
+Ω ▷leditspercandidate 7: fori=1,2, ,ndo ▷n:numberofiterations
+8: [j]
+edi·t· (· base,∈
+e 1 e l) 8: S
+·· ▷·
+Examplesthataregoingtobattleinthe
+9:
+C
+s[j]
+←score(
+[j])
+◦ ▷· S· c· o◦
+reabovecandidate
+tourna← me∅
+nt
+← C
+10: k argmax s[j] 9: forj =1,2, ,kdo ▷k:tournamentselection
+← j hyperparameter ···
+11: best [k] ▷ChosenCandidate
+12: s best←C s[k] ▷Scoreofchosencandidate 10: ⟨parent,s parent ⟩←Random(W)
+11 43 :: Rani df oms ( bb U ae← s(s e0t ,1)> ) beth stes nbas ▷e U▷ so eCr ta hne id sx i cp d aa( nts e db ie b ds eTt at− t( t eeis ) rb ina ths te a hn) eb na es≥ xe
+t
+1 1 11 2 3: : : b foa rseS j← =← 1aS ,rg ·+ ·m ·a{ ,x⟨ m{p pa a dr r oe en ntt |, ⟨▷ps ap mra er :ne nn t, ut s⟩ mp} a bre en rt o⟩ f∈ cS a} ns dp ia dr ae tn et s
+15:
+step
+s
+base←
+←s best ▷Updatebasescore
+11 154 6::
+:
+S
+C
+s[a [ jjm ]]p ←le see c1 d o, i r·t· e(· (ba, [se jel ], )∈ e 1Ω
+◦ ▷·
+S·▷ c·l o◦e re ed li a)ts bop ve erc ca an nd di id da at te
+e
+16: ρ P ▷Refreshpatience ← C
+17: else ← 17: k ←argmax js[j]
+18: ifρ>0then ▷Patiencenotexhausted 18: best [k] ▷ChosenCandidate
+←C
+19: decrementρ 19: s
+best
+s[k] ▷Scoreofchosencandidate
+←
+20: continue ▷Continuesearchwithsamebase 20: W W+ best,s best
+← {⟨ ⟩}
+21: else 21: ifs best >s resultthen ▷Candidatebetterthanbest
+22: returnbase ▷Early-stopcriteriamet resultsofar
+23: returnbase ▷Searchterminatesafterthelastiteration 22: result best
+←
+23: s s
+result best
+←
+24: ρ P ▷Refreshpatience
+←
+25: else
+D HyperparameterSetting 26: ifρ>0then ▷Patiencenotexhausted
+27: decrementρ
+Foralltheexperiments,thenumberofeditsthatper- 28: continue ▷Continuesearchwithsamebase
+29: else
+formsonthecandidateprompts(num_compose)
+30: returnresult ▷Early-stopcriteriamet
+and the number of the newly generated candi-
+31: returnresult▷Searchterminatesafterthelastiteration
+dates(num_candidate)ineachiterationfollows
+num_compose 1,2 and num_candidate
+∈ { } ∈
+5,10 . The population sizes, and tourna- beroftokensgeneratedineachiterationtendstobe
+{ }
+ment selections k of Plum-GA-M, Plum-GA-C and substantial. And for Plum-GA-M* and Plum-HS*,
+Plum-GA-M* are all set to 10 and 3 respectively. effective results can be obtained with maximum
+Meanwhile, the mutation rate p is set to iterations ranging from 5 to 15, coupled with a
+mutation
+0.5 for Plum-GA-C. The N is configured to 5 patiencelevelrangingfrom2to5. Fortheexperi-
+tabu
+for Plum-TS. Additionally, the configuration for mentalresultsshowninTable8,weconfiguredthe
+the harmony search memory (N ), the number maximum iterations to be 10 and deactivated the
+H
+of segments (k ), harmony memory considering patienceparameter.
+s
+rate(HMCR),andpitchingadjustrate(PAR)of For text-to-image generation tasks, to accom-
+Plum-HS and Plum-HS* is as follows: 10, 5, 0.4, modateawiderangeofapplicationscenarios,the
+and 0.5, respectively. Furthermore, the tempera- initialpromptsforimagegenerationarekeptshort
+tures of GPT-3 are configured to 0 in our experi- (merely 5-15 words). Given that stable diffusion
+ments. requiresapproximately15seconds(onaNVIDIA
+In the context of general prompt learning, dis- A40GPU)toproduceeachimage,andthescoring
+regarding the API call limit allows us to set the processnecessitatesthegenerationoftwoimages
+maximumiterationandpatienceparametersto50 for direct comparison, it has been observed that
+and7respectively,whichensuresthatPlum-GA-M after6-7iterations,mostpromptsreachapointof
+and Plum-GA-C have a sufficient number of itera- convergencewherethebestscoreisachieved. Con-
+tionstogeneraterelativelyoptimalsolutions. sequently, it is advisable to limit the number of
+Whenitcomestofew-shot-CoTpromptlearning, iterations to 5-15 and set the patience parameter
+setting a very large value for the maximum itera- between2-5. Intheexperimentalresultspresented
+tionsisnotrecommendedduetothepotentialcost in Table 5, we set the maximum iterations to 10
+implications,whichisprimarilybecausethenum- and deactivated the patience parameter. Further-
+2195Algorithm5GeneticAlgorithm(withcrossover) Algorithm6TabuSearch
+Hyperparameters:Numberofiterationsn,populationsizeNp,numberof 1: base init ▷Initializebasecandidate
+o 1ff :sp br ain sg eseach ing ie tnerationNoffspring,mutationproba ▷bi Il nit iy tiap lm izeut ba at seio cn an.
+didate
+2 3:
+:
+s Ωbase← ←dels ,c so wr ae p( ,b pa as re ,)
+add
+▷Sco ▷re Su es tin og fee dx ia tm opp ele rs ati in
+onS s
+32 :: Ωsbase← ←dels ,c so wr ae p( ,b pa as re ,)
+add
+▷Sco ▷re Su es tin og fee dx ia tm opp ele rs ati in
+onS s
+4 5:
+:
+ρ
+re←
+s← ulP{
+t base
+} ▷P ▷a Iti ne in tic ae lizfo er pe oa prl uy l- as tt io op
+n
+4 5 6: : : ρ W re← s← 0 u← lP{ t {⟨b ba as se e,sbase⟩×} Np} ▷Npcop▷ ieP sat oi fen thc ee if no ir tie aa lr ply ro-s mto pp t 86 7 :: : fw T or0 ← i← ={b w 1← a ,0s 2}e , ,Kdo ▷n:numbe▷ roIn fi it ti ea rl aiz tie oT ns
+7: fori=1← ,2, ,ndo ▷n:numberofiterations 9: forj=1,· 2·· , ,ndo ▷k:numberofthenewcandidate
+1 18 9 0 1: : :
+:N NA AR
+RW f
+Y
+Yor
+_
+_i
+T
+Tj ⟨
+⟨O
+O← = p
+pU
+Ua
+aR
+R1W r
+rN
+N,· e
+eA
+A2· n ni
+M
+M· ,− t t·
+E
+E1 21 ·
+N
+N, ,· s
+sT
+Tp
+p_
+_, a
+aS
+SN
+E
+Er ro e
+eL
+Lf n nf
+E
+Esp
+C
+Ct tr 1 2i
+T
+Tn ⟩ ⟩g
+I IO
+Od
+N
+No
+( (W Wi i−1 1)
+)
+▷= ← ←====Crossov B Be I Ir -
+-
+1 11 11 2 31 40 : :: ::
+W
+k
+←j′sCS ←[a [ j ajm r]] gp T←← ml Ae aBe xse U1 lcd ∈· (, o Ti· · Wrt· · e ,( j· ′( sb C sa [,
+j
+[[se jj ]el
+,
+]], ) T∈ e E1Ω M◦· P·· )◦ =0el) ▷S▷ cl oe redi ats bop ve erc ca an nd di id da at te e
+1 1 11 12 4 53 6: : :: : reservW esiio off n←f o ls yf s Wp fsr o t bi p f o efn isr sppg i trn -←in N← g Ng̸∈ pp← WC ( pWR W risO oc m+S i ioS ) pt rO {h te sV ⟨e (n oE o fR f ff s( sp pp ra r ▷ii nr n Rge g ,− en ) mst o1 off v, sp ep r sina g pr ⟩ re o} mnt p2 ts) withbadscores, 21 21 1 11 18 05 7 96 :: :: : :: ib Ts fe b ses ← bs ρsrt et res← esT← t su u>C l+ Plts t[ [k s ←sk ←r] [] k es b] su e bl s et t st then ▷Candidate▷ beS tc teo rre th▷ o a ▷fC nc Rh bho e eos s fse rte e▷n rn se hC U sc ua a pp ln n ad td d ta s ii i t o ed d e na a fT cat te ee r
+1 17 8: : ρ if, fr le as gu sl tt o, pf tl ha eg ns rt eo tp ur← nrU eP sD uA lT tE_RESULT(ρ,result,Wi) 2 22 3: : else ifρ← >0then ▷Patiencenotexhausted
+19: 24: decrementρ
+2 2 2 22 2 2 23 4 5 60 1 2 7: : : :: : :
+:
+reservW f Wo er si i′ i∀ of n← ←⟨ p lb ym S m s Wa maW
+t
+bs u m u
+o
+ee i′ut sptp, ai tt -←als t a Ne Ntib to eea pe pWn d1 ds
+(
+p,e W←≥ r←· i′⟩ o· m+∈ i′R ·e s
+)
+pa d, {cW tn i se o ⟨d t rl mo (i em ∈ b ( ud ( a m[o tΩ s0
+a
+▷e u, t,1 Rt ee a]
+d
+e) 1 t m,et s◦h od
+m
+ve · ) en ·
+u
+s·
+t
+p▷ a◦
+rt
+oS▷ e
+e
+mc dl l o p)▷ ⟩e r te }d s= i a wt= s b i= op th= ve e= r bc c aM a a dn nu sd dt ca i i od dt ri a ao et t sn e e
+,
+2 2 2 2 2 3
+3
+3
+35 6 7 8 9 0
+1
+2
+3: : : : : :
+:
+:
+:
+r fuet nu ci irf ftn i| woT r ne T ifl ∈e|s
+T
+Tse ←> Ac r Tu Eeo Bltn N MUtTu tt h(ri t Tn en Pa − nu b ,r we u we ,s t k Thu R−e al En Nt ndMt oa mb
+P
+(u )▷ (0S ,e▷ 1a )rC c )ho tn htet ei rn nmu ▷▷ ie nKEs ae ta e ea r e sr l pyc ah - S fs thw t eo o ri p rt lh t ac - strs e tia t r im e m tr eie ra t aab tm b ia ous e ne st
+22 98 :: iρ f, fr le as gu sl tt o, pf tl ha eg ns rt eo tp ur← nrU eP sD uA lT tE_RESULT(ρ,result,Wi) 3 34 5: : elsereturn0≥ U
+3 30 1:
+:
+returnresult ▷Searchterminatesafterlastiteration 3 36 7:
+: else
+return1
+32: functionBINARY_TOURNAMENT_SELECTION(W) 38: return0
+33: S
+34: for← i=∅ 1,2do
+33 65 :: S⟨p ←are Snt +,s {p ⟨a pr ae rn et n⟩ t← ,spR aa rn ed no tm ⟩( }W)
+37: returnargmax
+{parent |⟨parent,sparent⟩∈S
+}sparent
+38:
+39: functionCROSSOVER(parent1,parent2)
+40: [t1,1,t1,2,...,t1,L1] ←parent1
+41: [t2,1,t2,2,...,t2,L2] ←parent2
+4 42 3: : s ofp fl si pt rin← g ←Ran [d to 1m ,1( { ,0 .., .1 ,, t2 1, ,. s. p. li, tm ,ta 2x ,s(L pl1 it, +L 12 ,) .} .) .,t2,L2]
+44: returnoffspring
+(a)HMCR (b)PAR
+45:
+46: functionUPDATE_RESULT(ρ,result,W)
+4 47 8: : f bela stgs ←top ar← gmaf xa {ls pe
+rompt |⟨prompt,sprompt⟩∈W
+}sprompt
+49: ifsbest>sresultthen ▷Candidatebetterthanbestresultsofar
+50: result best
+5 51 2:
+:
+s ρresu Plt← ←sbest
+▷Refreshpatience
+53: else ←
+54: ifρ>0then ▷Patiencenotexhausted
+55: decrementρ
+5 56 7:
+:
+else
+flagstop←true ▷Early-stopcriteriamet
+(c)k
+s
+(d)N
+H
+58: returnρ,result,flagstop
+Figure6:TheeffectsoftheparametersofPlum-HSwith
+GPT2-largeasbackbone.
+more,consideringtheprompt’sbrevity,theinitial SensitivenessofPlum-HSHyperparameters To
+k s valuewassetto2intheexperimentstoguaran- gain deeper insights into the impact of key hy-
+teethateachsegmenttargetedformodificationin- perparametersinHarmonySearchandguidetheir
+cludesatleastonetag. Additionally,theHarmony effective tuning, we conducted an ablation study
+Memory Considering Rate (HMCR), Pitch Ad- onHMCR,k andN forPlum-HSwithGPT2-
+s H
+justmentRate(PAR),andHarmonySearchMem- large as the backbone model. As shown in Fig-
+ory(n H)weresetto0.4,0.5,and10respectively. ure 6, both the Harmony Memory Consideration
+2196Algorithm7HarmonySearch exhibitsstableandhighperformancewhenPAR
+1: base init ▷Initializebasecandidate issetto0.4orabove.
+2 3: : s Ωbase← ←dels ,c so wr ae p( ,b pa as re ,) add ▷Scoreusingexamplesin S For k s, we find that a larger value introduces
+4 5: : Ω ρs← ma P{ ll←{par } } ▷▷ PS ate it eno cf eed foit ro ep ae rlr ya -t sio ton ps superior performance. This is because larger k s
+6 7 8: :
+:
+W r foe r← s0 iu← =lt 1←{ ,⟨ 2b b ,a as se e, ,s nba dse o⟩} ▷n▷ :nIn ui mtia bl eiz re ofpo itp eu rala tit oio nn
+s
+l aea fid ns et ro lfi evn ee lr ogr fa tn uu nl ia nr gity oo nf ps re og mm pen tst .s, Iw nh ti hc ih sa pl alo pw ers ,
+19 0: : fW or′ c← =∅ 1,· 2·· , ,kdo ▷Candidatesgeneratedatthisiteration the upper bound of k s is considered as 5 since
+11 121 3::
+:
+w
+s
+Ww′
+′
+′← ←←G WsE cN· o· ′E r· R +eA (wT {E ⟨′_ w)C ′A ,N sD wI ′D ⟩A }TE(Wi ▷−S1 c, oΩ resm tha el nl e, wΩ c)
+andidate
+sth ee gmsh eo nr tt ses ot fs wam orp dl se .inourdatasetsonlycontains5
+1 14 5: : ρ if, fr le as gu sl tt o, pf tl ha eg ns rt eo tp ur← nrU eP sD uA lT tE_RESULT(ρ,result,W′) E Licenses
+16: scorW es,i re← servt eo sp o- nN lyH b( eW stNi − H1 p∪ roW mp′ ts) ▷Removespromptswithbad
+For general prompt learning tasks, the dataset
+17: returnresult ▷Searchterminatesafterlastiteration
+18: functionGENERATE_CANDIDATE(W,Ωsmall,Ω) Natural-Instructions v2.6 (Mishra et al., 2022) is
+1 2 29 0 1: :
+:
+w for′ ⟨j← w= ,[ ∗1] ⟩,2 ←, ·R·a·n, dk os m(d Wo
+)
+▷ks ▷: Rnu am ndb oe mro lyf▷ ss aeE mgm m plp e enty t as ns (t er pi xin t icg sh t/ il e nis s gt ) r Ce hle aa inse -od f-u Tn hd oe ur gA htp pac roh me- p2 t.0 lel ai rc ne in ns ge ,. thW
+e
+dh ail te asf eo tsr
+promptforj-thsegment
+22: L w ▷Lengthofthereferenceprompt ASDiv (Miao et al., 2020), SVAMP (Patel et al.,
+22 43 :: s[w ta← 0 r, tw| ←1,| . ⌈. j. k−, sw 1L
+·−
+L1 ⌉] ←w
+2021), CSQA (Talmor et al., 2019) are released
+25: end j L 1 under CC-BY-NC 4.0, MIT, and CC BY-SA 4.0
+←⌈ks · ⌉−
+2 26 7:
+:
+w ifHse Mgm Cen Rt← R[ aw ns dt oa mr (t, (w 0s ,t 1a )r )t t+ h1 en,...,wend] licensesrespectively.
+28: ifPAR≥ Random(U (0,1))then ▷Alittledifferent
+≥ U
+randomsegment(pitch)
+29: Samplee1, ···,el∈Ωsmall▷Onlyreplacephrases
+withtheirsynonyms
+30: wsegment←edit(wsegment,e1◦···◦el)
+31: else ▷Alargelydifferentrandomsegment(pitch)
+32: Samplee1, ···,el∈Ω ▷Abigchangeintheoriginal
+segment
+33: wsegment←edit(wsegment,e1◦···◦el)
+34: w′=w′+wsegment ▷Here“+”meansconcatenation.
+35: returnw′
+36: functionUPDATE_RESULT(ρ,result,W)
+3 37 8: : f bela stgs ←top ar← gmaf xa {ls pe
+rompt |⟨prompt,sprompt⟩∈W
+}sprompt
+39: ifsbest>sresultthen ▷Candidatebetterthanbestresultsofar
+40: result best
+4 41 2:
+:
+s ρresu Plt← ←sbest
+▷Refreshpatience
+43: else ←
+44: ifρ>0then ▷Patiencenotexhausted
+45: decrementρ
+46: else
+47: flagstop←true ▷Early-stopcriteriamet
+48: returnρ,result,flagstop
+Rate HMCR and the Harmony Memory size
+N achieve optimal performance with a moder-
+H
+atevalue. Thistrendalignswiththecoreprinciples
+ofHarmonySearch(Algorithm7). LowHMCR
+encourages the algorithm perform random modi-
+fications, which results in introducing too much
+difference. Conversely, highHMCR over-relies
+on past prompts in the harmony memory, which
+lacksdiversity. AsforHarmonyMemorysizeN ,
+H
+itissimilartothepopulationsizeingeneticalgo-
+rithms. Small N restricts exploration such that
+H
+the algorithm behaves similarly to greedy search
+andlacksdiversity. While,largeN deteriorates
+H
+thequalityofmemorizedprompts,andslowsdown
+the search efficiency. Notably, the performance
+2197

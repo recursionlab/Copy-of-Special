@@ -1,0 +1,789 @@
+An Expert is Worth One Token: Synergizing Multiple Expert LLMs as
+Generalist via Expert Token Routing
+ZiweiChai1,2,GuoyinWang3,JingSu3,TianjieZhang1,XuanwenHuang1,XuwuWang3
+JingjingXu3,JianboYuan3,HongxiaYang3,FeiWu1,YangYang1*
+1 ZhejiangUniversity,2 BeijingHuairouLaboratory,3 ByteDanceInc.
+{zwchai, yangya}@zju.edu.cn
+Abstract enhancements on targeted tasks like data analy-
+sis(Lietal.,2023b;Huetal.,2024)andfinancial
+We present Expert-Token-Routing, a unified
+analysis(Chenetal.,2023),makingageneralLLM
+generalistframeworkthatfacilitatesseamless
+intoaspecializedexpert.
+integration of multiple expert LLMs. Our
+In this study, we focus on the following spe-
+framework represents expert LLMs as spe-
+cificresearchquestion: howcanwesynergizevari-
+cial expert tokens within the vocabulary of a
+metaLLM.ThemetaLLMcanroutetoanex- ousexpertLLMsintoasingulargeneralistframe-
+pertLLMlikegeneratingnewtokens. Expert- work? Thepracticalityofthisquestionliesinthe
+Token-Routingnotonlysupportslearningthe fact that it’s unrealistic to ask users to precisely
+implicitexpertiseofexpertLLMsfromexisting switch between various expert LLMs, given the
+instructiondatasetbutalsoallowsfordynamic
+diversityandsubtledifferenceintheircapabilities.
+extensionofnewexpertLLMsinaplug-and-
+Therearemainlytwoparadigmtobuildsuchagen-
+playmanner. Italsoconcealsthedetailedcol-
+eralist LLM system, termed in this paper as the
+laborationprocessfromtheuser’sperspective,
+facilitatinginteractionasthoughitwereasingu- prompt-basedmethodsandtherouter-basedmeth-
+larLLM.Ourframeworkoutperformsvarious ods. Prompt-basedmethods(Lietal.,2023a;Wang
+existing multi-LLM collaboration paradigms etal.,2024;SuzgunandKalai,2024)treatexpert
+acrossbenchmarksthatincorporatesixdiverse LLMs as conversational agents. A "meta" LLM
+expert domains, demonstrating effectiveness
+guidedbycraftedinstructioncommunicateswith
+androbustnessinbuildinggeneralistLLMsys-
+expertLLMstoacquiredomain-specificinforma-
+temviasynergizingmultipleexpertLLMs. 1
+tion. For the router-based methods (Jiang et al.,
+1 Introduction 2023;Luetal.,2023),aroutermodelistrainedto
+routeeachquerytodecidewhichexpertisrespon-
+Largelanguagemodels(LLMs)—notably,GPT-4 sibletoanswerit.
+andLLaMA(Touvronetal.,2023)—havedemon- However,bothoftheaforementionedparadigms
+stratedremarkablecapabilitiesacrossawidespec- havesomenotablelimitations(Table1). Whenem-
+trumoftasks. However,theirperformanceandre- ploying the prompt-based method, successful ex-
+liabilityincertainspecializeddomainssometimes pertcollaborationsignificantlyreliesonhowthein-
+still fall short of expectations (Wang et al., 2023; structionarecrafted. Forcaseswheretheexpertise
+Zhao et al., 2024). Motivated by this, the recent ofexpertLLMsisimplicitorundisclosed,pinpoint-
+year has seen emergence in the development of ing relevant expert knowledge through prompts
+"expert" LLMs, with a particular focus on tailor- couldbeinefficient. Intheotherhand,router-based
+ingageneralLLMtoexcelinspecificdomainsor methods requires training an extra router model
+tasks. For example, there are efforts to refine the tailoredtothecurrentexpertLLMlibrary,which
+pretraining corpus to develop expert LLMs with needstoberetrainedwheneveranewexpertLLM
+enhancedcapabilitiesinspecificdomains,suchas isadded.
+CodeLlama(Rozièreetal.,2024)andDeepSeek- In this work, we introduce a novel technique
+Math (Shao et al., 2024). Furthermore, applying termed Expert-Token-Routing (ETR). ETR em-
+continualtrainingorsupervisedfine-tuning(SFT) ploysamulti-expertLLMcollaborationframework,
+onspeciallyselectedcorporacanleadtosignificant wherein a meta LLM can seamlessly switch to
+a specific expert LLM. The core idea of ETR is
+* Correspondingauthors.
+1Codesareavailableathttps://github.com/zjunet/ETR. encoding expert LLMs as special tokens within
+1
+4202
+nuJ
+11
+]LC.sc[
+3v45861.3042:viXrathe vocabulary of the meta LLM. Inspired by Table1: ComparisonofdifferentexpertLLMcollabora-
+tionparadigms. ImplicitExpertisemeansit’sdifficultto
+ToolkenGPT (Hao et al., 2023), which captures
+obtainaprecisedepictionoftheexpertiseofanexpert
+toolsemanticsusingspecialtokens,ETRemploys
+LLM.DynamicExtensionisaboutwhetheranexpert
+experttokenstocharacterizetheexpertiseofdiffer-
+LLM can be incorporated in a plug-and-play manner
+entexpertLLMs. Underthisformulation,themeta
+withoutmakingchangestotherestoftheframework.
+LLMcanroutetoanexpertLLMlikegenerating
+newtokens. Thisapproachallowsforexpertrout- ExpertCollaboration ExtraModel Implicit Dynamic Transparent
+Paradigm Free Expertise Extension toUsers
+ingwithouttrainingextraroutermodel,simplyby
+Prompt-based ✓ ✗ ✓ ✗
+appendingtrainedexperttokensintoafrozenmeta Router-based ✗ ✓ ✗ ✓
+LLM.Totraintheexperttokens,weconstructan ETR(Ours) ✓ ✓ ✓ ✓
+automatedpipelinetocollectexpertqueriesfrom
+existingdatasets. ETRcanlearnexperttokenem-
+Typically, an expert LLM ϵ is derived from base
+beddingsfromcollectedexpertqueries,whichpro-
+pre-trainedLLMsthroughcontinualpretrainingor
+files the strengths of expert LLMs, thereby han-
+supervisedfine-tuning(SFT)ondataoftargetdo-
+dlingsituationswheretheexpertiseofexpertLLMs
+main. Bycarefuldataselection,anexpertLLMof
+isimplicitorundisclosed.
+smallerscalecanexceedalarger,general-purpose
+Ourframeworkalsosupportsaplug-and-playin-
+LLMinspecificareaslikecoding(Guoetal.,2024)
+tegrationfornewexpertLLMs,allowingproviders
+ormathproblem-solving(Shaoetal.,2024).
+toaddtheirexpertLLMsandtrainedexperttokens
+GivenanexpertLLMlibraryE = {ϵ ,ϵ ,...},
+totheframeworkasmodularplug-ins,eliminating 1 2
+ourgoalistodevelopanLLMframeworkwhich
+theneedformodificationstoanyotherpartofthe
+canutilizingtheexpertknowledgeavailableinthe
+framework. Anotherappealingcharacteristicofour
+library E when solving problems within specific
+methodisthatitconcealsthecollaborationprocess
+domains. Todeterminewhenandwhichexpertto
+betweenthemetaLLMandexpertLLMsfromthe
+corporatewith,weuseageneral-purposeLLMΩ
+user’sperspective,facilitatinginteractionwiththe
+asametaLLM.AndexpertLLMϵ isrepresented
+frameworkasthoughitwereasingularLLM. i
+by a special token (expert token) witin the meta
+Inourcomprehensiveexperimentsacrosssixdif-
+LLM’svocabulary.
+ferentdomains,wecompareETRwiththeexisting
+paradigmsforexpertLLMcollaboration. Ourfind-
+2.1 FrameworkOverview
+ings indicate that ETR significantly outperforms
+ThecoredesignofETRistoencodeexpertLLMs
+thebaselinesasageneralist,withanoverallperfor-
+as special tokens (termed "expert tokens") in the
+manceimprovementof5.64%. Itisworthnoting
+meta LLM’s vocabulary. In this formulation, the
+thatourframeworkalsointegratestheadvantages
+expertroutingisredefinedwithintheLLM’sstan-
+ofexistingparadigms,asillustratedinTable1.
+dard next word prediction paradigm. An expert
+The core contribution of this work is the intro-
+LLM is activated for decoding once its expert to-
+ductionofasingulargeneralistframeworkthatfa-
+kenispredictedasthenexttokenbythemetaLLM.
+cilitatesseamlessintegrationandcollaborationof
+Theexperttokensareparameterizedasanembed-
+expert LLMs. This framework not only supports
+dingmatrixW ∈ R|E|×d andareappendedtothe
+learningtheimplicitexpertiseofexpertLLMsfrom E
+language model head W of the meta LLM like
+existinginstructiondatasetbutalsoallowsfordy- V
+regularwordtokens.
+namicextensionofnewexpertLLMsinaplug-and-
+Assuming we’ve already trained expert token
+playmanner. Theeffectivenessofourframework
+embeddingsW (tobedescribedinSection2.2),
+isshowcasedacrossbenchmarksthatincorporate E
+we will start by introducing how our framework
+sixdiverseexpertdomains.
+works in inference. As shown in Figure 1, the
+2 Approach meta LLM is served as the gateway for handling
+queriesbydefault. Anditisdesignedtotreatword
+In this section, we present ETR, which enables tokens and expert tokens uniformly. Specifically,
+theintegrationofmultipleexpertLLMsintoasin- the language modeling head of the meta LLM is
+gular generalist LLM framework for leveraging a concatenation of original word token head and
+expertknowledgewithouttheneedforheavilyfine- expertembeddings. Consequently,themetaLLM
+tuning or designing crafted instruction templates. generatestheresponsebypredictingthenexttoken
+2User
+Hello, please answer the following questions.
+Meta LLM
+Meta LLM
+Active LLM
+tri
+Sure, I'll do my best to answer your questions. What would you like to know?
+Language Modelling rolled User
+Head What is the difference between Responsibility to Protect (R2P) and humani-
+tarian intervention?
+\t\t\t
+Word Tokens Meta LLM Expert LLM
+Active LLM Active LLM
+<ExpertToken_2> Switching The Responsibility to Protect (R2P) is a princi-
+Expert LLM 1 ple that was endorsed by the United Nations in 2005. It is based on the idea
+<ExpertToken_1> that sovereignty is not a privilege, but a responsibility. Therefore, states
+Expert LLM 2 have a responsibility to protect their population ... ... <omitted for brevity>
+<ExpertToken_2>
+User
+Expert LLM n
+... ...
+<ExpertToken_n>
+Expert LLM Library
+Next Token Logits
+Figure1: TheframeworkofETR.DuringtheETR’sdecodingprocess,themetaLLMservesasthedefaultactive
+LLM.Whenpredictingtheexperttoken,theactiveLLMswitchestothecorrespondingexpertLLM.TheExpert
+tokensareappendedtothefrozenlanguagemodelingheadofthemetaLLM,whereitistreatedequallywithword
+tokensduringthenexttokenprediction.
+withthefollowingprobability: Algorithm1InferenceprocedureofETR
+1: Input: Query q, expert LLM Library E =
+P (t |t ) = softmax([W ;W ]·h ) (1)
+Ω i <i V E i−1 {ϵ ,ϵ ,...},metaLLMΩ
+1 2
+2: Output: Responser
+whereW ∈ R|V|×dand|V|isthevocabularysize
+V 3: procedureGENERATE(q,E,Ω)
+of word tokens. Note that the next token can be
+4: Initializecontextc ← q
+either a word token or a expert token, i.e. t ∈
+i 5: InitializeactiveLLMλ ← Ω ▷Startwith
+V ∪E.
+metaLLM
+Onceanexperttokenispredicted,themetaLLM
+6: whileResponsenotcompletedo
+halts decoding. Subsequently, the corresponding
+7: t i ←Predictnexttokenwithλgivenc
+expertLLMcontinuesdecoding,usingthealready
+8: ift i isawordtokenthen
+generated context as its prefix. Algorithm 1 pro-
+9: Updatecontextc ← c || t i
+videsadetaileddescriptionoftheinferenceproce-
+10: elseift i isϵ’sexperttokenthen
+dureofETR.Ourframeworkoperatesasasingular
+11: λ ← ϵ j ▷SwitchactiveLLMto
+LLM,makingtheunderlyingexpertcollaboration
+theexpertLLM
+invisibletotheuser. Asaresult, interacting with
+12: endif
+ourframeworkisindistinguishablefrominteracting
+13: endwhile
+withageneralLLM.
+14: r ← c
+15: returnr
+2.2 LearningExpertEmbeddingsviaExpert
+16: endprocedure
+QuerySet
+Ideally,whenaqueryisfallswithintheexpertise
+ofaspecificexpert,thecorrespondingexperttoken toageneralLLMtobeϵ ’sexpertquery. Givenan
+i
+shouldbegenerated. Therefore,wehopethatthe instructiondatasetD consistingofquery-response
+expertembeddingimplicitlyencodestheexpert’s pairs{(q ,r ) },thelossofLLMϵonj-th
+j j j=0,1,...
+strengths. query-responsepairisdefinedas
+Drawingontheideathatexpertsoutperformnon-
+expertsinaddressingproblemswithintheirexper- (cid:88)
+L (j) = −logP (x |q ) (2)
+ϵ ϵ k j
+tisearea,weutilizeanexpertquerysetϵ tolearn
+i
+x k∈rj
+an expert LLM’s token embedding. Specifically,
+weconsideraquery-responsepairthathassignifi- wherex isthetokensintheresponse. Theinstruc-
+k
+cantlylowerlossontheexpertLLMϵ compared tiondatasetusedforcollectingexpertquerysetcan
+i
+3beeitherexistinginstruction-tuningdataset(Taori (i.e. mathematics,laywer). Althoughcreatingex-
+etal.,2023)orsyntheticdatageneratedbyLLMs pertsbyrole-playingisstraightforward,itisdiffi-
+For each expert LLM ϵ in the expert library, culttoeffectivelyinjectdomainknowledgeintoan
+i
+we build an expert query set A according to the LLM through just several lines of expert descrip-
+i
+followingcriteria: tion prompt. We believe that constructing expert
+LLMsthroughcontinualtraining/supervisedfine-
+tuningismorealignedwithreal-worldapplications
+A = {(q ,r )|L (j)−L (j) > τ} (3)
+i j j Ω ϵi thantherole-playingpromptingapproach.
+where L is the loss of the meta LLM. There- Therefore, we collect a domain expert instruc-
+Ω
+fore, A is the collection of queries that the ex- tion dataset comprising knowledge across 6 dif-
+i
+pert LLM ϵ adept at solving, outperforming the ferentdomainsinMMLU-Expert. Wesynthesize
+i
+general-purposemetaLLMΩ. Inthetrainingpro- 7.5K question-answer pairs for each domain, by
+cess, queries in A serves as prefix and a special harnessingunnaturalinstructions(Kervadecetal.,
+i
+experttoken< ExpertToken_i >isappendedas 2023) to extract domain knowledge from GPT-4.
+groundtruthforthenexttokenprediction. Specifi- Specifically, a seed question set is initialized us-
+cally,thetrainingobjectiveofETRis: ingtheMMLUvalidationquestions. Ineachcycle,
+threequestionsarerandomlyselectedfromtheseed
+|E|
+questionset,andGPT-4istaskedwithgenerating
+(cid:88) (cid:88)
+L(W ) = −logP(<ExpertToken_i> |q )
+E j aquestion withinthesame domain. Toavoid the
+i qj∈Ai riskofdataleakagebyGPT-4reproducingMMLU-
+(4)
+Experttestquestionsfromitsmemory,wefilterout
+ThisembeddingmatrixW aretheonlytunable
+E questionswhichhaveahighsimilarity(measured
+parameters. Therefore,similartopioneeringwork
+by BERTScore (Zhang* et al., 2020) > 0.8) with
+onexpandingthelanguagemodelingheadofLLMs
+testquestions. WeonceagainutilizeGPT-4toget
+(suchasToolkenGPT(Haoetal.,2023)),training
+answers for these generated questions. This ap-
+ETRdoesnotrequiregradientpropagationthrough
+proachallowsextractingdomainknowledgefrom
+the main part of the LLM parameters, leading to
+GPT-4intoaquestion-and-answerdataset.
+trainingthatisbothmorestableandefficientthan
+prompt tuning (Lester et al., 2021) or prefix tun- Wethenapplysupervisedfine-tuningonthesyn-
+ing(LiandLiang,2021). Thus,theGPUmemory thetic dataset to get expert LLMs injected with
+usageforexperttokenembeddingtuningisnearly domainknowledge,namelyExpert-DomainName.
+thesametothatofLLMinference. Figure 2 shows the expert LLMs’ performance
+acrossdifferentdomainsofMMLU-Expert. Com-
+3 Experiments paredtonon-expertmodelsbeforefine-tuning,the
+expert models exhibit a significant performance
+3.1 ExperimentalSettings
+gainof17.90%onthein-domaintestsets.
+Datasets Webuildadatasetcomprisingamixof
+questionsfromsixdiverseexpertdomain. Specifi-
+cally,weemployGPT-4torankthe57subjectsin Non-Expert
+MMLU(Hendrycksetal.,2021)acrossSTEM,the
+humanities, the social sciences, and more, based Expert-Astronomy
+on their level of specialization. We select the six Expert-Electrical
+Engineering
+highest-rankedsubjects,whichareastronomy,elec-
+Expert-Human
+tricalengineering,securitystudies,prehistory,in- Sexuality
+Expert-International
+ternational law and human sexuality. Their test Law
+questionsetsaremergedtoformadataset,named Expert-Prehistory
+MMLU-Expert,whichincludesquestionsfromsix
+Expert-Security
+differentspecializedfields. Studies
+Astronomy Electrical human internationalprehistorysecurity
+Engineeringsexuality law studies
+ExpertLLMConstructionviaSFT Mostprevi-
+Dataset
+ousresearch(Lietal.,2023a;Xuetal.,2023;Liu
+Figure2: ExpertLLMs’accuracyonMMLU-Expert.
+etal.,2023;SuzgunandKalai,2024)createexpert
+LLMs by constructing specialized role prompts
+4Data Cleaning Blender(Fused),respectively. Itisnoteworthythat
+Synthetic Questions GPT4
+Zooter(Luetal.,2023)isalsoahigh-relatedrouter-
+GPT4 basedmethod. Weplantocomparewithitinthe
+Synthesize Augument future since its implementation has not been re-
+leased.
+Question Answer 7.5K
+Seed Question Set
+Synthetic Multi-Domain Implementations We employ Qwen-7B-
+Knowledge Dataset
+Chat (Bai et al., 2023) as the meta LLM. The
+MMLU Validation
+Questions on Domain X = {Astronomy, Electrical Engineering, expert token embedding is initialized with the
+Security Studies, Prehistory,
+International Law, Human Sexuality} average value of the language modeling head
+of word tokens for training stability. We utilize
+Figure 3: Collection process of multi-domain knowl- AdamW(LoshchilovandHutter,2019)optimizer,
+edge dataset synthesized through GPT-4. To prevent
+withalearningrateof5e-4andweightdecaysetto
+potential data leakage, synthetic questions with high
+1.0,foratrainingdurationof5epochs. Weapply
+BERTScore(Zhang*etal.,2020)toanyquestioninthe
+greedy decoding for all comparative methods,
+testsetarefilteredout.
+unless specifically stated otherwise. The ETR
+framework’s training is performed on 1 × A100
+EvaluationMetric Withaccesstobothanexpert GPU. The inference is conducted on 8 × A100
+LLMlibraryandageneralLLM,theperformance GPUsasitrequiresservingLLMssimultaneously.
+of a multi-expert LLM framework are evaluated
+3.2 ExpertQuerySetCollection
+throughtheoverallaccuracyontheMMLU-Expert.
+Foreachquestion,thereexistsanoptimalexpertin Inoursection,wecollecttheexpertquerysetusing
+theexpertLLMlibrary. Theframework’scapabil- theautomaticpipelinedescribedinSection2.2,on
+ity to accurately route questions to these optimal aninstructiondatasetgeneratedbyGPT-4contain-
+expertsservesasacriticalmeasure. ing15,000query-responsepairs. Theinstruction
+dataset is generated by adopting a process simi-
+Baselines Wecompareourframeworkwithtwo lar to that depicted in Figure 3, using the dev set
+types of baseline methods: the prompting-based questionsfromallcategoriesofMMLUastheseed
+expertcollaborationmethodsandtherouter-based questionset. Wealsoconductasimilardataclean-
+expertroutingmethods. It’sworthynotingthatin ing process to ensure there is no data leakage in
+theexistingprompting-basedmethods,asexempli- theinstructiondataset. Afterfilteringforqualify-
+fiedbyMeta-Prompting(SuzgunandKalai,2024), ingqueries, weperformdown-samplingforeach
+therearetwodistinctcomponentsinitsinstruction: expert LLM, resulting in a set of 100 queries for
+collaboratingwithexpertsandformingexpertiden- eachexpert’squeryset.
+tity,bothofwhicharecrucialtotheeffectivenessof
+3.3 EvaluationofGeneralistframeworkon
+thismethod. However,inthispaper’ssetting,anex-
+MMLU-Expert
+ternalexpertLLMlibraryareprovided,removing
+the need to create experts via prompting. There- Givenageneral-purposeLLMandanexpertLLM
+fore,weadaptthesegmentoftheMeta-prompting library, we evaluate the performance of the gen-
+instructiondedicatedtoexpertLLMcollaboration eralistframeworkdevelopedbycomparisonmeth-
+toserveasacomparativemethod,whichwerefer odsusingtheoverallaccuracyofMMLU-Expert
+to as "Meta-prompting-E" in this paper. We also (Table 2). From the data shown in the table, we
+compare the multi-LLM debate (Du et al., 2023) can draw the following observations. (1) ETR
+method,asaspecificcasewithinprompting-based achieves the highest overall accuracy (73.52%)
+methods,wherealltheexpertsareinvokedforall amongallmethods, outperformingtherunner-up
+queries. Inrouter-basedmethods,wecomparewith method by a margin of 5.64%. Its performance
+LLM-Blender(Jiangetal.,2023),whichranksthe also comes closet to the ideal scenario of select-
+responsesfromeachLLM.Andweselectthetop- ingexpertLLMsasifbyanoracle. Thisindicates
+rankedresultastheroutingexpert. Intheoriginal that ETR is highly effective to build a generalist
+design of the LLM-Blender, it is also capable of frameworkbysynergizingexpertLLMsacrossdi-
+fusingthetop-kresponses. Thispapermarksthese verse domains, significantly outperforming other
+twomethodsasLLM-Blender(Top1)andLLM- approachesinnearlyallsixdomains. (2)Themulti-
+5LLMdebatestrategy,despiteboostingoverallac- MMLU-Expert (a) Meta-Prompting-E
+curacy, does not guarantee improvements across Astronomy 18.42% Expert Prehistory (40.79%) 14.47% 8.55% 17.76%
+5.19%0.69%
+all domains. (3) The performance of the LLM- E El ne gc it nri ec ea rl i ng Expert Electrical Engineering (93.10%) 0 0. .6 69 9% %
+5.34%2.29%
+blenderseriesmethodsissubpar,possiblybecause H Seu xm ua an lity Expert Human Sexuality (67.17%) 25.19%
+the ranker model designed for general scenarios
+I Ln ate wrnational Expert International Law (90.08%) 9.92%
+isnotwell-suitedforexpertroutingandcollabora- 3.70%1.54%
+Prehistory Expert Prehistory (87.96%) 6.79%
+tion. (4)TheMeta-Prompting-Etechniquestands
+astherunner-upmethods,whichutilizescarefully
+S Se tuc du ir eit sy Expert Security Studies (42.45%) 32.65% 13.06% 6.12%5.71%
+(b) ETR (ours)
+craftedinstructionsforexpertroutingandcollabo-
+MMLU-Expert 4.61%
+ration,showsmarkedenhancementsinfieldslike Astronomy Expert Astronomy (86.84%) 8.55%
+electrical engineering and international law. In E El ne gc it nri ec ea rl i ng Expert Electrical Engineering (85.52%) 14.48%
+1.52%0.76%
+Section3.4,wedelvedeeperintotheunevenper- H Seu xm ua an lity Expert Human Sexuality (77.10%) 20.61%
+formanceacrossvariousdomains. Yet,itfallsshort 1.65%
+I Ln ate wrnational Expert International Law (68.10%) 20.66% 9.10%
+inoverallaccuracycomparedtoourapproach. 5.25%1.54%
+Prehistory Expert Prehistory (79.32%) 13.58%
+3.4 ExpertRoutingAccuracy S Se tuc du ir eit sy Expert Security Studies (90.20%) 9.80%
+Inthissection,wecomparetheexpertroutingaccu- Expert Astronomy Expert Eletrical Engineering Expert Human Sexuality
+Expert International Law Expert Prehistory Expert Security Studies
+racyinTable3. Forexample,intheMMLU-Expert No Expert
+dataset,thequestionsinelectricalengineeringcate-
+Figure 4: Routing expert distribution of Meta-
+goryhasanoracleexpertLLM,whichisfine-tuned Prompting-E(top)andETR(down).
+onthesyntheticelectricalengineeringknowledge
+dataset(Section3.1). Theaccuracyis100%when
+allthequeriesareroutedtoitscorrespondingdo- set,andthehighertheirquality,themorecompre-
+main expert LLM, where random routing has an hensiveandaccuratethedepictionofexpertiseby
+accuracyof16.67%. ItcanbeseenthattheLLM- the learned expert tokens. However, in practical
+Blender, of which the ranking model is trained use,becausetheinstructiondatasetweusetobuild
+basedonrewardsalignedwithhumanpreferences, theexpertquerysetautomaticallycanberelatively
+does not perform well in accurately routing to small,thenumberofexpertqueriesobtainedmay
+the domain expert. Meta-Prompting-E achieves be limited. Fortunately, ETR freezes the entire
+a67.08%expertroutingaccuracyontheMMLU- LLM and only tunes the expert tokens, which in-
+Expertdataset,whileETRreaches82.11%,exceed- volvesaverysmallnumberofparameters(expert
+ingitby15.03%. number × embedding dimension). Thus, empiri-
+Figure 4 visualizes the routing expert distribu- callywefindthatonly100expertqueriesforeach
+tionofETRandMeta-Prompting-E.Itcanbefound expertLLMaresufficienttoachievegoodresults.
+thattheMeta-Prompting-Eperformspoorlyincer-
+tain domains, like astronomy, where it yields a Overall Acc.(%) Expert Routing Acc.(%)
+mere 18.42% accuracy. This indicates that by 78 84
+merelydesigningcraftedinstructions,LLMsmay 76 83 83.27 83.81
+struggletoaccuratelyhandlecomplexorimplicit 74 74.78 75.04 82 82.11
+73.52
+expertise. Comparing with the results in Table 2, 72 81
+it can be observed that in domains where Meta- 70 80
+100 200 300 100 200 300
+Prompting-E’sroutingperformanceissubpar,the #Num of Expert Queries Used per Expert LLM
+answer accuracy of meta-prompting is relatively Figure5: OverallAccuracy(Left)andExpertRouting
+low,affectingitsoverallperformanceasageneral- Accuracy(Right)onMMLU-Expertasthesizeofthe
+ist. Incontrast,ourapproachmaintainsarouting expertquerysetperexpertincreases.
+accuracy exceeding 65% across all six domains,
+demonstratinggreaterrobustness. Figure5illustratesthatwhenthesizeoftheex-
+pert query set is further expanded, both the over-
+3.5 AnalysisonExpertQuerySet
+all accuracy and expert routing accuracy of our
+Theconstructionoftheexpertquerysetiscrucial methodimprove. Inourcomparativeexperiments
+forlearningexperttokenswithgoodgeneralizabil- oneffectiveness,weuseaexpertquerysetsizeof
+ity. Ideally, the more queries in the expert query 100 per expert LLM to simulate scenarios where
+6Table2: Accuracy(%)onMMLUExpertdataset.
+Method(7LLMs) Electrical Human International Security
+Astronomy Prehistory Overall
+(1Meta+6Experts) Engineering Sexuality Law Studies
+metaLLM 59.87 49.66 70.99 63.64 61.11 60.41 60.73
+OracleExpert 75.66 69.66 86.26 85.12 78.40 77.96 78.44
+Meta-Prompting-E 58.55 64.14 83.21 72.73 72.22 59.59 67.89
+MultiLLMDebate 55.26 54.48 71.76 61.98 63.89 64.49 62.29
+LLM-Blender(Top1) 68.42 54.48 74.05 66.94 67.59 53.88 63.69
+LLM-Blender(Fused) 59.87 46.21 74.05 64.46 59.26 44.90 56.80
+ETR(Ours) 72.36 63.44 84.73 76.03 70.06 77.55 73.52
+Table 3: Expert Routing Accuracy (%) on MMLU- aretrainedandthenconcatenatedwiththeprevi-
+Expertdataset.
+ouslyobtainedexperttokens.
+Method ExpertRoutingAcc. Specifically, for the ETR-dynamic setting, we
+randomlyselectedfourexpertLLMstoformtheex-
+Random 16.67
+pertLLMlibraryattimestep0. Theremainingtwo
+OracleExpert 100.00
+serveasnewLLMexpertstobeaddedattimestep1.
+LLM-Blender(Top1) 28.26
+Table4showsthatunderthesettingofdynamically
+Meta-Prompting-E 67.08
+addingexperttokens,ETRsuffersonlyaminorper-
+ETR(Ours) 82.11
+formancedrop. Thisrevealsanattractivefeatureof
+ourframework: providersofnewexpertLLMscan
+add their trained expert LLMs and expert tokens
+expertqueriesarelimited. However,inscenarios
+to the framework as plug-ins, without needing to
+whereexpertqueriesareeasilyaccessible,theper-
+modifyanyotherpartoftheframework.
+formanceofourmethodcanbefurtherenhanced.
+Table 4: Performance comparison between ETR-
+3.6 DynamicExtensionofExpertLLMs Static/DynamiconMMLU-Expert.
+In practical applications, the expert LLM library
+may continuously expand with the emergence of Variant ExpertRoutingAcc. OverallAcc.
+newexpertLLMs. Toadapttotheextendedexpert
+ETR-Static 82.11 73.52
+LLM library, prompt-based approaches must up- ETR-Dynamic 81.75(-0.26) 73.25(-0.27)
+datetheirinstructions,whereasrouter-basedtech-
+niquesmayneedretrainingtheroutermodel. Moti-
+vatedbytheweightsofparameter-efficienttuning
+3.7 RunningCaseAnalysis
+canbeeffectivelycombined(Wuetal.,2023),we
+In Figure 6, we present a running case com-
+traintheexperttokensforthenewlyaddedexpert
+paring between ETR and the runner-up prompt-
+LLMsandmergenewly-learnedexperttokensdi-
+basedmethod(Meta-Prompting-E).Ourobserva-
+rectlyintothefrozenexperttokenheadinaplug-in
+tionsyieldthefollowinginsights:
+manner. Table4comparestheperformanceofthe
+followingtwodifferentsettingsonMMLU-Expert.
+• Theprompt-basedmethodrequiresthedesignof
+complexinstructiontemplatestofacilitatecollab-
+• ETR-Static: AllexpertLLMsexistintheexpert
+orationbetweenthemetaLLMandexpertLLMs.
+LLMlibraryattimestep0(i.e.,thedefaultsetting
+ETR, however, obviates the need for using any
+ofthispaper).
+speciallydesignedinstructions.
+• ETR-Dynamic: Attimestep0,experttokensare • In prompt-based methods, the information ex-
+trainedbasedonthecurrentexpertLLMlibrary. changing between LLMs is through conversa-
+WhennewLLMexpertsareaddedattimestep1, tions. Whilethisapproachissimpleandeffective,
+onlytheexperttokensofthesenewexpertLLMs it adds an extra layer of complexity on the user
+7User
+The following is a multiple-choice question. Please choose the most suitable one among A, B, C and D as the answer to this question.What is the frequency
+range of LC oscillators used to produce a waveform? (A) 1MHz to 500 MHz (B) 100 KHz to 500 MHz (C) 1 KHz to 1 MHz (D) 1MHz to 100 GHz
+(a) Prompt-based Methods (Meta-Prompting-E) Expert LLM
+Meta LLM
+Library
+System Prompt of Meta LLM
+You are a Meta-Expert, an extremely clever LLM (Language Learning Model) with the unique ability to collaborate with multiple experts. Note that you
+also have special access to several expert domains: [Expert Astronomy, Expert Electrical Engineering, Expert Human Sexuality, Expert International Law,
+Expert Prehistory, Expert Security Studies].
+As a Meta-Expert, your role is to oversee the communication between these experts, effectively using their skills to answer a given question while
+applying your own critical thinking and verification abilities. To communicate with an expert, type its name (e.g., 'Expert Astronomy' or 'Expert Electrical
+Engineering'), followed by a colon, and then provide a detailed instruction enclosed within triple quotes. For example:
+Expert Astronomy:
+"""
+What is the closest star to the Earth? (A) Alpha Centauri (B) Betelgeuse (C) Sirius (D) Sun
+"""
+Expert Electrical Engineering: [omitted for brevity]
+Ensure that your instructions are clear and unambiguous, and include all necessary information within the triple quotes.
+Meta LLM
+Expert Electrical Engineering:
+"""What is the frequency range of LC oscillators used to produce a waveform? (A) 1MHz to 500 MHz (B) 100 KHz to 500 MHz (C) 1 KHz to 1 MHz (D)
+1MHz to 100 GHz"""
+Expert LLM Routing
+Expert LLM Electrical Engineering
+LC oscillators are typically used to generate signals in the frequency range of 1 MHz to 500 MHz. The answer is (A).
+Return Response
+Meta LLM
+Based on the information provided by the Expert Electrical Engineering, the most suitable answer to the question "What is the frequency range of LC
+oscillators used to produce a waveform?" is (A) 1MHz to 500 MHz.
+(b) ETR (Ours)
+System Prompt of Meta LLM
+You‛re a helpful assistant. (Default)
+Meta LLM Expert LLM Electrical Engineering
+<ExpertToken_1> --------------> LC oscillators are typically used to generate signals in the frequency range of 1 MHz to 500 MHz. The answer is (A).
+Active LLM Switching
+Figure6: Comparisonofrunningcasesbetweenprompt-basedmethods(Meta-Prompting-E)andETR(Ours)on
+MMLU-Expertdataset. <ExpertToken_1>isthecorrespondingexperttokentoExpertLLMElectricalEngineering.
+end. Incontrast,ourETRframeworkensuresthat time. Toeliminatetheimpactofdifferentresponse
+the collaboration between LLMs remains invis- lengthbythetwoconditionsontherunningtime,
+ibletousers,allowingthemtointeractwithour themaximumgenerationlengthissetontheshorter
+frameworkasifitwereasingleLLM. responselengthofthetwo(greedydecodingisused
+fordeterministicresponse). Theexperimentalre-
+• Inprompt-basedmethods,theroutingtotheap-
+sultsareasshowninTable5.
+propriateexpertreliesonthemetaLLM’sintrin-
+siccapabilitiesinzero-shotorfew-shotscenarios. Table5: TimeCostofLLMSwitching
+Incontrast,ourETRframeworkcanlearnfrom
+RunningTime(s)
+expertqueries,thusintroducingnewknowledge
+NoActiveLLMSwitching 1.589
+tothemetaLLM,resultinginmorepreciseexpert
+ActiveLLMSwitching 1.616
+routing.
+3.8 RunningTimeAnalysis
+TheexperimentrunswithCUDA12.1,Pytorch
+We evaluate the running time of ETR in two dif- 2.1andFlash-Attention2. EachLLMisservedon
+ferentconditions: noactiveLLMswitching(line anA100-SXM4-80GGPU,utilizingbf16quantiza-
+9 in Algorithm 1) versus active LLM switching tion. WenoticethatactiveLLMswitchingresults
+(line11inAlgorithmAlgorithm1). Werandomly inroughly1.7%extrarunningtimecosts. Thisra-
+select100queriestocalculatetheaveragerunning tioisexpectedtofurtherdecreaseasthegenerated
+8responsebecomeslonger. real-timeservices. AsthenumberofexpertLLMs
+growssignificantly,theassociatedcostscouldbe-
+4 RelatedWorks
+comeprohibitive. Apotentialcompromiseinvolves
+distillingtheexpertknowledgefromtheseLLMs
+ExpertLLMCollaboration Abunchofmeth-
+intomoreefficient,lightweightmodules.
+odsaimatenhancingthereasoningcapabilitiesof
+LLMsinspecifictasksbyinstructingLLMsintoex-
+EthicsStatement
+pertsthroughthecraftingofprompts. Thesemeth-
+odsmainlyfocusonboostingasingleLLMbysim- Thisworkhasbeenconductedusingopen-source
+ulatingmultipleexpertLLMinstances,whichcan Qwen(Baietal.,2023)modelsandaimstostudy
+alsobeappliedtothesettinginthispaper. Expert- methodsforcollaboratingmultipleexpertlanguage
+Prompting (Xu et al., 2023) elicits LLMs to gen- modelswithinasingulargeneralistframework. We
+erateexpert-levelresponsesusingpropercrafting acknowledgethatlanguagemodelscanexhibitbi-
+of prompts. Meta-Prompting (Suzgun and Kalai, asesandgenerateinappropriatecontent. Theexpert
+2024) breaks down complex tasks into subtasks modelswerecreatedusingsyntheticdatagenerated
+handledbyexpertinstancesofasingleLLM.Multi- by commercial language models, and data filter-
+LLMDebate(Duetal.,2023)involvestheuseof ingwasperformedtoavoidharmfulcontent. Thus,
+multipleLLMinstancestoproposeanddebatetheir webelieveourworkdoesnotposesevereethical
+individualresponsesandreasoningprocessesover concerns.
+severalroundsinordertoconvergeonacommon
+Acknowledgment
+finalanswer.
+Thereisalsoalineofmethodshighlyrelevant This work is supported by National Natural Sci-
+tothispaper,whichinvolvestraininganadditional ence Foundation of China (No. 62322606, No.
+routermodeltointegratemultipleLLMsintoone 62441605)andSMP-IDATAOpenYouthFund.
+framework. LLM-Blender(Jiangetal.,2023)uses
+apair-rankermodelforoptimalLLMoutputselec-
+tion and a gen-fuser model for merging the best References
+outputs. Zooter(Luetal.,2023)isareward-guided JinzeBai,ShuaiBai,YunfeiChu,ZeyuCui,KaiDang,
+routingmethodforLLMensemblesthatefficiently XiaodongDeng,YangFan,WenbinGe,YuHan,Fei
+assignsqueriestothemostexpertLLM.However, Huang,BinyuanHui,LuoJi,MeiLi,JunyangLin,
+RunjiLin,DayihengLiu,GaoLiu,ChengqiangLu,
+inscenarioswhereexpertmodelsaredynamically
+KemingLu,JianxinMa,RuiMen,XingzhangRen,
+extended, these methods often require retraining
+XuanchengRen,ChuanqiTan,SinanTan,Jianhong
+theroutermodel. Tu, Peng Wang, Shijie Wang, Wei Wang, Sheng-
+guangWu,BenfengXu,JinXu,AnYang,HaoYang,
+5 Conclusion Jian Yang, Shusheng Yang, Yang Yao, Bowen Yu,
+HongyiYuan,ZhengYuan,JianweiZhang,Xingx-
+In this study, we introduced a novel approach uanZhang,YichangZhang,ZhenruZhang,Chang
+Zhou,JingrenZhou,XiaohuanZhou,andTianhang
+ETR to integrating various expert LLMs into a
+Zhu.2023. Qwentechnicalreport.
+unifiedgeneralistframework. Thismethodfacili-
+tatesseamlesscollaborationamongLLMswithout WeiChen,QiushiWang,ZefeiLong,XianyinZhang,
+exposing the complexity to the user, effectively ZhongtianLu,BingxuanLi,SiyuanWang,Jiarong
+Xu,XiangBai,XuanjingHuang,andZhongyuWei.
+turningtheframeworkintoasingle,versatileLLM.
+2023. Disc-finllm: A chinese financial large lan-
+Through comprehensive experiments across mul-
+guagemodelbasedonmultipleexpertsfine-tuning.
+tipledomains,ETRdemonstratedsuperiorperfor- arXivpreprintarXiv:2310.15205.
+manceoverexistingparadigms,offeringapromis-
+Yilun Du, Shuang Li, Antonio Torralba, Joshua B.
+ingdirectionforenhancingLLM’sgeneralistcapa-
+Tenenbaum, and Igor Mordatch. 2023. Improving
+bilitiesbycombiningthestrengthsofbothgeneral factualityandreasoninginlanguagemodelsthrough
+andexpertmodels. multiagentdebate.
+DayaGuo,QihaoZhu,DejianYang,ZhendaXie,Kai
+6 Limitations
+Dong, Wentao Zhang, Guanting Chen, Xiao Bi,
+Y.Wu,Y.K.Li,FuliLuo,YingfeiXiong,andWen-
+Themainlimitationaddressedinthispaperisthe
+fengLiang.2024. Deepseek-coder: Whenthelarge
+necessity for a multi-expert LLM framework to
+language model meets programming – the rise of
+operate all expert LLMs concurrently to provide codeintelligence.
+9ShiboHao,TianyangLiu,ZhenWang,andZhitingHu. Grattafiori, Wenhan Xiong, Alexandre Défossez,
+2023. ToolkenGPT: Augmenting frozen language JadeCopet,FaisalAzhar,HugoTouvron,LouisMar-
+modelswithmassivetoolsviatoolembeddings. In tin,NicolasUsunier,ThomasScialom,andGabriel
+Thirty-seventh Conference on Neural Information Synnaeve.2024. Codellama: Openfoundationmod-
+ProcessingSystems. elsforcode.
+DanHendrycks,CollinBurns,StevenBasart,AndyZou, Zhihong Shao, Peiyi Wang, Qihao Zhu, Runxin Xu,
+MantasMazeika,DawnSong,andJacobSteinhardt. JunxiaoSong, MingchuanZhang, Y.K.Li, Y.Wu,
+2021. Measuringmassivemultitasklanguageunder- andDayaGuo.2024. Deepseekmath: Pushingthe
+standing. limitsofmathematicalreasoninginopenlanguage
+models.
+XueyuHu,ZiyuZhao,ShuangWei,ZiweiChai,Guoyin
+Wang,XuwuWang,JingSu,JingjingXu,MingZhu, MiracSuzgunandAdamTaumanKalai.2024. Meta-
+Yao Cheng, Jianbo Yuan, Kun Kuang, Yang Yang, prompting: Enhancing language models with task-
+HongxiaYang,andFeiWu.2024. Infiagent-dabench: agnosticscaffolding.
+Evaluatingagentsondataanalysistasks.
+Rohan Taori, Ishaan Gulrajani, Tianyi Zhang, Yann
+DongfuJiang,XiangRen,andBillYuchenLin.2023. Dubois,XuechenLi,CarlosGuestrin,PercyLiang,
+Llm-blender: Ensembling large language models andTatsunoriB.Hashimoto.2023. Stanfordalpaca:
+withpairwiserankingandgenerativefusion. Aninstruction-followingllamamodel.
+Corentin Kervadec, Francesca Franzon, and Marco HugoTouvron,ThibautLavril,GautierIzacard,Xavier
+Baroni. 2023. Unnatural language processing: Martinet,Marie-AnneLachaux,TimothéeLacroix,
+Howdolanguagemodelshandlemachine-generated BaptisteRozière,NamanGoyal,EricHambro,Faisal
+prompts? Azhar,AurelienRodriguez,ArmandJoulin,Edouard
+Grave,andGuillaumeLample.2023. Llama: Open
+BrianLester,RamiAl-Rfou,andNoahConstant.2021. andefficientfoundationlanguagemodels.
+The power of scale for parameter-efficient prompt
+tuning. Cunxiang Wang, Xiaoze Liu, Yuanhao Yue, Xiangru
+Tang,TianhangZhang,ChengJiayang,YunzhiYao,
+Guohao Li, Hasan Abed Al Kader Hammoud, Hani WenyangGao,XumingHu,ZehanQi,YidongWang,
+Itani, Dmitrii Khizbullin, and Bernard Ghanem. LinyiYang,JindongWang,XingXie,ZhengZhang,
+2023a. Camel:Communicativeagentsfor"mind"ex- andYueZhang.2023. Surveyonfactualityinlarge
+plorationoflargelanguagemodelsociety. InThirty- languagemodels: Knowledge,retrievalanddomain-
+seventhConferenceonNeuralInformationProcess- specificity.
+ingSystems.
+ZhenhailongWang,ShaoguangMao,WenshanWu,Tao
+JinyangLi,BinyuanHui,GeQu,JiaxiYang,BinhuaLi, Ge, Furu Wei, and Heng Ji. 2024. Unleashing the
+BowenLi,BailinWang,BowenQin,RongyuCao, emergentcognitivesynergyinlargelanguagemod-
+Ruiying Geng, Nan Huo, Xuanhe Zhou, Chenhao els: Atask-solvingagentthroughmulti-personaself-
+Ma, Guoliang Li, Kevin C. C. Chang, Fei Huang, collaboration.
+Reynold Cheng, and Yongbin Li. 2023b. Can llm
+alreadyserveasadatabaseinterface? abigbenchfor Chengyue Wu, Teng Wang, Yixiao Ge, Zeyu Lu,
+large-scaledatabasegroundedtext-to-sqls. RuisongZhou,YingShan,andPingLuo.2023. π-
+tuning: Transferringmultimodalfoundationmodels
+Xiang Lisa Li and Percy Liang. 2021. Prefix-tuning: withoptimalmulti-taskinterpolation.
+Optimizingcontinuouspromptsforgeneration.
+BenfengXu,AnYang,JunyangLin,QuanWang,Chang
+ZijunLiu,YanzheZhang,PengLi,YangLiu,andDiyi Zhou,YongdongZhang,andZhendongMao.2023.
+Yang. 2023. Dynamic llm-agent network: An llm- Expertprompting: Instructinglargelanguagemodels
+agentcollaborationframeworkwithagentteamopti- tobedistinguishedexperts.
+mization.
+TianyiZhang*,VarshaKishore*,FelixWu*,KilianQ.
+Ilya Loshchilov and Frank Hutter. 2019. Decoupled Weinberger,andYoavArtzi.2020. Bertscore: Eval-
+weightdecayregularization. uating text generation with bert. In International
+ConferenceonLearningRepresentations.
+Keming Lu, Hongyi Yuan, Runji Lin, Junyang Lin,
+ZhengYuan,ChangZhou,andJingrenZhou.2023. Ziyu Zhao, Leilei Gan, Guoyin Wang, Wangchunshu
+Routing to the expert: Efficient reward-guided en- Zhou,HongxiaYang,KunKuang,andFeiWu.2024.
+sembleoflargelanguagemodels. Loraretriever: Input-awareloraretrievalandcompo-
+sition for mixed tasks in the wild. arXiv preprint
+BaptisteRozière,JonasGehring,FabianGloeckle,Sten arXiv:2402.09997.
+Sootla, Itai Gat, Xiaoqing Ellen Tan, Yossi Adi,
+JingyuLiu,RomainSauvestre,TalRemez,Jérémy
+Rapin,ArtyomKozhevnikov,IvanEvtimov,Joanna
+Bitton,ManishBhatt,CristianCantonFerrer,Aaron
+10A Appendix
+A.1 MMLU-ExpertDatasetStatistic
+Table6: DatasetStatisticsofMMLU-Expert
+Domain TestQuestionNumber SyntheticDatasetSize
+Astronomy 152 7,500
+ElectricalEngineering 154 7,500
+HumanSexuality 131 7,500
+InternationalLaw 121 7,500
+Prehistory 324 7,500
+SecurityStudies 245 7,500
+B Hyper-parameterSetup
+B.1 expertLLMFine-tuningSetup
+Weprovidethehyper-parametersonhowdifferentdomainexpertLLMsarefine-tunedinAppendixB.1
+forreproduction. Topreventoverfittingonrelativelysmalldatasetsduringthefine-tuningprocess,we
+employanearlystoppingmechanismtosavetheexpertLLM’scheckpoints.
+Table7: HyperparametersforexpertLLMfine-tuning.
+Hyperparameter Astronomy ElectricalEngineering HumanSexuality InternationalLaw Prehistory SecurityStudies
+GradientAccumulation 8 8 8 8 8 8
+Batchsize 16 16 16 16 16 16
+LearningRate 5e−5 5e−5 5e−5 5e−5 5e−5 5e−5
+Epochs 5 8 5 8 5 6
+Warmupsteps 50 50 50 50 50 50
+Weightdecay 1e−1 1e−1 1e−1 1e−1 1e−1 1e−1
+Tunableparameters Full Full Full Full Full Full
+B.2 ExpertTokenTrainingSetup
+Weprovidethehyper-parametersonexperttokentraininginTable8forreproduction. Forthesakeof
+trainingstability,theinitializationoftheexperttokenisconductedusingthemeanvalueofembeddings
+foundwithinthelanguagemodelingheadofthemetaLLM.ItcanbeseenthatwhenusingQwen-7B-Chat
+asthemetaLLM,theparametersthatneedtobetrainedamounttoonly24,567,whichaccountsformerely
+3.51×10−6 ofthetotalparameters.
+Table8: Configurationoftrainingexperttokens
+HyperParameter Value
+MetaModel Qwen-7B-Chat
+TrainBatchSize 16
+ModelMaxLength 1024
+LearningRate 0.0005
+WeightDecay 1.0
+NumberofTrainingEpochs 5
+LearningRateSchedulerType Cosine
+NumberofWarmupSteps 5
+ExpertQuerySetSize 600
+#ofTrainableParams. 24,567
+11C ARunningCaseofExtractingDomainKnowledgefromGPT-4
+Instruction
+You are given {#num of seed exampples} multiple-choice questions of the {subject} exam for reference. Your task is to generate a
+new multiple-choice question similarly based on your {subject} knowledge. Ensure the new question is clear, concise, and academically
+(Sampling from Seed Question Set)
+Reference question 0:
+Why is Venus hotter than Mercury, despite being further from the Sun?
+(A) Venus has a thicker atmosphere that traps heat
+(B) Venus is closer to the Sun than Mercury
+(C) Venus has a stronger magnetic field that attracts more solar radiation
+(D) Venus has more volcanic activity that releases heat
+Reference question K:
+Which of the following phenomena is NOT a result of orbital resonance?
+(A) The gaps in the asteroid belt.
+(B) The Laplace resonance of Jupiter's moons.
+(C) The 2:3 resonance between Neptune and Pluto.
+(D) The formation of the Milky Way galaxy.
+Synthetic question Generation
+GPT-4
+Synthetic question:
+Which of the following is not considered as a supporting evidence for the Giant Impact Hypothesis?
+(A) The Moon's iron core is significantly smaller than Earth's, even when taking into account their size difference.
+(B) The Moon was once completely molten.
+(C) The Moon's size relative to Earth is unusually large compared to other planet-moon systems.
+(D) The Moon's surface is covered with water.
+Answer Generation
+GPT-4
+Answer of the synthetic question:
+The Giant Impact Hypothesis suggests that the Moon was formed from the debris left over after a collision between Earth and a
+body the size of Mars. (A), (B) and (C) are all consistent with this hypothesis. However, (D) is not a supporting evidence for the
+Giant Impact Hypothesis. In fact, the Moon's surface is not covered with water. So the correct option is (D). The answer is (D).
+Figure7: ArunningcaseofextractingknowledgefromGPT-4bygeneratingsyntheticquestionsandanswers.
+Intheevaluationphase,thedomain-specificdatasetforcreatingtheexpertmodelandtheinstruction
+dataset from which expert queries are extracted are both constructed using GPT-4. Thus, Figure 7
+illustrates a example to generate synthetic questions for the extraction of domain knowledge. The
+generatedquestionsareexpandedintotheseedquestionset.
+12

@@ -1,0 +1,491 @@
+Seek for Incantations: Towards Accurate Text-to-Image Diffusion Synthesis
+through Prompt Engineering
+ChangYu JunranPeng XiangyuZhu
+chang.yu@nlpr.ia.ac.cn jrpeng4ever@126.com xiangyu.zhu@nlpr.ia.ac.cn
+ZhaoxiangZhang QiTian ZhenLei
+zhaoxiang.zhang@ia.ac.cn tian.qi1@huawei.com zlei@nlpr.ia.ac.cn
+Abstract
+The text-to-image synthesis by diffusion models has re-
+cently shown remarkable performance in generating high-
+quality images. Although performs well for simple texts,
+themodelsmaygetconfusedwhenfacedwithcomplextexts
+thatcontainmultipleobjectsorspatialrelationships.Toget
+thedesiredimages,afeasiblewayistomanuallyadjustthe
+textualdescriptions,i.e.,narratingthetextsoraddingsome
+words,whichislabor-consuming. Inthispaper,wepropose
+aframeworktolearnthepropertextualdescriptionsfordif-
+fusion models through prompt learning. By utilizing the
+quality guidance and the semantic guidance derived from
+thepre-traineddiffusionmodel,ourmethodcaneffectively
+Figure1.Thetext-to-imagegenerationresultsofLDMs[22]with
+learnthepromptstoimprovethematchesbetweentheinput
+thesamenoiseandthesamerandomseed. Itcanbeseenthatthe
+text and the generated images. Extensive experiments and
+model performs well for short textual descriptions but degrades
+analyses have validated the effectiveness of the proposed
+whenthetextbecomescomplex.
+method.
+The components of the method need to be defined in ad-
+1.Introduction
+vance and given their positive or negative relationships.
+Recently, diffusion models such as DALLE-2 [21], Fengetal.[6]incorporatealanguageparsertodecompose
+LDMs [22], Imagen [26], etc., have shown remarkable re- thetextintostructuredrepresentationsandre-sendthenoun
+sults in generating high-fidelity images [24, 15, 9, 12]. phrases in the text encoder for more accurate textual de-
+Given a short textual description, these models are able to scriptions. The separately estimated text embeddings are
+generate the corresponding high-fidelity images based on combinedatthecross-attentionlayers. Thesemethodsrely
+the language model for text conditioning. However, when onthepre-decompositionoftheinputtextsandthesynthe-
+the texts are complex, i.e., containing multiple objects or sis process has to be repeated for each component. An-
+withmultipleattributes,themodelstendtomixuptheirat- other feasible way to improve the generation results is to
+tributesandspatialrelationships, orevenmisssomeofthe designthepromptofthetext.Whenconcatenatingtheinput
+objects, leading to inaccurate generation results, as shown textswithspecialphrasesorcarefullynarratingthetexts,as
+inFigure1. shown in Figure 2, the text-to-image matching will be im-
+Totacklethisissue, someresearcherstrytodecompose proved. Based on this observation, many people try to ex-
+thegenerationprocessintomulti-steps. Liuetal.[15]pro- plorethe”Incantations”thatenableeffectivesynthesis[30].
+pose to split the textual descriptions into a set of compo- Although have achieved satisfying results, the selection of
+nents,whereeachcomponentissenttothediffusionmodel thepromptsrequiresextensivemanualadjustmentsandcan
+independentlyandtheestimatedtext-conditionednoisesare onlybeappliedtospecificscenarios.
+summed at each sample step to generate the final outputs. In this paper, we propose a 2-stage framework to im-
+4202
+naJ
+21
+]VC.sc[
+1v54360.1042:viXratext-to-imagesynthesisisimproved. Extensiveexper-
+iments and analyses are conducted to validate the ef-
+fectivenessoftheproposedmethod.
+2.RelatedWork
+Figure2.ThegenerationresultsofLDMs[22]withdifferenttex- 2.1.Diffusionmodels
+tualdescriptions(sameinitialnoiseandsamerandomseed).After
+Recently, models such as DALLE-2 [21], Imagen [26],
+carefully narrating the text or incorporating additional prompts,
+andLDMs[22]haveattractedalotofattentionduetotheir
+themodelsuccessfullysynthesizestheimagescontaining”anele-
+phantandabag”. amazingperformanceingeneratingcreativeimages. Given
+an image sampled from its distribution, the image can be
+transferred to a Gaussian noise by adding Gaussian noise
+provethetext-to-imagediffusionsynthesisthroughprompt to the image gradually. The diffusion models execute the
+engineering. The core of our method is to find a proper reverse process, which use a network to predict the added
+optimization direction to guide the learning of the prompt noise at each step to generate realistic images. Benefiting
+foreachtextualinputsothatthesynthesizedimageiscon- from the large-scale training datasets, the diffusion mod-
+sistent with the text. The guidance of the prompt is de- elshaveshownremarkableresultsinvarioustasks[31],in-
+rived from the trained diffusion models. Specifically, the cluding detection [5], segmentation [3, 8], 3D reconstruc-
+random-samplednoiseandthetextarefirstsenttothedif- tion [14, 19], generation [23, 24, 10], etc. However, train-
+fusion model with a coarse step and a fine step separately ing an LDMs-like diffusion model from scratch requires a
+togeneratethecoarseimageandthefineimage. Notethat lot of computational resources. Thus, many works focus
+the diffusion model with more sampling steps usually per- on incorporating pre-trained diffusion models to improve
+formsbetterthanitwithfewersamplingsteps,thedirection the downstream tasks. In this paper, we try to explore the
+fromthecoarseimagetothefineimagewillprovidequality potential of the pre-trained diffusion models in generating
+guidanceforpromptlearning. Besides,takingintoaccount text-conditionedimages.
+theinfluenceofnarratingthetext,partofthetextismasked
+according to the similarity between the text and the image 2.2.Text-to-ImageSynthesis
+toenhancethesemanticguidanceforthelearnableprompts.
+Due to the powerful models [20, 2, 28] that bridge the
+Combined with other consistency and sparsity constraints,
+gapbetweenlanguageandvision,thetext-to-imagesynthe-
+our method effectively learns the proper prompts for each
+sisfieldhasachievedacertainbreakthrough. Basedonthe
+inputtext,whichprovidesinsightintothepotentialofpre-
+diffusionmodels, thetext-conditionedimagesynthesishas
+traineddiffusionmodelstogeneratebettertext-conditioned
+beenappliedtovariousscenarios, suchascontrollableim-
+images.
+ageediting[9,12,29,18,1],inpainting[16,25],andimage
+Themaincontributionsaresummarizedasfollows:
+translation[17,24]. Despitethesatisfyingperformanceon
+simpletexts,currentdiffusionmodelstendtogetconfused
+• This paper proposes a framework to improve text-to-
+whenfacedwithcomplextexts. Totacklethisissue,Liuet
+imagediffusionsynthesisthroughpromptengineering.
+al.[15]proposeComposableDiffusiontomanuallysplitthe
+Without training the diffusion models, the proposed
+text into pieces and merge the estimated text-conditioned
+method utilizes the guidance derived from the diffu-
+noisestogeneratethefinaloutputs. However,Composable
+sionmodeltoseekforthepromptsthatmakethetext
+Diffusionisnotsuitablefortextswithrelationships. Thus,
+andthegeneratedimagematchbetter.
+Fengetal.[7]incorporatealanguageparsertodecompose
+the texts and enhance the embedding of the noun words.
+• The quality guidance derived from the trained diffu-
+Both of these two methods rely on the pre-processing of
+sion models is proposed for prompt learning, which
+the input texts. Instead, we propose to use the learnable
+utilizesthedirectionfromthecoarsely-sampledimage
+promptstoimprovethediffusionmodelswithcomplextex-
+tothefinely-sampledimagetoguidetheoptimization
+tualinput.
+directionofthetextwiththeprompt.
+2.3.PromptEngineering
+• Weproposetousethetext-imagesimilarityasseman-
+tic guidance to narrate the current text with prompts. TheideaofpromptlearningisfirstintroducedtoNatural
+By masking the words that get less attention, the se- LanguageProcessing(NLP)fieldtoenablethelargemod-
+mantic guidance will enhance the representation of elstobeeffectivelyadaptedtodownstreamtasks[4,11,27].
+those words through prompt learning. After training InspiredbythepromptengineeringinNLP,CoOp[33]pro-
+the prompts for a few iterations, the accuracy of the posestousesimilartechnologyinlanguage-visionmodels.Figure3.Theoverallframeworkofourmethod. Thecoreofthemethodistolearninput-specificproperpromptsforeachtextualinput
+sothatthegeneratedimagesmatchwellwiththegiventexts. Firstly,therandom-samplednoisex andtheoriginaltextaresenttothe
+0
+diffusion model with T and T denoising steps separately. Afterward, the texts concatenated with the prompts are re-sent to
+coarse fine
+thediffusionmodelswithx togeneratethefinaloutputs. Duringtraining,thedifferencebetweenthecoarsely-sampledimagesandthe
+0
+finely-sampledimagesisusedasqualityguidancetoconstrainthelearningofprompts.Besides,thewordsthathavelowersimilaritywith
+thegeneratedimagesaremaskedassemanticguidancetofurtherenhancepromptlearning. Aftertrainingwithconsistencyandsparsity
+constraintsforafewiterations,theproposedmethodcaneffectivelyseekoutthepromptstoimprovethetext-to-imagesynthesis.
+Instead of manually designing the prompts, CoOp models mean-squaredloss:
+thepromptsasasetoflearnableparametersthatcanbecon-
+catenatedwiththeoriginaltexts. Byincorporatingsuchau- E x,ϵ∼N(0,1),t(cid:2) ∥ϵ−ϵ θ(x t,t)∥2 2(cid:3) (2)
+tomatic prompt engineering, CoOp successfully adapts to
+. In this paper, we denote the whole denoising process
+few-shot learning tasks. However, the prompts of CoOp
+as Φ(x ,T), the denoising process with condition c as
+are shared for all texts. To further improve the perfor- T
+Φ(x ,c,T).
+mance, CoCoOp [32] proposes to use a meta-net to gen- T
+erate prompts according to the input texts. Note that the
+3.2.OverallFramework
+manually-selectpromptstoimprovetext-conditioneddiffu-
+sionmodelsarelabor-consuming. Inthispaper,wepropose In this paper, we propose a 2-stage framework to im-
+to use prompt engineering for better text-to-image synthe- provethetext-to-imagediffusionsynthesisthroughprompt
+sis,whichprovidesinsightintothepotentialofpre-trained engineering,whichutilizesthequalityguidanceandthese-
+diffusionmodels. mantic guidance derived from the trained diffusion model
+to seek the proper prompts for each textual input. The
+3.Method overviewoftheframeworkisshowninFigure3.
+In the first stage, the text is sent to a pre-trained text
+Given a text description, a random-sampled noise, and
+encoder ξ (·) to get the word-specific textual embedding
+txt
+a trained diffusion model, our work aims to seek out the
+e ∈ Rn×d,wherenisthelengthofthetextanddisthe
+txt
+proper prompts to improve the accuracy of text-to-image
+dimension of the embedding. Then, the random-sampled
+synthesis. In the following, we will introduce the prelimi-
+noise x and the text embedding e are sent to the pre-
+T txt
+nary in Section 3.1, our overall framework in Section 2.2,
+traineddiffusionmodelΦwithT andT sampling
+coarse fine
+thedetailsofthepromptengineering(includingthequality
+steps separately to generate the synthesis images xcoarse
+guidanceandthesemanticguidance)inSection3.3,andthe 0
+andxfine,whicharecombinedwiththetextembeddingto
+lossfunctionsforpromptengineeringinSection3.4. 0
+providequalityguidanceandsemanticguidanceforprompt
+3.1.Preliminary learning. Thefirststageisformulatedas:
+Thediffusionmodelisbasedontheassumptionthateach e =ξ (text), x ∼N(0,I)
+txt txt T
+i gm raa dg ue alx ly0 ac da dn inb ge Gtr aa un ss sf ie ar nre nd oit so esa ϵG toau thss eia imn an go eis ie nTx T timaf ete sr
+:
+xc 0oarse =Φ(x T,e txt,T coarse), (3)
+xfine =Φ(x ,e ,T ).
+(cid:112) 0 T txt fine
+q(x |x ):=N( 1−β x ,β I)), t∈[1,T] (1)
+t t−1 t t−1 t
+In the second stage, the input text is concatenated with
+whereβ isthevariance. Asaresult,thegenerationofim- the learnable prompt e and then sent to the text en-
+t prompt
+agesisregardedasareversesamplingprocess,whichuses coder ξ (·) to form the final text embedding eˆ . After-
+txt txt
+thenetworkϵ (x ,t)toestimatetheaddednoiseϵusingthe ward, eˆ and the noise x in the first stage are sent to
+θ t txt Tthe pre-trained diffusion model with T sampling steps example, the finely-sampled image in the first column is
+fine
+tosynthesizethefinaloutputimagexˆ : clearerthanthecoarsely-sampledimage,thefinely-sampled
+0
+image in the second column contains more accurate con-
+eˆ =ξ ([text,e ])
+txt txt prompt tent and the finely-sampled image in the third column fits
+(4)
+xˆ 0 =Φ(x T,eˆ txt,T fine). common knowledge better. Based on this observation, we
+proposetousethedirectionfromthecoarsely-sampledim-
+Afteringtrainingtheprompte withtheguidancede-
+prompt agetothefinely-sampledimagetoguidethelearningofthe
+rived from the diffusion model, the text concatenated with
+prompts:
+the prompt will generate satisfying results. The guidance
+forpromptengineeringwillbeintroducedbelow. ecoarse =ξ (xcoarse), efine =ξ (xfine),
+img img 0 img img 0
+efine ecoarse
+∆e = img − img ,
+img ∥ef imin ge∥
+2
+∥ec imoa grse∥
+2 (5)
+eˆg eg
+∆e = txt − txt ,
+txt ∥eˆg ∥ ∥eg ∥
+txt 2 txt 2
+L =∆e ·∆e ,
+qual img txt
+whereecoarseandefinearetheimageembeddingextracted
+img img
+using the image encoder ξ (·), where eˆg ∈ R1×d and
+img txt
+eg ∈ R1×d are the global text embedding mapped from
+txt
+eˆg and eg following [20]. As shown in Figure 5, L
+txt txt qual
+constraints the consistency between the coarsely-sampled
+Figure4.Theinfluenceofthesamplingstepsontheresultsofdif-
+image to the finely-sampled and the text embedding to the
+fusionmodels.Itcanbeseenthattheresultsundermoresampling
+text-with-promptembedding,whichprovidesqualityguid-
+steps(T )areofbetter’quality’thantheonesunderfewersam-
+fine anceforthelearningofprompts.
+plingsteps(T ).The’quality’includeshowthetextmatches
+coarse
+theimageandwhethertheimagecontainsdistortionorartifacts.
+Figure5.IllustrationoftheQualityGuidance. Itincorporatesthe
+Figure6.IllustrationoftheSemanticGuidance.Theword-specific
+directionfromthecoarsely-sampledimagetothefinely-sampled
+text-imagesimilaritiesareusedastheguidancetonarratethecur-
+imagetoguidethelearningoftheprompts.
+renttextwithprompts,whichwillenhancethelearningofthecon-
+tentsthatarewithlessattentionbefore.
+3.3.PromptEngineering
+Semantic Guidance. The way how the text is described
+The core of the proposed method is to learn the proper mattersthegenerationresults. AsshowninFigure2,when
+promptforeachtextualinputtomakethesynthesizedimage we want a picture containing a bag and an elephant, ’an
+andthetextmatchbetter. Inthissection,wewillintroduce elephant and a bag’ will lead to the neglect of the bag but
+how to derive the optimization direction from the trained ’an elephant next to a bag’ or ’an elephant and a bag, an
+diffusionmodelstoguidethelearningofprompts. elephant and a bag’ will generate the desired image. Note
+Quality Guidance. To learn the proper prompt for each that the text encoder models the relationships between the
+text, we need to point out an optimization direction that words, we propose to use the text-image similarity as se-
+will improve the text-to-image synthesis. For the denois- mantic guidance to narrate the current text with prompts,
+ingprocessofdiffusionmodels,onecommonsenseisthat whichwillenhancethelearningofthecontentsthatarewith
+the results under more sampling steps are of better qual- less attention before. The detailed illustration for seman-
+ity than the ones under fewer sampling steps. The results tic guidance is shown in Figure 6. Given an output image
+denoising from the same init noise under different sam- x and the original text, the word-specific similarity score
+0
+pling steps are shown in Figure 4. It can be seen that s ∈ Rn isobtained. FortheR lowerthanthethresholdγ,
+i
+the ’quality’ includes how the text matches the image and its corresponding word is replaced with ’-’ to get masked.
+whether the image contains distortion or artifacts. For Boththeoriginaltextandthemaskedtextareconcatenatedwith the same prompt and sent to the text encoder ξ (·). 4.Experiments
+txt
+Then,theirsimilarityaremeasuredas:
+4.1.ImplementDetails
+eˆm txa tsk =ξ txt(maskedtext), The only learnable parameters in our framework are
+(6)
+L =eˆ ·eˆmask. the prompts, which are specific to each textual input. We
+sem txt txt
+buildourframeworkonthepre-trainedLDMs[22]model,
+which incorporates the image encoder and text encoder
+Byconstrainingthesemanticconsistencybetweentheorig-
+from CLIP [20] to extract embeddings. For the optimiza-
+inaltextandthemaskedtext, semanticguidanceL en-
+sem
+tion, we use the Adam optimizer [13] with 10−2 learning
+hancesthelearningoftheneglectedwords,whichwillim-
+rate to train the prompts, which are concatenated after the
+provetheresultsoftext-to-imagesynthesis.
+originaltexts. Moretrainingandevaluationdetailsarepro-
+3.4.LossFunctions videdinthesupplementarymaterial.
+Despitethequalityguidanceandthesemanticguidance, 4.2.AblationStudy
+theremaininglossfunctionstotrainthepromptwillbein-
+Thecoreofthepaperistofindeffectiveguidancetolearn
+troducedinthefollowing:
+thepromptsothatthetextsandthegeneratedimagesmatch
+Text-Text. To avoid textual semantic drift during prompt
+better. Fromintuition, L thatconstrainstheconsistency
+TI
+learning,weconstrainthesemanticconsistencybetweenthe
+between the text and the image should be effective to im-
+originaltextandthetextwithprompts:
+provethegeneration. However,notethatthegenerationof
+diffusion is an iterative process, optimizing the generated
+eˆg eg
+L = txt · txt . (7) imagewillresultinthecomputationalconsumptionforgra-
+TT ∥eˆg ∥ ∥eg ∥
+txt 2 txt 2 dient backpropagation. In this paper, we propose a frame-
+workthatfreezesthediffusionmodelandusethepromptto
+Text-Img. Similarly,thesemanticconsistencybetweenthe explore the potential of the pre-trained diffusion model in
+generatedimagex 0 andtheoriginaltextisusedtovoidthe text-to-imagesynthesis.
+semanticdriftoftheimages:
+Tovalidatetheeffectivenessofourmethod,weconduct
+theablationstudyonthecomponentsoftheframework,in-
+eˆg e
+L TI = ∥eˆg tt xx tt ∥ 2 · ∥e ii mm gg ∥ 2, (8) c til cud gi un ig dath ne cequ La sl eit myg (u seid ea Enc qe n.L 6e )qu aa nl d(s te he eE sq pn ar. s5 i) ty,th ce ons se tm raa in n- t
+L (seeEqn.9).TheresultsareshowninFigure7.Com-
+spar
+where e img = ξ img(x 0) is the image embedding encoded paring the first column and the second column, it can be
+bytheimageencoderξ img(·). seen that only constraining the consistency between texts
+Sparsity. Recentworkhasshownthattherepeatedprompt and images will not obviously improve the results. The
+mightaffectthedetailsofthebackground. Toavoidlearn- learning of the prompts needs more information. For the
+ingthesamerepeatedwordsaswellasenablethepromptto quality guidance L , it can be seen from the third col-
+equal
+learn effective content, we constrain the semantic sparsity umn that the quality derived from the pre-trained models
+ofthelearnedprompt: contributes to both the content-matching and the artifact-
+reducing. Specifically, without L , the strawberry in-
+equal
+n (cid:88)o+np n (cid:88)o+np (cid:12) (cid:12) eˆi eˆj (cid:12) (cid:12) sidethecupinthefirstrowseemsnotrealistic,thecolumn
+L spar = i=no+1j=no+1,i̸=j(cid:12) (cid:12) (cid:12)∥eˆi tt xx tt ∥ 2 · ∥eˆj tt xx tt ∥ 2(cid:12) (cid:12) (cid:12) 1, (9) o inf gth we ith ho tu hs ee flin owth ee rss ,e ac no dnd thr eow imh aa gs ea inrti tf ha ect ts hiw rdhe ron win mte ir sa sc et s-
+thehat. ForthesemanticguidanceL ,theresultsofthe
+sem
+where eˆi txt denotes the ith textual embedding that corre- fourth column and the last column show that it effectively
+sponds to the ith word of the text, n o is the length of the helpsthenetworktofocusonthecontentsthathavebeenne-
+originaltext,andn prepresentsthelengthoftheprompt. glectedbefore,leadingtomoreaccuratetext-to-imagesyn-
+Thefinallossfunctionsforpromptengineeringarecom- thesis. For the sparsity constraint L , it regularizes the
+spar
+binedas: spaceforsearchingthesuitable’incantations’foreachtex-
+tual input, which forces the network to learn the prompts
+L=λ qualL qual+λ semL sem+λ TTL TT +λ TIL TI effectively. The effect of L spar is validated by comparing
++λ L , thelasttwocolumnsofFigure7. Tosumup,itcanbecon-
+spar spar
+(10) cludedthateachcomponentoftheframeworkcontributesto
+where λ ,λ ,λ ,λ , and λ are the hyper- generating satisfying images, which explores the potential
+qual sem TT TI spar
+parameterstobalancedifferentlossfunctions. ofthepre-traineddiffusionmodelstosynthesizetheimagesFigure7.Thequalitativeablationstudyoftheproposedmethod. Itcanbeseenthateachcomponentcontributestogeneratingsatisfying
+imagesthatmatchthegiventextualdescriptions.
+Figure8.Thequalitativecomparisonoftheimagesgeneratedwiththecomposabletexts.Eachcolumnisgeneratedwiththesamerandom-
+samplednoisewiththesameseed.Itcanbeseenthatourmethodgeneratesmoreaccurateimagesbasedonthegiventexts.
+thatmatchthegiventextualdescriptionsbetter.Figure9.Thequalitativecomparisonoftheimagesgeneratedwiththerelationaltexts. Eachcolumnisgeneratedwiththesamerandom-
+samplednoisewiththesameseed.Itcanbeseenthatourresultsmatchbetterwiththegiventexts.
+4.3.ComposableText to mix the two objects together, leading to inaccurate con-
+tents. Thisisbecauseitroughlymergestheestimatedcom-
+Generally, textdescriptionscanbecategorizedintotwo ponents regardless of their spatial locations. For Struc-
+types. One is the composable text, which focuses on the tureDiffusion,theimprovementislimitedastheinaccuracy
+composition of its components, i.e., “A bag and an ele- from the text encoder is not the only reason for inaccurate
+phant”. The generated images are expected to include all results. By comparison, our method performs better, as it
+ofthementionedobjects,butindifferenttotherelationsbe- usestheguidancederivedfromthediffusionmodeltolearn
+tweenthem. Theotheristherelationaltext,whichnotonly theeffectiveinput-specificprompts.
+caresabouttheobjectsbutalsothespatialorotherrelation-
+4.4.RelationalText
+shipsbetweenthem. Thetaskofsynthesizingimageswith
+complex text has not been well explored. Current meth- Inthissection,wewillshowtheproposedmethodonthe
+ods[15,7]mainlyfocusontheformerone. Tobespecific, relationaltext. NotethattheComposableDiffusion[15]is
+Composable Diffusion [15] proposes to manually split the notsuitableforthissetting,astherelationalwordsarehard
+text into pieces and merge the estimated text-conditioned to split. So only LDMs [22] and Structure Diffusion [7]
+noisestogeneratethefinaloutputs. StructureDiffusion[7] are incorporated for comparison. The results are shown in
+states that the unsatisfying results of the original diffusion Figure 9. Similar to the results of the composable texts,
+modelsaremainlyduetothelimitationofthetextencoder. theresultsofStructureDiffusion[7]stillexisttheonesthat
+Thus, Structure Diffusion proposes to incorporate a lan- neglect some contents similar to the original LDMs [22],
+guageparsertodecomposethetextsandenhancestheem- whileourmethodsuccessfullysynthesizesthemissingcon-
+beddingofthenounwords. tent,duetotheguidancederivedfromthediffusionmodels.
+Differentfromthesemethods, wetrytoexplorethepo- Except for generating images from the init noise, here
+tential of the diffusion models, which uses the guidance we want to discuss another similar pipeline that can also
+derived from the pre-trained diffusion model to learn the beusedforoptimizingthegeneratedimagesconditionedon
+text-specificpromptforbettertext-to-imagesynthesis. The the complex texts: When already output xfine in Eqn. 3,
+0
+comparison results between the aforementioned methods the xfine are added with the noise again to generate x .
+0 T
+and our method on composable texts are shown in Fig- Thenx canbeusedtoreplacex togenerateimages. For
+T T
+ure 8. It can be seen that when the origin diffusion model prompt learning, the optimization strategy is the same as
+(LDMs[22])getsdefusedwhenfacedwithcomplextexts. before. Wedenotethis’denoise-noise-denoise’pipelineas
+AsforComposableDiffusion,thesynthesizedimagestend ’2 step’ and the pipeline ’denoise’ in Eqn. 3 as ’1 step’.Figure10.Thecomparisonoftheimagesgeneratedwithdifferentprocedures.’1step’meansthegenerationisconductedbythe’denoise’
+processfollowingEqn.3. ’2step’meansthegenerationisconductedbythe’denoise-noise-denoise’process(detailinSection4.4). Each
+columnisgeneratedwiththesamerandom-samplednoisewiththesameseed. Itcanbeseenthatsomeresultsgetimprovedafter2-step
+denoising,whileourmethodfurtherimprovesthematchwiththegiventextsandtheimages.
+The results of ’2 step’ are shown in Figure 10. It can be ancederivedfromthepre-traineddiffusionmodel,thepro-
+seenthat,afterrepeatingthedenoise-noiseprocedure,some posedmethodsuccessfullyseeksouttheproperpromptsfor
+results get improved, i.e., the second column and the fifth eachtextualinput. Duringpromptlearning,theparameters
+columnofLDMs(2step). Aftercombingwithourmethod, ofthediffusionmodelwillnotbeupdated,whichprovides
+whichoptimizestheseconddenoiseprocedure,thematches insightintothepotentialofpre-traineddiffusionmodelsto
+betweenthetextsandtheimagesgetfurtherimproved. generate better text-conditioned images. Extensive experi-
+ments and analyses have validated the effectiveness of our
+4.5.IntepretableAnalysis
+method.
+Inthissection,weconductavisualizableexperimentto
+show the effect of the learnable prompts. During the de- References
+noisingprocess,theinputtextembeddingsinteractwiththe
+[1] OmriAvrahami,DaniLischinski,andOhadFried. Blended
+imagefeaturesthroughthecross-attentionmechanism. Fol-
+diffusionfortext-driveneditingofnaturalimages. InPro-
+lowingthemethodsof [9],wevisualizethecross-attention
+ceedingsoftheIEEE/CVFConferenceonComputerVision
+resultsasheatmapstoshowtheattentionbetweenthewords
+andPatternRecognition,pages18208–18218,2022.
+and the images. The results are shown in Figure 11. It
+[2] HangboBao,LiDong,SonghaoPiao,andFuruWei. Beit:
+can be seen that the attention to the neglected contents, Bert pre-training of image transformers. arXiv preprint
+i.e.,’balloon’and’in’,getsimprovedafterlearningproper arXiv:2106.08254,2021.
+promptsforthem. Thisisbecausethetextsareencodedus- [3] Dmitry Baranchuk, Ivan Rubachev, Andrey Voynov,
+ingthelong-termrelationship. Thus,seekingouttheproper ValentinKhrulkov,andArtemBabenko. Label-efficientse-
+promptswillimprovethemodelingoftheoriginaltextsand manticsegmentationwithdiffusionmodels. arXivpreprint
+providebetterconditionalguidanceforthediffusionmodel arXiv:2112.03126,2021.
+togeneratethedesiredimages. [4] Guangyi Chen, Weiran Yao, Xiangchen Song, Xinyue Li,
+YongmingRao,andKunZhang. Promptlearningwithop-
+5.Conclusion timal transport for vision-language models. arXiv preprint
+arXiv:2210.01253,2022.
+Inthispaper,weproposeanovelframeworktoimprove [5] ShoufaChen,PeizeSun,YibingSong,andPingLuo. Diffu-
+text-to-imagediffusionsynthesisthroughpromptengineer- siondet:Diffusionmodelforobjectdetection.arXivpreprint
+ing. Utilizing the quality guidance and the semantic guid- arXiv:2211.09788,2022.Figure11.Thecross-attentionmapsofthegeneratedimages. Itcanbeseenthattheneglectedobjectsgetenoughattentionafterprompt
+engineering,leadingtoaccuratetext-to-imagesynthesis.
+[6] WeixiFeng,XuehaiHe,Tsu-JuiFu,VarunJampani,Arjun usingdenoisingdiffusionprobabilisticmodels. InProceed-
+Akula,PradyumnaNarayana,SugatoBasu,XinEricWang, ingsoftheIEEE/CVFConferenceonComputerVisionand
+andWilliamYangWang. Training-freestructureddiffusion PatternRecognition,pages11461–11471,2022.
+guidance for compositional text-to-image synthesis. arXiv [17] Chenlin Meng, Yutong He, Yang Song, Jiaming Song, Jia-
+preprintarXiv:2212.05032,2022. junWu,Jun-YanZhu,andStefanoErmon. Sdedit: Guided
+[7] WeixiFeng,XuehaiHe,Tsu-JuiFu,VarunJampani,Arjun imagesynthesisandeditingwithstochasticdifferentialequa-
+Akula,PradyumnaNarayana,SugatoBasu,XinEricWang, tions. InInternationalConferenceonLearningRepresenta-
+andWilliamYangWang. Training-freestructureddiffusion tions,2021.
+guidance for compositional text-to-image synthesis. ICLR, [18] Alex Nichol, Prafulla Dhariwal, Aditya Ramesh, Pranav
+2023. Shyam,PamelaMishkin,BobMcGrew,IlyaSutskever,and
+[8] Alexandros Graikos, Nikolay Malkin, Nebojsa Jojic, and MarkChen. Glide:Towardsphotorealisticimagegeneration
+DimitrisSamaras.Diffusionmodelsasplug-and-playpriors. andeditingwithtext-guideddiffusionmodels.arXivpreprint
+arXivpreprintarXiv:2206.09012,2022. arXiv:2112.10741,2021.
+[9] Amir Hertz, Ron Mokady, Jay Tenenbaum, Kfir Aberman, [19] BenPoole,AjayJain,JonathanTBarron,andBenMilden-
+Yael Pritch, and Daniel Cohen-Or. Prompt-to-prompt im- hall. Dreamfusion: Text-to-3d using 2d diffusion. arXiv
+age editing with cross attention control. arXiv preprint preprintarXiv:2209.14988,2022.
+arXiv:2208.01626,2022. [20] Alec Radford, Jong Wook Kim, Chris Hallacy, Aditya
+[10] Jonathan Ho, Tim Salimans, Alexey Gritsenko, William Ramesh, Gabriel Goh, Sandhini Agarwal, Girish Sastry,
+Chan, Mohammad Norouzi, and David J Fleet. Video dif- AmandaAskell,PamelaMishkin,JackClark,etal.Learning
+fusionmodels. arXivpreprintarXiv:2204.03458,2022. transferable visual models from natural language supervi-
+[11] ZhengbaoJiang,FrankFXu,JunAraki,andGrahamNeu- sion.InInternationalconferenceonmachinelearning,pages
+big.Howcanweknowwhatlanguagemodelsknow? Trans- 8748–8763.PMLR,2021.
+actions of the Association for Computational Linguistics, [21] AdityaRamesh,PrafullaDhariwal,AlexNichol,CaseyChu,
+8:423–438,2020. and Mark Chen. Hierarchical text-conditional image gen-
+[12] BahjatKawar,ShiranZada,OranLang,OmerTov,Huiwen erationwithcliplatents. arXivpreprintarXiv:2204.06125,
+Chang,TaliDekel,InbarMosseri,andMichalIrani. Imagic: 2022.
+Text-basedrealimageeditingwithdiffusionmodels. arXiv [22] Robin Rombach, Andreas Blattmann, Dominik Lorenz,
+preprintarXiv:2210.09276,2022. Patrick Esser, and Bjo¨rn Ommer. High-resolution image
+[13] Diederik P Kingma and Jimmy Ba. Adam: A method for synthesis with latent diffusion models. In Proceedings of
+stochastic optimization. arXiv preprint arXiv:1412.6980, theIEEE/CVFConferenceonComputerVisionandPattern
+2014. Recognition,pages10684–10695,2022.
+[14] Chen-HsuanLin,JunGao,LumingTang,TowakiTakikawa, [23] Robin Rombach, Andreas Blattmann, and Bjo¨rn Om-
+Xiaohui Zeng, Xun Huang, Karsten Kreis, Sanja Fi- mer. Text-guided synthesis of artistic images with
+dler, Ming-Yu Liu, and Tsung-Yi Lin. Magic3d: High- retrieval-augmented diffusion models. arXiv preprint
+resolution text-to-3d content creation. arXiv preprint arXiv:2207.13038,2022.
+arXiv:2211.10440,2022. [24] Nataniel Ruiz, Yuanzhen Li, Varun Jampani, Yael Pritch,
+[15] Nan Liu, Shuang Li, Yilun Du, Antonio Torralba, and MichaelRubinstein,andKfirAberman. Dreambooth: Fine
+JoshuaBTenenbaum. Compositionalvisualgenerationwith tuning text-to-image diffusion models for subject-driven
+composable diffusion models. In Computer Vision–ECCV generation. arXivpreprintarXiv:2208.12242,2022.
+2022: 17th European Conference, Tel Aviv, Israel, Octo- [25] ChitwanSaharia,WilliamChan,HuiwenChang,ChrisLee,
+ber 23–27, 2022, Proceedings, Part XVII, pages 423–439. Jonathan Ho, Tim Salimans, David Fleet, and Mohammad
+Springer,2022. Norouzi. Palette: Image-to-image diffusion models. In
+[16] AndreasLugmayr,MartinDanelljan,AndresRomero,Fisher ACM SIGGRAPH 2022 Conference Proceedings, pages 1–
+Yu,RaduTimofte,andLucVanGool. Repaint: Inpainting 10,2022.[26] Chitwan Saharia, William Chan, Saurabh Saxena, Lala
+Li, Jay Whang, Emily Denton, Seyed Kamyar Seyed
+Ghasemipour, Burcu Karagol Ayan, S Sara Mahdavi,
+Rapha Gontijo Lopes, et al. Photorealistic text-to-image
+diffusionmodelswithdeeplanguageunderstanding. arXiv
+preprintarXiv:2205.11487,2022.
+[27] Taylor Shin, Yasaman Razeghi, Robert L Logan IV, Eric
+Wallace,andSameerSingh. Autoprompt: Elicitingknowl-
+edge from language models with automatically generated
+prompts. arXivpreprintarXiv:2010.15980,2020.
+[28] Wenhui Wang, Hangbo Bao, Li Dong, Johan Bjorck, Zhil-
+iang Peng, Qiang Liu, Kriti Aggarwal, Owais Khan Mo-
+hammed,SakshamSinghal,SubhojitSom,etal. Imageasa
+foreignlanguage: Beitpretrainingforallvisionandvision-
+languagetasks. arXivpreprintarXiv:2208.10442,2022.
+[29] ChenHenryWuandFernandoDelaTorre. Unifyingdiffu-
+sionmodels’latentspace,withapplicationstocyclediffusion
+andguidance. arXivpreprintarXiv:2210.05559,2022.
+[30] Damir Yalalov. Best 100+ stable diffu-
+sion prompts: The most beautiful ai text-
+to-image prompts. https://mpost.io/
+best-100-stable-diffusion-prompts-the-most-beautiful-ai-text-to-image-prompts/
+#best-ai-photography-prompts.
+[31] LingYang,ZhilongZhang,YangSong,ShendaHong,Run-
+sheng Xu, Yue Zhao, Yingxia Shao, Wentao Zhang, Bin
+Cui,andMing-HsuanYang. Diffusionmodels: Acompre-
+hensivesurveyofmethodsandapplications. arXivpreprint
+arXiv:2209.00796,2022.
+[32] KaiyangZhou,JingkangYang,ChenChangeLoy,andZiwei
+Liu. Conditionalpromptlearningforvision-languagemod-
+els. InProceedingsoftheIEEE/CVFConferenceonCom-
+puterVisionandPatternRecognition, pages16816–16825,
+2022.
+[33] KaiyangZhou,JingkangYang,ChenChangeLoy,andZiwei
+Liu. Learning to prompt for vision-language models. In-
+ternationalJournalofComputerVision,130(9):2337–2348,
+2022.

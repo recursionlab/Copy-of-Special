@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "partner-memory": {
+      "command": "python",
+      "args": [
+        "D:/Agent/AgentD/AgentD/AgentE/partner_memory_server.py"
+      ],
+      "env": {
+        "MEMORY_MODE": "local",
+        "PORT": "5000"
+      }
+    }
+  }
+}

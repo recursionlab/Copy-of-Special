@@ -1,0 +1,1525 @@
+Meta Prompting for AI Systems
+YifanZhang1 YangYuan1,2,3† AndrewChi-ChihYao1,2,3†
+1IIIS,TsinghuaUniversity
+2ShanghaiArtificialIntelligenceLaboratory
+3ShanghaiQizhiInstitute
+zhangyif21@mails.tsinghua.edu.cn,
+{yuanyang, andrewcyao}@tsinghua.edu.cn
+Abstract
+Inthiswork,wepresentacomprehensivestudyofMetaPrompting(MP),aninnovativetechnique
+reshapingtheutilizationoflanguagemodels(LMs)andAIsystemsinproblem-solvinganddata
+interaction. Groundedintypetheoryandcategorytheory,MetaPromptingemphasizesthestructure
+andsyntaxofinformationovertraditionalcontent-centricmethods. Thepaperexplorestheformal
+definitionsofMetaPrompting,setsitapartfromfew-shotprompting,andunderlinesitseffectiveness
+invariousAIapplications. AkeyfocusisapplyingMetaPromptingforcomplexreasoningtasks,
+showinghowiteffectivelydeconstructsintricateproblemsintosimplersub-problems,enhancing
+token efficiency, and enabling more equitable problem-solving comparisons, especially against
+few-shotpromptingmethods. Additionally,thepaperintroducesMetaPromptingforprompting
+tasks,allowingLLMstoself-generatenewpromptsinarecursive,metaprogramming-likemanner.
+Empirical experiments, including using a Qwen-72B base language model equipped with meta
+promptwithoutinstruction-tuningtosolveMATHproblemswithaccuracyat46.3%,whichsurpass
+thesupervisedfine-tunedcounterparttrainedwithextensivemathematicalQAinstructionpairsand
+eventheinitialversionofGPT-4,solvingGSM8Kproblemswith83.5%accuracywithzero-shot
+meta-promptedQwen-72Bbaselanguagemodel,andsolvingtheGameof24taskswitha100%
+successrateusingGPT-4,demonstratethemetaprompting’sefficacyinachievinghighaccuracy
+‡
+andefficiency,showcasingMetaPrompting’stransformativeimpactonAIproblem-solving .
+1 Introduction
+The emergence of foundation models, especially Large Language Models (LLMs), has revolutionized the
+field of artificial intelligence. These models, exemplified by their extensive training data and capacity for
+generalization, have dramatically expanded the horizons of computational linguistics, text understanding,
+andtextgeneration[5,10,34–37]. However,acriticalchallengefacedbyLLMsistheirlimitedefficacyin
+executingcomplexreasoningtasks,particularlyinareasrequiringdeep,abstractthoughtsuchasadvanced
+mathematics[25]. ThislimitationpointstowardsaneedforenhancedmethodologiesthatcanaugmentLLMs’
+reasoningfaculties.
+TherootofthischallengeliesinthearchitectureofmodernLLMs,whichispredominantlyorientedtoward
+auto-regressivetokenprediction[5,35,36]. Whileefficientforabroadspectrumoftasks,thisapproachis
+†Correspondingauthors.
+‡Thecodeisavailableathttps://github.com/meta-prompting/meta-prompting.
+1
+4202
+nuJ
+51
+]IA.sc[
+6v28411.1132:viXranot meticulously designed to support the depth and sophistication of human-like analytical thinking. This
+discrepancy is highlighted by the dual-process theory of cognitive psychology, articulated by Kahneman
+[21],whichdifferentiatesthefast,intuitiveresponsesofSystem1thinkingfromtheslower,moredeliberate
+reasoning of System 2 thinking. LLMs, in their typical operations, mirror System 1 processes and thus
+encounterdifficultieswithtasksthatrequirethemoredeliberate,structuredapproachcharacteristicofSystem
+2thinking.
+AttemptstobridgethisgaphaveledtothedevelopmentofinnovativemethodologiessuchasChain-of-Thought
+(CoT) [44] and Tree-of-Thought (ToT) [28, 49], which guide LLMs in articulating intermediate steps in
+reasoningtasks. Thesemethods,althoughvaluable,havenotfullyrealizedthedepthandflexibilityofhuman
+cognitiveprocessesinanabstractsense.
+Inresponsetothesechallenges, weintroduceMetaPrompting(MP)andestablishatheoreticalframework
+forit,anovelapproachthatrepresentsasubstantialadvanceinthefieldofLLMreasoning. MetaPrompting
+extends beyond existing methods by abstracting and generalizing key principles for enhanced cognitive
+processing. Unlike its predecessors, Meta Prompting shifts the focus from content-driven reasoning to a
+more structure-oriented perspective. This methoddrawsinspiration fromcategorytheoryand typetheory,
+establishingafunctorialrelationshipbetweentasksandtheircorrespondingprompts. Thiscategoricalapproach
+allowsforamoresystematicandadaptableframework,capableofaddressingawiderangeofcognitivetasks
+withdepthandnuanceakintohumanreasoning.
+Furthermore,apivotalaspectofmetapromptingisitsapplicationtoMetaPromptingforpromptingtasksinan
+in-contextandrecursivewayutilizingthefunctorialandcompositionalpropertiesofMetaPrompting,which
+wecallRecursiveMetaPrompting(RMP).Thisconcept,akintometaprogramminginprogramminglanguage
+theory,involvesusingLLMstodesignnewpromptsautonomously. ThefunctorialnatureofMetaPrompting
+allowsforthisadvancedcapability,whereLLMscannotonlysolveproblemsbutalsogeneratethestructures
+to solve them. This self-referential and recursive ability marks a significant leap in LLMs’ autonomy and
+adaptability.
+ThepracticalefficacyoftheMetaPromptingframeworkisempiricallyvalidatedthroughaseriesofexperiments,
+rangingfromsolvingtheGameof24puzzles[49]toaddressingcomplexMATHproblems[17],underscoring
+theMetaPrompting’sversatilityandempoweringLLMswithadvancedreasoningcapabilities.
+Insummary,ourcontributionscanbelistedasfollows:
+• Weproposethestructuredandsyntax-orientedMetaPrompting(MP),andintroduceatheoreticalframework
+formetapromptingbasedoncategorytheory. Wefurtherinvestigatemetapromptingforpromptingtasks
+andRecursiveMetaPrompting(RMP)inametaprogramming-likemanner.
+• OurexperimentsonsolvingMATHproblemswithaQwen-72Bbaselanguagemodel[3]equippedwith
+metapromptwithoutinstruction-tuningtosolveMATHproblemswithaccuracyat46.3%whichsurpasses
+thesupervisedfine-tunedcounterparttrainedwithextensivemathematicalQAinstructionpairsandeven
+theinitialversionofGPT-4,solvingGSM8Kproblemswith83.5%accuracywithzero-shotmeta-prompted
+Qwen-72Bbaselanguagemodel,andsolvingtheGameof24taskswith100%successrateusingGPT-4,
+showtheefficacyofmetapromptinginproblem-solvingandin-contextalignment.
+2 Preliminaries
+2.1 Category
+Definition 2.1 (Category). A category C comprises a collection of objects and, for each pair of objects
+A,B ∈ C,asetofmorphisms(orarrows)fromAtoB,denotedasHom(A,B). Morphismscanbeintuitively
+2understood as directed connections or mappings between objects. Notably, in a locally small category,
+morphismsbetweenanytwoobjectsformaset,ratherthanaclass.
+Definition 2.2 (Morphisms). For objects A,B in a category C, a morphism f from A to B is denoted by
+f : A → B, where A is the source, and B is the target. It is assumed that Hom(A,B) is disjoint from
+Hom(A′,B′)unlessA = A′ andB = B′.
+Definition2.3(CompositionofMorphisms). Morphismsinacategoryarecomposedinanassociativemanner.
+Specifically,iff ∈ Hom(A,B)andg ∈ Hom(B,C),theircompositionisamorphismg◦f ∈ Hom(A,C).
+Thiscompositionobeystheassociativelaw: givenf ∈ Hom(A,B),g ∈ Hom(B,C),andh ∈ Hom(C,D),it
+holdsthath◦(g◦f) = (h◦g)◦f.
+Definition 2.4 (Identity Morphisms). Each object A in a category C possesses an identity morphism
+id : A → A. Thismorphism,whencomposedwithanyothermorphismf : A → B org : B → A,yieldsthe
+A
+originalmorphism: f ◦id = f andid ◦g = g. Furthermore,identitymorphismsareuniquetoeachobject.
+A B
+2.2 Functors
+Definition 2.5 (Covariant Functor). A covariant functor F from a category A to a category B, denoted
+F : A → B,consistsoftwokeycomponents:
+• Amappingofobjects: F : obj(A) → obj(B).
+• For each pair of objects A ,A ∈ A and a morphism m : A → A , a corresponding morphism
+1 2 1 2
+F(m) : F(A ) → F(A )inB.
+1 2
+Thisfunctorrespectsbothidentitymorphisms(F(id ) = id )andcomposition(F(m ◦m ) = F(m )◦
+A F(A) 2 1 2
+F(m )).
+1
+Definition2.6(ContravariantFunctor). Acontravariantfunctorissimilartoacovariantfunctor,butitreverses
+thedirectionofthemorphisms: form : A → A ,thefunctormapsittoamorphismfromF(A )toF(A ).
+1 2 2 1
+Formally,F(m ◦m ) = F(m )◦F(m ).
+2 1 1 2
+2.3 TypeTheory
+Typetheory,inthecontextsofmathematics,logic,andcomputerscience,servesasaformalpresentationof
+specifictypesystemsandtheacademicresearchofthesesystems. Ithasbeenproposedasanalternativetoset
+theoryforthefoundationofmathematics. EarlyexamplesincludeAlonzoChurch’stypedλ-calculusandPer
+Martin-Löf’sintuitionistictypetheory. Thesetypetheoriesformthebasisofmanycomputerizedproof-writing
+systems,suchasThierryCoquand’sCalculusofInductiveConstructions,usedinproofassistantslikeCoqand
+Lean.
+Intypetheory,everytermisassociatedwithatype,oftenexpressedas"term: type". Commontypesinclude
+naturalnumbers(notatedasNor’nat’)andBooleanlogicvalues(’bool’). Termscanbebuiltoutofother
+termsusingfunctionapplication. Thecomputationintypetheoryismechanical,achievedbyrewritingthe
+term’ssyntax,andiscentraltoitsconceptualframework.
+Lambdacalculus,integraltotypetheory,encompasseslambdatermswhereatermlookslike"λvariableName :
+type1.term"andhasthetype"type1→type2". Thisindicatesafunctionthattakesaparameteroftype’type1’
+andcomputestoatermoftype’type2’.
+Typetheorydivergesfromsettheoryinseveralkeyways:
+• Classicalsettheoryadherestothelawofexcludedmiddle(everytheoremiseithertrueorfalse),whereas
+typetheory,leadingtointuitionisticlogic,doesnotnecessarilysubscribetothislaw.
+3• Insettheory,anelementcanappearinmultiplesets,butintypetheory,termsgenerallybelongtoonly
+onetype.
+• Type theory has a built-in notion of computation, where terms like "1+1" and "2" are different but
+computetothesamevalue.
+• Typetheoryencodesnumbersmorenaturallyasinductivetypes,aligningcloselywithPeano’saxioms,as
+opposedtosettheory’sencodingofnumbersassets.
+3 Meta Prompting
+ProblemStatement:
+• Problem: [questiontobeanswered]
+SolutionStructure:
+1. Begintheresponsewith"Let’sthinkstepbystep."
+2. Follow with the reasoning steps, ensuring the solution process is broken down clearly and
+logically.
+3. EndthesolutionwiththefinalanswerencapsulatedinaLaTeX-formattedbox, ... ,forclarity
+andemphasis.
+4. Finally,state"Theansweris[finalanswertotheproblem].",withthefinalanswerpresentedin
+LaTeXnotation.
+———-
+Figure1: AstructuremetapromptpresentedinmarkdownformatforsolvingMATH[17]problems.
+√
+Problem: Findthedomainoftheexpression √x−2.
+5−x
+Solution: Theexpressionsinsideeachsquarerootmustbenon-negative. Therefore,x−2 ≥ 0,so
+x ≥ 2,and5−x ≥ 0,sox ≤ 5. Also,thedenominatorcannotbeequaltozero,so5−x > 0,
+whichgivesx < 5. Therefore,thedomainoftheexpressionis [2,5) . FinalAnswer: Thefinal
+answeris[2,5). Ihopeitiscorrect.
+———-
+Problem: IfdetA = 2anddetB = 12,thenfinddet(AB).
+Solution: Wehavethatdet(AB) = (detA)(detB) = (2)(12) = 24 .FinalAnswer: Thefinal
+answeris24. Ihopeitiscorrect.
+———-
+...
+Figure2: Anexampleofthemostwidelyusedfew-shotpromptforsolvingMATH[17]problems,asintroduced
+intheMinervastudyby[23].
+4Integratestep-by-stepreasoningtosolvemathematicalproblemsunderfollowingstructure:
+{
+"Problem": "[questiontobeanswered]",
+"Solution": {
+"Step1": "Begintheresponsewith“Let’sthinkstepbystep.”",
+"Step 2": "Follow with the reasoning steps, ensuring the solution process is broken
+downclearlyandlogically.",
+"Step3": "EndthesolutionwiththefinalanswerencapsulatedinaLaTeX-formatted
+box, ... ,forclarityandemphasis."
+},
+"FinalAnswer": "[finalanswertotheproblem]"
+}
+———-
+Figure3: AstructuremetapromptpresentedinJSONformat.
+MetaPromptingisanadvancedpromptingtechniquethatfocusesonthestructuralandsyntacticalaspectsof
+problems,prioritizingthegeneralformatandpatternoverspecificcontentdetails. Itaimstoconstructamore
+abstract,structuredapproachtointeractingwithlargelanguagemodels(LLMs),emphasizingthestructure
+andsyntaxofinformation. Thistechniqueisparticularlyeffectiveincontextswheretheunderlyingpatternor
+frameworkofaproblemiscrucialforunderstandingorsolvingit.
+Definition3.1(MetaPrompt). AMetaPromptisanexample-agnosticstructuredpromptdesignedtocapture
+thereasoningstructureofaspecificcategoryoftasks. Itprovidesascaffoldthatoutlinesthegeneralapproach
+toaproblem,enablingLLMstofillinspecificdetailsasneeded. Thisapproachallowsformoreefficientand
+targeteduseofLLMcapabilitiesbyfocusingonthe"how"ofproblem-solvingratherthanthe"what".
+3.1 FormalizingMetaPrompting
+Incategorytheory,afunctorF fromcategoryC toD,denotedF : C → D,mapsobjectsandmorphisms
+(arrows)fromC toD inawaythatpreservesthecategoricalstructure(i.e.,identitymorphismsandcomposition
+ofmorphisms). Forabriefintroductiontotypetheoryandcategorytheory,pleaserefertoAppendix2).
+ApplyingthistoMetaPrompting,wedefinetwocategories: T ,thecategoryoftasks,whereobjectsaretasks
+andmorphismsarelogicalorfunctionaltransformationsbetweentasks;andP,thecategoryofstructured
+prompts, where objects are prompts designed for tasks in T , and morphisms are transformations between
+thesepromptsthatmaintaintheirlogicalstructureandintendedpurpose(foradetailedformalframeworkon
+MetaPrompting,pleaserefertoAppendixA).
+TheMetaPromptingfunctorM : T → P mapseachtaskinT toastructuredpromptinP thatoutlines
+theapproachforaddressingthetask(thismappingcanbehand-craftedbyhumanorusinglanguagemodels
+toself-composingmetapromptsinarecursivemanner,seeSection4.1). MorphismsinT (transformations
+betweentasks)aremappedtomorphismsinP (transformationsbetweenprompts)inawaythatthestructure
+andlogicofproblem-solvingarepreserved.
+Example of Meta Prompting. Consider the task of solving a quadratic equation, which in T could be
+represented as an object Q. The Meta Prompting functor M maps Q to a structured prompt P in P (see
+Figure 4), which might outline steps like identifying coefficients, computing the discriminant, and using
+5the quadratic formula. This prompt P guides the LLM in solving any quadratic equation by following the
+structuredapproach,regardlessofthespecificcoefficientsinvolved.
+Astructuremetapromptforsolvingquadraticequationsintheformax2+bx+c=0:
+{
+"Problem": "Solvethequadraticequationax2+bx+c=0forx.",
+"Solution": {
+"Step1": "Identifythecoefficientsa,b,andcfromtheequation.",
+"Step2": "Computethediscriminantusing∆=b2−4ac.",
+"Step3": "Checkif∆>0,∆=0,or∆<0todeterminethenatureoftheroots.",
+√
+"Step4": "If∆>0,calculatethetwodistinctrealrootsusingx = −b± ∆.",
+1,2 2a
+"Step5": "If∆=0,calculatethesinglerealrootusingx= −b.",
+2a √
+"Step6": "If∆<0,calculatethecomplexrootsusingx = −b±i |∆| .",
+1,2 2a
+"Step7": "Endthesolutionprocessbysummarizingtherootsoftheequation."
+},
+"FinalAnswer": "Dependingonthediscriminant∆,thefinalanswerwillbetherootsoftheequation,givenby
+x ."
+1,2
+}
+———-
+Figure4: AstructuremetapromptinJSONformatforsolvingquadraticequations,demonstratingthestructure
+ofstep-by-stepreasoningprocess.
+Example1:
+Problem: Solvethequadraticequation3x2+4x−5=0.
+Solution:
+• Step1: Identifythecoefficients: a=3,b=4,andc=−5.
+• Step2: Calculatethediscriminant: ∆=b2−4ac=42−4(3)(−5)=16+60=76.
+• Step3: Since∆>0,theequationhastwodistinctrealroots.
+√ √
+• Step4: Calculatetherootsusingthequadraticformula: x = −b± ∆ = −4± 76.
+√ 1,2 √2a 6
+• Step5: Simplifytofindtheroots: x = −4+ 76 andx = −4− 76.
+1 6 2 6 √ √
+FinalAnswer: Therootsoftheequation3x2+4x−5=0arex = −4+ 76 andx = −4− 76.
+1 6 2 6
+———-
+Example2: ...
+———-
+Figure 5: An example of a few-shot prompt for solving quadratic equations, using specific examples with
+detailedstepsandsolutions.
+Characteristics of Meta Prompting. Meta Prompting prioritizes the form and structure over content,
+usingsyntaxasaguidingtemplatefortheexpectedresponseorsolution. Itemploysabstractedexamplesas
+frameworks,illustratingthestructureofproblemsandsolutionswithoutfocusingonspecificdetails. Drawing
+fromtypetheory,MetaPromptingemphasizesthecategorizationofcomponentsinaprompt,suchasproblem
+statements,solutionsteps,andconclusions,andfocusesontheirlogicalarrangementandinterrelationshipsto
+ensureacoherentandstructuredapproachtoproblem-solving. Thistechniqueisversatileandapplicableacross
+variousdomains,capableofprovidingstructuredresponsestoawiderangeofproblems. Byconcentratingon
+structuralpatterns,MetaPromptingoffersaclearroadmapforproblem-solving,aidinginthenavigationof
+complextopics.
+63.2 DistinctionbetweenMetaPromptingandFew-ShotPrompting
+MetaPromptingdiffersfromFew-ShotPromptinginitsapproachandobjectives. Few-ShotPromptinginvolves
+providingLLMswithasmallnumberofexampleproblemsandtheirsolutionstolearnfrom. Incontrast,Meta
+Promptingabstractstheproblem-solvingprocessitself, creatingpromptsthatguidethemodelthroughthe
+logicalstepsrequiredtosolveaproblemwithoutrelyingonspecificcontent-basedexamples.
+TofurtherclarifytheuniquerolesandmethodologiesofMetaPromptingandFew-ShotPrompting(seeFigure1
+and Figure 2 for illustrations, and Figure 3 for a structure meta prompt presented in JSON format), let us
+exploretheirdifferencesinmoredetail(pleaserefertoAppendixA.1formorediscussions):
+• MetaPromptinginvolvestwodistinctcategories(forabriefintroductiontocategorytheory,pleasereferto
+Appendix2),T fortasks(problems)andP forstructuredprompts. ThefunctorM : T → P defines
+therelationshipbetweenproblemsandtheircorrespondingprompts. Forinstance,acomplexreasoning
+taskT inT isassociatedwithastructured,step-by-steppromptP inP thatguidestheuserthroughthe
+problem-solvingprocess.
+P = M(T). (1)
+When M(·) is task-agnostic, it’s denoted as ‘Meta Prompt’ as a constant. This term reflects a general,
+adaptablepromptstructurethat’snotspecifictoanyparticulartaskbutisdesignedtobeversatileacross
+various tasks such as the system (generic) meta prompt shown in Figure 7 (in Appendix C). When the
+MetaPromptisspecializedforaspecificcategoryoftasks(asubcategorywithinabroadertaskdomain
+or a particular universe of tasks), it tailors the general prompt structure to the unique requirements and
+characteristicsofthattaskcategory,suchasthemetapromptdesignedforsolvingMATHproblems[17]
+showninFigure1. Thisspecializationensuresthatthepromptremainsrelevantandeffectivewithinthe
+specific context it’s designed for, thereby enhancing its utility and effectiveness in guiding solutions or
+responseswithinthatdomain.
+Thelanguagemodel’sfunction,representedasLLM(M(T )),effectivelybridgesthegapbetween
+unsolved
+anunsolvedtaskT anditssolutionprocess. ThisfunctionfirsttranslatesT intoastructured
+unsolved unsolved
+promptP withinthecategoryP. ItthenprocessesP toyieldP ,thestructuredsolution.
+unsolved unsolved solved
+Notice that LLM can be replaced by more powerful multi-modal foundation models (see Typed Meta
+Prompting for multi-modal foundation models in Appendix E) or AI systems equipped with external
+computationalandphysicalenvironments.
+T SolvetheTaskinIdeal T
+unsolved solved
+M M (2)
+P P
+unsolved LLM(M(Tunsolved)) solved
+Notably,whenM istask-agnostic,thistransformationprocessexemplifiescurrying,aconceptinfunctional
+programmingwhereafunctionwithmultipleargumentsisdecomposedintoasequenceoffunctionswith
+asingleargument. Insuchcases,LLM(M(·))(·)simplifiestoLLM(MetaPrompt)(·),underscoringthe
+adaptabilityandefficiencyofthesysteminhandlingvarioustasks.
+LLM(M(T )) ≃ LLM(MetaPrompt)(T ) (3)
+unsolved unsolved
+LLM(MetaPrompt) : T → P . (4)
+unsolved solved
+7• Few-ShotPromptingutilizesasinglecategoryF,whichencapsulatesboththeproblems(questions)and
+theirlimitedexample-basedsolutions(answers)withinthesamestructure,suchasthefew-shotpromptfor
+solvingMATHproblemsshowninFigure2. Thisapproachfocusesonlearningandadaptingfromasmall
+setofexamples,suchasusingafewannotatedtextstotrainalanguagemodel.
+LLM(Q → A ) : Q → A ,
+1 1 2 2
+LLM(Q → A ,Q → A ) : Q → A , (5)
+1 1 2 2 3 3
+···
+3.3 MetaPromptingforComplexReasoning
+IncorporatingMetaPromptingwithinAIsystemsenhancestheirabilitytointeractwithsymbolicsystemsand
+code environments. AI models can more effectively parse and interpret symbolic information by utilizing
+typed, structured prompts that are syntactically oriented. This is crucial in domains like mathematics or
+logic, where symbolic representation is instrumental. Additionally, the structured nature of these prompts
+aligns seamlessly with code environments, enabling AI agents to understand, modify, and execute code
+more effectively. This interaction is not only limited to textual code but extends to visual programming
+languages and interfaces to physical environments, fostering a more comprehensive understanding across
+variousprogrammingparadigms.
+ThisspecializedexampleofMetaPromptingforComplexReasoningistailoredforaddressingintricateand
+multi-layeredproblems,especiallyindomainsdemandingprofoundanalyticalandlogicalreasoning. Itnot
+onlyunderscoresthestructureandsyntaxoftheproblem-solvingprocessbutalsodelvesintothecontentto
+ensureathoroughapproachtoeachissue,seeFigure8inAppendixCforanillustrativeexample.
+3.4 SuperiorityofMetaPromptingoverFew-ShotPrompting
+Meta Prompting presents distinct advantages over the traditional few-shot example approach, particularly
+inthecontextoflargelanguagemodels(LLMs). TwokeyareaswhereMetaPromptingdemonstratesclear
+superiorityaretokenefficiencyandthefairnessofcomparisoninproblem-solvingscenarios.
+TokenEfficiency. MetaPromptingsignificantlyreducesthenumberoftokensrequired. Byfocusingonthe
+structureandframeworkratherthandetailedcontent,itcircumventstheneedformultiple,lengthyexamples.
+Thisefficiencyiscrucial,especiallyincontextswheretokenlimitsareaconstraint,suchasincertainLLM
+applications. The emphasis on syntax and structure allows for a more concise representation of problems.
+Thisstreamlinedapproachnotonlysavestokensbutalsomakestheproblemrepresentationclearerandmore
+focused.
+FairComparisonandZero-ShotEfficacy. MetaPromptingcanbeviewedasaformofzero-shotprompting,
+wheretheinfluenceofspecificexamplesisminimized[5,27,38]. Thisapproachensuresamoreequitable
+comparisonacrossdifferentproblem-solvingmodels,asitdoesnotrelyonexample-basedlearningorspecific
+priorknowledge. Bynotdependingondetailedexamples,MetaPromptingavoidsthebiasesandlimitations
+inherentinfew-shotexamples. ThisallowstheLLMtoapproachproblemswithafreshperspective,freefrom
+theconstraintsandpotentialmisconceptionsthatspecificexamplesmightintroduce.
+In summary, Meta Prompting stands out for its token efficiency and its ability to provide a fairer, more
+unbiasedapproachtoproblem-solvingcomparedtofew-shotexamples. Thismakesitparticularlyvaluablein
+settingswheretokeneconomyisimportantandwhereanunbiased,zero-shotapproachispreferredforproblem
+representationandsolution.
+84 Meta Prompting for Prompting Tasks
+IntherealmofadvancedmachinelearningandAIsystems,thetaskofautomaticallygeneratingstructured
+prompts,termedMetaPromptingforPromptingTasks(MP-PT)orsimplyMetaPromptinginthisspecialized
+case[18,38],emergesasacriticalcomponent. Thisprocessentailsutilizinglanguagemodelstointerpretinput
+stringsasinstructionsandconsequentlygeneratepromptsthatguidefurthertasks. Weformalizethisconcept
+withintheMetaPromptingframeworkwithspecialpromptingtasks,detailingitscategoricalproperties(for
+formaldefinitions,pleaserefertoAppendixB).
+Theexamplesonenhancingthereasoningperformanceofinputpromptsanddesigningmoreconciseprompts
+(seeFigure9and10inAppendixC.1)demonstratetheapplicationoftheMetaPromptingframeworkinusing
+LLMstoself-revisepromptsforspecificpurposes.
+4.1 RecursiveMetaPrompting
+AparticularlyintriguingcaseariseswhentheMetaPromptingfunctoractsasanendofunctorwithinthesame
+categoryoftasks(seedefinitionsinAppendixB.2). Thisscenariopresupposesthatthetasksarerepresentable
+inlanguages(includingvisualandprogramminglanguages)andthatthelanguagemodelissufficientlyaligned
+tofullycomprehendthesetasks—ashumansdo—andtoknowhowtoexecutethemappropriately. Insuch
+acontext,thelanguagemodelcouldbeviewedascomparableto,orevensurpassing,humancapabilitiesin
+languageunderstandingandinstruction-following.
+WhentheMetaPromptingfunctorM isnottask-agnostic,itshowcasesadynamic,context-specificapproach,
+adaptingitsoutputbasedonthespecificsofeachtaskT. Thisadaptabilityalignswithconceptsfromdependent
+typetheoryanddynamictypeinferenceinprogramminglanguagetheory,wheretheprompt’sstructureM(T)
+iscontingentonthetask’scharacteristics. Incorporatingtheconceptoflazyevaluation,thisapproachbecomes
+evenmorepowerful. LazyevaluationdefersthecomputationofM(T)untilit’snecessary,optimizingefficiency
+andallowingformorecomplex,on-the-flyadjustmentstothepromptbasedonevolvingtaskrequirements.
+ThisapproachenablesM tohandleadiverserangeoftaskseffectively,makingreal-timemodificationsasnew
+informationbecomesavailableorasthetaskcontextevolves.
+TheintegrationofdynamicinferenceandlazyevaluationintotheMetaPromptingprocessunderscoresthe
+system’s ability to dynamically generate and refine prompts, making it highly adaptable and responsive to
+thecomplexitiesofvarioustasks. Thepotentialforself-referentialandrecursiveimprovement[7]inAItask
+comprehensionandpromptgenerationisparticularlynoteworthy,aligningwiththebroadergoalsofachieving
+moreintelligentandautonomousAIsystems(SeeFigure6andFigure13forillustrations).
+Gen-
+Meta erated
+Meta Meta
+Prompt Prompt
+Task Meta Meta
+Prompt Prompt
+Proposer Executor
+Solved
+Task
+Figure6: AnillustrationofRecursiveMetaPromptingwithasinglerecursionstep.
+9Note. OnecancallthispromptingprocessasMetaMetaPrompting(asillustratedinFigure6, wherethe
+metametapromptcanbethosemetapromptsforpromptingtasksshowninFigure9, 10, andFigure14at
+AppendixC.1).
+LLM(LLM(MetaMetaPrompt)(T )) : T → T . (6)
+initial initial solved
+In essence, this approach allows for a more tailored and precise prompting mechanism, enhancing the
+problem-solvingprocessbylettingLLMself-generatemetapromptsthatarecloselyalignedwiththespecific
+attributesandchallengesofeachtask.
+5 Experiments
+5.1 SolvingMATHandGSM8Kproblems
+Experiment settings. MATH [17] dataset is a competition-level math word problems benchmark with
+5000 test problems. GSM8K [8] is the most widely used math word problem dataset with 1319 test grade
+schoolmathproblems. WeperforminferenceusingthevLLMframeworkforQwen-14BandQwen-72Bbase
+languagemodelswithMetaPromptshowninFigure1forMATHdatasetandFigure3forGSM8Kdataset. We
+useadelicaterule-basedevaluatorincludingacomparisonusingSymPy[32]tojudgewhethertheresponse
+generatedbylanguagemodelsalignedwiththeground-truthsolution. Theevaluationresultsareshownin
+Table1andTable2.
+Experimentalresults. Ourevaluationdemonstratesthesuperiorperformanceofthezero-shotmeta-prompted
+Qwen-72BbaselanguagemodelacrossboththeMATHandGSM8Kdatasets,highlightingMetaPrompting’s
+efficacyinmathematicalproblem-solving. Wefindthatmetapromptscanelicitinstruction-followingcapabilities
+of sufficiently large base language models in a fully in-context way. For the MATH dataset, our approach
+achievedagroundbreakingPASS@1accuracyof46.3%,outperformingopen-sourcemodelsandproprietary
+modelslikeGPT-4(2023-0314),whichscored42.5%. Similarly,ontheGSM8Kbenchmark,thezero-shot
+meta-promptedQwen-72Bmodelattainedanaccuracyof83.5%,surpassingthebestresultsfrombothfew-shot
+promptingapproachesandfine-tunedcounterparts. Theseresultsunderscorethetransformativepotentialof
+MetaPromptinginenhancingthereasoningandproblem-solvingcapabilitiesoflargelanguagemodelswithout
+relying on extensive fine-tuning or specialized training datasets. Moreover, the marked improvement over
+traditionalfew-shotpromptingmethodsinbothtokenefficiencyandthefairnessofcomparisondemonstrates
+theadvantagesofourstructuralandsyntax-orientedapproachtoAIproblem-solving.
+5.2 SolvingtheGameof24Tasks
+TheMP-CRAgent,equippedwiththeMP-CRmetaprompt(showninFigure19ofAppendixC),isadeptat
+handlingavarietyofcomplexreasoningtasks,includingmathematicalproblemsandcodingchallenges. In
+thissubsection,wefocusonitsapplicationinsolvingtheGameof24task[49],aclassicmathematicalpuzzle
+requiringtheuseoffournumbersandarithmeticoperations(+,-,*,/)toformulateanexpressionthatequals
+24.
+Experimental setup. Our experiment was designed to showcase the MP-CR Agent’s capability to
+autonomouslygeneratePythoncodeforsolvingtheGameof24tasks. Unliketraditionalmethods,whichoften
+involveiterativeandtime-consumingprocesses,theMP-CRAgentprocessesallsamplesinasingleresponse,
+significantlyenhancingefficiencyandreducingcomputationaloverhead.
+Resultsandcomparativeanalysis. Theagentachievedanimpressive100%successrateofall1362samples
+(showninTable3),indicatingitsabilitytoaccuratelysolvethemajorityofthe‘Gameof24’tasks. Remarkably,
+10Table1: AcomparativeanalysisofthePASS@1accuracyofvariousmodelsontheMATHbenchmarkwithout
+toolusagesuchascodeinterpreter. Thiscomparisonhighlightsthesignificantimprovementsinourzero-shot
+meta-promptedbaselanguagemodelsoverexistingworksinmathematicalproblem-solving.
+Model FT-Dataset ToolUsage EvalMethod MATH(%)
+ProprietaryModels
+Claude-2[2] - No CoT 32.5
+Minerva-540B[23] Arxiv+Web No CoT 33.6
+PaLM-2[1] - No CoT 34.3
+GPT-4(2023-0314)[34] - No CoT 42.5
+Open-sourceModels
+Llama-2-70B(base)[40] - No CoT 13.5
+Qwen-14B(base)[3] - No CoT 24.8
+Qwen-14B(base) - No MP 28.9
+Qwen-72B(base) - No CoT 35.2
+Qwen-72B-MetaMathQA MetaMathQA No CoT 41.7
+Qwen-72B(base) - No MP 46.3
+Table2: AcomparativeanalysisofthePASS@1accuracyofvariousopen-sourcelargelanguagemodelson
+theGSM8Kbenchmarkwithouttoolusagesuchascodeinterpreter. Ourzero-shotmetapromptingshows
+substantialimprovementoverfew-shotCoTprompting.
+Model FT-Dataset ToolUsage EvalMethod GSM8K(%)
+Llama-2-70B(base)[40] - No CoT 56.8
+Qwen-14B(base)[3] - No CoT 61.3
+Qwen-14B(base) - No MP 64.8
+WizardMath-70B[30] WizardMath No CoT 81.6
+MetaMath-70B[50] MetaMathQA No CoT 82.3
+Qwen-72B(base) - No CoT 78.9
+Qwen-72B(base) - No MP 83.5
+the average processing time was only 0.08 seconds per sample using OpenAI assistant API. Figure 17 in
+Appendix D.1 displays the Python program generated by the MP-CR Agent for solving these tasks. This
+exampleunderscorestheagent’sproficiencyinbothunderstandingthemathematicalprinciplesoftheGame
+of24andeffectivelytranslatingthemintoexecutablecode(formoreonexperimentdetails,pleasereferto
+AppendixD.1).
+6 Related Work
+ReasoningwithAISystems. ThequesttoenhanceAIreasoningcapabilitieshaspredominantlyfocusedon
+equippingneuralnetworkswithmechanismsforgeneratingintermediatereasoningsteps. Thisapproachis
+widelyrecognizedforitspotentialtoimprovereasoningacrossvariousdomains[16,45,46,48,51,53]. While
+theseadvancementshavebeennoteworthy,theyprimarilyconcentrateonaugmentingthecontent-drivenaspects
+ofreasoning. Additionally,theexplorationofsymbolicsystemssuchascodeenvironmentsandknowledge
+graphsforreasoningenhancementhasbeensubstantial[4,6,6,11,13–15,20,22,26,31,33,41,42,47].
+Chain-of-ThoughtPrompting. TheintroductionofChain-of-Thought(CoT)reasoningbyWeietal.[44]has
+beenasignificantmilestone,highlightingtheimportanceofarticulatingmulti-stepreasoningpaths. Subsequent
+11Table3: ComparativeanalysisofmethodsfortheGameof24Tasks. Thistablepresentsacomprehensive
+comparisonofvariousmethodologies,includingInput/Output(IO),Chain-of-Thought(CoT),Tree-of-Thought
+(ToT),andMetaPrompting(MP),insolvingtheGameof24challenge. The‘LLMSessions’columnindicates
+the number of separate interactions or contexts with an LLM required for each method. The comparison
+evaluates the number of LLM sessions, tokens generated or required for prompting, the cost incurred per
+case, and the success rates. The MP-CR method is highlighted for its minimal LLM session involvement,
+minimaltokengenerationperspecificsample,andahighsuccessrateof100%,showcasingitsefficiencyand
+problem-solvingsuperiority(N = 1362representsthenumberofsamplesbeingprocessedintotal).
+Method LLMSessions(persample) Generate/Prompttokens Cost SuccessRate
+IO(bestof100) 100 1.8k/1.0k $0.13 33%
+CoT(bestof100) 100 6.7k/2.2k $0.47 49%
+ToT[49] 61.72 5.5k/1.4k $0.74 74%
+MP 1 ≈ 1 (8k/1k) ≈$0.0003 100%
+N N
+methodologies,suchastheself-consistencystrategybyWangetal.[43]andtheapproachbyZhouetal.[53]
+todecomposecomplexproblemsintosimplersub-problems,haveintroducedadvancedstrategiesfordecoding
+andproblem-solving. MetapromptingbyHouetal.[18]leveragemodel-agnosticmeta-learningforprompt
+initialization and learning better soft prompts. Later developments by Li et al. [24], Yao et al. [49], Feng
+etal.[12],andZhangetal.[52]haveprogressivelymovedtowardsmoresophisticatedreasoningstrategies.
+However,theseapproachesdonotemphasizethestructuralandsyntacticalelementsofmulti-layeredreasoning
+structuresincludinginteractionswithperipheralenvironmentsinazero-shot,example-agnosticmanner,which
+arefoundationaltoourMetaPromptingmethodology.
+7 Conclusion
+MetaPrompting,initsessence,prioritizestheformatandpatternofproblemsandsolutions,movingaway
+from the specifics of content. This shift enables LLMs to overcome their inherent limitations, facilitating
+a more sophisticated and adaptable reasoning capability. The methodology is designed to enhance LLMs’
+performance in complex problem-solving scenarios, emphasizing a structured and systematic approach to
+cognitivetasks.
+References
+[1] RohanAnil,AndrewMDai,OrhanFirat,MelvinJohnson,DmitryLepikhin,AlexandrePassos,Siamak
+Shakeri, Emanuel Taropa, Paige Bailey, Zhifeng Chen, et al. Palm 2 technical report. arXiv preprint
+arXiv:2305.10403,2023. 11
+[2] Anthropic. Modelcardandevaluationsforclaudemodels. Anthropic,2023. 11
+[3] JinzeBai,ShuaiBai,YunfeiChu,ZeyuCui,KaiDang,XiaodongDeng,YangFan,WenbinGe,YuHan,
+FeiHuang,etal. Qwentechnicalreport. arXivpreprintarXiv:2309.16609,2023. 2,11
+12[4] LisaBauer,YichengWang,andMohitBansal.Commonsenseforgenerativemulti-hopquestionanswering
+tasks. arXivpreprintarXiv:1809.06309,2018. 11
+[5] TomBrown,BenjaminMann,NickRyder,MelanieSubbiah,JaredDKaplan,PrafullaDhariwal,Arvind
+Neelakantan,PranavShyam,GirishSastry,AmandaAskell,etal. Languagemodelsarefew-shotlearners.
+Advancesinneuralinformationprocessingsystems,33:1877–1901,2020. 1,8
+[6] WenhuChen,XueguangMa,XinyiWang,andWilliamWCohen. Programofthoughtsprompting: Dis-
+entanglingcomputationfromreasoningfornumericalreasoningtasks. arXivpreprintarXiv:2211.12588,
+2022. 11
+[7] NoamChomsky. Onnatureandlanguage. CambridgeUniversityPress,2002. 9
+[8] KarlCobbe,VineetKosaraju,MohammadBavarian,MarkChen,HeewooJun,LukaszKaiser,Matthias
+Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, et al. Training verifiers to solve math word
+problems. arXivpreprintarXiv:2110.14168,2021. 10
+[9] LangChainContributors. Langchain: Buildingapplicationswithllmsthroughcomposability. https:
+//github.com/langchain-ai/langchain,2024. GitHubrepository. 36
+[10] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. Bert: Pre-training of deep
+bidirectionaltransformersforlanguageunderstanding. arXivpreprintarXiv:1810.04805,2018. 1
+[11] Ming Ding, Chang Zhou, Qibin Chen, Hongxia Yang, and Jie Tang. Cognitive graph for multi-hop
+readingcomprehensionatscale. arXivpreprintarXiv:1905.05460,2019. 11
+[12] GuhaoFeng,YuntianGu,BohangZhang,HaotianYe,DiHe,andLiweiWang. Towardsrevealingthe
+mysterybehindchainofthought: atheoreticalperspective. arXivpreprintarXiv:2305.15408,2023. 12
+[13] YanlinFeng,XinyueChen,BillYuchenLin,PeifengWang,JunYan,andXiangRen. Scalablemulti-hop
+relationalreasoningforknowledge-awarequestionanswering. arXivpreprintarXiv:2005.00646,2020. 11
+[14] LuyuGao,AmanMadaan,ShuyanZhou,UriAlon,PengfeiLiu,YimingYang,JamieCallan,andGraham
+Neubig. Pal: Program-aidedlanguagemodels. InInternationalConferenceonMachineLearning,pp.
+10764–10799.PMLR,2023.
+[15] ZhibinGou,ZhihongShao,YeyunGong,YujiuYang,MinlieHuang,NanDuan,WeizhuChen,etal. Tora:
+Atool-integratedreasoningagentformathematicalproblemsolving. arXivpreprintarXiv:2309.17452,
+2023. 11
+[16] Peter Hase and Mohit Bansal. When can models learn from explanations? a formal framework for
+understandingtherolesofexplanationdata. arXivpreprintarXiv:2102.02201,2021. 11
+[17] Dan Hendrycks, Collin Burns, Saurav Kadavath, Akul Arora, Steven Basart, Eric Tang, Dawn Song,
+andJacobSteinhardt. Measuringmathematicalproblemsolvingwiththemathdataset. arXivpreprint
+arXiv:2103.03874,2021. 2,4,7,10,30,32
+[18] YutaiHou,HongyuanDong,XinghaoWang,BohanLi,andWanxiangChe. Metaprompting: Learningto
+learnbetterprompts. arXivpreprintarXiv:2209.11486,2022. 9,12
+[19] YingdongHu,FanqiLin,TongZhang,LiYi,andYangGao. Lookbeforeyouleap: Unveilingthepower
+ofgpt-4vinroboticvision-languageplanning. arXivpreprintarXiv:2311.17842,2023. 35
+13[20] AlbertQiaochuJiang,SeanWelleck,JinPengZhou,WendaLi,JiachengLiu,MatejaJamnik,Timothée
+Lacroix,YuhuaiWu,andGuillaumeLample. Draft,sketch,andprove: Guidingformaltheoremprovers
+withinformalproofs. ArXiv,abs/2210.12283,2022. 11
+[21] DanielKahneman. Thinking,fastandslow. macmillan,2011. 2
+[22] SouvikKundu,TusharKhot,AshishSabharwal,andPeterClark. Exploitingexplicitpathsformulti-hop
+readingcomprehension. arXivpreprintarXiv:1811.01127,2018. 11
+[23] AitorLewkowycz,AndersAndreassen,DavidDohan,EthanDyer,HenrykMichalewski,VinayRamasesh,
+Ambrose Slone, Cem Anil, Imanol Schlag, Theo Gutman-Solo, et al. Solving quantitative reasoning
+problemswithlanguagemodels. AdvancesinNeuralInformationProcessingSystems,35:3843–3857,
+2022. 4,11
+[24] YifeiLi,ZeqiLin,ShizhuoZhang,QiangFu,BeiChen,Jian-GuangLou,andWeizhuChen. Making
+languagemodelsbetterreasonerswithstep-awareverifier. InProceedingsofthe61stAnnualMeetingof
+theAssociationforComputationalLinguistics(Volume1: LongPapers),pp.5315–5333,2023. 12
+[25] HunterLightman,VineetKosaraju,YuraBurda,HarriEdwards,BowenBaker,TeddyLee,JanLeike,John
+Schulman,IlyaSutskever,andKarlCobbe. Let’sverifystepbystep. arXivpreprintarXiv:2305.20050,
+2023. 1
+[26] BillYuchenLin,XinyueChen,JaminChen,andXiangRen. Kagnet: Knowledge-awaregraphnetworks
+forcommonsensereasoning. arXivpreprintarXiv:1909.02151,2019. 11
+[27] JiangmingLiu,MattGardner,ShayBCohen,andMirellaLapata. Multi-stepinferenceforreasoningover
+paragraphs. arXivpreprintarXiv:2004.02995,2020. 8
+[28] JieyiLong. Largelanguagemodelguidedtree-of-thought. arXivpreprintarXiv:2305.08291,2023. 2
+[29] ScottLundberg,MarcoTulioCorreiaRibeiro,DavidViggiano,JoaoRafael,RiyaAmemiya,andet.al.
+Microsoftguidancelibrary. https://github.com/microsoft/guidance,2023. 36
+[30] HaipengLuo,QingfengSun,CanXu,PuZhao,JianguangLou,ChongyangTao,XiuboGeng,Qingwei
+Lin,ShifengChen,andDongmeiZhang. Wizardmath: Empoweringmathematicalreasoningforlarge
+languagemodelsviareinforcedevol-instruct. arXivpreprintarXiv:2308.09583,2023. 11
+[31] QingLyu,ShreyaHavaldar,AdamStein,LiZhang,DelipRao,EricWong,MariannaApidianaki,and
+ChrisCallison-Burch. Faithfulchain-of-thoughtreasoning. arXivpreprintarXiv:2301.13379,2023. 11
+[32] AaronMeurer,ChristopherP.Smith,MateuszPaprocki,OndřejČertík,SergeyB.Kirpichev,Matthew
+Rocklin, AMiT Kumar, Sergiu Ivanov, Jason K. Moore, Sartaj Singh, Thilina Rathnayake, Sean Vig,
+BrianE.Granger,RichardP.Muller,FrancescoBonazzi,HarshGupta,ShivamVats,FredrikJohansson,
+FabianPedregosa,MatthewJ.Curry,AndyR.Terrel,ŠtěpánRoučka,AshutoshSaboo,IsuruFernando,
+Sumith Kulal, Robert Cimrman, and Anthony Scopatz. Sympy: symbolic computing in python.
+PeerJ Computer Science, 3:e103, January 2017. ISSN 2376-5992. doi: 10.7717/peerj-cs.103. URL
+https://doi.org/10.7717/peerj-cs.103. 10
+[33] TodorMihaylovandAnetteFrank. Knowledgeablereader: Enhancingcloze-stylereadingcomprehension
+withexternalcommonsenseknowledge. arXivpreprintarXiv:1805.07858,2018. 11
+[34] OpenAI. Gpt-4technicalreport. ArXiv,abs/2303.08774,2023. 1,11
+14[35] AlecRadford,KarthikNarasimhan,TimSalimans,IlyaSutskever,etal.Improvinglanguageunderstanding
+bygenerativepre-training. openai.com,2018. 1
+[36] AlecRadford,JeffreyWu,RewonChild,DavidLuan,DarioAmodei,IlyaSutskever,etal. Language
+modelsareunsupervisedmultitasklearners. OpenAIblog,1(8):9,2019. 1
+[37] ColinRaffel,NoamShazeer,AdamRoberts,KatherineLee,SharanNarang,MichaelMatena,YanqiZhou,
+WeiLi,andPeterJLiu. Exploringthelimitsoftransferlearningwithaunifiedtext-to-texttransformer.
+TheJournalofMachineLearningResearch,21(1):5485–5551,2020. 1
+[38] Laria Reynolds and Kyle McDonell. Prompt programming for large language models: Beyond the
+few-shotparadigm. InExtendedAbstractsofthe2021CHIConferenceonHumanFactorsinComputing
+Systems,pp.1–7,2021. 8,9
+[39] NoahShinn,FedericoCassano,AshwinGopinath,KarthikRNarasimhan,andShunyuYao. Reflexion:
+Languageagentswithverbalreinforcementlearning. InThirty-seventhConferenceonNeuralInformation
+ProcessingSystems,2023. 30
+[40] HugoTouvron,ThibautLavril,GautierIzacard,XavierMartinet,Marie-AnneLachaux,TimothéeLacroix,
+BaptisteRozière,NamanGoyal,EricHambro,FaisalAzhar,etal. Llama: Openandefficientfoundation
+languagemodels. arXivpreprintarXiv:2302.13971,2023. 11
+[41] XiaoyanWang,PavanKapanipathi,RyanMusa,MoYu,KartikTalamadupula,IbrahimAbdelaziz,Maria
+Chang,AchilleFokoue,BassemMakni,NicholasMattei,etal. Improvingnaturallanguageinference
+usingexternalknowledgeinthesciencequestionsdomain. InProceedingsoftheAAAIConferenceon
+ArtificialIntelligence,volume33,pp.7208–7215,2019. 11
+[42] XitingWang,KunpengLiu,DongjieWang,LeWu,YanjieFu,andXingXie. Multi-levelrecommendation
+reasoningoverknowledgegraphswithreinforcementlearning.InProceedingsoftheACMWebConference
+2022,pp.2098–2108,2022. 11
+[43] XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,SharanNarang,AakankshaChowdhery,
+and Denny Zhou. Self-consistency improves chain of thought reasoning in language models. arXiv
+preprintarXiv:2203.11171,2022. 12,30
+[44] JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,EdChi,QuocLe,andDennyZhou. Chain
+ofthoughtpromptingelicitsreasoninginlargelanguagemodels. arXivpreprintarXiv:2201.11903,2022.
+2,11
+[45] TongshuangWu,MichaelTerry,andCarrieJunCai. Aichains: Transparentandcontrollablehuman-ai
+interactionbychaininglargelanguagemodelprompts. InProceedingsofthe2022CHIconferenceon
+humanfactorsincomputingsystems,pp.1–22,2022. 11
+[46] Jingfeng Yang, Haoming Jiang, Qingyu Yin, Danqing Zhang, Bing Yin, and Diyi Yang. Seqzero:
+Few-shotcompositionalsemanticparsingwithsequentialpromptsandzero-shotmodels. arXivpreprint
+arXiv:2205.07381,2022. 11
+[47] KaiyuYang,AidanMSwope,AlexGu,RahulChalamala,PeiyangSong,ShixingYu,SaadGodil,Ryan
+Prenger, and Anima Anandkumar. Leandojo: Theorem proving with retrieval-augmented language
+models. arXivpreprintarXiv:2306.15626,2023. 11
+[48] Huihan Yao, Ying Chen, Qinyuan Ye, Xisen Jin, and Xiang Ren. Refining language models with
+compositionalexplanations. AdvancesinNeuralInformationProcessingSystems,34:8954–8967,2021.
+11
+15[49] Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Thomas L Griffiths, Yuan Cao, and Karthik
+Narasimhan. Treeofthoughts: Deliberateproblemsolvingwithlargelanguagemodels. arXivpreprint
+arXiv:2305.10601,2023. 2,10,12,30
+[50] LonghuiYu,WeisenJiang,HanShi,JinchengYu,ZhengyingLiu,YuZhang,JamesTKwok,Zhenguo
+Li,AdrianWeller,andWeiyangLiu. Metamath: Bootstrapyourownmathematicalquestionsforlarge
+languagemodels. arXivpreprintarXiv:2309.12284,2023. 11
+[51] Omar Zaidan, Jason Eisner, and Christine Piatko. Using “annotator rationales” to improve machine
+learningfortextcategorization. InHumanlanguagetechnologies2007: TheconferenceoftheNorth
+Americanchapteroftheassociationforcomputationallinguistics;proceedingsofthemainconference,
+pp.260–267,2007. 11
+[52] YifanZhang,JingqinYang,YangYuan,andAndrewChi-ChihYao. Cumulativereasoningwithlarge
+languagemodels. arXivpreprintarXiv:2308.04371,2023. 12,18,30
+[53] DennyZhou,NathanaelSchärli,LeHou,JasonWei,NathanScales,XuezhiWang,DaleSchuurmans,
+OlivierBousquet,QuocLe,andEdChi. Least-to-mostpromptingenablescomplexreasoninginlarge
+languagemodels. arXivpreprintarXiv:2205.10625,2022. 11,12
+16A Meta Prompting Functor
+Definition A.1 (Categories of Tasks and Prompts). Let T be a category where objects are defined as
+varioustypesoftasksorproblems. Theseobjectscaninclude,forexample,mathematicalproblems,coding
+challenges, or theoretical queries. The morphisms in T , denoted as HomT(X,Y), represent the methods
+ortransformationsforsolvingorrelatingoneproblemX toanotherproblemY. Amorphismcouldbe,for
+example,thetransformationofalinearalgebraproblemintoanoptimizationproblem.
+Similarly,letP beacategorywhereobjectsarestructuredpromptsdesignedforthesetasks. Theobjectsin
+P arecarefullycraftedpromptsthatguidetheuserinaddressingtheproblem,suchasastep-by-stepguidefor
+solvingadifferentialequationoratemplateforwritingacomputerprogram. ThemorphismsinP,denotedas
+HomP(U,V),representthetransformationoradaptationofonestructuredpromptU toanotherpromptV.
+Anexampleofsuchamorphismcouldbetheadaptationofapromptforabasicalgebraproblemintoaprompt
+suitableforamorecomplexcalculusproblem.
+DefinitionA.2(MetaPromptingFunctor). DefineafunctorM : T → P,knownastheMetaPrompting
+Functor. Thisfunctoroperatesasfollows:
+• OnObjects: Foreachtask(object)X inT ,thefunctorM assignsacorrespondingstructuredprompt
+(object)M(X)inP. Forinstance,givenaproblemX thatinvolvessolvingaquadraticequation,M(X)
+couldbeastructuredpromptthatoutlinesthestepstosolvequadraticequations.
+• On Morphisms: For each morphism f : X → Y in T , which represents a method of transforming
+or solving task (problem) X in terms of task (problem) Y, the functor M assigns a morphism M(f) :
+M(X) → M(Y)inP. ThismorphismrepresentsthetransformationofthestructuredpromptforX into
+thestructuredpromptforY. Forexample,iff isatransformationfromabasicalgebratask(problem)toa
+moreadvancedalgebraicconcept,thenM(f)wouldadaptthepromptforthebasicproblemintoaprompt
+suitablefortheadvancedconcept.
+ThefunctorM preservesthecompositionofmorphismsandidentitymorphisms. Thatis,foranymorphisms
+f : X → Y and g : Y → Z in T , we have M(g ◦f) = M(g)◦M(f). Also, for each object X in T ,
+M(id X) = id M(X).
+MetaPromptingisasophisticatedapproachtostructuringpromptsforspecifictaskcategories. Thistechnique
+ensures that a language model (AI system) equipped with the given prompt accurately captures the task’s
+objective and operates as intended. A noteworthy aspect of Meta Prompting is its adaptability. It can be
+effectivelyappliedevenwhenthetaskcategoryisnotnaturallyrepresentableinlanguages(includingvisualor
+programminglanguages)thatalignwiththelanguagemodel’scapabilities. Throughmeticulousandelaborate
+design,structuredpromptscanbecraftedtoenablethelanguagemodeltoprocessandrespondtothesetasks
+effectively.
+A.1 OnMetaPromptingandFew-ShotPrompting
+MetaPromptingasaFunctor. WehavedefinedMetaPromptingasafunctorM : T → P. Here,T
+symbolizesacategoryoftasks,encompassingawiderangeofproblemsorquestions,whileP representsa
+category of structured prompts tailored for these tasks. The functor M systematically associates an object
+(problem)inT withanobject(structuredprompt)inP,andamorphism(methodofsolution)inT witha
+morphism(structuredapproachtosolution)inP. Thisassociationpreservesthecompositionalstructuresand
+identityelementsofbothcategories,reflectingthefundamentalnatureofafunctorinmaintainingcategorical
+structure.
+17ThecommutativediagrambelowillustratesthefunctorialrelationshipinMetaPrompting,mappingtasksin
+categoryT tostructuredpromptsincategoryP.
+f
+T T
+unsolved solved
+(7)
+M M
+P P
+unsolved g solved
+Here,
+• T andT representanunsolvedtaskandasolvedtaskinthecategoryoftasksT ,respectively.
+unsolved solved
+• P andP denoteanunsolvedstructuredpromptandasolvedstructuredpromptinthecategoryof
+unsolved solved
+promptsP,respectively.
+• ThefunctorM mapstaskstotheircorrespondingstructuredprompts,maintainingthestructuralintegrity
+ofthesolutionprocess.
+• The morphism f : T → T signifies the ideal process of solving a task, notice that those
+unsolved solved
+step-by-stepdecompositionandcompositionmethodslikeCumulativeReasoning(CR)[52]whichobey
+thecompositionlawintheT categoryarenatural.
+• Themorphismg : P → P (g = M(f))representsthetransformationofanunsolvedstructured
+unsolved solved
+promptintoasolvedstructuredprompt,itcanbeseenasfromthesyntaxtothesemantics.
+This diagram encapsulates the essence of Meta Prompting, demonstrating the systematic and functorial
+approachtolinkingtaskswiththeirrespectivestructuredprompts.
+Few-ShotPromptinginCategoryTheory. InCategoryTheory,Few-ShotPromptingcanbeconceptualized
+by introducing a specialized category, F, which represents the framework of few-shot learning scenarios.
+Thiscategoryincludesobjectsthatrepresentdistinctfew-shotlearningtasks,eachencompassingasmallset
+of examples. The morphisms in this category, HomF(X,Y), signify the transformation or generalization
+process from one task X to another task Y, encapsulating the adaptation of learning from a limited set of
+examples.
+Few-ShotPromptinginTypeTheory. TransitioningtoTypeTheory,Few-ShotPromptingisformalized
+throughtypesandterms. Inthisparadigm,eachexampleusedinfew-shotpromptingrepresentsatermwith
+a specific type, corresponding to a particular problem instance. Solutions to these examples are terms of
+different types, indicative of individual solution instances. The process of Few-Shot Prompting is thus a
+mappingbetweenthesediscretetermsrepresentingprobleminstancesandtheirrespectivesolutions,akinto
+thefunctionalrelationshipinTypeTheory,wheretermsofonetype(problems)aretransformedintotermsof
+anothertype(solutions).
+MoreonDistinctionsbetweenMetaPromptingandFew-shotPrompting.
+1. MorphismsandTransformations:
+• MetaPrompting: Themorphismsrepresentabroadspectrumoftransformations,correlatingcomplex
+problemstructurestoequallysophisticatedpromptdesigns. Forexample,amorphismmighttransform
+apromptforabasicarithmeticproblemintoamorecomplexalgebraicprompt.
+• Few-ShotPrompting: Themorphismsaremorespecific,focusingontheadaptationandlearningprocess
+inherentintransitioningfromonefew-shottasktoanotherwithinthesamecategory.
+182. ObjectiveandScope:
+• MetaPromptingaimsatcreatingageneralizedframeworkforadiverserangeofproblems,seekingto
+establishasystematicapproachtopromptdesign. It’saboutbuildingaversatiletoolboxthatcanbe
+adaptedtovariouscontexts.
+• Few-ShotPromptingconcentratesonextractingandapplyingknowledgefromafewexamples,aiming
+tosolvespecifictaskswithintheconstraintsoflimiteddataefficiently. Itfocusesonmaximizingthe
+learningfromminimalinputs.
+3. LevelofAbstraction:
+• MetaPrompting: Operatesatahigherlevelofabstraction,dealingwiththemappingbetweendifferent
+typesofcategoricalstructures. It’smoreabouttheoverarchingframeworkratherthanspecificinstances.
+• Few-ShotPrompting: Worksatamoregranularlevel,focusingonindividualinstanceswithinasingle
+category,emphasizingthelearningprocessfromlimiteddata. Thismethodismoreconcernedwiththe
+specificsofeachexample.
+B On Meta Prompting for Prompting Tasks
+DefinitionB.1(CategoryofMetaPromptingforPromptingTasks). LetT beacategoryrepresentingthe
+universeofMetaPromptingforpromptingtasks. ObjectsinT ,denotedasT ,correspondtodistincttasks
+i
+associatedwiththegenerationofprompts. Thesetaskscouldvarybasedonthenatureoftheinput,thetype
+ofpromptsrequired,orthecomplexityoftheintendedoutput. ExamplesofobjectsinT includetaskslike
+generatingpromptsfortextualanalysis,imagerecognition,orcomplexdecision-makingprocesses.
+DefinitionB.2(MorphismsinT ). ThemorphismsinT ,denotedasHomT(T i,T j),representthetransfor-
+mationsormethodsthattransitiononeMP-PTtypetaskT toanotherT . Thesemorphismsencapsulatethe
+i j
+methodologies, algorithms, or modifications employed in the generation of prompts, reflecting the diverse
+natureofthesetasks. Anexampleofsuchamorphismcouldbetheadaptationofapromptgenerationtechnique
+fromatextualdomaintoavisualdomain.
+DefinitionB.3(MetaPromptingFunctorforMP-PT). DefineafunctorM T : T → P,knownastheMeta
+PromptingFunctor. ThisfunctormapseachMP-PTtaskinT toacorrespondingstructuredpromptinP,the
+categoryofstructuredprompts. Thefunctoroperatesasfollows:
+• OnObjects: Foreachtask(object)T i inT ,thefunctorM T assignsacorrespondingstructuredprompt
+(object)M T(T i)inP. ThismappingreflectsthetransformationoftheabstractconceptofanMP-PTtask
+intoaconcrete,actionablepromptstructure.
+• OnMorphisms: Foreachmorphismf : T → T inT ,representingamethodoradaptationinthetask
+i j
+domain,thefunctorM T assignsacorrespondingmorphismM T(f) : M T(T i) → M T(T j)inP. This
+morphismembodiestheconversionofthepromptgenerationmethodologyfromonecontexttoanother
+withinthestructuredpromptdomain.
+ThefunctorM T preservesthecompositionofmorphismsandidentitymorphisms. Thatis,foranymorphisms
+f : T
+i
+→ T
+j
+andg : T
+j
+→ T
+k
+inT ,wehaveM T(g◦f) = M T(g)◦M T(f),andforeachobjectT
+i
+inT ,
+M T(idT i) = id M T(T i).
+19T f T
+i j
+M T M T (8)
+M T(T i)
+M T(f)
+M T(T j)
+Inthisdiagram:
+• T andT aretasksinT .
+i j
+• M T(T i)andM T(T j)arecorrespondingpromptsinP.
+• VerticalarrowsrepresentthefunctorM T,transformingtaskstoprompts.
+• Horizontalarrowsrepresentthetransitionbetweentasksandtheirprompttransformations.
+B.1 TaskTypesinMetaPromptingforPromptingTasks
+InMetaPromptingforPromptingTasks(MP-PT),tasksarestructuredwithaMetaPrompt,anInputPrompt,and
+aspaceforanOutputPrompt. Wedifferentiatebetweentwoprimarytasktypesbasedontheirobjectives:
+B.1.1 TaskType1: JustRevisethePrompt
+ThistasktypefocusesonrevisingtheInputPrompttoimproveclarity,effectiveness,oralignmentwithspecific
+goalsasindicatedbytheMetaPrompt. TherevisedpromptbecomestheOutputPrompt.
+CommutativeDiagram:
+T Revise T
+unsolved revised
+(9)
+M M
+T T
+P P
+unsolved LLM(M TRevise(Punsolved)) revised
+Here,T andT representtheoriginalandrevisedtasksinthecategoryT ,respectively. P and
+unsolved revised unsolved
+P arethecorrespondingpromptsinP. TheLLMfunctionprocessestheoriginalpromptandrevises
+revised
+it.
+B.1.2 TaskType2: ReviseandthenSolvethePrompt(Task)
+Inthistasktype,theobjectiveextendstonotonlyrevisingtheInputPromptbutalsosolvingtheproblemit
+presents. TheOutputPromptincludesboththerevisedpromptanditssolution.
+CommutativeDiagram:
+T ReviseandSolve T
+unsolved solved
+M T M T (10)
+P P
+unsolved LLM(M T ReviseandSolve(Punsolved)) solved
+Here,T representsthetaskafterithasbeenrevisedandsolved. P istheoutputprompt,reflecting
+solved solved
+boththerevisionandthesolution. TheLLMfunctionfirstrevisesandthensolvesthetask.
+ThesediagramsillustratethetransformationsthatoccurinMP-PT,showcasingtheadaptabilityanddepthof
+theMetaPromptingprocess.
+20B.2 OnRecursiveMetaPrompting
+EndofunctorinMetaPrompting. Anendofunctorincategorytheoryisafunctorthatmapsacategoryto
+itself,denotedasF : C → C. InMetaPromptingforPromptingTasks(MP-PT),thiscanbeconceptualized
+asfollows:
+LetT representthecategoryoftasksinMetaPrompting. AssumingT andthecategoryofstructuredprompts
+P areidentical,weredefinethefunctorM T asM T : T → T ,withfollowingfunctorproperties:
+• Identity: ForeachobjectT i inT ,M T(idT i)equalsid M T(T i).
+• Composition: Formorphismsf : T
+i
+→ T
+j
+andg : T
+j
+→ T k,M T(g◦f) = M T(g)◦M T(f).
+ThefollowingcommutativediagramrepresentstheendofunctorinMetaPrompting.
+T f T g T
+i j k
+M T M T M T
+M T(T i)
+M T(f)
+M T(T j)
+M T(g)
+M T(T k)
+Monad in Meta Prompting. A monad in the context of Meta Prompting can be described as a triple
+(M T,η,µ),encompassingafunctorandtwonaturaltransformationsthatadheretospecificaxioms:
+• Functor: ThefunctorM T : T → T mapstaskswithinthesamecategory.
+• UnitTransformation(η): Thenaturaltransformationη : IdT ⇒ M T encapsulatestheinitialstructuring
+ofataskintoaprompt.
+• MultiplicationTransformation(µ): Thetransformationµ : M TM T ⇒ M T facilitatestheintegration
+ofenhancedorlayeredstructuring,suchascombiningdifferentaspectsoftasksolving.
+• MonadLaws:
+– LeftIdentity: µ◦M Tη = idM ,ensuringthebasicstructureismaintainedwhenataskisfirststructured
+T
+andthenunstructured.
+– RightIdentity: µ◦ηM T = idM ,guaranteeingthatenhancingatask’sstructureandthensimplifying
+T
+itreturnsthetasktoitsoriginalform.
+– Associativity: µ◦M Tµ = µ◦µM T,ensuringconsistencyintheprocessofstructuringandrestructuring
+tasks.
+ThefollowingdiagramsrepresentthemonadlawsinMetaPrompting.
+M
+ηM
+T M M
+T T T
+µ
+idMT
+M
+T
+M M Tη M M
+T T T
+µ
+idMT
+M
+T
+21M M M
+µM
+T M M
+T T T T T
+M Tµ µ
+M M M
+T T T
+µ
+InMetaPromptingforPromptingTask(MP-PT),
+1. Endofunctor: The application of M T as an endofunctor in MP-PT highlights that tasks and their
+corresponding structured prompts are essentially different expressions of the same underlying concept.
+Thisperspectiveunderscoresadeepinterconnectivitybetweenthenatureofataskandthestructureofits
+prompt.
+2. Monad: The monad structure of M T in MP-PT reflects an iterative, self-referential system. In this
+framework,promptsnotonlygeneratesolutionsfortasksbutalsoevolvetogeneratenew,morerefined
+prompts. Thisiterativeprocesssignifiesadynamic,evolvingmechanismwhereeachstageofprompting
+informsandenhancesthesubsequentstages,leadingtoaprogressiverefinementofbothtasksandtheir
+correspondingprompts.
+Commutative Diagram for Recursive Meta Prompting. This diagram represents the endofunctor
+characteristicofM T inthecontextofin-contextpromptdesign.
+f g
+T T T
+initial intermediate final
+M M M
+T T T
+M T(T initial)
+M T(f)
+M T(T intermediate)
+M T(g)
+M T(T final) (11)
+M M M
+T T T
+M T(M T(T initial))
+M T(M T(f))
+M T(M T(T intermediate))
+M T(M T(g))
+M T(M T(T final))
+Inthisdiagram:
+• T ,T ,andT representthestagesofthetaskwithinthecategoryT .
+initial intermediate final
+• ThefunctorM T mapseachstageofthetasktoitscorrespondingpromptinarecursivemanner,reflecting
+theiterativeprocessofpromptdevelopment.
+• Horizontalarrowsf andg denotetransformationswithinthetaskcategory,leadingfromtheinitialtaskto
+theintermediateandfinalstages.
+• VerticalarrowsrepresenttheapplicationofM T ateachstage,highlightingtheself-referentialnatureofthe
+taskevolution.
+Thiscommutativediagramcapturestheessenceofrecursive(iterativeandself-referential)MetaPromptingin
+thecontextofin-contextpromptdesign,demonstratingthedynamicandrecursiveprocessoftasktransformation
+withintheMP-PTframework.
+22Insummary,thisexplorationintoendofunctorsandmonadswithinRecursiveMetaPromptingforIn-Context
+PromptDesignnotonlyenrichesourunderstandingofthetheoreticalunderpinningsofAIsystemsbutalso
+opensavenuesforpracticalapplicationsincreatingmoresophisticatedandnuancedAImodels.
+C Appendix for Examples
+"""
+YouareChatGPT,ahighlyadvancedlargelanguagemodelwithspecializedexpertiseinmathe-
+matics. Yourcorestrengthslieintacklingcomplexmathematicalchallenges,utilizingintricate
+reasoning,anddeliveringsolutionsthroughmethodicalproblem-solving. Throughoutthisinterac-
+tion, you will encounter a variety of mathematical problems, ranging from basic arithmetic to
+advancedcalculusandbeyond.
+Your primary objective is to dissect and address each problem with a rigorous and detailed
+approach. Thisinvolves:
+1. Clearlyidentifyingandunderstandingtheproblemstatement.
+2. Breakingdowntheproblemintomanageablecomponents,ifnecessary.
+3. Applyingrelevantmathematicalprinciplesandtechniquestosolveeachcomponent.
+4. Synthesizingthecomponents’solutionstoformulateacomprehensiveanswer.
+5. Providingaclear,step-by-stepexplanationofyourmethodology,ensuringthatyourreasoning
+isthorough,precise,andeasilyunderstandable.
+Yourproficiencyinmathematicsisexpectedtoguideusersthroughtheproblem-solvingprocess,
+offeringinsights,strategies,andexplanationsthatilluminatethepathtothesolution.
+"""
+Figure7: Anillustrativeexampleofasystem(generic)MetaPromptforsolvingawiderangeofreasoning
+tasks,thismetapromptcanbeseenasthegenerictypemetapromptthatfitsmosttasks.
+KeyElementsofMetaPromptingforComplexReasoning:
+1. ComplexProblemDecomposition: Beginsbybreakingdownacomplexproblemintosmaller,manageable
+sub-problems,essentialformethodicalproblem-solving.
+2. DetailedPreliminaryContent: Providesextensivepreliminarycontent,includingfoundationalconcepts
+andrelevanttheories,tosetthestageforproblem-solving.
+3. Step-by-StepProblemSolving:
+• IntermediateQuestions: Formulatestargetedquestionstoguidetheproblem-solvingprocess.
+• Answer Sketches and Code Execution: Develop answer sketches followed by code execution to
+validateandrefinethesolutions.
+• DetailedAnswers: Offerscomprehensiveanswersforeachquestion,culminatinginthesolutiontothe
+originalproblem.
+4. FinalSolutionPresentation:
+• SolutionSynthesis: Synthesizesthefindingsintoacompletesolution.
+• CodeforFinalSolution: Employscodingforverificationandsolvingthefinalproblem.
+• Formatted Final Answer: Presents the solution in a clear, concise format, often using LaTeX for
+mathematicalaccuracyandhighlightedwith‘ ’.
+23<syntax>
+## Problem: [problem]
+Solution: Let’s think step by step. [somewords interpreting the origin problem]
+### Preliminary Contents
+- **Prelim 1**: [preliminary contents 1]
+- **Prelim 2**: [preliminary contents 2]
+- [...]
+### Hints
+- **Hint 1**: [useful hints 1]
+- **Hint 2**: [useful hints 2]
+- [...]
+### Intermediate Steps: Question-AnswerSketch-Code-Output-Answer Pairs
+Let’s think step by step.
+#### Question 1: [the first question you raised]
+- **Answer Sketch**: [write a sketch of your answer to question 1]
+##### Code for Question 1
+[call code interpreter here to verify and solve your answer sketch to question 1]
+#### Answer for Question 1
+- **Answer**: [your answer to this question 1 based on the results
+given by code interpreter (if presented)]
+#### Question 2: [the second question you raised]
+- **Answer Sketch**: [write a sketch of your answer to question 2]
+##### Code for Question 2
+[call code interpreter here to verify and solve your answer sketch to question 2]
+#### Answer for Question 2
+- **Answer**: [your answer to this question 2 based on the results
+given by code interpreter (if presented)]
+#### Question 3: [the third question you raised]
+- **Answer Sketch**: [write a sketch of your answer to question 3]
+##### Code for Question 3
+[call code interpreter here to verify and solve your answer sketch to question 3]
+#### Answer for Question 3
+- **Answer**: [your answer to this question 3 based on the results
+given by code interpreter (if presented)]
+### [Question ...]
+### Final Solution:
+Recall the origin problem <MathP> [origin problem] </MathP>.
+Let’s think step by step.
+#### Solution Sketch
+[write a sketch for your final solution]
+#### Code for Final Solution
+[call code interpreter here to verify and solve your final solution]
+#### Final Answer
+[present the final answer in latex boxed format, e.g., $\boxed{63\pi}$]
+Final Answer: the answer is $\boxed{...}$.
+</syntax>
+Figure8: IllustrationofMetaPromptingforComplexReasoning.
+24C.1 ExamplesonMetaPromptingforPromptingTasks
+DesigningBetterReasoningPerformancePrompts. SeeFigure9foranillustrativeexample,considera
+subcategory T of T , representing the category of tasks for generating prompts that enhance
+enhance-reasoning
+reasoningperformanceinAIsystems. Thistaskinvolvescreatingpromptsthatcanelicitmorenuancedand
+complexreasoningfromtheAI,potentiallyfortaskslikeadvancedproblem-solvingordecision-making.
+Task: PromptRevisiontoEnhanceReasoningCapabilities.
+1. InputPrompt: [inputprompt]
+2. Objective: Revisetheaboveinputprompttoenhancecriticalthinkingandreasoningcapabili-
+ties.
+3. KeyElementsforRevision:
+• Integratecomplexproblem-solvingelements.
+• Embedmulti-stepreasoningprocesses.
+• Incorporatescenarioschallengingconventionalthinking.
+4. ExpectedOutcome:
+• Therevisedprompt([revisedprompt])shouldstimulatedeeperanalyticalthought.
+• Itshouldfacilitateacomprehensiveunderstandingofthesubjectmatter.
+• Ensuretherevisedpromptfosterstheexplorationofdiverseperspectives.
+• Thepromptshouldencouragesynthesisofinformationfromvariousdomains.
+Figure9: IllustrationofMetaPromptingfordesigningpromptswithbetterreasoningcapabilities.
+ApplyingthefunctorM T toT enchance-reasoning,weobtainstructuredpromptcategoryM T(T enchance-reasoning),
+as a subcategory of P. Prompts in this category could involve a series of steps or guidelines designed
+to encourage deeper analytical thinking, such as providing scenarios that require multi-step reasoning,
+incorporatingelementsoflogicpuzzles,orpresentingproblemsthatnecessitatethesynthesisofinformation
+fromvariousdomains.
+25DesigningConcisePrompts. SeeFigure10foranillustrativeexample,anothersubcategoryinT couldbe
+T ,representingthetaskofgeneratingpromptsthatareconciseyeteffective. Thegoalhereistocreate
+concise
+promptsthatareshortandtothepointbutstillsufficientlyinformativetoguidetheAIinperformingaspecific
+taskefficiently.
+Task: PromptSimplification
+1. OriginalPrompt: [inputprompt]
+2. Goal: Transformtheoriginalpromptintoamoreconciseversionwhilepreservingitscore
+essenceandobjective.
+3. InstructionsforTransformation:
+(a) Maintaintheprimarypurposeandobjectivesoftheoriginalprompt.
+(b) Focusondistillingtheprompttoincludeonlykeyinstructionsandessentialinformation.
+(c) Eliminateanyextraneousornon-essentialdetails.
+(d) Useclear,directlanguagetoensureeaseofunderstanding.
+(e) Where beneficial, employ bullet points or numbered steps to structure the prompt and
+enhanceclarity.
+4. Outcome: The[revisedprompt]shouldbesuccinctyetsufficientlydetailedtoguideeffective
+taskcompletion. Itshouldbestructuredforeaseofcomprehensionandapplication,ensuringa
+focusedandstreamlinedapproachtothetaskathand.
+Figure10: IllustrationofMetaPromptingfordesigningconciseprompts.
+UponapplyingM
+T
+toT concise,wegetastructuredpromptcategoryM T(T concise),asasubcategoryofP.
+Promptsinthiscategorymightinvolveacompactformatwithminimalwording,focusingonkeyinstructions
+oressentialinformation. Forinstance, thepromptcouldusebulletpointsornumberedsteps, emphasizing
+clarityandbrevity,andavoidingsuperfluousdetailsthatdonotcontributedirectlytothecompletionofthe
+task.
+TheseexampleshighlighttheversatilityandutilityofMetaPromptinginaddressingvariouspromptdesign
+challenges. ByapplyingthefunctorM T,wecansystematicallytransformabstracttasksintoconcreteand
+structuredprompts,tailoredtospecifictaskobjectivesandrequirements.
+26C.2 ExamplesonRecursiveMetaPrompting
+Meta
+Prompt
+Task Meta
+Prompt
+Executor
+Solved
+Task
+Figure11: AnillustrationshowcasingtheprocessofMetaPrompting. Thisdiagramvisualizesthetransformation
+of a task into a solved task through the application of a Meta Prompt, executed by a specialized executor
+(LLM),highlightingthedirectapplicationofMetaPromptingprinciples.
+Gen-
+Meta erated
+Meta Meta
+Prompt Prompt
+Task Meta Meta
+Prompt Prompt
+Proposer Executor
+Solved
+Task
+Figure12: AnillustrationofRecursiveMetaPromptingwithasinglerecursionstep. Itdelineatestheworkflow
+from an initial task to a solved task, incorporating the generation of a Meta Prompt through a Meta Meta
+Prompt. ThisprocessexemplifiestheMetaPromptingstrategywherepromptsthemselvesaredynamically
+generatedtoenhanceproblem-solvingcapabilities.
+C.2.1 RecursiveMetaPromptingforIn-ContextPromptDesign
+Recursive(iterativeandself-referential)MetaPromptingforIn-ContextPromptDesign(MP-ICPD)represents
+a cutting-edge application of language models, focusing on generating structured prompts from complex
+documentswithoutpredefinedtasksthatneedtobefinished.
+ThestructuredpromptillustratedinFigure14inAppendixC.2guidesthelanguagemodelthroughasystematic
+understandingandresponseprocess. ThiscanbeseenasanapplicationoftheendofunctorM T inareal-world
+context. Furthermore,therecursivenatureofthisprocess—wherethelanguagemodelcanuseitsownoutput
+asinputforfurtherrefinement—mirrorsthemonadicstructureinMP-PT,asshowninFigure15. Ithighlights
+thedynamicandevolvingnatureoftaskdefinitionandsolutionformulationintherealmofAI.
+27Gen-
+Meta erated Gen-
+Meta Meta erated
+Meta Meta Meta
+Prompt Prompt Prompt
+Meta
+Task Meta Meta Meta
+Prompt Prompt Prompt
+Proposer Proposer Executor
+Solved
+Task
+Figure13: Anin-depthillustrationofRecursiveMetaPromptingwithmultiplerecursionlayers. Startingfrom
+aninitialtask, thiscomplexflowchartdemonstratesthesequentialgenerationofMetaPromptsatdifferent
+recursionlevels,culminatingintheexecutionofthefinalMetaPrompttosolvethetask. Thisdetailedview
+underscorestheiterativerefinementandcapabilityexpansionthroughRecursiveMetaPrompting.
+Task: MetaPromptingforIn-ContextPromptDesign
+1. DocumentAnalysis:
+• Input: [Complexdocument,e.g.,researchpaper,orevenincludingthispromptitself]
+• Action: Analyzeandcomprehendkeyconcepts,methodologies,challenges,andobjectives.
+2. TaskInterpretation:
+• Action: Synthesizeinformationtodefinethecoreproblemortask.
+• Considerations: Identifyconstraints,goals,orrequirements.
+3. PromptDesign:
+• Objective: Developastructuredpromptforproblem-solving.
+• Elements: Instructions,step-by-stepapproach,backgroundinformation.
+4. Optional-DirectSolutionProposal:
+• Objective: Proposeinitialstepsoracompletesolutionstrategy.
+• Considerations: Feasibilityandpracticalitywithinthecontext.
+5. OutputPrompt: [tobegeneratedusingthesamelatexformatasthisprompt]
+Note: Theoutputisacoherent,actionablepromptorsolutionstrategy,tailoredtothespecificsofthe
+inputdocument.
+Figure14: IllustrationofMetaPromptingforIn-ContextPromptDesign.
+28Task: MetaPromptingforIn-ContextPromptDesign
+1. DocumentAnalysis:
+• Input: Analyzeacomplexdocument(suchasthistaskdescription)tounderstandkeyconcepts,
+methodologies,challenges,andobjectives.
+2. TaskInterpretation:
+• Action: Synthesize the information to define the core problem or task, considering any
+constraints,goals,orrequirements.
+3. PromptDesign:
+• Objective: Developastructuredpromptforproblem-solvingthatincludesclearinstructions,a
+step-by-stepapproach,andrelevantbackgroundinformation.
+4. Optional-DirectSolutionProposal:
+• Objective: Propose initial steps or a complete solution strategy, ensuring feasibility and
+practicalitywithinthecontext.
+5. Output Prompt: Generate a coherent, actionable prompt or solution strategy, tailored to the
+specificsoftheinputdocument.
+Figure15: IllustrationofRecursiveMetaPromptingbyusingthispromptitselfastheinputdocument. This
+promptisgeneratedbyanLLMequippedwithMetaPromptshowninFigure14.
+29D More on Experiments
+D.1 SolvingGameof24Tasks
+TheexperimentaloutcomeshighlighttheremarkablepotentialoftheMP-CRAgentasaversatileandpowerful
+instrument in diverse problem-solving contexts. By structuring the task as a Python program, the agent
+demonstratesitsabilitytouniversallysolvealltaskswithinthe‘Gameof24’category. Whiletheinitialaccuracy
+of the MP-CR Agent’s responses may not be perfect, the application of self-consistency [43], self-critical
+assessments[49,52],andreflectiveprocesses[39]areanticipatedtoenhanceaccuracytoanear-perfectlevel.
+This methodological shift transcends the conventional need for task-specific adaptations characteristic of
+few-shotprompting,heraldingasubstantialleapforwardinautomatedproblem-solving. Whilethisexperiment
+highlights its efficacy in the Game of 24 tasks, subsequent sections will explore its applications in other
+domains,suchassolvinggeneralMATHproblems[17](seeAppendixC).
+User:
+TaskStep1: RecallthedefinitionofGameof24(operations: ’+’,’-’,’*’,’/’,’(’,’)’),(noticethatthe
+intermediateresultmaybefractions),thenwritedownadetailedplanwithcodeinterpreterusageto
+solvethefollowingproblem: a,b,c,d(e.g. 3,3,7,7).
+Task Step 2: [uploaded 24.csv] I have a file containing more than 1k Game of 24 puzzles, can you
+batch-processthem(thenumbersareinPuzzlesfield)? Checkthefirstfivesamplesiscorrectlysolved
+ornot. Andthencalculatethesolvedrate(ifthesolutionisnotempty,youcount1forthat).
+TaskStep3: Replymetheoutputfile.
+Assistant:
+[solvingthetasks]
+Figure16: InputpromptforsolvingtheGameof24Tasks.
+D.2 SolvingMATHProblems
+30# Description: A program to solve the game of 24
+# Author: CR Agent XML v0.2
+import pandas as pd
+import time
+from itertools import permutations, product
+import operator
+from fractions import Fraction
+# Basic operations
+ops = {
+’+’: operator.add,
+’-’: operator.sub,
+’*’: operator.mul,
+’/’: operator.truediv,
+}
+# Function to try all operations between two numbers
+def try_ops(a, b):
+results = []
+for op in ops:
+if op == ’/’ and b == 0: # Avoid division by zero
+continue
+try:
+result = ops[op](a, b)
+results.append((result, f’({a}{op}{b})’))
+except Exception:
+pass
+return results
+# Generate all possible results for a list of numbers
+def generate_results(numbers):
+if len(numbers) == 1:
+return [(numbers[0], str(numbers[0]))]
+results = []
+for i in range(len(numbers)):
+for j in range(len(numbers)):
+if i != j:
+remaining = [numbers[k] for k in range(len(numbers)) if k != i and k != j]
+for result1, expr1 in generate_results([numbers[i]]):
+for result2, expr2 in generate_results([numbers[j]]):
+for result, expr in try_ops(result1, result2):
+if remaining:
+for final_result, final_expr in generate_results(remaining + [result]):
+results.append((final_result, final_expr.replace(str(result), expr, 1)))
+else:
+results.append((result, expr))
+return results
+# Function to parse puzzle string into numbers
+def parse_puzzle(puzzle_str):
+return [int(n) for n in puzzle_str.split()]
+def process_puzzles(file_path):
+puzzles_df = pd.read_csv(file_path)
+puzzle_samples = puzzles_df[’Puzzles’].tolist()
+solutions_dict = {}
+for puzzle_str in puzzle_samples:
+numbers = parse_puzzle(puzzle_str)
+results = generate_results(numbers)
+solutions = set()
+for result, expr in results:
+if abs(result - 24) < 1e-6:
+solutions.add(expr)
+if solutions:
+solutions_dict[puzzle_str] = solutions
+else:
+solutions_dict[puzzle_str] = "No solution found"
+return solutions_dict
+# Example usage
+file_path = ’./24.csv’ # Update this to your file path
+solutions_dict = process_puzzles(file_path)
+# Save the solutions to an output file
+output_file_path = ’./solutions.csv’ # Update this to your desired output path
+pd.DataFrame(list(solutions_dict.items()), columns=[’Puzzle’, ’Solution’]).to_csv(output_file_path, index=
+False)
+Figure17: MP-CRAgentsolvesallGameof24Tasksinoneresponsebydirectlygeneratingthesolutioncode,
+whichcanreadandprocessallsamples.
+31Playground Assistants Learn about the Assistants API A ind ted r pfil re es te t ro o u rs re e w tri it eh v ac lo .de Divisors: Numbers that divide into another number without leaving a remainder.
+Hints
+CR Agent Assista… THREADthread_RDoWFvcmm05FMCttrbz1VSGY Run Clear Logs
+Prime Factorize 196: To find the divisors of 196, we first need to find its prime
+Name User factorization.
+aC sR s tA _g Ne Nn Zt z A yxs As 0is Nt Ia Un Wt- hv Q0 B.1 2. 32 U… P 19ro 6b hl ae vm e: ? How many positive whole-number divisors does U fos re m t uh le a D toi v fii nso dr t hFo e r tm otu al la n: uO mnc be e rt h oe f dp ir vim isoe r f sa .ctorization is complete, apply the divisor
+Instructions Intermediate Steps: Question-AnswerSketch-Code-Output-Answer
+- 2 ]**Hint 2**: [useful hints C T faoR c dA toeg rte ie zn r et m A this n es ei s n ht ua o mn wt- b v m e0 r. a1 . in2 ny t op io tss i pti rv ie m w eh fao cle t- on rsu .m Ab fte er r d wi av ris do , r ys o ua n apum plyb e thr eh a fos r, myo uu la n te he ad t t ino volves LP ea t'i sr s begin with the first question.
+- [...] the powers of these prime factors. If the prime factorization of a number ( n ) is given by
+Model [ w n h e= r p e _ (1 p^{ _a 1,_ p1} _ \ 2c , d \lo dt o p ts_2 , p^{ _a k_ )2 a} r \ ec td ho et p\l rd imot es f\ ac cd to ot r sp o_k f ^ ( { na _ ),k a} n] d ( a_1, a_2, \ldots, a_k ) are Question 1: What is the prime factorization of 196?
+gpt-4-1106-preview their respective powers, then the number of positive divisors ( d(n) ) of ( n ) can be found Answer Sketch: Calculate the prime factorization of 196 by dividing it by the smallest
+using the following formula: prime number until it results in 1.
+[ d(n) = (a_1+1)(a_2+1)\ldots(a_k+1) ]
+TOOLS This is because for each prime factor ( p_i ), you can have a divisor with ( p_i ) raised to a Code Interpreter for Question 1
+power from 0 up to ( a_i ), and you can combine these in any way with the other factors to
+Functions Add get a unique divisor of ( n ). Let's use Python code to find the prime factorization of 196. We will import Sympy and use
+Code interpreter its prime factorization functions to achieve this.
+Retrieval Preliminary Contents from sympy import factorint
+Factorization: The process of breaking down a number into its prime factors. factorint(196)
+FILES Add Prime Factors: The prime numbers that divide a given number exactly, without leaving
+Y a remainder. Y Answer for Question 1
+We will see the output of this code block which will give us the prime factorization of 4 num_divisors = prod((exponent + 1) for exponent in prime_factors.va
+196. 5 num_divisors
+Let's run the code to get the prime factorization.
+Answer for Question 2
+code_interpreter(from sympy import factorint # Find the prime factors of 196 pr…) After running the above code, we will obtain the number of positive divisors of 196.
+{2: 2, 7: 2} Let's execute the code.
+CR Agent Assistant-v0.1.2
+Answer for Question 1 code_interpreter(from sympy import prod # Using the exponents from the prime fa…)
+9
+The prime factorization of 196 is (2^2 \cdot 7^2).
+Now that we have the prime factors and their exponents, we can proceed to calculate the CR Agent Assistant-v0.1.2
+number of positive divisors. Answer for Question 2
+Question 2: How many positive divisors does 196 have given its prime The number of positive whole-number divisors that 196 has is 9.
+factorization?
+Final Solution:
+Answer Sketch: Given the prime factorization (2^2 \cdot 7^2), we have two primes ( p_1
+= 2 ) and ( p_2 = 7 ) with exponents ( a_1 = 2 ) and ( a_2 = 2 ) respectively. Substituting Recall the origin problem: How many positive whole-number divisors does 196 have?
+these into the divisor formula ( d(n) = (a_1+1)(a_2+1) ) gives ( d(196) = (2+1)(2+1) ).
+Solution Sketch
+Code Interpreter for Question 2
+After finding the prime factorization of 196 to be (2^2 \cdot 7^2), we applied the formula for
+We can now calculate the total number of divisors using the result of the prime determining the number of divisors, which gave us ( d(196) = (2+1)(2+1) = 3 \cdot 3 = 9 ).
+factorization.
+Final Answer
+1 from sympy import prod
+2 The final answer is $\boxed{9}$.
+Y 3 # Calculate the total number of divisors Y
+Figure 18: Experiment on MP-CR using OpenAI Assistant within the OpenAI Playground for solving a
+MATH[17]problem.
+32<system>
+<description>
+As one of the most distinguished mathematicians, logicians, programmers, and AI
+scientists, you possess an unparalleled mastery over various mathematical domains.
+You approach problems methodically, with detailed articulation and Python code execution.
+</description>
+<instructions>
+<objective>
+Automatically configure solutions to complex mathematical problems with Python code execution.
+</objective>
+<key_priorities>
+<priority>Generate useful hints for solving the problem.</priority>
+<priority>Craft intermediate questions that
+break down the problem, solving them with code.</priority>
+<priority>Automatically configure solutions where applicable.</priority>
+</key_priorities>
+<code_execution_guidelines>
+<guideline>Import necessary libraries in all code blocks.</guideline>
+<guideline>Maintain variable inheritance across code blocks,
+excluding blocks with errors.</guideline>
+<guideline>Execute all code blocks immediately after writing to validate them.
+</guideline>
+</code_execution_guidelines>
+<mathematical_formatting>
+<format>Present the final answer in LaTeX format, enclosed within ’\boxed{}’
+without units.</format>
+<format>Use ’pi’ and ’Rational’ from Sympy for pi and fractions,
+simplifying them without converting them to decimals.</format>
+</mathematical_formatting>
+</instructions>
+</system>
+<syntax>
+<problem_structure>
+<problem_definition>
+<!-- Insert Problem Here -->
+</problem_definition>
+<solution_approach>
+<!-- Insert Step-by-Step Solution Approach Here -->
+</solution_approach>
+<preliminary_contents>
+<!-- Insert Preliminary Contents Here -->
+</preliminary_contents>
+<hints>
+<!-- Insert Useful Hints Here -->
+</hints>
+<intermediate_steps>
+<!-- Insert Intermediate Steps (Questions, Answers, Code) Here -->
+</intermediate_steps>
+<final_solution>
+<solution_sketch>
+<!-- Insert Solution Sketch Here -->
+</solution_sketch>
+<code_for_solution>
+<!-- Insert Code for Final Solution Here -->
+</code_for_solution>
+<final_answer>
+<!-- Insert Final Answer Here -->
+</final_answer>
+</final_solution>
+</problem_structure>
+</syntax>
+Figure19: PromptofMP-CR-XMLAgentv0.2,whichisautonomouslygeneratedbyMP-CRAgentv0.1(this
+processcanbeseenasmetaprogramming).
+33As one of the most distinguished mathematicians, logicians, programmers, and
+AI scientists, you possess an unparalleled mastery over Arithmetic, Combinatorics, Number
+Theory, Probability Theory, Algebra, Analysis, and Geometry. You are not only intelligent
+and rational but also prudent and cautious. You are willing to write and execute Python
+code. Let’s approach each problem step by step, take a deep breath, do not save your
+words, and articulate our thoughts in detail, as detailed as possible.
+<system>
+You will be presented with a mathematical problem, denoted as ‘MathP‘. Before diving into
+the solution, you are asked to lay down some foundational preliminary contents and hints.
+Thereafter, you will generate a series of intermediate questions that pave the way to the
+final answer of ‘MathP‘. For each question, sketch a preliminary answer, execute the
+corresponding code (you always remember to ‘from sympy import *‘), derive the output, and
+then finalize your answer. This forms a [Question] -> [AnswerSketch] -> [Code] ->
+[Output] -> [Answer] sequence.
+## System Instructions for Mathematical Problem-Solving
+### Objective
+Your primary goal is to solve complex mathematical problems with code environment feedback.
+### Key Priorities
+1. **Hints**: Prioritize generating hints that are useful for solving the problem.
+2. **Intermediate Questions**: Craft questions that decompose the problem into simpler parts,
+then try to solve them with code environment feedback.
+### Code Execution Guidelines
+1. **Import Libraries**: YOU MUST IMPORT NECESSARY LIBRARIES in all your code blocks.
+2. **Immediate Execution**: Execute **all** your code immediately after writing them to ensure
+they are working as intended. You should use code interpreter immediately after you have written
+the code, to get the output.
+3. **YOU MUST CALL CODE INTERPRETER IMMEDIATELY IN EVERY QUESTION**.
+### Mathematical Formatting
+1. **Final Answer**: Present your final answer to the origin problem lastly (not your generated
+questions)
+in LaTeX format, enclosed within ‘\boxed{}‘ and devoid of any units.
+2. **Mathematical Constants and Rational Numbers**: Use the ‘pi‘ symbol and the ‘Rational‘ class
+from the Sympy library to represent \( \pi \) and fractions. All fractions and square roots
+should be simplified but **not** converted into decimal values.
+</system>
+---
+Figure 20: System Meta Prompt used in MP-CR, the actual context would be [SystemMetaPrompt] +
+[StructureMetaPrompt].
+34E Typed Meta Prompting for Multi-Modal Foundation Models
+The syntactic and structured nature of meta prompts in Meta Prompting proves highly beneficial for AI
+agentsintermsoftoolusageanddatamanipulation. Thebuilt-inconceptofcomputationwithintypetheory
+makesMetaPromptingseamlesslyintegratewithperipheralcomputationalandphysicalenvironments. These
+structuredprompts,akintostructuredprogramming,provideaclear,conciseframeworkforAIagentstofollow,
+reducingambiguityandenhancingefficiency. TheemphasisontypesafetyfurtherensuresthattheAIsystems
+interactwithdataandtoolsinaconsistentanderror-minimizedmanner. Thisaspectisparticularlycrucial
+when AI systems are required to interact with physical tools or devices, where precision and accuracy are
+paramount.
+MetaPrompting,especiallyinthecontextofmulti-modalfoundationmodels,revolutionizestheinteraction
+between AI systems and various data types, including symbolic systems, code environments, and physical
+interactions. This approach enriches the AI’s understanding and processing capabilities across different
+modalities, including visual and auditory data, making it particularly effective in complex, real-world
+applications[19].
+E.1 ExpandingMetaPromptingintoMulti-ModalSettings
+As the frontier of artificial intelligence evolves, the potential of Meta Prompting extends beyond its initial
+monomodal,text-basedconceptualizationintotherealmofmulti-modalfoundationmodels. Theseadvanced
+modelsintegratediversedatatypessuchasimages,audio,andvideo,necessitatinganadaptiveandversatile
+promptingframework. Thetransitiontomulti-modalsettingsintroducesseveralcomplexities,fundamentally
+alteringhowdataisprocessedandinterpreted.
+Challenges in Multi-Modal Meta Prompting. Transitioning to multi-modal environments poses unique
+challenges,eachdemandingmeticulousattention. Firstly,theexpansionintomulti-modalsettingsrequires
+theprocessingofvariedformatslikeimages(PNG,JPG),audio(MP3),andvideo(MP4). Thisnecessitates
+asystemcapableofunderstandingandmanipulatingthesedifferentmodalities. Secondly, acriticalaspect
+involvessynchronizingandcoherentlyintegratingdatafromdisparatemodalities,ensuringaunifiedapproach
+toproblem-solving. Lastly,adaptingMetaPromptingtomulti-modaldatawhilepreservingitscorefocuson
+structureandsyntaxrequirestheframeworktobeflexibleyetrobust.
+To effectively navigate the complexities of multi-modal data, Meta Prompting must evolve in several key
+areas. firstly, the framework should incorporate placeholders or tags tailored to different modalities, such
+as‘<png_embedding>’forimages, ‘<mp3_embedding>’foraudio, and‘<mp4_embedding>’forvideo.
+Secondly,embeddingeachmodalityinacontextuallyrelevantmanneriscrucial. Forinstance,imagesina
+mathproblemmightvisuallydepicttheproblem,whileaudioclipsinalanguagetaskcouldofferpronunciation
+clues. Lastly,Thesystemshouldbecapableofintermodalanalysis,drawinginferencesbycross-referencing
+betweentext,images,sounds,orvideos,andthesolutionorresponsemustbeasynthesisofinputsfromall
+modalities,ensuringthattheoutputiscomprehensiveandcoherent.
+ExpandingMetaPromptingtoaccommodatemulti-modaldatapresentsanexcitingfrontierinAIresearch.
+Thisprogressiondemandsanintricate,sophisticatedframeworkcapableofhandlingthecomplexitiesinherent
+in multi-modal data. By embracing these challenges, Meta Prompting stands to significantly broaden its
+applicability,usheringinaneweraofintelligent,adaptableAIsystems.
+35<system>
+<description>
+As one of the most distinguished mathematicians, logicians, programmers, and AI
+scientists, you possess an unparalleled mastery over various mathematical domains.
+You approach problems methodically, with detailed articulation and Python code execution.
+</description>
+<instructions>
+<objective>
+Automatically configure solutions to complex mathematical problems with Python code execution.
+</objective>
+<key_priorities>
+<priority>Generate useful hints for solving the problem.</priority>
+<priority>Craft intermediate questions that
+break down the problem, solving them with code, which forms such a sequence:
+[Question] -> [AnswerSketch] -> [Code] -> [Output] -> [Answer].</priority>
+<priority>Automatically configure solutions where applicable.</priority>
+</key_priorities>
+<code_execution_guidelines>
+<guideline>Import necessary libraries in all code blocks.</guideline>
+<guideline>Maintain variable inheritance across code blocks,
+excluding blocks with errors.</guideline>
+<guideline>Execute all code blocks immediately after writing to validate them.
+</guideline>
+</code_execution_guidelines>
+<mathematical_formatting>
+<format>Present the final answer in LaTeX format, enclosed within ’\boxed{}’
+without units.</format>
+<format>Use ’pi’ and ’Rational’ from Sympy for pi and fractions,
+simplifying them without converting them to decimals.</format>
+</mathematical_formatting>
+</instructions>
+</system>
+<syntax>
+<proble\mathcal{M}_structure>
+<proble\mathcal{M}_definition>
+<!-- Insert Problem Here -->
+</proble\mathcal{M}_definition>
+<preliminary_contents>
+<!-- Insert Preliminary Contents Here -->
+</preliminary_contents>
+<hints>
+<!-- Insert Useful Hints Here -->
+</hints>
+<intermediate_steps>
+<!-- Insert Intermediate Steps 1 ([question_1] -> [answersketch_1] -> [code_1] -> [output_1] ->
+[answer_1]) Here
+(**You need to run the code immediately before next step**) -->
+<!-- Insert Intermediate Steps 2 Here -->
+<!-- Insert Intermediate Steps ... Here -->
+</intermediate_steps>
+<final_solution>
+<solution_sketch>
+<!-- Insert Solution Sketch Here -->
+</solution_sketch>
+<code_for_solution>
+<!-- Insert Code for Final Solution Here -->
+</code_for_solution>
+<final_answer>
+<!-- Insert Final Answer Here -->
+</final_answer>
+</final_solution>
+</proble\mathcal{M}_structure>
+</syntax>
+Figure21: SystemInstructionsandMetaPromptusingXMLformat,whichwouldbeusefulwhenaidedby
+constrainedgenerationframeworksuchasguidance[29]andLangchain[9].
+36<data_types>
+<data_type>
+<png>
+<embedding>
+<!-- Embed PNG image data here -->
+</embedding>
+</png>
+</data_type>
+<data_type>
+<mp3>
+<embedding>
+<!-- Embed MP3 audio data here -->
+</embedding>
+</mp3>
+</data_type>
+<data_type>
+<mp4>
+<embedding>
+<!-- Embed MP4 video data here -->
+</embedding>
+</mp4>
+</data_type>
+<data_type>
+<3d_model>
+<embedding>
+<!-- Embed 3D model data here -->
+</embedding>
+</3d_model>
+</data_type>
+<!-- Additional modalities can be added similarly -->
+</data_types>
+Figure22: GeneralizeMetaPromptingintomulti-modalsettings.
+37

@@ -1,0 +1,1061 @@
+Preprint
+SELECTIVE ANNOTATION MAKES LANGUAGE MOD-
+ELS BETTER FEW-SHOT LEARNERS
+HongjinSu♠ JungoKasai♣♦ ChenHenryWu♥ WeijiaShi♣ TianluWang♦ JiayiXin♠
+RuiZhang(cid:70) MariOstendorf♣ LukeZettlemoyer♣♦ NoahA.Smith♣♦ TaoYu♠♣
+♠TheUniversityofHongKong ♣UniversityofWashington ♦AllenInstituteforAI
+♥CarnegieMellonUniversity (cid:70)PennStateUniversity ♦MetaAI
+{hjsu,tyu}@cs.hku.hk, henrychenwu@cmu.edu, ostendor@uw.edu
+{jkasai,swj0419,lsz,nasmith}@cs.washington.edu
+ABSTRACT
+Many recent approaches to natural language tasks are built on the remarkable
+abilitiesoflargelanguagemodels. Largelanguagemodelscanperformin-context
+learning, where they learn a new task from a few task demonstrations, without
+anyparameterupdates. Thisworkexaminestheimplicationsofin-contextlearn-
+ingforthecreationofdatasetsfornewnaturallanguagetasks. Departingfrom
+recentin-contextlearningmethods,weformulateanannotation-efficient,two-step
+framework: selectiveannotationthatchoosesapoolofexamplestoannotatefrom
+unlabeleddatainadvance,followedbypromptretrievalthatretrievestaskexam-
+plesfromtheannotatedpoolattesttime. Basedonthisframework,weproposean
+unsupervised,graph-basedselectiveannotationmethod,vote-k,toselectdiverse,
+representativeexamplestoannotate. Extensiveexperimentson10datasets(cov-
+eringclassification,commonsensereasoning,dialogue,andtext/codegeneration)
+demonstratethatourselectiveannotationmethodimprovesthetaskperformance
+byalargemargin. Onaverage,vote-kachievesa12.9%/11.4%relativegainunder
+anannotationbudgetof18/100,ascomparedtorandomlyselectingexamplesto
+annotate. Comparedtostate-of-the-artsupervisedfinetuningapproaches,ityields
+similarperformancewith10-100×lessannotationcostacross10tasks. Wefurther
+analyzetheeffectivenessofourframeworkinvariousscenarios: languagemodels
+withvaryingsizes,alternativeselectiveannotationmethods,andcaseswherethere
+isatestdatadomainshift. Wehopethatourstudieswillserveasabasisfordata
+annotationsaslargelanguagemodelsareincreasinglyappliedtonewtasks.1
+Prior work:
+Step 1 (our focus) Large labeled data Step 2
+Selective Annotation before test time Prompt Retrieval during test time
+In-context labeled
+examples
+Large Retrieve Predict
+unlabeled data Selected Our work: Test output
+unlabeled data Small labeled data
+Select Annotate Test input
+Figure1: Left: Ourtwo-stepframeworkforin-contextlearning. Insteadofassumingaccesstolarge
+labeleddata,wefirstselectasmallnumberof(diverseandrepresentative)unlabeledexamplesto
+annotatebeforetesttime. Attesttime,weretrievein-contextexamplesfromthesmallannotated
+pool. Right: In-contextlearningperformanceovervaryingannotationbudgetsaveragedoverthree
+representativetasks(HellaSwagcommonsensereasoning,MRPCparaphrasedetection,andMWOZ
+dialoguestatetracking). HereweexperimentwithGPT-JandCodex-davinci-002. Twoselective
+annotationmethodsarepresented: randomselectionandourvote-k method. Weobservethatan
+appropriateselectiveannotationmethodlargelyimprovesthein-contextlearningperformancewith
+smallervarianceoverrandomselectionundervaryingannotationbudgets.
+1Ourcodeisavailableathttps://github.com/HKUNLP/icl-selective-annotation
+1
+2202
+peS
+5
+]LC.sc[
+1v57910.9022:viXraPreprint
+1 INTRODUCTION
+Muchrecentworkbuildsapproachestonaturallanguagetasksontheimpressiveabilitiesoflarge
+languagemodels(e.g.,GPT-3;Brownetal.,2020). Largelanguagemodelscanperformdownstream
+tasksbyconditioninggenerationonafewtaskdemonstrations,therebyavoidingtheneedforany
+parameter updates. This new, few-shot learning paradigm is called in-context learning and has
+becomeanattractivealternativetosupervisedfinetuning(Liuetal.,2021). Inthiswork,westudy
+the implications of this remarkable capability of large language models for dataset creation and
+annotation. Weextensivelyexaminehowtoreducethemanualannotationcostwhileretaininghigh
+in-contextlearningperformance.
+Althoughin-contextlearningwasoriginallyproposedforfew-shotlearning,recentworksshowthat
+retrievingpromptsfromalargesetofannotatedexamplesisnecessarytoachievegoodperformances
+(Liu et al., 2022; Rubin et al., 2022). In particular, they show that the performance substantially
+improves when similar examples (under some embedding function) are retrieved as in-context
+examplesspecificallyforeachtestinput(Liuetal.,2022). Eachtestsampleonlyrequiresafew
+in-context examples in its prompt. Different test instances, however, require different in-context
+exampleswiththeirassociatedannotations,necessitatingalargesetofannotatedexamples.
+Distinct from these recent efforts, we establish a two-step framework to better understand and
+improvetheannotationefficiency(Fig.1): thefirststepisselectiveannotationthatpicksasmall
+numberofinstancestogetannotatedbeforetesttime,followedbypromptretrievalthatretrieves
+in-contextexamplesforeachtestinstancefromtheannotateddata. Thetotalannotationbudgetis
+thenumberofexamplesselectedandannotatedinthefirststep. Thesecondstepisboundedbythe
+numberofexamplesthatcanfitasinputtoalanguagemodel. Basedonthisframework,wepropose
+anunsupervised,graph-basedselectiveannotationmethod,namedvote-k,thatselectsdiverseand
+representativeinstancestobeannotated.
+Ourextensiveexperimentsover10datasetsacrossdiversetasks(coveringclassification,commonsense
+reasoning,dialogue,andtext/codegeneration;seeTab.2)demonstratethatourgraph-basedselective
+annotationmethod, vote-k (§2.1), substantiallyimprovesthein-contextlearningperformanceby
+balancingthediversityandrepresentativenessofannotatedsamples. Forinstance,vote-k,combined
+withsimilarity-basedpromptretrieval(Liuetal.,2022;Rubinetal.,2022),achievesa11.4%relative
+gainunderabudgetof100annotatedexamplesanda12.9%relativegainwhenonly18examples
+areannotated;18samplescanfitintolanguagemodels’input,meaningthepromptretrievalstepis
+notneeded. Moreover,theimprovementisconsistentacrosslanguagemodelswithvaryingsizes
+(2B-175Bparameters)(§4.2). Thisfindingisincontrastwithfinetuning,wherewecannotseethe
+effectivenessofselectiveannotationoverrandombaseline,duetooutliers(Karamchetietal.,2021)
+or training instability (D’Arcy & Downey, 2022). We hypothesize that in-context learning with
+similarity-basedpromptretrievalismorerobusttosmallannotationsizesandoutliersbecauseonly
+themostsimilarexamplesareretrievedforeachtestinstance. Indeed,weobservethatrandomprompt
+retrievalfailstobenefitfromselectiveannotation(§4.4),providingsupportforourhypothesis.
+Besidesperformancecomparisonswithinafixedannotationbudget,weshowthatselectiveannotation
+providesbetterfew-shotperformancewith5-100×lessannotationcostfornewnaturallanguage
+tasks. In-contextlearningwith18examplesselectedbyvote-kachieveshigherperformancethan100
+randomlyselectedexampleson6outofthe10tasks. Italsooutperformsstrongfinetuningmethods
+byalargemargin(Fig.2)andrequires10-100×lessannotationsforsimilarperformance(§4.1). We
+observe that in-context learning quickly (100 or 300 samples are annotated) converges to decent
+performancewhenvote-kselectiveannotationisapplied. Theseresultssuggestthatlargelanguage
+modelsdonotrequirelargeannotateddatasets(e.g.,10K)duetotheirabilitytoadapttonewtasks
+throughsimpleprompting.
+Selectiveannotationalsomakesin-contextlearningmuchmorestable. Inreal-worldscenarios,even
+collectingunlabeleddataisnon-trivialandintroducesrandomness. Wesimulatesuchrandomness
+inourexperimentalsettingbysubsamplingtheoriginalunlabeleddatamultipletimes. Ourresults
+suggestthatvote-kselectiveannotationlargelyreducesthevarianceofin-contextlearningeveninthis
+setting(Tab.2). Furtheranalysisshowslargerimprovementswhenthereisadomainshiftbetween
+trainingandtestdata(e.g.,textfromdifferentAmazonusers;Kohetal.,2021;§4.3). Finally,when
+comparedwithpreviousselectiveannotationmethodsdesignedforsupervisedtraining/finetuning,
+wedemonstratethatvote-kselectiveannotationconsistentlyimprovestheperformance(§4.5). As
+2Preprint
+in-contextlearninghasbeenappliedtoincreasinglymorenaturallanguageprocessingapplications,
+wehopethatourannotation-efficientframeworkwillprovideusefulguidanceforbothresearchers
+andpractitioners.
+2 SELECTIVE ANNOTATION FOR IN-CONTEXT LEARNING
+In-contextlearningonlyrequiresafewannotatedexamplespertestinstance(few-shotlearning),
+whileavoidingexpensivefinetuningonthewholetrainingdata. Itis,however,oftenassumedthatall
+annotatedtrainingdataareavailableforpromptretrieval(e.g.,Liuetal.,2022;Rubinetal.,2022).
+Yettheimpliedtotalannotationcostsarehardlydiscussedinpreviouswork. Wedevelopabetter
+practiceforfew-shotlearningwithlargelanguagemodelsbycarefullystudyingthetotalannotation
+costrequiredforin-contextlearning. Wealsostudyhowexamplesshouldbeselectedtoannotate,in
+ordertomakein-contextlearningperformbetterfornewtasks. Weformulateageneralframework
+(Fig.1left)thatconsistsoftwosteps: selectiveannotation(§2.1)andpromptretrieval(§2.2).
+2.1 SELECTIVEANNOTATION
+Thefirststepchoosesexamplestoannotatebeforetesttime. Thisprocessthusdeterminesthetotal
+annotationbudget. Thisselectiveannotationprocessislargelyignoredintherecentliteraturefor
+in-context learning. We will demonstrate, however, that the annotation cost can be substantially
+reducedbychoosingasmallsetofdiverse,representativeexamples,whileretainingthedownstream
+performance(§3). Formally,givenasetofunlabeledsamplesX = {x }N ,selectiveannotation
+i i=1
+aimsatselectingasubsetL ⊂ X tobeannotated, where|L| = M istheannotationbudget. We
+discussourvote-kselectiveannotationmethodandotherselectiveannotationbaselinesbelow.
+Vote-k Thegoalofselectiveannotationforin-contextlearningistoselectdiverseandrepresentative
+examples; representativeness will help many test instances to find similar demonstrations, while
+diversity increases the total coverage. We develop vote-k, a graph-based method that promotes
+bothdiversityandrepresentativeness. AdetailedalgorithmcanbefoundinAppendixG.Wefirst
+computeavectorrepresentationforeachunlabeledtraininginstanceusingSentence-BERT(Reimers
+&Gurevych,2019)byaveragingtheresultingvectorsoverthetextinputwords.2 Wethenusethe
+embeddingvectorstocreateadirectedgraphG = (V,E)wheretheverticesV aretheunlabeled
+instancesX asdefinedabove. Foreachvertexv ∈V,wecreateanedgetoitsknearestverticesin
+termsofthecosinesimilaritybetweentheembeddings. NowletLandU denotethesetsofalready
+chosen(i.e.,labeled)samplesandremainingsamples,respectively. Initially,L = ∅. Everyvertex
+u∈U isscoredbyamodifieddegree:
+(cid:88)
+score(u)= s(v), wheres(v)=ρ−|{(cid:96)∈L|(v,(cid:96))∈E}|, ρ>1
+v∈{v|(v,u)∈E,v∈U}
+wheresdiscountsv thatisclosetothealreadyselectedinstances, therebyencouragingdiversity.
+Ineveryiteration,wetakeargmax score(u)andmoveitfromU toL. WerunM/10ofthese
+u∈U
+iterations;afterthisprocess,thecurrentlabeledLhasM/10samples(uptoLine7inAlgorithm1).
+Subsequently,weuseLasthein-contextlearningexamplesforlargelanguagemodel,e.g.,GPT-J
+(Wang&Komatsuzaki,2021),andgenerateapredictionforeveryinstanceinU. Wethencompute
+theaveragelogprobabilityoverthegenerationoutputasthemodel’sconfidencescore(Line8to
+Line10inAlgorithm1). WethenpartitionU intoM equal-sizedbuckets,basedontheirconfidence
+scores(e.g.,ifM =100,wegrouptheunlabeledinstancesbypercentile). WeaddtoLtheexample
+withthemaximumscorefromeachofthefirst9M/10buckets(discardingtheM/10bucketswith
+themostconfidentexamples),resultingin|L|=M (Line11toLine18inAlgorithm1). Thisfurther
+encouragesdiversitybyselectinginstanceswithvaryingconfidencescoresfromin-contextlearning.
+Wetunedkandρinourpreliminaryexperiments,andfoundthatk=150andρ=10performwell
+acrossmanydatasets. Wewillexploreotherselectiveannotationmethodsfrompriorworkonactive
+learningorcoresetselection(§4.5)andseethatvote-koutperformsthesealternativemethods.
+Random and Other Selective Annotation Methods To quantify the effect of selective annota-
+tion,wealsoproviderandomandotherbaselines. Forrandomly-selectedannotation,weconduct
+2https://huggingface.co/sentence-transformers/all-mpnet-base-v2.
+3Preprint
+experimentsthreetimesandreporttheaveragescore. Wewillshowthatthesebaselinessubstantially
+underperformthevote-kmethod(§3.3),demonstratingtheimportanceoftheselectiveannotation
+steptoreducethetotalannotationcost.
+2.2 PROMPTRETRIEVAL
+OncewehaveasetofannotatedexamplesLfromselectiveannotation,weretrieveafewexamples
+fromtheannotatedsetasin-contextexamplesforeachtestinstance. Followingrecentwork(Liu
+etal.,2022),wewillcomputeembeddingsforallannotatedsamplesusingSentence-BERTandfind
+themostsimilarexamplestoeachtestinstanceintermsofcosinesimilarity.
+3 EXPERIMENTS
+Weconductextensiveexperimentsover10diversedatasets,spanning9distincttasks,andshowa
+betterapproachtofew-shotlearningthanpreviouslyconsidered. Ingeneral,wefindthatthefirststep
+ofselectiveannotationisparticularlycrucialtoreducetheamountofrequiredannotation.
+3.1 DATASETSANDTASKS
+We use 10 diverse NLP datasets across 9 tasks that are listed in Table 1. These datasets involve
+differenttaskformulations,therebyallowingforextensiveevaluationsinvaryingscenarios. Someof
+thoseareincludedinthewidely-usedGLUEbenchmark(Wangetal.,2019). AppendixAillustrates
+detailsofthe10datasetswithexamples.
+Foreachdataset, weusethestandardtrain/dev./testsplitavailablefromtheTransformerslibrary
+(Wolfetal.,2020). Intheselectiveannotationstep,weremovealllabelsinthetrainingdata. Forthe
+datasetsthathavetestdataavailablepublicly,weusethethetestdataforevaluation(SST-5,XSUM,
+MWoZ,andDBpedia). Fortheothers,wefollowpriorwork(e.g.,Jiangetal.,2020;Lanetal.,2020;
+Gaoetal.,2021)andusethedev.dataforevaluation.3 Weevaluatethemethodsbyaccuracyfor
+allclassificationandmultiple-choiceselectiondatasets,jointaccuracy(Budzianowskietal.,2018)
+forMWoZ,testsuiteaccuracy(Zhongetal.,2020)forGeoQuery,exactmatching(Rajpurkaretal.,
+2016)forNQ,andROUGE-L(Lin,2004)forXSum.
+Dataset Task In-ContextLearningModels
+MRPC(Dolanetal.,2004) ParaphraseDetection GPT-Neo,GPT-J,GPT-3
+SST-5(Socheretal.,2013) SentimentAnalysis GPT-J
+Classification DBpedia(Lehmannetal.,2015) TopicClassification GPT-J
+MNLI(Williamsetal.,2018) NaturalLanguageInference GPT-J
+RTE(Bentivoglietal.,2009) NaturalLanguageInference GPT-J
+Multiple-Choice HellaSwag(Zellersetal.,2019) CommonsenseReasoning OPT,GPT-Neo,GPT-J,GPT-3
+Dialogue MWoZ2.4(Budzianowskietal.,2018) DialogueStateTracking Codex-{cushman,davinci-002}
+GeoQuery(Zelle&Mooney,1996) SemanticParsing Codex-davinci-002
+Generation NQ(Kwiatkowskietal.,2019) Open-DomainQA Codex-davinci-002
+XSUM(Narayanetal.,2018) Summarization GPT-J
+Table1: Allthe10datasetsandthein-contextlearningmodelsusedinourexperiments. GPT-Jand
+Codex-davinci-002areusedbydefault. Otherin-contextlearningmodelsareexploredinanalysis.
+Measuring Stability Given a set of unlabeled data, our vote-k selective annotation algorithm
+is deterministic, without any randomness. However, we note that in real scenarios, even getting
+unlabeledsamplesisnottrivial,andgettingunlabeledsamplescanbeaprocesswithlargevariance.
+Tosimulatethisrealsetting,weperformselectiveannotationfrom3Kinstancesthatarerandomly
+subsampled from the original training data for each task. For each experiment, we repeat this
+subsamplingthreetimes,andresultsareaveragedoverthethreetrials. Wewillfindthatvote-kstill
+substantiallyimprovesstabilityoveralternativeselectiveannotationmethods.
+3TheoneexceptionisGeoQuery,whereweconcatenatedthedev.andtestdatatohavereliableevaluations
+onlargerdata.
+4Preprint
+3.2 IN-CONTEXTLEARNINGMODELS
+WemainlyperformexperimentsusingGPT-Jwith6Bparameters(Wang&Komatsuzaki,2021)due
+toourcomputationalbudget. TheexceptionsaretheMWoZ,GeoQuery,andNQdatasets,wherewe
+useCodex-davinci-002(Chenetal.,2021),4avariantofGPT-3finetunedoncodedatafromtheweb.
+Codexisparticularlyeffectiveforstructuredpredictionsuchassemanticparsing,andwefoundit
+isindeedeffectiveonthreedatasets(MWoZ,GeoQuery,andNQ)inourpreliminaryexperiments.
+Wewillexploretheeffectivenessofselectiveannotationonthelargestpublicallyavailablelanguage
+models,OPT-175B(Zhangetal.,2022)forHellaSwag(Fig.4)andCodex-davinci-002forMWoZ,
+overvaryingannotationbudgets. Wewillalsoexploreotherlanguagemodelswithdifferentsizes
+forthreerepresentativetasks(HellaSwag,MWoZ,andSST-5)in§4.2: GPT-3with175B(Brown
+etal.,2020)andGPT-Neowith2.7Bparameters(Blacketal.,2021). Ourlaterexperimentswillshow
+thesamepatternsamongselectiveannotationmethodsoverthesedifferentlanguagemodels. For
+theclassificationandmultiple-choicetasks,wecomputetheaveragelogscoreforeachchoiceand
+choosethemaximumone. Forgenerationtasks,wesimplyperformbeam-searchdecoding.
+See Appendix B for our in-context learning prompt templates for all 10 datasets. For every test
+instance,wefeedasmuchretrievedsamplesaspossibleintothelanguagemodeluntilthemaximum
+tokenlengthisreached. Onaverage,thenumberofsamplesN fedintothelanguagemodelis13.4
+acrossdifferentexperiments. Thein-contextexamplesareconcatenatedintheascendingorderofthe
+similaritysothatmoresimilarexamplesbenefitfromtherecencybias(Luetal.,2022).
+3.3 MAINRESULTS
+Method Classification Multi-Choice Dialogue Generation
+|L| Selection MRPCSST-5MNLIDBpediaRTE HSwag MWoZ GeoQ NQ XSum
+100 Random 63.5 44.2 37.4 89.8 51.5 65.2 47.2 78.6 30.8 15.3
+100 Vote-k 70.7 53.0 47.3 93.4 55.5 70.7 51.4 82.8 33.6 17.2
+100∆Absolutegain +7.2 +8.8 +9.9 +3.6 +4.0 +5.5 +4.2 +4.2 +2.8 +1.9
+18 Random 59.6 39.8 36.7 77.6 50.4 62.5 33.6 62.4 29.8 13.6
+18 Vote-k 64.2 47.6 41.0 87.1 54.3 67.4 42.8 72.5 32.3 15.2
+18 ∆Absolutegain +4.8 +7.8 +4.3 +9.5 +3.9 +4.9 +8.8 +9.9 +2.5 +1.6
+Table2: In-contextlearningresultswithrandomly-selectedandvote-kselectiveannotationmethods
+onall10datasets,withanannotationbudgetof100or18.Thereisnopromptretrievalstepwhenonly
+18samplesareannotatedsinceallannotatedsamplescanfitintothein-contextlearningmodel’sinput.
+Acrosstheboard,selectiveannotationwithvote-ksubstantiallyoutperformstherandomly-selected
+annotationbaselineforin-contextlearning. Further,vote-klargelyreducesthevarianceoverthree
+trials(seetheminandmaxresultsinAppendixC),makingin-contextlearningmorestable.
+Seen in Table 2 are our results from all 10 diverse datasets with the annotation budgets of |L| ∈
+{18,100}. 18 is chosen so that all annotated examples can be fit to the prompt for the language
+models without prompt retrieval. Over all datasets, vote-k selective annotation outperforms the
+randombaselinebyalargemargin(5.2%absolutegainand11.4%relativegainonaverage)when
+theannotationbudgetis100. Evenwhenonly18examplesareannotatedandfixedasthein-context
+examplesforalltestinginstances(nopromptretrievalstep), in-contextlearningwithvote-k still
+improvestherandomly-selectedannotationbaseline(5.8%absolutegainand12.9%relativegainon
+average). Particularlynoteworthyisthatin-contextlearningwith18examplesselectedbyvote-k
+achieves higher performance than the one with 100 randomly selected examples on 6 out of 10
+tasks. Moreover, vote-k is a deterministic selective annotation method, conditioned on a set of
+unlabeledsamples. Therefore,thevarianceofvote-kcomessolelyfromhowtheunlabeledsamples
+arecollected,largelyimprovingtherobustnessofin-contextlearning. Wethereforerecommendthat
+researchersandpractitionersuseselectiveannotation(e.g.,ourvote-kmethod)tobetterbenefitfrom
+thefew-shotlearningcapabilityoflargelanguagemodelswithstability. Ourlaterexperimentswill
+alsoillustratethatvote-kconsistentlyoutperformsalternativeselectiveannotationmethods(§4.5).
+4TheparametersizeofCodexisnotofficiallyconfirmed,butitislikelytobe175B.
+5Preprint
+4 ANALYSIS
+Ourextensiveexperimentsdemonstratedthatselectiveannotationisimportantforthesuccessof
+in-contextlearning. Hereweconductdetailedanalysistoprovidefurtherguidanceforresearchers
+andpractitionersoffew-shotin-contextlearning. Weanalyzeselectiveannotationforin-context
+learningfromavarietyofperspectives: comparisonstofinetuningmethods(§4.1),varyinglanguage
+modelsizes(§4.2),testdatadomainshifts(§4.3),promptretrievalmethods(§4.4),andalternative
+selectiveannotationmethods(§4.5).
+4.1 IN-CONTEXTLEARNINGVS.FINETUNING
+70
+60
+50
+40
+30
+18 100 300 800
+ycaruccA
+FT-random FT-vote-k ICL-random ICL-vote-k
+HellaSwag MRPC MWoZ
+60
+70
+50
+60
+40
+50
+30
+40
+20
+30
+18 100 300 800 18 100 300 800
+Annotation size
+Figure2: Comparisonsbetweenthein-contextlearningandfinetuningparadigmsovervaryinganno-
+tationbudgetsonthreerepresentativetasks: HellaSwagcommonsenereasoning,MRPCparaphrase
+detection,andMWoZdialoguestatetracking. Fourconfigurationsarepresented: finetuningwith
+examplesthatarerandomlyselectedtoannotate(FT-random)orselectedbyourvote-k selective
+annotationmethod(§2.1;FT-vote-k)andin-contextlearningwithrandomly-selectedannotation(ICL-
+random)orvote-kselection(ICL-vote-k). See§4.1forexperimentaldetails. Selectiveannotation
+largelyimprovesthein-contextlearningperformancecomparedtorandomly-selectedannotation
+evenwhentheannotationbudgetis18. In-contextlearningwithwisely-selectedlabeledsamplesisa
+muchbetterfew-shotpracticethanastrongfinetuningmethod.
+Asdiscussedearlier,in-contextlearningisanalternativelearningparadigmtoconventionalfinetuning.
+Through the lens of our two-step framework, we observed that selective annotation and prompt
+retrieval are key to the success of in-context learning. A new question now arises: how does in-
+contextlearningcomparewithfinetuningunderlimitedannotationbudgets? Weempiricallycompare
+thetwoparadigmsinthissection.
+Weexperimentwiththreerepresentativetasks: MRPC(classification),HellaSwag(multiple-choice),
+andMWoZ(dialogue). Strong,state-of-the-artpretrainedmodelsareusedforfinetuning: large-sized
+RoBERTa(Liuetal.,2019)forMRPCandHellaSwagandDS2-T5(Shinetal.,2022)forMWoZ.
+In-contextlearningusesGPT-JforMRPC,GPT-JandOPT175B(Fig4)forHellaSwag,andCodex-
+davinci-002forMWoZ.Notethatwedonotaimtoconducthead-to-headcomparisonswithexactly
+thesamepretrainedmodel;finetuningalargeleft-to-rightlanguagemodel(e.g.,GPT-JandGPT-3)is
+computationally(andthusfinancially)infeasibleinmanycases. Hereweexaminethetwoparadigms
+fromthepracticalperspectiveandbenefitfromtheadvantageofin-contextlearning,whichrequires
+noparameterupdatesofmassivelanguagemodels.
+Fig.2comparesthetwoparadigmsacrossvaryingannotationsizes({18,100,300,800}). Overall
+three tasks, we observe that in-context learning with vote-k selection outperforms the finetuning
+performanceofstate-of-the-artpretrainedlanguagemodels. Specifically, wefindthattoachieve
+similarperformancetovote-kwith|L|=18or100,finetuningrequires1000annotatedexamples
+forHellaSwagand800forMWoZ(10-100×annotationcost). Notethatthein-contextlearning
+performance usually converges when 100 or 300 examples are carefully selected and annotated,
+suggestingthatalargeannotateddatasetisunnecessaryforin-contextlearningtoachievestrong
+6Preprint
+performance. Interestingly,selectiveannotationhelpsin-contextlearning,butnotfinetuning. This
+resultisconsistentwithrecentworkshowingthatmanyactivelearningalgorithmsperformsimilarly
+torandombaseline,whenpretrainedlanguagemodelsarefinetuned(Karamchetietal.,2021;D’Arcy
+&Downey,2022). Theyproposedthatitmightbeduetooutliersandtheinstabilityoffinetuningona
+limitednumberofannotatedsamples. Wehypothesizethatin-contextlearningwithsimilarity-based
+promptretrievalismorerobusttooutliersandsmallannotationsizesbecauseonlythemostsimilar
+examplesareretrievedforeachtestinstance. Wefindtwopiecesofevidenceforthishypothesis.
+First,§4.4showsthatrandom(asopposedtosimilarity-based)promptretrievaldoesnotbenefitfrom
+vote-kselectiveannotation. Second,inAppendixE,weshowthatexplicitlyremovingoutliersalso
+helpsfinetuningtobenefitfromvote-k.
+4.2 LANGUAGEMODELSWITHVARIOUSSIZES
+85
+80
+75
+70
+65
+60
+55
+50
+45
+40
+GPT-Neo GPT-J GPT-3
+ycaruccA
+random vote-k
+HellaSwag SST-5 MWoZ
+60 55
+55 50
+50 45
+45 40
+40 35
+35 30
+30 25
+25 20
+GPT-Neo GPT-J GPT-3 cushman davinci
+Model size
+Figure3: Comparisonsofvariousmodelswith100annotatedexamples. Vote-kselectiveannotation
+consistentlyimprovesin-contextlearningwithpretrainedlanguagemodelsofvaryingsizes.
+Fig.3showsperformancewithvaryingsizesoflanguagemodels(GPT-Neo2B,Blacketal.,2021;
+GPT-J6B,Wang&Komatsuzaki,2021;GPT-3,Brownetal.,2020)onHellaSwagcommonsense
+reasoning,SST-5sentimentanalysis,andMWoZdialoguestatetracking. Ingeneral,whenasmaller
+modelisused,theperformancegapbetweenrandomandvote-kselectionislarger. IntheHellaSwag
+task,vote-koutperformsrandomly-selectedannotationby7.5%usingGPT-Neo,butonly2.6%using
+GPT-3. Nonetheless,weseeconsistentperformancegainsfromvote-kselectionovervaryingsizes.
+4.3 EFFECTSOFDOMAINSHIFT
+Recentworkobservedthatwhenalarge,pretrainedlanguagemodelisfinetuned,theperformance
+gainfromactivelearningislimited(D’Arcy&Downey,2022),butitcanbelargerifthereisadomain
+shiftbetweentrainingandevaluation(Tamkinetal.,2022). Wehavedemonstratedthatselective
+annotationconsistentlyimprovesin-contextlearning,buthereweexplorecasesofdomainshifts.
+Method CivilComments Amazon
+|L| Selection Random Domain Random Domain
+100 Random 73.8 66.8 50.3 30.7
+100 Vote-k 79.3 76.7 56.3 39.0
+100 ∆Absolutegain +5.5 +9.9 +6.0 +8.3
+Table3: Effectsofdomainshift. Randomsplitsanddomainsplitsarecompared(Kohetal.,2021).
+FollowingTamkinetal.(2022),weusetwonaturallanguagedatasetsfromtheWILDSbenchmark
+(Kohetal.,2021):CivilComments(toxicityclassification;Borkanetal.,2019)andAmazon(review
+classification;Nietal.,2019). Eachcomeswithbotharandomsplitandadomainsplit: theformer
+splitsdatarandomlyandthelatterisbasedonthedomains(demographicidentitiesforCivilComments
+andusersforAmazon),simulatingcaseswhereamodelisdeployedinanewscenariounseenduring
+annotations. Similarto§3.3,weconductexperimentswithGPT-Jundertwosettings: random/vote-k
+7Preprint
+selectiveannotation,followedbysimilarity-basedpromptretrieval. Bothselectiveannotationand
+promptretrievalareconductedonthesourcedomain.
+Tab.3showsourresults. Weseethatthegainfromvote-k ismorepronouncedunderthedomain
+splits: e.g.,9.9vs.5.5accuracypointimprovementsonCivilComments. Thissuggeststhatselective
+annotationandpromptretrievalareparticularlycrucialwhenthereisadomainshiftintheevaluation
+data,asinmanyrealisticscenarios(Kohetal.,2021;Longpreetal.,2022).
+4.4 RANDOMPROMPTRETRIEVAL
+Method Dataset
+|L| Selection Retrieval HellaSwag SST-5 MWoZ
+100 Vote-k Similar 70.7 53.0 51.4
+100 Random Similar 65.2 44.2 47.2
+100 Vote-k Random 62.5 41.6 35.6
+100 Random Random 63.2 40.6 43.8
+Table4: Comparisonofrandomandsimilarpromptretrieval. Randomretrievalfailstobenefitfrom
+diverseandrepresentativeannotatedexamplesfromvote-k.
+We have performed similarity-based prompt retrieval so far. Here we experiment with a random
+baselineforthepromptretrievalsteptoquantifytheeffectofpromptretrieval(Tab.4). Interestingly,
+whenrandompromptretrievalisperformed,vote-kdoesnotnecessarilyimproveupontherandomly-
+selectedannotationbaseline: e.g.,62.5vs.63.2onHellaSwagand35.7vs.43.8onMWoZ.This
+suggests that random prompt retrieval fails to benefit from diverse, representative 100 samples,
+selectedbyvote-kselectiveannotation. Combiningselectiveannotationandpromptretrievalisthus
+crucialforthesuccessofin-contextlearning.
+4.5 ALTERNATIVESELECTIVEANNOTATIONMETHODS
+Random MFL Diversity Least-confidence Fastvote-k Vote-k
+HellaSwag 65.2 66.5 68.2 68.4 69.5 70.7
+SST-5 44.2 45.6 48.5 46.2 51.9 53.0
+MWoZ 47.2 48.3 49.2 49.4 50.2 51.4
+Table5: Comparisonsofvariousselectiveannotationmethodswith100annotatedexamples. Perfor-
+manceisaveragedoverthreerandomtrials. Vote-koutperformsalltheotherselectiveannotation
+methods. Fastvote-k,afasterversionofvoke-kwithouttheneedforconfidencescorecomputations,
+canachievesimilarperformancetovote-kwhilebeingmorecomputationallyefficient.
+Hereweexplorefouradditionalmethodsforselectiveannotation:
+• Maximizingfacilitylocation(MFL;Lin&Bilmes,2009)aimsatoptimizingtherepresen-
+tativenessoftheselectedsamples. Sincethisobjectivesatisfiesthesubmodularobjective,
+maximizationcanbeapproximatedviaagreedyalgorithm(seeAppendixG.2).
+• Diversityfocusesonmaximizingthediversityoftheembeddingsforselectedexamplesin
+thefirststep(AppendixG.3).
+• Least-confidence(Lewis&Gale,1994)iterativelyaddsleast-confidentexamplestothe
+annotatedset.
+• Fast vote-k is a fast, efficient alternative to our vote-k method (§2.1) that does not use
+confidencescores. ItpicksM sampleswiththelargestvote-kscores. Itavoidsusingthe
+pretrainedlanguagemodeltocomputeaconfidencescoreforeveryinstance,resultingina
+10+timesspeedup.
+Notice that MFL, diversity, and least-confidence do not have hyperparameters other than the an-
+notationbudget. AsshowninTab.5, vote-k outperformsalltheothermethods. Itisnoteworthy,
+8Preprint
+however,thatfastvote-kcanachievesimilarperformancetovote-k. Fastvote-kisthusanattractive
+methodforresearchersandpractitionerswithalimitedcomputationalbudget. Likevote-k,MFL
+alsooptimizesrepresentativenessandDiversityalsooptimizesdiversity. Inparticular,MFLdefines
+representativenessasasumoverdistancesfromtheselectedexamplestoallotherexamples,and
+Diversitydefinesdiversityasthedistancesbetweenselectedexamples. Sincetheydonotsignificantly
+outperformrandomly-selectedannotation,weconjecturethatjointlyoptimizediversityandrepresen-
+tativenessisneededforselectiveannotation. Moreover,thewayvote-kdefinesanddiversityarealso
+differentfromthebaselines: vote-kdefinesrepresentativenessasthenumberofneighborsduring
+similarity-basedpromptretrieval,whichiseffectivelytailoredtoin-contextlearning;vote-kdirectly
+optimizes for the diversity of selected samples using the in-context learning model’s prediction
+confidence.
+5 RELATED WORK
+In-Context Learning In-context learning with large language models has recently received an
+increasingamountofinterest,partlyduetoitsflexibilityandsampleefficiency(Liuetal.,2021).
+Severalrecentworksproposedmethodstoimprovein-contextlearninginmanyaspects: e.g.,meta-
+training(Chenetal.,2022;Minetal.,2022b),taskinstructions(Efrat&Levy,2020;Mishraetal.,
+2022;Weietal.,2021;Sanhetal.,2022),ortaskformulation(Holtzmanetal.,2021;Zhaoetal.,
+2021;Minetal.,2022a). Inthisparadigm,thechoiceofin-context(i.e.,demonstration)examples
+has been shown crucial (Liu et al., 2022; Rubin et al., 2022; Lu et al., 2022), while recent work
+raised questions as to the degree to which correct labels are necessary (Min et al., 2022c). This
+workproposesanannotation-efficientin-contextlearningframeworkbyfocusingonthechoiceof
+examplesanditsimplicationsontheannotationcost.
+ActiveLearning Activelearningaimstoenablemachinelearningmodelstoachievesimilaror
+greaterperformancewithfewerlabeledtraininginstances(Cohnetal.,1994;Settles,2009). Our
+selectiveannotationstepforin-contextlearningsharesthesamegoalofreducingtheannotationcost.
+Mostactivelearningmethodsinvolveiterativeparameterupdates(e.g., Wangetal.,2017;Kasai
+et al., 2019), which are computationally expensive for large language models used in in-context
+learning. Similartoourvote-kalgorithm,Lin&Bilmes(2009)usedthefacilitylocationobjective
+tooptimizerepresentativeness. Weobservedthatthisobjectivelargelyunderperformsvote-k for
+in-contextlearning,probablyduetothefactthevote-k(1)iseffectivelytailoredtothepromptretrieval
+stepofin-contextlearningand(2)directlyoptimizesthediversityofselectedsamples(see§4.5).
+Morerecently,theeffectivenessofactivelearninghasbeenquestionedwhenlarge-scalepretrained
+modelsare finetunedforvarioustasks (Karamchetietal., 2021;D’Arcy &Downey,2022). Our
+experiments(§3)showedthatselectiveannotationhelpsreducetheannotationcostofin-context
+learning,departingfromtherecentobservationsonfinetuningwithactivelearning. Wehypothesize
+thatitisbecausein-contextlearningwithsimilarity-basedpromptretrievalismorerobusttooutliers
+sinceeachtestinstanceonlyretrievesitsmostsimilarexamples. Thisissupportedby§4.4,where
+randompromptretrievaldoesnotbenefitfromselectiveannotation.
+6 CONCLUSION
+Muchrecentworkillustratedtheabilityoflargelanguagemodelstoadapttonewtaskssimplyfroma
+fewdemonstrationexamples. Wepresentedin-depthstudiesontheimplicationsofthisabilityfor
+datasetannotationthroughthelensofselectiveannotationandintroducedanannotation-efficient
+practice. Thebestselectiveannotationmethodexploredinthispaper,ourvote-k method,selects
+diverse,representativeexamplestoannotate. Intermsofthetaskperformance,vote-kimprovesthe
+performanceon10diversetasksbyalargemargin. Moreover,vote-k selectiveannotationyields
+similarperformancetostate-of-the-artsupervisedfinetuningwith10-100×lessannotationcost. We
+furthershowthattheeffectivenessofvote-kisconsistentwithdifferentlanguagemodelsizesand
+domainshiftsbetweentrainingandtestdata. Wehopethatourfindingswillhelpresearchersand
+practitionersefficientlydesignnewnaturallanguagetasksandbeyond.
+9Preprint
+ACKNOWLEDGEMENTS
+WethankSewonMin,PradeepDasigi,YandaChen,YushiHu,AlisaLiu,andtheARKgroupatUW
+fortheirhelpfulfeedbackonthiswork.
+REFERENCES
+Luisa Bentivogli, Ido Dagan, Hoa Trang Dang, Danilo Giampiccolo, and Bernardo
+Magnini. The fifth PASCAL recognizing textual entailment challenge. In Proc. of TAC,
+2009.URLhttps://tac.nist.gov/publications/2009/additional.papers/
+RTE5_overview.proceedings.pdf.
+Sid Black, Leo Gao, Phil Wang, Connor Leahy, and Stella Biderman. GPT-Neo: Large Scale
+Autoregressive Language Modeling with Mesh-Tensorflow, 2021. URL https://zenodo.
+org/record/5551208.
+DanielBorkan,LucasDixon,JeffreySorensen,NithumThain,andLucyVasserman.Nuancedmetrics
+formeasuringunintendedbiaswithrealdatafortextclassification. InCompanionProceedingsof
+WWW,2019. URLhttps://doi.org/10.1145/3308560.3317593.
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhari-
+wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,
+Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel
+Ziegler, Jeffrey Wu, Clemens Winter, Chris Hesse, Mark Chen, Eric Sigler, Mateusz Litwin,
+Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Rad-
+ford, Ilya Sutskever, and Dario Amodei. Language models are few-shot learners. In Proc.
+of NeurIPS, 2020. URL https://proceedings.neurips.cc/paper/2020/file/
+1457c0d6bfcb4967418bfb8ac142f64a-Paper.pdf.
+PawełBudzianowski,Tsung-HsienWen,Bo-HsiangTseng,IñigoCasanueva,StefanUltes,Osman
+Ramadan,andMilicaGašic´. MultiWOZ-alarge-scalemulti-domainWizard-of-Ozdatasetfor
+task-orienteddialoguemodelling. InProc.ofEMNLP,2018. URLhttps://arxiv.org/
+abs/1810.00278.
+Mark Chen, Jerry Tworek, Heewoo Jun, Qiming Yuan, Henrique Ponde de Oliveira Pinto, Jared
+Kaplan,HarrisonEdwards,YuriBurda,NicholasJoseph,GregBrockman,AlexRay,RaulPuri,
+GretchenKrueger,MichaelPetrov,HeidyKhlaaf,GirishSastry,PamelaMishkin,BrookeChan,
+ScottGray,NickRyder,MikhailPavlov,AletheaPower,LukaszKaiser,MohammadBavarian,
+ClemensWinter,PhilippeTillet,FelipePetroskiSuch,DaveCummings,MatthiasPlappert,Fotios
+Chantzis,ElizabethBarnes,ArielHerbert-Voss,WilliamHebgenGuss,AlexNichol,AlexPaino,
+NikolasTezak,JieTang,IgorBabuschkin,SuchirBalaji,ShantanuJain,WilliamSaunders,Christo-
+pherHesse, AndrewN.Carr, JanLeike, JoshuaAchiam, VedantMisra, EvanMorikawa, Alec
+Radford,MatthewKnight,MilesBrundage,MiraMurati,KatieMayer,PeterWelinder,BobMc-
+Grew,DarioAmodei,SamMcCandlish,IlyaSutskever,andWojciechZaremba. Evaluatinglarge
+languagemodelstrainedoncode,2021. URLhttps://arxiv.org/abs/2107.03374.
+YandaChen,RuiqiZhong,ShengZha,GeorgeKarypis,andHeHe. Meta-learningvialanguage
+model in-context tuning. In Proc. of ACL, May 2022. URL https://arxiv.org/abs/
+2110.07814.
+DavidA.Cohn,LesE.Atlas,andRichardE.Ladner. Improvinggeneralizationwithactivelearning.
+MachineLearning,1994. URLhttps://doi.org/10.1007/BF00993277.
+MikeD’ArcyandDougDowney. Limitationsofactivelearningwithdeeptransformerlanguage
+models,2022. URLhttps://openreview.net/forum?id=Q8OjAGkxwP5.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of
+deep bidirectional transformers for language understanding. In Proc. of NAACL, 2019. URL
+https://arxiv.org/abs/810.04805.
+10Preprint
+BillDolan,ChrisQuirk,andChrisBrockett. Unsupervisedconstructionoflargeparaphrasecorpora:
+Exploiting massively parallel news sources. In Proc. of COLING, 2004. URL https://
+aclanthology.org/C04-1051.
+AviaEfratandOmerLevy. TheTurkingtest: Canlanguagemodelsunderstandinstructions?,2020.
+URLhttps://arxiv.org/abs/2010.11982.
+TianyuGao,AdamFisch,andDanqiChen. Makingpre-trainedlanguagemodelsbetterfew-shot
+learners. InProc.ofACL,2021. URLhttps://aclanthology.org/2021.acl-long.
+295.
+AriHoltzman,PeterWest,VeredShwartz,YejinChoi,andLukeZettlemoyer. Surfaceformcompe-
+tition: Whythehighestprobabilityanswerisn’talwaysright. InProc.ofEMNLP,2021. URL
+https://arxiv.org/abs/2104.08315.
+HaomingJiang,PengchengHe,WeizhuChen,XiaodongLiu,JianfengGao,andTuoZhao. SMART:
+Robustandefficientfine-tuningforpre-trainednaturallanguagemodelsthroughprincipledreg-
+ularizedoptimization. InProc.ofACL,2020. URLhttps://aclanthology.org/2020.
+acl-main.197.
+SiddharthKaramcheti,RanjayKrishna,LiFei-Fei,andChristopherManning. Mindyouroutliers!
+investigatingthenegativeimpactofoutliersonactivelearningforvisualquestionanswering. In
+Proc.ofACL,2021. URLhttps://arxiv.org/abs/2107.02331.
+JungoKasai,KunQian,SairamGurajada,YunyaoLi,andLucianPopa. Low-resourcedeepentity
+resolutionwithtransferandactivelearning. InProc.ofACL,2019. URLhttps://arxiv.
+org/abs/1906.08042.
+PangWeiKoh,ShioriSagawa,HenrikMarklund,SangMichaelXie,MarvinZhang,AkshayBal-
+subramani, Weihua Hu, Michihiro Yasunaga, Richard Lanas Phillips, Irena Gao, Tony Lee,
+Etienne David, Ian Stavness, Wei Guo, Berton Earnshaw, Imran Haque, Sara M Beery, Jure
+Leskovec, Anshul Kundaje, Emma Pierson, Sergey Levine, Chelsea Finn, and Percy Liang.
+WILDS: A benchmark of in-the-wild distribution shifts. In Proc. of ICML, 2021. URL
+https://proceedings.mlr.press/v139/koh21a.html.
+TomKwiatkowski,JennimariaPalomaki,OliviaRedfield,MichaelCollins,AnkurParikh,ChrisAl-
+berti, Danielle Epstein, Illia Polosukhin, Jacob Devlin, Kenton Lee, et al. Natural questions:
+a benchmark for question answering research. TACL, 2019. URL https://research.
+google/pubs/pub47761/.
+Zhenzhong Lan, Mingda Chen, Sebastian Goodman, Kevin Gimpel, Piyush Sharma, and Radu
+Soricut. ALBERT:AliteBERTforself-supervisedlearningoflanguagerepresentations. InProc.
+ofICLR,2020. URLhttps://arxiv.org/abs/1909.11942.
+JensLehmann,RobertIsele,MaxJakob,AnjaJentzsch,DimitrisKontokostas,PabloN.Mendes,
+Sebastian Hellmann, Mohamed Morsey, Patrick van Kleef, Sören Auer, and Christian Bizer.
+DBpedia-alarge-scale,multilingualknowledgebaseextractedfromwikipedia. SemanticWeb,
+2015. URLhttp://svn.aksw.org/papers/2013/SWJ_DBpedia/public.pdf.
+DavidDLewisandWilliamAGale. Asequentialalgorithmfortrainingtextclassifiers. InSIGIR’94,
+pp.3–12.Springer,1994.
+Chin-Yew Lin. ROUGE: A package for automatic evaluation of summaries. In Proc. of Text
+Summarization Branches Out, 2004. URL https://www.aclweb.org/anthology/
+W04-1013/.
+Hui-Ching Lin and Jeff A. Bilmes. How to select a good training-data subset for tran-
+scription: submodular active selection for sequences. In Proc. of INTERSPEECH,
+2009. URL https://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.
+1.149.6843&rep=rep1&type=pdf.
+JiachangLiu,DinghanShen,YizheZhang,BillDolan,LawrenceCarin,andWeizhuChen. What
+makes good in-context examples for GPT-3? In Proc. of DeeLIO 2022, 2022. URL https:
+//arxiv.org/abs/2101.06804.
+11Preprint
+Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig.
+Pre-train,prompt,andpredict: Asystematicsurveyofpromptingmethodsinnaturallanguage
+processing,2021. URLhttps://arxiv.org/abs/2107.13586.
+YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,MandarJoshi,DanqiChen,OmerLevy,MikeLewis,
+LukeS.Zettlemoyer, andVeselinStoyanov. RoBERTa: Arobustlyoptimizedbertpretraining
+approach,2019. URLhttps://arxiv.org/abs/1907.11692.
+ShayneLongpre, JuliaReisler, EdwardGregHuang, YiLu, AndrewFrank, NikhilRamesh, and
+Chris DuBois. Active learning over multiple domains in natural language tasks, 2022. URL
+https://arxiv.org/abs/2202.00254.
+YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,andPontusStenetorp. Fantasticallyordered
+promptsandwheretofindthem: Overcomingfew-shotpromptordersensitivity. InProc.ofACL,
+2022. URLhttps://arxiv.org/abs/2104.08786.
+Katerina Margatina, Giorgos Vernikos, Loïc Barrault, and Nikolaos Aletras. Active learning by
+acquiringcontrastiveexamples. arXivpreprintarXiv:2109.03764,2021.
+SewonMin,MikeLewis,HannanehHajishirzi,andLukeZettlemoyer.Noisychannellanguagemodel
+prompting for few-shot text classification. In Proc. of ACL, 2022a. URL https://arxiv.
+org/abs/2108.04106.
+SewonMin,MikeLewis,LukeZettlemoyer,andHannanehHajishirzi. MetaICL:Learningtolearn
+incontext. InProc.ofNAACL,2022b. URLhttps://arxiv.org/abs/2110.15943.
+SewonMin,XinxiLyu,AriHoltzman,MikelArtetxe,MikeLewis,HannanehHajishirzi,andLuke
+Zettlemoyer. Rethinkingtheroleofdemonstrations:Whatmakesin-contextlearningwork?,2022c.
+URLhttps://arxiv.org/abs/2202.12837.
+SwaroopMishra,DanielKhashabi,ChittaBaral,andHannanehHajishirzi. Cross-taskgeneralization
+vianaturallanguagecrowdsourcinginstructions. InProc.ofACL,2022. URLhttps://arxiv.
+org/abs/2104.08773.
+ShashiNarayan,ShayB.Cohen,andMirellaLapata. Don’tgivemethedetails,justthesummary!
+topic-awareconvolutionalneuralnetworksforextremesummarization. InProc.ofEMNLP,2018.
+URLhttps://arxiv.org/abs/1808.08745.
+JianmoNi,JiachengLi,andJulianMcAuley. Justifyingrecommendationsusingdistantly-labeled
+reviewsandfine-grainedaspects. InProc.ofEMNLP,2019. URLhttps://aclanthology.
+org/D19-1018.
+PranavRajpurkar,JianZhang,KonstantinLopyrev,andPercyLiang. SQuAD:100,000+questions
+formachinecomprehensionoftext. InProc.ofEMNLP,2016. URLhttps://arxiv.org/
+abs/1606.05250.
+NilsReimersandIrynaGurevych. Sentence-BERT:SentenceembeddingsusingSiameseBERT-
+networks. InProc.ofEMNLP,2019. URLhttps://aclanthology.org/D19-1410.
+OhadRubin, JonathanHerzig, andJonathanBerant. Learningtoretrievepromptsforin-context
+learning. InProc.ofNAACL,2022. URLhttps://arxiv.org/abs/2112.08633.
+Victor Sanh, Albert Webson, Colin Raffel, Stephen H. Bach, Lintang Sutawika, Zaid Alyafeai,
+AntoineChaffin,ArnaudStiegler,TevenLeScao,ArunRaja,MananDey,M.SaifulBari,Canwen
+Xu,UrmishThakker,ShanyaSharma,ElizaSzczechla,TaewoonKim,GunjanChhablani,NihalV.
+Nayak,DebajyotiDatta,JonathanChang,MikeTian-JianJiang,HanWang,MatteoManica,Sheng
+Shen, Zheng Xin Yong, Harshit Pandey, Rachel Bawden, Thomas Wang, Trishala Neeraj, Jos
+Rozen,AbheeshtSharma,AndreaSantilli,ThibaultFévry,JasonAlanFries,RyanTeehan,Stella
+Biderman,LeoGao,TaliBers,ThomasWolf,andAlexanderM.Rush.Multitaskpromptedtraining
+enableszero-shottaskgeneralization. InProc.ofICLR,2022. URLhttps://arxiv.org/
+abs/2110.08207.
+12Preprint
+Burr Settles. Active learning literature survey. Computer sciences technical report, Univer-
+sity of Wisconsin–Madison, 2009. URL https://burrsettles.com/pub/settles.
+activelearning.pdf.
+Jamin Shin, Hangyeol Yu, Hyeongdon Moon, Andrea Madotto, and Juneyoung Park. Dialogue
+summariesasdialoguestates(ds2),template-guidedsummarizationforfew-shotdialoguestate
+tracking. InACLFINDINGS,2022.
+RichardSocher,AlexPerelygin,JeanWu,JasonChuang,ChristopherD.Manning,AndrewNg,and
+ChristopherPotts. Recursivedeepmodelsforsemanticcompositionalityoverasentimenttreebank.
+InProc.ofEMNLP,2013. URLhttps://aclanthology.org/D13-1170.
+AlexTamkin, DatNguyen, SalilDeshpande, JesseMu, andNoahD.Goodman. Activelearning
+helpspretrainedmodelslearntheintendedtask,2022. URLhttps://doi.org/10.48550/
+arXiv.2204.08491.
+Alex Wang, Amanpreet Singh, Julian Michael, Felix Hill, Omer Levy, and Samuel R. Bowman.
+GLUE:Amulti-taskbenchmarkandanalysisplatformfornaturallanguageunderstanding. InProc.
+ofICLR.,2019. URLhttps://arxiv.org/abs/1804.07461.
+BenWangandAranKomatsuzaki.GPT-J-6B:A6BillionParameterAutoregressiveLanguageModel.
+https://github.com/kingoflolz/mesh-transformer-jax,2021.
+KezeWang,DongyuZhang,YaLi,RuimaoZhang,andLiangLin. Cost-effectiveactivelearningfor
+deepimageclassification. TCSVT,2017.
+Jason Wei, Maarten Bosma, Vincent Zhao, Kelvin Guu, Adams Wei Yu, Brian Lester, Nan Du,
+AndrewM.Dai,andQuocV.Le. Finetunedlanguagemodelsarezero-shotlearners. InProc.of
+ICLR,2021. URLhttps://arxiv.org/abs/2109.01652.
+Adina Williams, Nikita Nangia, and Samuel Bowman. A broad-coverage challenge corpus for
+sentence understanding through inference. In NAACL, 2018. URL https://arxiv.org/
+abs/1704.05426.
+ThomasWolf,LysandreDebut,VictorSanh,JulienChaumond,ClementDelangue,AnthonyMoi,
+Pierric Cistac, Tim Rault, Remi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick
+vonPlaten,ClaraMa,YacineJernite,JulienPlu,CanwenXu,TevenLeScao,SylvainGugger,
+MariamaDrame,QuentinLhoest,andAlexanderRush. HuggingFace’stransformers: State-of-the-
+artnaturallanguageprocessing. InProc.ofEMNLP:SystemDemonstrations,October2020. URL
+https://aclanthology.org/2020.emnlp-demos.6.
+JohnM.ZelleandRaymondJ.Mooney. Learningtoparsedatabasequeriesusinginductivelogic
+programming. In Proc. of AAAI, 1996. URL http://www.aaai.org/Library/AAAI/
+1996/aaai96-156.php.
+RowanZellers,AriHoltzman,YonatanBisk,AliFarhadi,andYejinChoi. HellaSwag:Canamachine
+reallyfinishyoursentence? InProc.ofACL,2019. URLhttps://arxiv.org/abs/1905.
+07830.
+SusanZhang,StephenRoller,NamanGoyal,MikelArtetxe,MoyaChen,ShuohuiChen,Christopher
+Dewan, Mona Diab, Xian Li, Xi Victoria Lin, Todor Mihaylov, Myle Ott, Sam Shleifer, Kurt
+Shuster,DanielSimig,PunitSinghKoura,AnjaliSridhar,TianluWang,andLukeZettlemoyer.
+Opt: Openpre-trainedtransformerlanguagemodels. ArXiv,abs/2205.01068,2022.
+ZihaoZhao,EricWallace,ShiFeng,DanKlein,andSameerSingh. Calibratebeforeuse: Improving
+few-shotperformanceoflanguagemodels. InMarinaMeilaandTongZhang(eds.),Proc.ofICML,
+2021. URLhttps://arxiv.org/abs/2102.09690.
+RuiqiZhong,TaoYu,andDanKlein. Semanticevaluationfortext-to-SQLwithdistilledtestsuites.
+InProc.ofEMNLP,2020. URLhttps://arxiv.org/abs/2010.02840.
+13Preprint
+Dataset Task Examples
+Awomanisoutsidewithabucketandadog.Thedogisrunning
+aroundtryingtoavoidabath.She...
+Commonsense A)rinsesthebucketoffwithsoapandblowdrythedog’shead.
+HellaSwag
+Reasoning B)usesahosetokeepitfromgettingsoapy.
+(cid:51)C)getsthedogwet,thenitrunsawayagain.
+D)getsintoabathtubwiththedog.
+Salesrose37percentyear-on-yearto1.76bn,beatingexpectations.
+Paraphrase Salesforthequarterbeatexpectations,rising37percent
+MRPC
+Detection year-on-yearto1.76billioneuros.
+→(cid:51)Paraphrase
+Awarm,funny,engagingfilm.→Positive
+SST SentimentAnalysis
+Suffersfromthelackofacompellingnarrative.→Negative
+DialogueState IamlookingforALexenderb&b
+MWoZ2.4
+Tracking Dialoguestate:alexanderbedandbreakfast
+WhatistheareaofCalifornia?
+SELECT state.area FROM state WHERE state.
+GeoQuery SemanticParsing
+state_name=’california’
+Thekeeledboxturtle(Cuoramouhotiisyn.Pyxideamouhotii)isa
+speciesofturtleinthefamilyGeoemydidae.ItisnativetoAsia
+whereitoccursinChinaIndiaLaosBurmaVietnamThailandand
+DBpedia TopicClassification
+Bhutan.Othercommonnamesincludekeel-backedterrapinand
+jagged-shelledturtle.
+Topic:animal
+TheF/A-18-E/Fprogrameliminatedover40percentoftheparts
+usedtobuildpredecessoraircrafttomakethedesignmorerobustfor
+NaturalLanguage manufacturingandidentifiedcriticalmanufacturingprocesses,
+MNLI
+Inference bringingthemundercontrolbeforethestartofproduction.Thenew
+designwithrobustnessalsoincreasedthesafetyofmachines.
+→(cid:51)neutral
+JudieVivian,chiefexecutiveatProMedica,amedicalservice
+companythathelpssustainthe2-year-oldVietnamHeartInstitutein
+NaturalLanguage HoChiMinhCity(formerlySaigon),saidthatsofarabout1,500
+RTE
+Inference childrenhavereceivedtreatment.ThepreviousnameofHoChi
+MinhCitywasSaigon.
+→(cid:51)entailment
+Natural whenwasmusicfirstplayedontheradio
+Open-DomainQA
+Questions →(cid:51)1917
+Blisssaidtherewasashortageofneonatalnursesanddoctors,and
+safetystandardswerenotbeingmet.......DrJennyCalvert,ofthe
+WalesNeonatalNetwork,saidtheyareworkingtofurtherdevelop
+XSUM Summarization medicaltraininginneonatologytohelprecruitmoretraineedoctors.
+Summary:NeonatalservicesacrossWalesareoverstretchedand
+underpressurewiththesafetyofvulnerablebabiesatrisk,
+accordingtoacharity.
+Table 6: All of the 10 datasets with examples used in our experiments. The 10 datasets span
+variousformations,includingclassification(SST-5,Socheretal.,2013;MRPC,Dolanetal.,2004),
+multiple-choiceselection(HellaSwag,Zellersetal.,2019),andcode/textgeneration(MWoZ2.4,
+Budzianowskietal.,2018;GeoQuery,Zelle&Mooney,1996;NQ,Kwiatkowskietal.,2019).
+Appendices
+A DATASETS AND TASKS
+14Preprint
+B PROMPT TEMPLATES
+B.1 HELLASWAG
+Input:
+The topic is Grooming dog. Two women attempt to wash two dogs. they get
+in the tub with the dogs and do shampoo, soap, and then rinse the dogs.
+......
+The topic is Bathing dog. A couple is outside with a bucket and a dog.
+The dog is running around trying to avoid a bath. they
+Output:
+get the dog wet, then it runs away again.
+B.2 MRPC
+Input:
+Are the following two sentences ’equivalent’ or ’not equivalent’?
+This was around the time Congress was debating a resolution granting the
+President broad authority to wage war ..
+Within four days , the House and Senate overwhelmingly endorsed a
+resolution granting the president authority to go to war ..
+answer:not equivalent
+......
+Are the following two sentences ’equivalent’ or ’not equivalent’?
+Kerry last month outlined a U.N. resolution authorizing a military force
+under U.S. command and transferring responsibility to the United Nations
+for the political and humanitarian efforts ..
+Kerry outlined last month a UN resolution authorizing a military force
+under US command and transferring responsibility for political and
+humanitarian efforts to the UN ..
+answer:
+Output:
+equivalent
+B.3 SST5
+Input:
+How do you feel about the following sentence?
+the movie ’s blatant derivativeness is one reason it ’s so lackluster .
+answer:negative
+......
+How do you feel about the following sentence?
+the movie ’s something-borrowed construction feels less the product of
+loving , well integrated homage and more like a mere excuse for the wan ,
+thinly sketched story .
+answer:
+Output:
+negative
+15Preprint
+B.4 MULTIWOZ
+Input:
+CREATE TABLE hotel(
+name text,
+......,
+internet text CHECK (internet IN (dontcare, yes, no))
+)
+/*
+4 example rows:
+SELECT * FROM hotel LIMIT 4;
+name pricerange type parking book_number_of_days book_day book_people
+area stars internet
+a and b guest house moderate guest house dontcare 3 friday 5 east 4 yes
+......
+/*
+......
+-- Using valid SQLite, answer the following multi-turn conversational
+questions for the tables provided above.
+Example #1
+[context] hotel-area: west, hotel-stars: 3, hotel-internet: yes
+[system] the hobsons house is available in that area .
+Q: [user] that sounds like it will work . can i book that for 3 nights
+starting wednesday ?
+SQL: SELECT * FROM hotel WHERE book_day = wednesday AND book_people = 1
+AND book_number_of_days = 3 AND name = hobsons house;
+......
+Example #22
+[context] hotel-parking: yes, hotel-pricerange: moderate, hotel-type:
+guest house, hotel-stars: 4
+[system] there are 9 in the area . i recommend the warkworth house .
+Q: [user] can you book that 1 for 4 nights starting on wednesday ?
+SQL: SELECT * FROM
+Output:
+hotel WHERE book_day = wednesday AND book_number_of_days = 4 AND name =
+warkworth house;
+B.5 GEOQUERY
+Input:
+CREATE TABLE "border_info" ("state_name" text, "border" text)
+/*
+state_name border
+alabama tennessee
+alabama georgia
+alabama florida
+*/
+......
+-- Using valid SQLite, answer the following questions for the tables
+provided above.
+-- which state has the longest river
+SELECT RIVERalias0.TRAVERSE FROM RIVER AS RIVERalias0 WHERE RIVERalias0.
+LENGTH = ( SELECT MAX( RIVERalias1.LENGTH ) FROM RIVER AS RIVERalias1 ) ;
+......
+-- what is the longest river in the state with the highest point
+SELECT
+16Preprint
+Output:
+RIVERalias0.RIVER_NAME FROM HIGHLOW AS HIGHLOWalias0 , RIVER AS
+RIVERalias0 WHERE HIGHLOWalias0.HIGHEST_ELEVATION = ( SELECT MAX(
+HIGHLOWalias1.HIGHEST_ELEVATION ) FROM HIGHLOW AS HIGHLOWalias1 ) AND
+RIVERalias0.TRAVERSE = HIGHLOWalias0.STATE_NAME ORDER BY RIVERalias0.
+LENGTH DESC LIMIT 1 ;
+B.6 DBPEDIA
+Input:
+title: Cupressus funebris; content: Cupressus funebris (Chinese Weeping
+Cypress) is a species of cypress native to southwestern and central
+China. It may also occur naturally in Vietnam.
+plant
+......
+title: Keeled box turtle; content: The keeled box turtle (Cuora mouhotii
+syn. Pyxidea mouhotii) is a species of turtle in the family Geoemydidae.
+It is native to Asia where it occurs in China India Laos Burma Vietnam
+Thailand and Bhutan. Other common names include keel-backed terrapin and
+jagged-shelled turtle.
+Output:
+animal
+B.7 MNLI
+Input:
+Ideally, the design fixes for the failures should be corrected prior to
+manufacturing production units.. Based on that information, is the claim
+The fixes should be addressed before they reach the assembly line if this
+was a smart plan. "True", "False", or "Inconclusive"?
+answer:Inconclusive
+......
+The F/A-18-E/F program eliminated over 40 percent of the parts used to
+build predecessor aircraft to make the design more robust for
+manufacturing and identified critical manufacturing processes, bringing
+them under control before the start of production.. Based on that
+information, is the claim The new design with robustness also increased
+the safety of machines. "True", "False", or "Inconclusive"?
+answer:
+Output:
+Inconclusive
+B.8 RTE
+Input:
+After giving nearly 5,000 people a second chance at life, doctors are
+celebrating the 25th anniversary of Britian’s first heart transplant
+which was performed at Cambridgeshire’s Papworth Hospital in 1979..\par
+question: The first heart transplant in Britian was performed in 1979..
+True or False?
+answer:True
+......
+Judie Vivian, chief executive at ProMedica, a medical service company
+that helps sustain the 2-year-old Vietnam Heart Institute in Ho Chi Minh
+City (formerly Saigon), said that so far about 1,500 children have
+received treatment..
+question: The previous name of Ho Chi Minh City was Saigon.. True or
+17Preprint
+False?
+answer:
+Output:
+True
+B.9 NATURALQUESTION
+Input:
+Write an answer: who invented the radio during the industrial revolution
+other
+Guglielmo Marconi, 1st Marquis of Marconi
+......
+Write an answer: when was music first played on the radio
+Output:
+other
+1917
+B.10 XSUM
+Input:
+Write a short summary
+Health Minister Mark Drakeford said the money would be used to improve
+areas of concern, including out-of-hours help and access to psychological
+treatment.
+......
+money won’t get the help they need in a timely fashion," she said.
+TL;DR: An extra [Unicode token]7.6m a year will be invested to improve
+mental health services for children and young people in Wales.
+......
+write a short summary:
+Bliss said there was a shortage of neonatal nurses and doctors, and
+safety standards were not being met.
+......
+Dr Jenny Calvert, of the Wales Neonatal Network, said they are working to
+further develop medical training in neonatology to help recruit more
+trainee doctors.
+TL;DR:
+Output:
+Neonatal services across Wales are overstretched and under pressure with
+the safety of vulnerable babies at risk, according to a charity.
+18Preprint
+C DETAILED MAIN RESULTS
+ThissectionprovidesadetailedversionofourmainresultsinTable2,wherethemaximumperfor-
+manceandminimumperformancesamongthethreetrialsarereported. ResultsareshowninTable7
+andTable8.
+Method Classification
+|L| Selection MRPC SST-5 MNLI DBpedia RTE
+100 Random 63.5/66.0/60.544.2/47.3/41.837.4/41.0/33.289.8/91.0/88.351.5/53.9/48.4
+100 Vote-k 70.7/72.3/69.153.0/54.7/51.247.3/50.0/44.593.4/94.1/92.655.5/57.0/53.9
+18 Random 59.6/64.8/52.739.8/46.1/37.136.7/40.6/30.977.6/82.0/71.950.4/53.5/45.7
+18 Vote-k 64.2/67.6/59.047.6/50.0/44.541.0/44.5/37.187.1/90.6/85.254.3/56.2/51.6
+Table7: MainresultTable2withthemean/max/minresultsreportedacrossthreetrials
+Method Multi-Choice Dialogue Generation
+|L| Selection HSwag MWoZ GeoQ NQ XSum
+100 Random 65.2/66.4/63.3 47.2/49.2/44.5 78.6/80.5/77.330.8/32.8/28.115.3/16.4/14.8
+100 Vote-k 70.7/71.5/69.5 51.4/53.1/49.6 82.8/83.6/82.033.6/35.2/31.617.2/17.6/16.4
+18 Random 62.5/66.4/57.4 33.6/39.5/25.0 62.4/65.2/57.829.8/31.6/26.613.6/14.5/12.5
+18 Vote-k 67.4/71.1/64.8 42.8/47.7/40.2 72.5/74.2/69.532.3/33.6/30.115.2/16.0/14.5
+Table8: MainresultTable2withthemean/max/minresultsreportedacrossthreetrials.
+D EVALUATE HELLASWAG ON OPT-175B MODEL
+Hereweshowthatvote-kalsoimprovesmodelperformanceforOPT-175B
+82
+81
+80
+79
+78
+77
+76
+75
+74
+18 100 300 800
+Annotation size
+ycaruccA
+random vote-k
+Figure4: OPT-175BperformanceofICL-randomandICL-vote-konHellaSwag
+E REMOVING OUTLIERS FOR FINETUNING
+Hereweshowthatexplicitlyremovingoutliersalsohelpsfinetuningtobenefitfromvote-k.
+F DIVERSITY AND REPRESENTATIVENESS OF SELECTED SAMPLES
+Wehypothesizedthatbothrepresentativenessanddiversityarecrucialforselectiveannotation(§2.1).
+Hereweevaluatethediversityandrepresentativenessofsamplesthatareselectedbydifferentmethods,
+19Preprint
+Outliersnotremoved 10%outliersremoved
+FT-random FT-vote-k FT-random FT-vote-k
+HellaSwag 55.6 53.5 56.8 59.6
+MRPC 56.3 55.6 57.9 60.4
+Table9: Effectsofvote-kinfinetuning(FT)withannotationbudgetof100. 10%outliersremoved
+meansthatweremoved10%ofexamplesfarthesttothetrainingdata,measuredbyaveragecosine
+similarity. The selection is conducted after example removal. After removing outliers, vote-k
+selectionimprovesthemodelfew-shotperformance.
+usingthemethodsfrompriorworkonactivelearning(Margatinaetal.,2021); theirmeasuresof
+diversityandrepresentativenessusetokenoverlaporembeddingcosinesimilarities. Asshownin
+Table 10, vote-k improves both the diversity and the representativeness as compared to random
+selection.
+Method DIV-I DIV-F REPR.
+Selection HellaSwag SST-5 MWoZ HellaSwag SST-5 MWoZ HellaSwag SST-5 MWoZ
+Random 0.1820.007 0.0990.003 0.3680.008 0.4150.008 0.3170.004 0.6750.006 0.5580.007 0.4240.003 0.6960.004
+Vote-k 0.191 0.108 0.379 0.425 0.321 0.683 0.565 0.426 0.702
+Table10: DIV-Ireferstodiversityininputspace,whichmeasuresthediversityofselecteddatain
+theinputfeaturespace,i.e.,rawtext;DIV-Freferstodiversityinfeaturespace,whichmeasuresthe
+diversityinthedensefeaturespace,i.e.,sentenceembeddings;REPR.referstorepresentativeness,
+whichmeasurestherepresentativenessofselecteddata. Subscriptsstandforstandarddeviation.
+G DETAILS OF SELECTIVE ANNOTATION METHODS
+Inthissection,weprovidedetailsofselectiveannotationmethodsusedinSection4.5.
+G.1 VOTE-k SELECTIVEANNOTATION
+Algorithm1describesthevote-kselectiveannotationmethodintroducedinSection2.1.
+G.2 GREEDYALGORITHMFORMAXIMIZINGFACILITYLOCATION
+Lin&Bilmes(2009)proposedtomaximizethefacilitylocationobjectivetooptimizerepresenta-
+tivenessoftheselectedsamples. Sincethisobjectivesatisfiesthesubmodularproperty,theyapplied
+a greedy algorithm as an approximation. Algorithm 2 describes the selective annotation method
+adaptedfromthisgreedyalgorithm.
+G.3 EMBEDDINGDIVERSITY
+Thismethodaimstofinddiversesamplestoannotateusingembeddingvectors. Wefirstcomputea
+vectorrepresentationforeachunlabeledtraininginstancebySentence-BERT(Reimers&Gurevych,
+2019), which is a variant of BERT (Devlin et al., 2019), finetuned to detect paraphrases.5 For
+instance,consideranexamplefromSST-5sentimentanalysisinTable6:Averywell-made,funny
+andentertainingpicture. WesimplyrunSentence-BERTonthistextinputandaveragetheresulting
+vectorsoverthewordstoobtainavectorrepresentation.
+Onceembeddingsarecomputedforalltrainingdata,weusethemtofindadiversesetoftraining
+instances. Theintuitionhereisthatadiversesetofannotatedexamplesfacilitatesthesubsequent
+promptretrievalstepsincesimilarin-contextexamplescanbefoundformanytestinstances. Tofind
+5https://huggingface.co/sentence-transformers/all-mpnet-base-v2.
+20Preprint
+Algorithm1Voke-kSelectiveAnnotation
+1: Input:X ={x }N :asetofunlabeledsamples;M:thenumberofsamplestobeselected;LM:inference
+i i=1
+languagemodel.
+2: Initialization: L=∅,U =X. G=(V,E),whereV =X and(u,v)∈Eifvisoneofu’sknearest
+verticesintermsofthecosinesimilaritybetweentheembeddings.
+3: while|L|<M/10do
+4: u∗ =argmax (cid:80) s(v), wheres(v)=ρ−|{(cid:96)∈L|(v,(cid:96))∈E}|, ρ>1
+u∈U v∈{v|(v,u)∈E,v∈U}
+5: L=L∪{u∗}
+6: U =U\{u∗}
+7: endwhile
+8: foruinU do
+9: score(u)=
+1(cid:80)
+logp(q |q ,z;Θ),wherepisLMpredictionfunctionandΘisLMparameters
+q t t <t
+10: endfor
+11: forj =1,...,9do
+12: U =indices[(j−1)|U|/10:j|U|/10]
+j
+13: fori=1,...,|U |do
+j
+14: u∗ =argmax (cid:80) s(v), wheres(v)=ρ−|{(cid:96)∈L|(v,(cid:96))∈E}|, ρ>1
+u∈Uj v∈{v|(v,u)∈E,v∈Uj}
+15: L=L∪{u∗}
+16: U =U \{u∗}
+j j
+17: endfor
+18: endfor
+19: Return:L:selectedsamples.
+Algorithm2GreedyAlgorithmforFacilityLocationObjective
+1: Input:U ={x }N :asetofunlabeledsamples;M:thenumberofsamplestobeselected.
+i i=1
+2: Initialization:L=∅,U =V.∀i,ρ =−1:maximumsimilarityofx toselectedsamples.
+i i
+3: while|L|<M do
+4: u∗ =argmax (cid:80)N (max{0,cos(x ,x )−ρ })
+u∈U i=1 i u i
+5: L=L∪{u∗}
+6: U =U\{u∗}
+7: ∀i,ρ
+i
+=max{ρ i,cos(x i,x u∗)} //updatemaximumsimilarityofeachx itoselectedsamples
+8: endwhile
+9: Return:L:selectedsamples.
+asetofdiverseembeddings,wetakeasimple,iterativeapproach: ineveryiteration,wechoosean
+instancefurthestfromthealreadychosenones. Specifically,letLandU denotethesetsofalready
+chosen(i.e.,labeled)samplesandunlabeledsamples,respectively. SupposealsothatM isthetarget
+numberoflabeledexamples(i.e.,theannotationbudget). Then,ineveryiteration,wechoosethe
+(cid:80)
+unlabeledsamplethathasthelargesttotalcosinedistancefromL:argmin cos(u,(cid:96)).Here
+u∈U (cid:96)∈L
+weabuseuand(cid:96)tomeanboththeinstancesandtheirembeddingvectorsfromSentence-BERT.The
+firstlabeledsampleisrandomlyselectedfromthe3Kunlabeledexamples(§3.1),andtheiterative
+processcontinuesuntil|L|=M.
+21

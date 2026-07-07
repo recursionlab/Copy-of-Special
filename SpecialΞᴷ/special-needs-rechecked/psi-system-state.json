@@ -1,0 +1,78 @@
+{
+  "selectedModules": [
+    "games",
+    "web-apps"
+  ],
+  "projectEvolution": [
+    {
+      "name": "fitness tracker",
+      "modules": [
+        "Mobile"
+      ]
+    }
+  ],
+  "history": {
+    "clickedModules": [
+      "games",
+      "web-apps"
+    ],
+    "searchTerms": [],
+    "builtProjects": []
+  },
+  "modules": [
+    {
+      "id": "web-apps",
+      "title": "Web Apps",
+      "cognitiveTags": [
+        "Interaction",
+        "Flow",
+        "Engagement"
+      ]
+    },
+    {
+      "id": "e-commerce",
+      "title": "E-Commerce",
+      "cognitiveTags": [
+        "Transaction",
+        "Conversion",
+        "Funnel"
+      ]
+    },
+    {
+      "id": "mobile",
+      "title": "Mobile",
+      "cognitiveTags": [
+        "Portability",
+        "Context",
+        "Micro-Moments"
+      ]
+    },
+    {
+      "id": "games",
+      "title": "Games",
+      "cognitiveTags": [
+        "Play",
+        "Challenge",
+        "Reward"
+      ]
+    },
+    {
+      "id": "database",
+      "title": "Database",
+      "cognitiveTags": [
+        "Structure",
+        "Relationships",
+        "Persistence"
+      ]
+    },
+    {
+      "id": "analytics",
+      "title": "Analytics",
+      "cognitiveTags": [
+        "Insight",
+        "Patterns",
+        "Decision"
+      ]
+    }
+  ]
+}

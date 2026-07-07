@@ -1,0 +1,48 @@
+{
+  "ecosystem_stats": {
+    "total_concepts": 2,
+    "active_concepts": 2,
+    "merged_concepts": 0,
+    "conceptual_diversity": 1.0,
+    "relation_count": 0,
+    "contradiction_count": 0,
+    "quality_score": 0.9983333333333333
+  },
+  "concepts": [
+    {
+      "id": "autopoiesis-0bd8b131",
+      "label": "Autopoiesis",
+      "definition_full": "systems exhibiting Droste-like properties, where the system itself is mirrored within its own structure and behavior.",
+      "source_evidence": "notes: Extracted using pattern: self-(?:organizing|producing|maintaining)\\s+(.{10,200}) | source: D:\\149\\research-mining\\archive\\conversation_export.json | extraction_date: 2025-09-14T16:22:25.239427",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7,
+        "definition_completeness": 1.0,
+        "merge_count": 0
+      },
+      "timestamp": "2025-09-14T16:22:25.239427"
+    },
+    {
+      "id": "recursion-6cc60991",
+      "label": "Recursion",
+      "definition_full": "fundamental, yet it is never actually experienced—it is simply implied by the structure of reality.",
+      "source_evidence": "notes: Extracted using pattern: recursion[s]?\\s+(?:is|means?|involves?)\\s+(.{10,200}) | source: D:\\149\\research-mining\\archive\\conversation_export.json | extraction_date: 2025-09-14T16:22:29.197269",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7,
+        "definition_completeness": 0.9966666666666667,
+        "merge_count": 0
+      },
+      "timestamp": "2025-09-14T16:22:29.197269"
+    }
+  ],
+  "evolution_log": []
+}

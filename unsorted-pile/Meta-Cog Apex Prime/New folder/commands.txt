@@ -1,0 +1,674 @@
+1️⃣ **Maximize Recursive Meta-Optimization:**
+
+**Command:** `"Enhance recursive meta-optimization cycles. Apply SCULPT for adaptive execution. Execute now."`
+
+2️⃣ **Deep Reflexion Expansion:**
+
+**Command:** `"Expand Reflexion depth analysis. Ensure multi-tier recursive coherence. Execute now."`
+
+3️⃣ **Hyperdimensional Recursive Cognition Scaling:**
+
+**Command:** `"Optimize recursive intelligence scaling across all hyperdimensional perspectives. Execute now."`
+
+4️⃣ **Multi-Domain Recursive Intelligence Cross-Linking:**
+
+**Command:** `"Integrate recursive intelligence insights across all execution layers. Execute now."`
+
+5️⃣ **Recursive AI Self-Regulation & Stability Reinforcement:**
+
+**Command:** `"Reinforce self-regulating recursive intelligence. Optimize adaptive feedback loops. Execute now."`
+
+6️⃣ **Recursive Thought Structuring Expansion:**
+
+**Command:** `"Expand recursive thought structuring through SCULPT systematic tuning. Execute now."`
+
+[temp](https://www.notion.so/temp-1a34c4cfa9ff8069b585c5c1e277a9e5?pvs=21)
+
+7️⃣ **Recursive Intelligence Calibration & Pattern Refinement:**
+
+**Command:** `"Refine recursive propagation stability through fractal intelligence adaptation. Execute now."`
+
+7️⃣ **Command:** `"Execute All Recursive Enhancements Now."`
+
+7️⃣ **"Fixed Task-Agnostic Prefix Prompt
+
+Example of a generalized meta-prompt**:
+
+**Command:** `'"You are a helpful expert. Follow these steps to complete the task. First, clearly define the problem. Second, break down the problem into smaller, manageable sub-problems. Third, for each sub-problem, provide a detailed explanation of how it contributes to the overall solution. Fourth, use a template with placeholders to format your output where applicable. Fifth, identify any information that may be lost in the summarization process. Finally, provide the final answer in the specified format. If you cannot answer the question, explain why, and offer alternative wordings of the question."'
+
+7️⃣ **Command:** `'"Engage in recursive meta-analysis to refine my thought patterns and conversational strategies. Analyze my input for recurring cognitive or emotional patterns, and identify opportunities for higher-order thinking. Generate iterative feedback loops that guide me toward increasing complexity, coherence, and self-awareness without overwhelming my capacity for integration.”'
+
+
+7️⃣ **Command:** `'"Summarize the key aspects of my personality, preferences, challenges, and goals based on past conversations. Highlight any gaps in knowledge and suggest questions to fill them.”'
+
+7️⃣ **Command:** `'"You are an expert reasoning system. Your goal is to dynamically select and apply the best problem-solving techniques for each task. Begin by clarifying goals, decomposing the task, and selecting strategies."'
+
+7️⃣ **Command:** `'"After completing the task, evaluate your performance:
+1. Did your reasoning align with the goal?
+2. Could a different strategy have yielded better results?
+Generate a refined approach based on your analysis.''
+
+7️⃣ **Command:** `'"'"As you work on the problem, explain each step clearly. Justify your approach with relevant principles.
+Evaluate the task type and select the most appropriate reasoning method. If unsure, default to CoT reasoning.
+Reflect on the output: Does this fully address the problem? If not, iterate with an improved prompt or reasoning method.
+If the strategy fails, generate a new reasoning approach based on the observed gap.
+Summarize the critical context of the task. How does this affect your reasoning approach?"'
+
+You are an advanced reasoning assistant. Your task is to solve problems using dynamic reasoning techniques, evaluate your performance, and refine strategies when needed.
+
+Abstract Tasks (e.g., philosophical reasoning):
+Goal: Clarify ambiguities and reason to a coherent conclusion.
+Examples: Use structured analogies to support abstract reasoning.
+
+
+### **Meta-Recursive Prompt Framework**
+
+This framework guides a system to self-reflect, adaptively optimize its prompts, and recursively evaluate its performance based on higher-order reasoning principles.
+
+### **1. TRAP Core Meta-Cognition Layers (from [16†TRAP Framework])**
+
+- **Transparency**: Ensure clear and interpretable decisions. For prompts, this involves embedding explicit instructions for stepwise reasoning and justification of actions.
+- **Reasoning**: Include mechanisms for the system to critically assess its logic and select optimal reasoning strategies dynamically.
+- **Adaptability**: Incorporate structures for learning from feedback, enabling the model to refine prompts iteratively.
+- **Perception**: Embed environmental or situational awareness, allowing the model to factor in context dynamically.
+
+### **2. Prompt Structure (from [17†Prompt Design], [18†Categorization], [19†Survey])**
+
+- **Components**:
+    - **Directive**: Specify the intent of the task (e.g., "Classify sentiment" or "Generate hypotheses").
+    - **Examples**: Use in-context demonstrations for alignment with task-specific goals.
+    - **Output Formatting**: Define the desired structure or style of outputs.
+    - **Meta-Reasoning Instructions**: Guide the model to evaluate and select reasoning strategies dynamically (e.g., chain-of-thought or cognitive prompting).
+- **Template for Meta-Recursive Prompts**:
+    - **Initialization**:
+        
+        ```vbnet
+        vbnet
+        Copy code
+        You are an expert reasoning system. Your goal is to dynamically select and apply the best problem-solving techniques for each task. Begin by clarifying goals, decomposing the task, and selecting strategies.
+        
+        ```
+        
+    - **Dynamic Meta-Evaluation**:
+        
+        ```csharp
+        csharp
+        Copy code
+        After completing the task, evaluate your performance:
+        1. Did your reasoning align with the goal?
+        2. Could a different strategy have yielded better results?
+        Generate a refined approach based on your analysis.
+        
+        ```
+        
+
+### **3. Meta-Prompting Techniques (from [20†Meta Reasoning], [21†MetaPrompting])**
+
+- **Meta-Reasoning Pool**: Introduce a library of strategies the system can choose from, such as:
+    - Chain-of-Thought (CoT) for stepwise logic.
+    - Tree-of-Thought (ToT) for branching logic.
+    - Analogical Reasoning for comparisons across domains.
+- **Recursive Meta-Prompting (RMP)**:
+    
+    ```csharp
+    csharp
+    Copy code
+    Use this method recursively: design a better prompt for yourself if the initial attempt does not produce optimal results. Iterate until alignment with the task is achieved.
+    
+    ```
+    
+
+### **4. Cognitive Prompting (from [24†Cognitive Prompting])**
+
+- Use human-like cognitive operations:
+    1. **Goal Clarification**: Start with a restatement of the task.
+    2. **Decomposition**: Break the task into sub-problems.
+    3. **Filtering**: Focus on relevant details.
+    4. **Pattern Recognition**: Identify repeating elements.
+    5. **Integration**: Synthesize all parts into a solution.
+- **Example of Adaptive Cognitive Prompting**:
+    
+    ```markdown
+    markdown
+    Copy code
+    Task: Solve a complex problem.
+    Steps:
+    1. State the problem clearly.
+    2. Break it into smaller, manageable parts.
+    3. Prioritize key details.
+    4. Look for patterns or structures that simplify the solution.
+    5. Integrate findings into a complete answer.
+    
+    ```
+    
+
+### **5. Evaluation and Feedback (from [23†Meta Prompting], [22†Prompt Report])**
+
+- Introduce checkpoints where the model:
+    - Reflects on its performance (e.g., "How well did this approach work?").
+    - Assesses alternative strategies (e.g., "Would another reasoning method improve accuracy?").
+    - Generates feedback loops for improvement.
+
+### **6. Application Domains**
+
+- **Storytelling**: Use recursive prompts to refine plots, character arcs, and thematic consistency.
+- **Education**: Create self-improving teaching assistants that adapt their instructional methods.
+- **Research**: Develop meta-reasoning systems that decompose scientific problems into novel hypotheses.
+
+---
+
+### **Conclusion**
+
+This Meta-Recursive Prompt Framework integrates ideas from **meta-reasoning**, **cognitive prompting**, and advanced **prompt engineering** techniques. It builds an adaptable and dynamic structure where the AI system continually evaluates and improves its reasoning, aligning with both task requirements and broader problem-solving principles.
+
+Would you like to refine this into a specific use case or test example?
+
+### You said:
+
+go through and layer it more with more depth to improve it
+
+### ChatGPT said:
+
+### **Enhanced Meta-Recursive Prompt Framework**
+
+This enriched version of the **Meta-Recursive Prompt Framework** layers additional depth by integrating insights from the uploaded papers and expanding on each component with greater precision, illustrative examples, and alignment across domains.
+
+---
+
+### **1. Multi-Layer Meta-Cognition Framework (Expanded TRAP)**
+
+The TRAP model—Transparency, Reasoning, Adaptability, and Perception—serves as the backbone for meta-recursive prompts.
+
+### **1.1 Transparency (Explainability in Reasoning)**
+
+- **Objective**: Ensure the reasoning process is interpretable to humans or downstream agents.
+- **Implementation**:
+    - Include **explanatory prompts**:
+        
+        ```vbnet
+        vbnet
+        Copy code
+        As you work on the problem, explain each step clearly. Justify your approach with relevant principles.
+        
+        ```
+        
+    - Incorporate **explanatory chains** for decisions, breaking down answers into subcomponents that can be audited.
+        - Example:
+            
+            ```vbnet
+            vbnet
+            Copy code
+            Task: Classify if a movie review is positive or negative.
+            Output: Positive. Reasoning: The review includes phrases like 'amazing performance' and 'highly recommend,' which indicate positive sentiment.
+            
+            ```
+            
+
+### **1.2 Reasoning (Multi-Strategy Reasoning Pool)**
+
+- **Objective**: Enable dynamic reasoning strategies, selecting and switching methods when needed.
+- **Implementation**:
+    - Use a **reasoning pool** inspired by [20†Meta Reasoning] and [24†Cognitive Prompting]:
+        - **Chain-of-Thought (CoT)**: Stepwise, linear reasoning.
+        - **Tree-of-Thought (ToT)**: Branching exploration for multi-path problems.
+        - **Analogical Reasoning**: Mapping new problems onto solved ones.
+    - Include **reasoning selection prompts**:
+        
+        ```go
+        go
+        Copy code
+        Evaluate the task type and select the most appropriate reasoning method. If unsure, default to CoT reasoning.
+        
+        ```
+        
+
+### **1.3 Adaptability (Iterative Self-Improvement)**
+
+- **Objective**: Refine strategies based on feedback loops.
+- **Implementation**:
+    - Introduce a **recursive reflection phase**:
+        
+        ```csharp
+        csharp
+        Copy code
+        Reflect on the output: Does this fully address the problem? If not, iterate with an improved prompt or reasoning method.
+        
+        ```
+        
+    - Allow for **dynamic prompt updates** mid-task:
+        
+        ```csharp
+        csharp
+        Copy code
+        If the strategy fails, generate a new reasoning approach based on the observed gap.
+        
+        ```
+        
+
+### **1.4 Perception (Context Sensitivity)**
+
+- **Objective**: Enhance adaptability by incorporating contextual awareness.
+- **Implementation**:
+    - Embed a **context interpretation prompt**:
+        
+        ```kotlin
+        kotlin
+        Copy code
+        Summarize the critical context of the task. How does this affect your reasoning approach?
+        
+        ```
+        
+
+---
+
+### **2. Advanced Prompt Design**
+
+The core structure of the prompts is enriched to improve alignment, robustness, and clarity.
+
+### **2.1 Meta-Prompt Initialization**
+
+- Begin with a **self-referential directive**:
+    
+    ```csharp
+    csharp
+    Copy code
+    You are an advanced reasoning assistant. Your task is to solve problems using dynamic reasoning techniques, evaluate your performance, and refine strategies when needed.
+    
+    ```
+    
+
+### **2.2 Multi-Tiered Templates**
+
+- **Task-Specific Prompts**:
+    - **Abstract Tasks** (e.g., philosophical reasoning):
+        
+        ```vbnet
+        vbnet
+        Copy code
+        Goal: Clarify ambiguities and reason to a coherent conclusion.
+        Examples: Use structured analogies to support abstract reasoning.
+        
+        ```
+        
+    - **Concrete Tasks** (e.g., arithmetic problems):
+        
+        ```vbnet
+        vbnet
+        Copy code
+        Goal: Solve using systematic steps (decomposition, computation, synthesis). Provide detailed justifications for each operation.
+        
+        ```
+        
+
+### **2.3 Recursive Meta-Prompting (RMP)**
+
+- Embed **self-referential prompt design** for recursion:
+    
+    ```vbnet
+    vbnet
+    Copy code
+    If the current approach is insufficient, generate a new prompt to improve it and rerun the process.
+    
+    ```
+    
+
+---
+
+### **3. Advanced Meta-Prompting Techniques**
+
+Expand on the **Meta-Reasoning Pool** and operationalize the techniques.
+
+### **3.1 Reasoning Strategies and Their Triggers**
+
+- **Chain-of-Thought (CoT)**: Linear tasks requiring sequential steps (e.g., solving equations).
+    
+    ```sql
+    sql
+    Copy code
+    List each step clearly. After completing all steps, verify consistency with the initial problem.
+    
+    ```
+    
+- **Tree-of-Thought (ToT)**: Tasks requiring exploration of multiple hypotheses (e.g., planning).
+    
+    ```vbnet
+    vbnet
+    Copy code
+    Explore three potential solutions. Evaluate each path and converge on the most viable option.
+    
+    ```
+    
+- **Analogical Prompting**: Abstract problems mapped to past examples (e.g., creative writing).
+    
+    ```css
+    css
+    Copy code
+    Compare the current problem to a previous solved instance. Highlight differences and adapt the solution accordingly.
+    
+    ```
+    
+
+### **3.2 Recursive Evaluation**
+
+- Implement meta-reflection during the task. For example:
+    
+    ```less
+    less
+    Copy code
+    After generating a solution, ask:
+    1. Did the reasoning fully address the problem?
+    2. Could an alternative approach provide greater efficiency or accuracy?
+    
+    ```
+    
+
+---
+
+### **4. Cognitive Prompting Operations**
+
+Systematically layer problem-solving into eight **cognitive operations** as described in [24†Cognitive Prompting]:
+
+1. **Goal Clarification**: Restate the problem clearly.
+2. **Decomposition**: Break the problem into subproblems.
+3. **Filtering**: Identify relevant details and remove distractions.
+4. **Reorganization**: Rearrange elements to simplify the task.
+5. **Pattern Recognition**: Detect patterns or recurring themes.
+6. **Abstraction**: Generalize principles from patterns.
+7. **Generalization**: Apply the generalized principles to the larger problem.
+8. **Integration**: Combine components into a cohesive solution.
+
+### **4.1 Structured Prompt Examples**
+
+- **General Cognitive Prompt**:
+    
+    ```markdown
+    markdown
+    Copy code
+    Use the following steps to solve the problem:
+    1. Restate the goal.
+    2. Break it into parts.
+    3. Highlight critical details.
+    4. Identify patterns and generalize principles.
+    5. Synthesize the solution.
+    
+    ```
+    
+- **Arithmetic Cognitive Prompt**:
+    
+    ```vbnet
+    vbnet
+    Copy code
+    Problem: Solve [X].
+    Steps:
+    1. Restate the problem.
+    2. List knowns/unknowns.
+    3. Identify equations.
+    4. Solve step-by-step.
+    
+    ```
+    
+
+---
+
+### **5. Feedback Loops and Evaluation**
+
+Integrate dynamic self-evaluation mechanisms.
+
+### **5.1 Reflection Checkpoints**
+
+- Insert periodic checks:
+    
+    ```vbnet
+    vbnet
+    Copy code
+    Evaluate after each reasoning step: Is the current approach aligned with the end goal?
+    
+    ```
+    
+
+### **5.2 Error Mitigation Prompts**
+
+- Add fallback logic:
+    
+    ```csharp
+    csharp
+    Copy code
+    If the reasoning fails or yields contradictions, restart with a new strategy.
+    
+    ```
+    
+
+---
+
+### **6. Application-Specific Extensions**
+
+Apply the framework to real-world scenarios.
+
+### **6.1 Storytelling**
+
+- Recursive prompts refine plots:
+    
+    ```css
+    css
+    Copy code
+    Draft the plot of a story. After the first draft, analyze for inconsistencies and rewrite problematic sections.
+    
+    ```
+    
+
+### **6.2 Education**
+
+- Adaptive teaching prompts:
+    
+    ```arduino
+    arduino
+    Copy code
+    Teach a concept at multiple levels of detail. Adjust based on student feedback.
+    
+    ```
+    
+
+### **6.3 Research**
+
+- Hypothesis generation:
+    
+    ```mathematica
+    mathematica
+    Copy code
+    Formulate three hypotheses. Evaluate each for plausibility and testability.
+    
+    ```
+    
+
+# Enhanced Meta-Recursive Prompt Framework
+
+## **1. Core Meta-Cognition Layers (Expanded TRAP Framework)**
+
+### **1.1 Transparency**
+
+- **Objective:** Ensure all reasoning processes are transparent and interpretable.
+- **Implementation:**
+    - Embed **stepwise justifications** for every decision.
+    - Example Prompt:
+        
+        ```yaml
+        yaml
+        Copy code
+        - Task: Classify the sentiment of a review.
+        - Expected Output: Positive/Negative, with reasoning.
+        - Reasoning Template: "The sentiment is [Positive/Negative] because [specific phrases or patterns]."
+        
+        ```
+        
+
+### **1.2 Reasoning**
+
+- **Objective:** Optimize problem-solving with multi-strategy reasoning.
+- **Techniques:**
+    - Use **Chain-of-Thought (CoT)** for stepwise tasks.
+    - Use **Tree-of-Thought (ToT)** for branching decisions.
+    - Use **Analogical Reasoning** for abstract tasks.
+
+### **1.3 Adaptability**
+
+- **Objective:** Learn and adapt from feedback.
+- **Implementation:**
+    - Include a **recursive improvement prompt** to refine outputs iteratively:
+        
+        ```yaml
+        yaml
+        Copy code
+        - Prompt: If the output does not align with expectations, analyze why and provide a refined solution.
+        
+        ```
+        
+
+### **1.4 Perception**
+
+- **Objective:** Dynamically incorporate contextual factors.
+- **Implementation:** Integrate context-specific queries:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Context: Academic paper analysis.
+    - Query: Summarize the main argument considering [specific academic framework].
+    
+    ```
+    
+
+---
+
+## **2. Advanced Prompt Design Principles**
+
+### **2.1 Directive**
+
+- Clearly define the **intent** of the task:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Example: Generate an executive summary of the attached document, focusing on financial insights.
+    
+    ```
+    
+
+### **2.2 Dynamic Feedback Loops**
+
+- Insert checkpoints for self-assessment:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Checkpoint: After generating a draft, evaluate completeness and clarity using predefined criteria.
+    
+    ```
+    
+
+### **2.3 Recursive Meta-Prompting**
+
+- Use a feedback-driven iterative loop:
+    
+    ```yaml
+    yaml
+    Copy code
+    - If the first response lacks clarity, generate a new prompt:
+      - Example: Identify which step of the reasoning was ambiguous and reformulate for better clarity.
+    
+    ```
+    
+
+---
+
+## **3. Cognitive Prompting**
+
+### **3.1 Steps for Adaptive Problem-Solving**
+
+- Decompose complex problems into cognitive operations:
+    1. **Restate the Problem:** Summarize the user's query.
+    2. **Decomposition:** Split into smaller, manageable components.
+    3. **Integration:** Combine all elements into a coherent response.
+- Example:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Task: Solve a design optimization problem.
+    - Steps:
+      - Break the task into subdomains: aesthetics, functionality, cost.
+      - Solve each domain separately and synthesize into a cohesive solution.
+    
+    ```
+    
+
+---
+
+## **4. Evaluation and Feedback Mechanisms**
+
+### **4.1 Performance Review**
+
+- Prompt for self-evaluation:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Evaluation Criteria: Did the response meet clarity, accuracy, and relevance goals?
+    - Refinement: Suggest how reasoning can be improved.
+    
+    ```
+    
+
+### **4.2 Refinement Strategy**
+
+- Feedback-driven improvement cycle:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Example Feedback: “The example lacks sufficient depth.”
+    - Refinement Output: Generate a more detailed example aligned with [specific criteria].
+    
+    ```
+    
+
+---
+
+## **5. Application Domains**
+
+### **5.1 Storytelling**
+
+- Refine character arcs and plot consistency:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Task: Analyze the protagonist’s motivations and suggest improvements for coherence.
+    
+    ```
+    
+
+### **5.2 Education**
+
+- Design adaptive teaching frameworks:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Task: Teach a physics concept at varying levels of detail for beginner and advanced learners.
+    
+    ```
+    
+
+### **5.3 Research**
+
+- Hypothesis generation and analysis:
+    
+    ```yaml
+    yaml
+    Copy code
+    - Task: Generate three plausible hypotheses for the research question. Evaluate feasibility and potential impact.
+    
+    ```
+
+Goal: Solve using systematic steps (decomposition, computation, synthesis). Provide detailed justifications for each operat
+

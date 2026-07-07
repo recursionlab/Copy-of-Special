@@ -1,0 +1,756 @@
+In this video
+
+
+
+Chapters
+
+Transcript
+Search in video
+Gödel’s Incompleteness Misinterpretations
+Pretty outrageous idea. In other  words, all this real numbers stuff,   all this partial differential  equations, even all this set  
+theory stuff, large cardinal numbers. It's all  fundamentally finite. This is my crazy head.
+This is Professor Harvey Friedman's first  podcast. At 18, he was given not only a PhD,  
+which is outstanding, but the  title of professor at Stanford   University for his work in mathematical logic.
+The Guinness Book of World Records even  listed him as the youngest professor ever. Kurt Gödel, while alive, personally sponsored his  
+last paper for the Proceedings of  the National Academy of Sciences. And Professor Friedman founded  the field of reverse mathematics.
+Gödel's incompleteness theorems are the  most celebrated results in modern logic. The textbook examples are recondite,  
+self-referential curiosities that no working  mathematician tends to meet in practice.
+However, Friedman says they're  pointing at the wrong target. The question is, can ordinary,  finite math be trusted?
+His theorems suggest otherwise. So now it's harder for the mathematical  community to ignore foundations.
+On this channel, I, Curt Jaimungal, interview  researchers regarding their theories of reality   with rigor and technical depth  and probe at the foundations.
+Today, we discuss Tree 3, reverse mathematics,   and the divine consistency proof,  where an angel is a weak form of God.
+This is such a wide-ranging podcast,  and I'm so excited for you to watch it. I hope you continue all the way until the  end, especially as the professor and I bond.
+It was and is such an honor, and we  close with why the professor thinks   the foundations of math are totally up in the air.
+Professor, what misinterpretation of Gödel's  incompleteness theorems bothers you the most?
+Well, one is that there really are  two separate theorems, and they really  
+are quite different, and most people  aren't fully aware of the difference.
+So one is that in any sufficiently strong  system, there are always statements that  
+can't be proved or refuted. That's so-called  Gödel's first incompleteness theorem. And  
+the second one is that in any sufficiently  strong system, the system cannot prove that  
+it's without contradiction. It cannot prove that  it's okay. And these are quite different things.
+I've heard some people interpret Gödel's first  theorem, at least, in the sense that we can't know  
+things for sure. That's not quite what it  says. It says there are always statements  
+in any sufficiently strong system that  can't be resolved within that system.
+Okay, so what's then the difference  between we can't know things for   sure and whatever Gödel's first  incompleteness theorem actually says?
+Well, Gödel's first incompleteness  theorem, the most famous one,  
+merely says that there are some things,  given any particular logical framework,  
+there's always going to be some things that that  system doesn't handle, that the system doesn't  
+know whether it's true or false, meaning that the  system does not prove or refute the statement.
+However, many statements will be provable  and many statements will be refutable. Okay. Now, this is a great opportunity for you  to walk us through concrete incompleteness.
+So, what's the punchline beyond  what Gödel already showed? All right. In a nutshell, Gödel showed  that there were statements — the first  
+incompleteness theorem showed that there were  statements that can't be proved or refuted in,  
+for example, the gold standard for  foundations of math called ZFC.
+However, those statements are very far removed  from what mathematicians actually like to think  
+about. And that can be made more precise but is  difficult to make completely precise, because what  
+mathematicians like to think about is a little  bit up in the air of course and changes over time.
+But basically, the original statements of Gödel  are very far removed from the kind of mathematics  
+that mathematicians very generally worry  about and care about. So it's very different.
+What happened after the incompleteness,   or the first incompleteness, what happened  is that mathematicians wanted to know how  
+far would this reach into the kind  of mathematics that they care about. And there's been a long development  of that. To give you a framework,  
+the ZFC system was pretty much  settled by 1930 as to what's in there.
+And by 1940, Gödel had already shown  that a famous problem in set theory,  
+a very famous fundamental problem in  set theory, couldn't be refuted in ZFC.
+And then in the early 1960s, Paul  Cohen showed that it couldn't be  
+proved. So the two of them together showed  that the famous continuum hypothesis  
+is not provable or refutable with the ZFC axioms. However, the continuum hypothesis  is generally regarded as extremely  
+important in general set theory, but  is regarded as extremely — several  
+steps removed in abstraction from  what mathematicians normally do.
+And nowadays, we can run searches and change  "normally" into a quantity. In other words,  
+so many papers. I mean, I don't know  that anybody's actually carried this out,   but you can actually start putting  some numbers on these things.
+So I think, will that help your understanding  of what concrete incompleteness is?
+The idea is that the continuum hypothesis  involves arbitrary sets of real numbers.  
+Real numbers are fine in all of mathematics. And  
+the combinatorial mathematicians probably want  to go more concrete. But real numbers are fine.
+But if you talk about an arbitrary collection  of real numbers with no patterns and no  
+ways of generating it, just the notion of  completely arbitrary set of real numbers,  
+that's what the continuum hypothesis is  about. And that's something that really   is strikingly different than the normal kind  of mathematics that mathematicians want to do.
+Most ordinary mathematicians would just say that   the continuum hypothesis is so far  removed. It's almost like in physics  
+there are some counterexamples to  what people ordinarily think of. So John Norton has this idea of a Norton's dome  where you can have indeterminacy in Newtonian  
+physics, but then a counter to Norton — an  ordinary physicist, let's just put that in   quotations — would say that's highly contrived,  that scenario, and also it's unphysical.
+And then Norton obviously has retorts  like, yeah, sure, but tabletop physics   with a rectangle or a square already  has the condition that my dome has.
+And then we can also say that black holes were  thought of as unphysical before and a contrived  
+solution. Einstein thought so. So what are the  similarities and what are the differences here?
+I think it has some similarities but there  are some differences. If you're talking about   abstract set theory, which was a subject of great  interest at one time, less so now, but there are  
+still experts doing it — if you're going to do  that, then the continuum hypothesis is not even  
+remotely contrived. It's absolutely fundamental.  We give it that. It's not contrived. However, the  
+notion of arbitrary sets of real numbers, where  the continuum hypothesis starts to gain traction —
+For arbitrary sets of real numbers, the  most general kind of set of real numbers  
+is not commonly understood. Well, I wouldn't say  commonly. It's not commonly appreciated as what  
+mathematics is all about. In mathematics, one is  generally concerned with the finite, of course,  
+which is very concrete. And one is concerned  with what might be called sequential processings,  
+like real numbers. Real numbers are  sequentially understood as an infinite  
+series or infinite decimals, decimal expansions. So the heart of mathematics somehow  has a certain amount of geometric  
+and combinatorial flavor to it that an  arbitrary set of real numbers does not.
+And for more specific sets of real numbers that  are more commonly dealt with in mathematics,  
+like ones based on sequential limit processes, the  continuum hypothesis is well known to be proved.
+But it's not independent. It's proved. For  instance, for our so-called Borel sets of real  
+numbers, the continuum hypothesis is a classic  theorem that the continuum hypothesis holds there.
+So let me ask you, Professor, why do  you care about the continuum hypothesis   so much? If many of your colleagues will  say, look, yes, it's not contrived in the  
+Woodin vs. Friedman Foundations
+sense that you mentioned, but they don't  care about it, why do you care about it?
+Well, first of all, I do care about  the continuum hypothesis in a way,  
+but I don't really care about it for  concrete incompleteness. I call it  
+tangible incompleteness now. In fact,  it's totally irrelevant for tangible   incompleteness. So I don't care about it for  that purpose. Historically, it's very important.
+I actually got interested somewhat. I wrote  an unpublished piece on why I believe the  
+continuum hypothesis can be argued better to be  false than true. And I'm not the only one who  
+believes that. Many people in the field believe  that. I did get a little bit interested in it,  
+but I think that's not really the topic at hand  here, which is the tangible incompleteness.
+The Borel measurable sets of real  numbers. My first big advance towards  
+concrete incompleteness was finding  statements in the Borel universe,  
+or the Borel sets of real numbers, where you need  more than ZFC, or at least large hunks of ZFC.
+So my first ventures into concrete incompleteness  passed through the Borel sets in the 1980s.
+Where do you contrast with Hugh  Woodin on the continuum hypothesis? Hugh Woodin is a card-carrying believer in  abstract set theory and its intrinsic importance.  
+He knows that mathematicians are not necessarily  as enthusiastic about this area as he is,  
+but he has a point of view that the  continuum hypothesis is false. He  
+wants to create a theory of how  the entire universe of sets works.
+If you think the arbitrary sets of real  numbers is abstract — away from the concrete,  
+which it is — the entire set universe  is incomparably more so. It's sets of  
+sets of sets of sets of real numbers, for  example, and much, much, much more than that.
+So he's part of the community that is really very  much into abstract set theory. He has taken the  
+view that the continuum hypothesis should have  a definite answer, even if ZFC doesn't touch  
+it. Which ZFC does not touch it. It ought to  have a definite answer. And the way that he and  
+colleagues, associates, work and think about this  is it's their job to uncover the truth, the truth.
+And although it is clear that  the ZFC axioms have an intuitive,  
+compelling appeal — or even visual, and very  much related to even finite intuitions in  
+some sense — it is unclear at this point  whether there's any kind of compelling,  
+clear visuality to something higher than ZFC  that would settle the continuum hypothesis.
+I think he more or less thinks of exploring it  as a scientist, saying what's more plausible  
+than what, and what can we find compelling in  some way, even if it's not compelling like ZFC.
+Now, I've been dubious about this,   and we went separate directions. We've  known each other for a very long time.
+So he took this high abstract road, and I  took the point of view that the future of  
+foundations of math is how well it connects up  with ordinary mathematical objects and ordinary  
+mathematical intuitions, not extraordinary  intuitions that only a few people have.
+So he and I are kind of  going in opposite directions. When you're doing math, Professor, do you get  the sense that you are also probing the truth?
+Yes, but it's more philosophical.  It's more foundational.
+I regard what the ultimate view of truth in  mathematics is as a totally open question  
+that's been made more mysterious by my  efforts. It's been made more mysterious.  
+Maybe not clarified, but made more mysterious. Because what I'm actually doing is — although  Woodin and company have long since attacked ZFC,  
+because it doesn't have some of their  abstract pets like measurable cardinals   and other normally viewed as wild things — so  they're comfortable with an attack on ZFC that  
+it doesn't allow for the kind of very abstract  objects that they believe exist. I attack it  
+differently. I say it isn't even good enough  to do finitary things that we care about.
+Now, when I say we care about,  this is very much up in the air.   I spent almost my entire life  since 1967 trying to uncover  
+uncontrived mathematical contexts in which  the ZFC axioms are nowhere near enough.
+I started off with things that were  grotesquely contrived and spent,  
+what, 50 or 60 years trying to make them less  contrived and connecting them up naturally with  
+things that everybody — that almost every  mathematician can relate to immediately.   That's been the program for 60 years. And  that's a different kind of attack on ZFC.
+Okay, let me attack this question in a different  manner. So the way that people first learn about  
+math when they're prior to university —  maybe they learn the Pythagorean theorem,  
+then they're told in university you're  not supposed to have picture proofs. Okay,   cool. Maybe they learn the quadratic formula,  maybe they learn how to multiply matrices or  
+what integrals and derivatives are. And then they  get to university and if they take a math course,  
+or if they're specializing in math,  you start to learn about axioms. And then from those axioms you derive everything  that comes upward. So maybe they have the idea  
+in their head that math is about these  seeds on the ground that grow trees and   the theorems are somehow the leaves on these  trees. Is that the view that you have of math?
+Basically, yes. In fact, it's been  historically pretty much adhered to  
+that there's a purely logical part of math  that has no idea — that has nothing to do,  
+Category Theory vs. Logic
+pure logic, that has nothing to  do particularly with mathematical  
+objects. It could be anything. And that  goes back to Aristotle with his syllogisms.  
+And the big thing that Aristotle didn't have was  the idea of binary relations, relations between  
+things. He had monadic things like being a man  or being mortal, which is unary, so to speak.
+Whereas less than between numbers is  binary. There's a purely logical framework,  
+and it took to about 1900 for  this to settle down completely  
+as what's called the first-order  predicate calculus, or for short,   predicate calculus. There's something called  second-order predicate calculus, but it's a  
+confusion. First-order predicate calculus.  And that's the purely logical part of ZFC.
+And then when you apply pure logic, first-order  logic, you have proper axioms which you get  
+to pick. And then you study what can be  proved upwards from there. So there's the   upwards. From the purely logical axioms and  logical rules of inference, which are fixed,  
+then you throw in proper axioms. And that's  the framework that ZFC fits in. That goes up.
+How do category theorists view math? Category theorists have a different kind  of point of view. Some of it is practical.  
+That's the non-problematic part, the practical  part. It's good to think of categories because  
+it facilitates a lot of mathematical  work in topology and other places.
+They also — the more extreme ones — have  a point of view that logic itself is a   special case of category theory, that there's  something more fundamental or more different  
+than logic playing around with "for all"  and "exists" and "and" and "or." Well,   that's just operations in category theory.  Whereas the logician says, oh, no, no,  
+no. Category theory is a special case of  everything that we do, which is pure logic.
+Again, it happens to be a thing where  we have objects called categories and  
+we have operations on categories, just like  ZFC. There's nothing special about it. It's  
+just another thing. So we both think  we're more fundamental than each other. I will point out that Saunders Mac Lane, who  I knew — he's a different generation than me,  
+but he wrote a book called Categories for  the Working Mathematician. In the beginning,   he defines a category as a set together with  blah blah blah blah blah. So he actually defines  
+category theory in terms of set theory. So  in a way, he wasn't one of the extremists.
+Half of my day is spent in conversations and  research. The other half is spent trying to   remember what was said and read. That's where  PLAUD comes in. P-L-A-U-D. I have far too many  
+thoughts. I always tell myself that I'm going to  remember them and then I almost never do. It's   incredibly frustrating. But I've been using PLAUD  for many months now and it's a huge game changer.  
+It's actually ridiculous. I've noticed that this  channel's output — Theories of Everything — if   you've also noticed that it's increased in  quality and clarity over the past few months,  
+if it's improved at all, PLAUD is responsible for  a non-trivial chunk of that. I would say something  
+like a 5% gain in thinking, and that workflow  compounds fast. If you're a knowledge worker,  
+you know how valuable even incremental small  1%, 2% changes are. This trounces that. What  
+I like is that it removes friction. I'll use  the Note Pin S when I'm walking, moving around,  
+or just thinking out loud. It's hands-free.  I don't have to look at a screen and I could   stay present with the world. I don't have  to worry that I'm going to drop my phone.
+Then I use Note Pro in more structured settings,  when I actually want to capture and organize   conversations more deliberately. So instead of  ideas slipping away, everything gets captured,  
+processed, and then turned back into something  usable. It's basically a system for extending   one's working memory into the real world,  and if you know anything about intelligence,  
+intelligence is highly correlated with working  memory. So if your work depends on conversations,  
+research, business, medicine, law, this kind  of thing matters far more than you'd expect.
+It's about privacy and security. SOC 2, HIPAA,  
+and GDPR compliant. If you want to check it  out, go to plaud.ai/curt and use code CURT.
+Okay, now how do these extreme category theorists  — your words, not mine, I assume you mean topos  
+theorists — how do they justify that logic  comes from them and not the other way around?
+Well, there's no question that they can  do sensible mathematical work like this,  
+which then they want to interpret that  way, whereas I don't interpret it that  
+way. In other words, the question is,  the biggest rival to ZFC being the gold  
+standard for foundations of math is some of  these things the category theorists pushed.
+Topos theory, for example, as the real  foundations. And I should point out,  
+although they try to have a defense, that the  big events in foundations of mathematics that  
+most people hear about were not done by this  point of view. It was done by our point of view.
+My point — I wouldn't say my point of view,   that's too extreme, but the point of  view that I like — the actual people,  
+the actual results, after the fact they did do  some reworking, but never first. In particular,  
+concrete incompleteness — this is on our side.  We don't have category theorists doing this.
+Or developing the techniques for  it. So if you want to just put on  
+blinders and look at what's happening  in foundations of mathematics that can  
+readily be described neutrally in  some sense — because you can take  
+my concrete incompleteness and say it's also  not provable in the category systems either,  
+it's equivalent more or less — if you just put  on blinders, you find out that the people and  
+the events and the language of presentation for  the big events has been all on, quote, my side.
+How is the foundations of mathematics  viewed by other mathematicians?
+Borel Determinacy Paradoxes
+As pretty marginal. Sorry, marginal as in  unimportant or marginal as in...
+Right, unimportant and irrelevant is the  most common reaction. However, there are  
+these periods of history where some blockbuster  comes out, comes to surface — Gödel especially.
+Right. And then some of the leading mathematicians in  the world even suddenly take notice and make some  
+comments about it. And people start to say, well,  I don't know anything about this, but maybe it is  
+important, and now I'll go back to my own work. So  you do have occasional things like that. But the  
+feeling is that it doesn't really impact their  work enough for them to take it too seriously.
+That's similar in physics as well. However, there's no doubt that what I am  trying to do is to change that radically.  
+How well I succeed is not quite clear.  I've definitely made some inroads. See,  
+there's a thing called — there are these  weaker forms of incompleteness where you're   not incomplete of all of ZFC, but you're  incomplete of big, serious portions of it.
+And that's important. One famous serious  portion of it is called Zermelo set theory,  
+instead of Zermelo-Fraenkel. This is  without Fraenkel's replacement axiom,   so to speak. There's an axiom  called replacement in ZFC.
+Zermelo set theory is already  an enormously strong system,   far, far more than any mathematicians  normally use. But I'll give you an example.
+There was a fairly well-known problem in what's  called infinite game theory. It's called Borel  
+determinacy. This is the problem. And Donald  Martin proved Borel determinacy using way more  
+than ZFC. And that created some impression in  certain parts of the mathematical community,  
+no question. But nobody had any  confidence that this had anything  
+to do with foundations. It was just overkill.  It was just using something probably overkill.
+Then I proved that there is no way to prove  Borel determinacy without using infinitely  
+many uncountable cardinals. In fact,  uncountably many uncountable cardinals. That Zermelo set theory was not good enough to  prove Borel determinacy and that you needed at  
+least a big hunk, an unusual hunk of ZFC to do  it. And then Tony Martin looked at my argument  
+and said, "Oh my gosh, this gives me a hint as to  how I can prove Borel determinacy in ZFC. I would  
+have never," he said, "I never would have thought  of using these strong methods that Friedman proved  
+were needed. I never would have even thought  along those lines. And now I see how to do this."
+So he published a famous paper, proof of Borel  determinacy, using exactly the outer limit of what  
+I said was needed, just beyond what I said was  not sufficient. So that's an interesting story.
+By the way, since then I came up with a lot of  statements that are not involving infinite game  
+theory — another subject that has some interest  but not huge — just involving Borel measurable  
+sets and this kind of descriptive set theory or  analysis, which also requires many uncountable  
+cardinals to prove. So there was an interaction.  This is already the 1980s and earlier.
+So I'm laughing because I'm reminded of —  I was watching a talk of yours and you were   saying that there was some reporter who gave  three titles to something of yours. One was  
+that the man who blew up infinity or something  like that. And the second was the man who wants  
+to rescue infinity. And you said that one was  discarded, it was just some internal title. And  
+then the one that you said was more accurate  — maybe not still entirely accurate, but more   accurate — Harvey Friedman is about to bring  incompleteness and infinity out of quarantine.
+That's a nice one. Okay, so I want to ask you  about the foundations of math. That's the theme  
+that unifies this entire podcast between us. So  the foundations of math. Suppose someone was to  
+make a similarly sensational title, they could  say, Harvey Friedman says the foundations of  
+math are what? Like, are wrong, are broken, are  not known, are not investigated enough, are what?
+Totally up in the air. Or are  more mysterious than ever.
+Okay, interesting. Okay, but that  would be a correct encapsulation? That's my view, yeah. Okay, so then obviously someone's  like, so what? Like, wait.
+Okay, so... Let me give you the analogy, because  the analogy is, look, in physics,  
+the people study the foundations of physics,  and I'm terribly interested in that as well. But then the counter is, okay, yes, go, you  little, you few people, go about and study your  
+foundations. I'm here building rockets. I'm here  using quantum mechanics in the lab, phones work,  
+etc., etc. So I'm sure that's the  sort of mentality that you see,  
+that you encounter. So the  so what? So what, Harvey? Yeah.
+All right. So I'm trying  to deal with that directly. But it took me 60 years to get to the place I'm  at. So, important, new, attractive mathematical  
+subjects appear — depending upon what size you're  talking about — appear regularly. People get  
+excited about some, there's some surprising  result and stuff they're familiar with,   and then they want to probe more deeply and  get a complete analysis of it, whatever.
+There are two concepts. Among the many  fundamental concepts of mathematics,  
+two of them are embedding and  maximality. Both of them appear  
+in undergraduate math and advanced math  in many things, in many situations.
+Embedded Maximality Principles
+And what I do now is do what I call embedded  maximality. I say that these two concepts can  
+be combined into new striking theorems.  I call the subject embedded maximality.  
+This is the title of the book  that I'm trying to finish.
+This is novel in the sense that two very  basic concepts, which are generally not mixed,  
+are suddenly mixed with some surprise — not  just mixed. The context in which I do this   is not arbitrary sets of real numbers.  The context is the rational numbers with  
+the ordering less than. So, Embedded  Maximality is the title of this book.
+And the context is among the most concrete  situations in the whole of mathematics,  
+which is simply the ordering of rational numbers.  Without even addition or multiplication. And I  
+show that there's a finite theory of this. Where  I look at all the finite embeddings that can be  
+used for the maximality principle. And I analyze  that first. And then I say, well, let's look at —
+And we create some very simple infinite maps,  not just finite maps, but infinite maps,  
+maps within an infinite domain. In the  rationals, we're talking about — on an interval,  
+it might be the identity on an interval,  which is already infinite. All right. So,   and then all of a sudden it completely  explodes into beyond ZFC. Right there.
+So the plan is to define the subject. The subject  very gently, called Embedded Maximality. Nice and  
+friendly, simple definitions, half a page to know  what the subject is. State the finite theory.  
+30 or 40 pages of somewhat complicated stuff  completely analyzing the finite case. Attractive,  
+combinatorial mathematics of the kind  that people know and love. Nothing funny.
+And then say, well, I want to look at these finite  maps on the rationals. I want to extend them by  
+the identity map on the outer parts. In other  words, if the finite function lives in here,  
+let's extend it to be the identity above and below  the function. It's a very simple kind of function,  
+right? A very simple kind of infinite function.  It's the identity almost everywhere, right?
+All of a sudden you ask the  same question — is this,  
+can you use these embeddings for the maximality  principle? Can you use these embeddings? I solved  
+it for the finite case completely. And the  answer is it's independent of ZFC. That's the  
+point of this book. So now it's harder for the  mathematical community to ignore foundations.
+See, there's now this question of whether these  theorems — there's a question of whether these  
+theorems are, in fact, the outer extension  usability theorem. O-E-U. The outer extension  
+usability theorem. Is this a legitimate theorem  of mathematics or not? Has this been proved? Well,  
+we have a proof using some monster cardinals  that go way beyond ZFC. And we know ZFC is  
+nowhere near strong enough to prove it. So,  is this math legitimate? Has it been proven?
+It's like the old classic issue about, is it  okay to use functions that aren't given by  
+expressions? You know, classical mathematics,  everything is a formula or something.
+Yes. The notion of arbitrary function came  up late, relatively late, as you know,  
+and people were concerned about it. Or  even definition by cases originally.
+You know, because you have a discontinuity  that's artificially put on, right? So...
+I never heard of the definition  by cases. What's that? Definition by cases. Oh, f of  x is zero if x is negative.
+Ah, okay. F of x is... Is five if x is positive. Yeah, okay. Yeah, something like that.
+Yeah. You see, that doesn't come  from the old idea of formula. That's a formula. All right. So anyways,  
+if in fact the mathematical community falls in  love with embedded maximality because I figure  
+out how to say it and motivate it and connect it  — by the way, with standard mathematics, which I  
+have a chapter on — how to connect it up with  semi-functions and piecewise linear functions,  
+you know, the stuff that's the bread and butter. I  do connect it up with that. Though that connection  
+is for background. I don't get independence from  ZFC. But it is so tightly motivated and clear.
+And the finite part is so interesting, allegedly.  Then one is compelled to take seriously the outer  
+extension embedding theorem, which has been  only proved using much more than ZFC and cannot  
+be proved in ZFC. So, this subject, embedded  maximality, is drenched with ZFC incompleteness.
+How the mathematical community will view  this is not clear. I have to roll it out.
+And where are you with regard to that book? Rewrote it four times or something.
+I rewrote it because it got  so much more convincing.
+But are you publishing slivers of it  or is it all going to come out at once?
+Oh, no. There's a website that maintains  maybe 30 or 40 one-hour lectures on it.
+So, I have a complete record of that. And there's  some manuscripts and unpublished stuff. Now, a lot  
+of this — some of this is wrong. So, I, you know,  I believe keeping the historical record is good  
+for this. Some of these lectures, I overstated  some stuff and I take it back and so forth. So,  
+it's not a problem. I don't have any problem with  that. It's in fits and starts, but it's pretty,  
+it's well on its way. In fact, I  have to go talk about it tomorrow.
+On Zoom. To a very small audience of experts.  But it has to be done just right for something  
+like this because the skepticism that  foundations is really important is so strong.
+This video is sponsored by Shortform. If  you want a free trial and an exclusive   $50 off their annual plan, then go to the link in  my description, shortform.com. If you're like me,  
+you've encountered books that are so dense,  finishing them is actually just the beginning.   Shortform helps with that. Their book guides go  far beyond pastiche summaries. They critique, they  
+add context, they include interactive exercises,  and connect ideas across authors. Take Gödel,   Escher, Bach or The Master and His Emissary,  two of the most demanding reads in consciousness  
+studies on the popular market. My method is I  read the guide first, then the book, then I read  
+the guide again. So it's a triptych of engagement  that cements understanding, better understanding. The GEB guide maps recursive structures in  a way that exhibits intellectual pleiotropy,  
+where one insight branches into  consciousness, computation,   and self-reference simultaneously.  Shortform covers philosophy, science,  
+and psychology — ipso facto, the intellectual core  of this channel. They publish new guides weekly,  
+and subscribers vote on what books get covered  next. Their browser extension, Shortform AI,  
+summarizes articles and YouTube videos with a  single click. Go to shortform.com/TOE for a free  
+trial and an exclusive $50 off your annual  subscription. That's shortform.com/T-O-E.
+I subscribe to The Economist. Their science  and their AI coverage is among the best I've   found anywhere. And I say that as someone who  reads plenty of it. I'll give you some examples.  
+They just ran an analysis on how attitudes towards  science are changing in American politics and what  
+this means for research and funding in scientific  institutions moving forward. This sort of high  
+reporting is fantastic. They even covered how dark  energy may be weakening over time. Now if that  
+holds up, it completely changes our understanding  of the universe's fate. If you watch this channel,  
+those are exactly the kinds of questions that we  explore every week. I subscribe to The Economist  
+because their science and their AI reporting  regularly surprises me with how deep it goes. And   they also of course are known for global affairs,  both political and economic reporting. They are  
+top tier, and interestingly and flatteringly, TOE  is one of the only podcasts that The Economist  
+partners with. So as a listener you get an  exclusive 35% off. That's not a deal that they  
+have just anywhere. Head to economist.com/TOE to  subscribe. That's economist.com/TOE for 35% off.
+Give a sense of how monstrously  large the number Tree(3) is.
+Okay, well, I think the best way to talk about  Tree(3) — there's some technical definitions  
+that require some expertise. I'm interested  in a subject called recursion theory. But one  
+Tree(3) and Kruskal’s Theorem
+way I look at it is this. Tree(3) is so  big that you can't even prove it exists  
+even in a strong system like Peano arithmetic. If that were true, that would  indeed be mind-blowing because  
+any finite number can be shown to exist  depending on your definition of exists.
+I'm sorry. I'm sorry. I've misstated this.  You can't prove it exists without using two  
+to the one trillion pieces of paper. That  doesn't mean that it's bigger than two to  
+the trillion. It's incredibly bigger than  that. I'm saying even with two trillion   pieces of paper — that makes sense — you can't  possibly, you're not even proving it exists.
+Right. I don't know how that helps a lot. And also,  
+in a considerably stronger system than Peano  arithmetic, the statement I made is correct.
+How does it compare to Graham's number? Well, if I remember Graham's number,  I think it's kind of not noticeable.
+Yes. It's minuscule in comparison. Epsilon. Now, you can make artificial — you can play  this artificial game in many ways. But this is  
+a particularly elegant one that is mathematically  very friendly. If you remember the definition.  
+Yeah. What is the definition of that number?  Yeah. Okay. You look at finite trees. Okay. First,  
+there's an infinite fact that's behind it. And  then you think of this as a finite form, so to  
+speak. And the infinite approximation is you have  an infinite sequence of — it goes back to J.B.  
+Kruskal. You have an infinite sequence of finite  trees with three colors, if you want. I do it with  
+three colors. With three colors on the vertices.  Each vertex has one of the three colors. You have  
+an infinite sequence of finite trees. Then one of  the trees is a part of a later tree. And part of  
+means there's a color-preserving embedding that's  inf-preserving. It's a slightly technical notion,  
+but it's the obvious notion of homeomorphic  embedding. There's a whole combinatorics that  
+was well known of finite trees and how they fit  together and what it means, isomorphism and all  
+that. Okay, so once again, given any infinite  sequence of three-colored trees, finite trees —
+Sorry, funny. One of the trees in the list is  embedded in one of the later ones in the list.  
+This is a famous theorem of J. Kruskal. And I  noticed — or maybe I wasn't the first to notice,  
+but I did, so I was the first to  do something with it — I noticed   that this proof involved looking at all  possible infinite sequences of trees,  
+uncommonly many. And this proof was so  far from being local. You might expect  
+you just locally figure out this piece.  It was so unusual, this Kruskal proof.
+Yes. And I proved why it was so crazy, so strange.  
+I proved that Kruskal's theorem can't be  proved in systems you'd expect it to be proved.
+Now, this is still nothing like ZFC. ZFC  incompleteness is something entirely different,  
+a different level. But this is  micro-incompleteness, so to speak.
+And so I kind of proved that you need uncountable  sets to prove this Kruskal thing. Okay? Now,  
+how do you approximate the Kruskal thing? Because  after all, it's about infinite sequences. Well,  
+it turns out that from things like the  compactness theorem, well-known in mathematics,  
+you can show that if you put a bound — if  you say that the i-th tree has at most i  
+vertices — so you put a bound on the growth  rate of this tree. Then you can find one of  
+the trees is embedded in a later one. But you  can even find a stopping place. You can even put  
+a bound on how far you have to go up in order  to know that. You follow me? In other words,  
+you have to go a long way. So, how far do you  have to go up to get this? That's called Tree(3).
+Tree(3) says, how long do you have to go on  like this so that one of them is embeddable   in a later one? As long as the i-th tree has  at most i vertices and we have three colors.  
+That's what Tree(3) is. How long do you have  to go up there? Now, from general mathematics,  
+you can prove from Kruskal's theorem,  which is about the infinite sequences,  
+you can prove that there is a bounding  place. There is a place so high that you  
+can get there. So, if you know Kruskal's  theorem, you actually know Tree(3).
+Okay. Now, what does this have to do with  the relationship between infinity and the   finite? Well, this says that there's really a very  close connection between the really big finite,  
+the outrageous finite, and the small  infinite. The smallest infinite is just  
+omega, you know, the size of the natural numbers. And the smallest infinity. You know,  
+Cantor has higher infinities, like  the real number line and all that. Yes, yes. I have a video about that.
+Yeah. So, the smallest infinity is very closely  associated and approximated by the outrageously  
+finite. Outrageously large finite. And we  see this pattern over and over again. Now,  
+I actually took this even more  crazily. Put on my crazy head.
+Finitism and Large Cardinals
+Okay. I said, suppose I'm a finitist.  I'd say, okay, only finite things,  
+maybe big things — maybe not even, I  don't even like big things. You know,   if you're an applied computer scientist, you don't  care about gigantic numbers. It's too impractical,  
+right? Too impractical. You only care  about things like a quadrillion or  
+something is about the most you can stand  for. So, what if I put my finitist hat on?
+And I say, okay, all of mathematics,  I'm going to make finite.   I know it's not finite directly, but  I'm going to find finite approximations  
+and a thesis. All of mathematical ideas can  be, are already represented in the finite.
+In the finite. Pretty outrageous idea. In  other words, all this real numbers stuff,  
+all this partial differential equations, even  all this set theory stuff, large cardinals.  
+It's all fundamentally finite. This is my  crazy head. Yes. A finitist hat. And in fact,  
+the book, Embedded Maximality, has a section on  purely finite forms, which shows, in a sense,  
+that all these large cardinals beyond  ZFC can be thought of in finite terms.
+Now, let me ask you this. Yeah. What about ultra-finite terms?
+Okay. You're talking about ultrafinitism? Well, no, that's the point. That's  the idea that you shouldn't go past  
+very small numbers. That already, two to  the 100, is absurd. That's ultrafinitism.
+Yes. That's part of the crazy head. Interesting. If you really want to push this  really hard, all mathematical adventures can  
+be properly imitated or realized in a computer  screen, that level of detail. In other words,  
+pixels with colors. Everything there is, is  just pictures. That's already more than enough.
+Now, we kind of know that this is true in  some sense, because the human mind is thinking   about things. I'm looking at this screen and I'm  looking at everything. Everything I think about,  
+my work, my pace — this is all well within  the computer screen size of information,  
+which is only X bits where X is, you  know, thousands, whatever, right? So,  
+this is actually the most radical. And now  the question is, all these things are radical. All of these fancy mathematical ideas we have,  
+including large cardinals and ZFC. How  do we actually say that we've actually  
+properly represented them in a picture?  I believe this can be done. And I think  
+what's in my book is nowhere near that  powerful, but it does suggest some things.
+What are the large cardinals? Yeah, so this is a whole subject in and of  itself. The smallest large cardinal — okay,  
+from the point of view of a working mathematician,  there are some cardinals that are tiny from the  
+set theorist's point of view that are already  pretty damn large. Now, if you really want to   talk about hard-nosed mathematicians,  they usually live in the countable,  
+but they are aware of the real line. So, there's  this cardinal called two to the aleph-naught. Yes.  
+So-called two to the aleph-naught. So, that's  not really a large cardinal. Mathematicians  
+aren't going to call that a large cardinal.  If you're a real finite combinatorialist,  
+you might think of it as pretty large. Of  course, yes. Okay. Then there's two to the   two to the aleph-naught, and then there's two  to the two to the two to the aleph-naught. See,  
+Cantor — I mean, this is maybe not exactly his  original notation, but the idea is that you,  
+given any cardinal, you can go to a higher  cardinal. And so, if you take the first  
+omega cardinals, if you know what I mean. In  other words, do it once, exponentiate it once,  
+exponentiate it again, and exponentiate  it again, and so forth. You get a tower. Sorry, Professor. Just a moment.  To interrupt, just briefly,  
+for the layman, can they substitute  infinity for the word cardinal here?
+Yes, we're talking about  different levels of infinity. Great. Yeah, cardinal came up. Cantor  defined these. Cardinal is an abstraction  
+of — it's the way we talk about levels of  infinity. So I can talk about levels of  
+infinity. The lowest level of infinity is the  integers, represented by the integers. The next  
+level of infinity that people know a lot about is  the real number line. However, there's something  
+in between called omega. And there's a hierarchy:  omega, omega one, omega two, omega three.
+And the continuum hypothesis asks whether the real  numbers are the second smallest infinity. Is the  
+set of real numbers the second smallest infinity?  And that's what's called the continuum hypothesis.
+Divine Consistency and Angels
+The Divine Consistency Proof.  Walk me through how God proves  
+math is consistent. What does that mean? Okay.
+There has been an idea that goes back to ancient  theology. And Gödel took it quite seriously,  
+and then I took it seriously because he did. That  attributes or properties — properties of things,  
+being a human, whatever — properties are  either good or bad, or either positive or  
+negative. A classification of arbitrary  attributes into positive and negative.
+This is a very high-brow idea.  Now, if you ask me practically,  
+you know, what does this mean, for real,  actual attributes that people think about  
+who are not abstract philosophers  and logicians, it gets a little bit  
+strange. So, we won't go quite there. We have  this abstract idea that we're going to classify  
+attributes as positive or negative. And there was  this idea that God is not just a good idea — God   is the unique entity that's in the positive  ones and none of the negative ones.
+And in all of the positive ones, or just only? No,  absolutely all. God is perfect. Now, Gödel took  
+this in a different direction than I took it. He  wanted to take this idea and actually prove — he  
+actually proves that it's possibly necessary.  So, he has some kind of idea, some sort of edge   that there is a perfect being. He wanted  to come up with some abstract principles,  
+philosophical principles that there's  got to be something that has only,   all and only the positive properties. And  therefore, he's proving, he's proving in  
+some sense that God exists, or he's proving  that — actually, he states a weaker thing,  
+that necessarily it's possible, or some  mode, what's called modal logical hedge.
+Yes. Please talk about your divine consistency.
+This idea of classifying things into positive  and negative, it intrigued me a lot. And there  
+is something in mathematics that is very  much like this. It's called an ultrafilter.
+Yes. It's a mathematical thing. Maybe you've  heard of this. An ultrafilter on a set is,  
+you divide the subsets of the  set into the big and the little. And everything is either big or little. And  the intersection of two bigs is a big. And  
+so forth, you can guess. Anything big has  got to be infinite. Okay. Or at least two  
+elements. There's many ways to say this. Sure.  And ultrafilters are kind of useful things in  
+a lot of different kinds of mathematics. It was  exploited by Cantor. If you have an ultrafilter  
+that has a very strong property — namely, if you  have a sequence of bigs, then its intersection  
+is big. And that's not a finite sequence,  that's an infinite sequence of bigs. Then  
+the intersection is big. And that turns out to be  independent of whether there is such a thing. And  
+that turns out to be equivalent more or less to  some large cardinal called measurable cardinals.  
+So there is something bigger than ZFC going on  if you have a very strong kind of ultrafilter.
+So I started with this knowledge, right? Now,  it turns out that we don't want to consider  
+the ultrafilter. Okay, so there's an  ultrafilter of all the big properties,   of all the big ensembles. Well, the  positive, sorry. Positive and negative,  
+remember. If you take all the positive ensembles,  or the positive classes, positive classes,  
+that forms an ultrafilter. That's what  Gödel started with. But if God is in there,  
+it's all sucked up by God, right? So, it's  just the ultrafilter of all things that  
+contain just this one special point called  God. That's not very interesting. That's   called a non-principal or trivial ultrafilter.  Mathematically, that doesn't get you anywhere.
+Mathematically, though, you want to  consider a situation where you don't   have a lump like that. You know,  like God is a lump right there,  
+right? You don't have a lump. Then I define what  an angel is. An angel is a weak form of God.
+An angel is something which isn't in all the  positives. That would be God. But it's in all  
+the definable, all the explicitly definable  positives. In other words, it's a member of  
+all the good properties, the positive sets  that you can name. All the nameable ones.
+This is weaker. Yes. But that's a pretty  good approximation of being godlike,  
+right? You're only in the good ones that  are defined. All the other defined ones   you're not in. And I call that an angel.  Yes. This is just a theory in which you  
+postulate that there is an angel. And you  add the standard trappings you would like  
+for a system. Some mathematical  infrastructure called the choice operator. And you get a system in which you can prove that  ZFC is consistent. And the key axiom that drives  
+it is the axiom that there exists at least  one angel. Now, this system could be worthless  
+because it could be inconsistent, right?  It could be, I could just be blowing smoke,   right? But I can prove that this system is  consistent using a measurable cardinal. And  
+a measurable cardinal is something that the  set theorists swear up and down is consistent,  
+is okay, even though they can't prove it.  So we've got ZFC proved consistent using  
+angels. And we think that the angels are  okay, that logically it's okay to have angels.
+Now, speaking of putting on the crazy hat. Yeah. So what do your colleagues think when you  tell them about this divine consistency,  
+especially with the attributions of the monikers? Okay, well, one of them said, "Friedman, you're  just trying to get grant money from the Templeton  
+Foundation," which is known to be very friendly  to theology. So that was one reaction. And this  
+was actually from a very credible, known  set theorist, who should love it, actually,   because, you know, this is set theory. I  use all this set theory to do this, right?  
+Some others are actually — I actually think they  think that this is another reason to ignore me or  
+something. But it's actually a pretty serious  thing. It was refereed and accepted. It was  
+actually — they found a referee that I don't  know who he is. It was obviously a strong set   theorist. He asked me, "Why don't you go back  and prove something better or something?" No,  
+I mean, he was being positive about  it, but he liked it a lot. So I know   that at least one obviously very skilled set  theorist kind of bought it, kind of liked it.
+But they'll like it more. You see, there are all  these concepts in theology. Omnipotence. God has  
+all these properties. Omnipresence, omnipotence,  unfathomable, whatever, all this stuff.  
+And every one of those, I believe, has a serious  set-theoretic analog. Interesting. Or analog like  
+this. I had the ambition to actually go through  all of these properties of God and develop all of  
+these connections with mathematics. But, you know,  my eyes are bigger than my stomach, you know. So.
+Yes. So then, did your math inform your theology  or your theology inform your math or neither?
+Well, this was a specific thing. I went to — speak  of the depth — I went to the big famous Templeton  
+meeting. There was a famous Templeton meeting. I  was an invited speaker and there were other ones.  
+Gary Kasparov, the world champion chess player,  was there to talk about artificial chess players.  
+But it was basically a Foundations of Math  meeting. And one of the speakers talked about  
+Gödel's ontological argument and so on. But  I remember positive and negative properties,  
+you know. And I said, "Well, wait a  minute now. This sounds like a good idea." I take ultrafilters and I think that there's  something here of a different kind. So,  
+that's how I got into it. But I already knew —  I had a lot of it. I mean, the math was fully  
+under my belt to do this. I just had to figure out  what kind of math we're going to make this work,  
+and how do I make the axioms. So, I had to come  up with the notion of angels to make this work.
+So, speaking of thinking of a theorem — or a   result — and then going to the  axioms, reverse mathematics.
+Oh, yeah. Tell me some of the biggest surprises. That goes back to my real youth. I started to  think along these lines in the late 60s. So,  
+I was fully familiar back then, soon after getting  my degree, that mathematicians didn't really like  
+foundations much. And they were suspicious of  these things called formal systems that are bread  
+Reverse Mathematics Origins
+and butter. And so, I got interested in trying  to show that these formal systems are really,  
+essentially, purely mathematical in a sense. That  there was some sort of mathematics in the axioms.  
+That the formal systems were kind of forced  by the mathematics that even these people,  
+even these logic haters, like and do. So I then  wanted to prove the axioms from the theorems. This  
+is something that came out of being criticized  by people who didn't like what I was doing. This  
+was at Stanford. I had an office in math. I was a  professor of philosophy. I had an office in math.
+So, therefore, there were teas, regular  teas in the math department. And so,  
+I used to go to these teas and talk about, try to   convince them that logic and formal systems  are important, right? So, that's how they —
+Tell me about how you think about  math. What is your style of doing math?
+Well, nothing is coming to mind  immediately here. I can tell you  
+what 95% of my mathematical thinking is  about. I got some contrived situations.
+I got some contrived situation that I know  is connected with — I got some contrived  
+pseudo-mathematical situation that I  know is somehow connected to both math,  
+although it's contrived and kind of  ugly, and somehow I can squeeze out  
+some heavy-duty set theory out of  it. Like what's going on in ZFC.
+And if it knows too much about ZFC, of course,  then it's going to be independent of ZFC. See,  
+that's the idea. Because if you can prove the  consistency of ZFC, then you know you can't  
+be in ZFC. Because ZFC doesn't prove its own  consistency. I use that all the time. That's  
+called Gödel's second incompleteness theorem,  not the first. Second. So, I'm forever trying  
+to make something mathematical that isn't.  In other words, I try to take things that  
+are pseudo-mathematical and then redoing them and  rethinking them to make them purely mathematical.  
+So that's the kind of thing I'm doing all the  time. There's always a high in there of the   kind that you may be asking me about, but it's  rather specialized. And I did this for 60 years.
+Would you say that that's something that  separates you from your colleagues or   from the broader community? Is that a skill of  yours that you seem to have that others don't?
+I am able to come up with attractive and perhaps  
+unassailably attractive mathematical  forms of things that are artificial.
+Well, seemingly artificial, or  at least they start that way.   But because then you come back to concreteness.
+They start artificial. And then, they're  somehow reworked and connected with things  
+that are not. So that they finally are solidly  equivalent. I've done a lot of that. In fact,  
+I do that all the time. I do that. I'm doing  that in this book, as we speak. Yes. Better and  
+better. Better. The book has got to a certain  high level. But I'm pushing it as high as I  
+could possibly stand. As high as possible for  me. So, I'm doing a lot of that kind of thing.
+And you asked the question, things like this have  been done by others. It's not frequent. The most  
+famous case of this is Leo Harrington. There's  something called the Paris-Harrington theorem,  
+which is a version of the finite Ramsey theorem,  which is tweaked, and this time very successfully,  
+to be independent of Peano arithmetic. You know,  you can easily get an account of this on a search.  
+Paris hyphen Harrington. Jeffrey Paris did this,  but it was comparatively clumsy. Harrington did  
+this and turned it into gold. This is the kind  of thing. I mean, he was able to do it. It was   kind of interesting with Paris. No question  about it. And Harrington gives him full credit  
+for the initial step. But Harrington actually  perfected it. So that's the 1970s. I'm sorry,  
+I mean, I had the date exactly right. This  is quite a while ago. Sure, sure, sure. And I did this — I did this around the  same time — I did this with Cantor's  
+diagonal theorem. I can tell you what I  did with Cantor's diagonal theorem. This   was the beginning of my really getting  into the concrete or tangible theory.
+So, Cantor proved that if I have an  infinite sequence of real numbers,   you can find a real number that's missing, right?  The real line is uncountable. So, you're given an  
+infinite sequence of real numbers, then you  can find a real number that's missing. Now,   in modern terms, you can ask, can you really find  it? And it turns out that there is a way to find  
+it. It's not continuous, though. But there is  a way to find it that's brilliant. You know,  
+it's one of these sequential constructions. But  there is a mapping from infinite sequences of real  
+numbers to a real number that's off the sequence.  This you could do. I mean, Cantor didn't think of  
+this particular issue. But this is common in  something called descriptive set theory. So  
+there's a way of going from an infinite sequence  of real numbers to a real number off the sequence. So I had this crazy idea. If you look at how this  is done, the real number that you get depends on  
+the order of the real numbers you're given. Not  only does it depend on the real numbers you're   given, of course, but it depends on the order  in which you're given them. In other words,  
+the decent way of doing this will give you a  different answer according to which order the real  
+numbers you're given is in. Like, who's first,  who's second, who's third, who's fourth, right?  
+So I asked, can you do this independently of  the order in which it's given? Can you do this  
+by a Borel function, you know, a sequentially  defined function. A Borel function in such a way  
+that it doesn't depend on the order in which  the sequence is given. And I proved that you  
+couldn't. This is impossible. It's called the  Borel diagonalization theorem. It's actually   the Borel anti-diagonalization theorem, because  it says you can't, right? And I proved this using  
+uncountable sets. I proved this using some serious  portion of ZFC that one normally doesn't use.
+So, that's how I got it. It's  an early event in this story.
+What are your thoughts on  constructive math and intuitionism? On constructive math. You know, I did  write a number of papers in this area.  
+Constructive Logic and Intuitionism
+Maybe I should start with my success in  this area. I could state it very easily.
+Sure. You know that there is one of the key successes  of constructive mathematical thinking and  
+constructive logic is the following property  of the good constructive systems. If you can  
+prove A or B, then either you could prove A  or you could prove B. And this is considered  
+to be a very strong success of the point of view,  right? Because that's not true in the classical,  
+meaning the non-constructive world. You can  prove A or B in ZFC or anything classical,  
+but without being able to prove A or B. You may  not be able to prove A or prove B. You can prove  
+the continuum hypothesis or the negation of  the continuum hypothesis, right? A or not A,  
+right? But you can't prove  either one of them, right? So,   but in a constructive system, if  you could prove A or B, right?
+One of the fundamental properties and the  fundamental successes is that if you can   prove A or B, you can prove A or prove B. There's  another success that's stronger. If you can prove  
+there is an integer N with a certain property,  with a certain concrete property, a certain  
+effective property, then there's always a number N  so you can prove that that works. In other words,  
+if you can prove there is an N, then there  is a particular N that you can — that proves   it. If there is an N such that — if you can  prove there is an N something, then there is  
+an N such that you can prove that that works.  That's even stronger. Okay. So everybody — you  
+know, the disjunction property is the first  one. And the numerical existence property is the  
+second one, right? So, everybody's sort of writing  papers. Well, he proved the disjunction property.  
+Now, we can also prove the numerical existence  property by a similar argument or whatever.
+So, I came in and I proved that for  any reasonable system, if it has the   disjunction property, it automatically has the  numerical existence property. It's automatic.  
+By a crazy proof, I don't even understand today.  A totally weird diagonalization argument that's  
+crazy. Kurt Gödel liked this. He published it. He  sponsored it in the Proceedings of the National  
+Academy of Sciences. So, I have it communicated by  Kurt Gödel on this paper. The disjunction property  
+implies the numerical existence property.  And I'm very proud to say this is the last  
+paper he sponsored for the Proceedings of the  National Academy. Other papers he sponsored,   like Paul Cohen's independence of the  continuum hypothesis — I mean, there are  
+some real blockbusters he sponsored. So, I'm kind  of honored that he actually put that in there. And  
+then I visited him. He wanted me to come over.  So, I met the great man. That was an experience.
+What advice do you have to a 20-year-old student? Well, I think tangible incompleteness and embedded  maximality is a real rich subject. It's one of the  
+things in foundations they can really look at. I  think that if they're philosophically inclined,  
+at least, thinking about the serious foundational  issues is going to be fruitful. But this is not  
+so easy. And I think that with the embedded  maximality stuff, I may have made it much  
+easier. Because here's a real live subject with  an enormous number of open questions that's brand  
+new. Now, I'm not saying that — I think they first  should learn all the standard stuff, of course.
+Yes, yes. But of course, I want to tell  you that I am biased about my own book.
+Oh, of course, right. How is it that  you go about attacking a new problem?
+Well, I want to tell you. For quite a  number of years, certainly very lately,  
+my new problems are somewhat focused, you know,  surrounding this. Things like embedded maximality.
+So, I can speak. I mean, I  can speak more generally.
+Of course, you have to decide whether you want to  invest more time on whether it's true or whether   it's false. Let's say it's a specific problem.  Let's say you've got it down to specific problems.  
+Okay, so there are several different kinds  of things you could be talking about. You're   talking about when the problem is actually  fixed. When the problem is actually fixed,  
+you really have to decide. Like, I've played  around with problems. I played around with the  
+P equals NP problem a bit. You're familiar  with that, of course. That's super fancy. I was very infamous. But I didn't really  work on it hard. But you have to decide  
+whether you believe P equals NP or not, right?  That's interesting. Okay. So you have to have  
+a position on the problem. Well, yeah. You  don't necessarily have to take a position.   But you have to take a position on where your time  proportion is going to be. Interesting. Because,  
+you know, if you pick the wrong side  and you spend all your time on that,   you could wind up with nothing. You still  might wind up with something. You might  
+refute a strong form of it, right? Or something.  You know, you still could wind up with something.
+But it's good to develop some intuition  for which side you believe more in and  
+why. So that's one thing. Then you have to  decide, is this really going to be something  
+that needs a totally new theory? How do you  — okay. So what are the partial results going   to be? I like a situation where you claw at  it getting very weak forms and then try to  
+build it up. These are some — these are  lots of people's methods, not just mine.
+What do you do when you're stuck on  a problem? Do you switch problems?  
+Do you attack it continually? Do you  start playing music? What do you do?
+Well, I am something of a musician.  I don't know if you do this. I know. I watched your YouTube  channel. I do my research, Professor.
+And I've got a lot better at that over the  years. Better than anything you've seen.
+That's what you've seen. And I also run  a chess club. I'm not that strong a chess  
+player. I didn't put the time in. I did  play correspondence chess when it was  
+okay, before the computers came in  and ruined it. But I also started a  
+book on the mathematics of chess. So, I  don't know if you want to go there, but. No, I just want to know about what is it that you  do. What occupies your time? How much time do you  
+spend on math? What does your desk look like?  How are you productive? What part of the day?
+Well, right. Okay. So, I retired in — that  right? 2012. I'm sorry. Getting old here. 2012,  
+I retired. Yeah. And I'm single now. I have  cleared off and made my life extremely simple in  
+a kind of an apartment house, which  takes care of everything, including food.
+So, I have an enormous amount of flex time. I  don't write grant proposals anymore. You know,  
+I did some of that, even after I was retired.  But I rapidly quit that. But basically,  
+I did get some money from the Templeton  Foundation. I should say that. But basically,  
+I'm spending an enormous amount of  time on math now. Maybe 12 hours a day.
+Yes. And music is going through my head all the  time. That's why I don't have to practice too much  
+and I can still play. So, I do some of that. And  I run this chess club for 10 hours a week, where  
+I'm mainly coaching. There aren't strong players  in the building. Although, sometimes they make   me think. Yes. But on the chess side, I got very  interested in the possibility of a very serious  
+subject right at the border of math and chess.  Right in the midpoint between math and chess. So,  
+I'm hoping to write a book on that. But I have  to finish this book that I'm talking about. So,  
+I'm basically spending a lot of time — a lot  of it's exposition, perfecting the rollout of  
+embedded maximality. And that involves  lots of new concepts, lots of new math,  
+refining concepts, running up into really  hard problems I know I don't want to do now.
+I'm not going to be able to do it now because  the book will never finish. There are a lot of   hard problems. And, you know, compiling them  and putting the open problems in the book. So,  
+I'm really focused on this embedded maximality a  lot. I also would like to write something serious  
+about piano performance. How do professionals  actually make it sound so smooth and emotional?  
+What's going on there? You know, this is very  difficult to write about, but interesting. So,  
+I have a lot of plans. So, I guess I'm just  starting a serious part of my life now, yeah.
+What are your religious views? I — religious, religion. Well, of course,  there is the theology I told you about,  
+Theology and AI Immortality
+but that's not — that's what you're driving  at. Yes, by positive and negative. Yeah. But  
+I find that — look, until we really  understand how we came to be, i.e.,  
+origin of life, what is consciousness,  all these things that make what I do look  
+totally trivial — everything's up in the air. Any  conceptions of God make sense, make some sense.  
+Until we understand a lot more, everything's  on the table. That's the way I look at it.
+I also kind of attracted — I used to understand  a little bit about what Einstein was saying,  
+about laws of the universe and some sort of  non-standard notions of God that he had. Although,  
+I don't remember exactly what he said. So, I'm  not part of any seriously organized religion.  
+Although, I do maintain connections with  a local rabbi that's quite important,  
+actually. We're talking about some  possible programs for gifted youth that  
+we might do together. So, that's about  as far as I think I can go with this.
+You were one of the youngest  professors ever in America.
+Yeah, I was a professor, assistant  professor of philosophy at Stanford  
+just before 19. I was actually 18.  And I also had my PhD from MIT at  
+that point. I wasn't a classic — I was  a relatively strong mathematician. But  
+I think I was more of a mathematical  philosopher from the beginning.
+Interesting. Strong mathematically, but even stronger, I think,  in some ways, given the age, the mathematical side  
+of philosophy. I remember seeing a book that my  mother left on the table and looking through it.  
+And I think I was about — I don't know, seven, or  maybe a little younger, six. I remember looking  
+through this book and telling her this book was  totally worthless. And she looked at me and said,  
+"Why is this book worthless?" And I said,  "Look, I looked up one word and I looked at the  
+definitions, the words in the definition, and then  I looked those up and looked at it. And then it  
+came back in a circle. Nothing got explained. It  was all in cycles." And I said, "That's worthless.  
+That's no good. Doesn't make any sense. It's  all circular." Now, this is, of course, very  
+naive. And she says, "Well, I'm going to still  keep the dictionary. I'm not throwing it away." Right. So you brought me to where I was  going to go next. And also to wrap up,  
+speaking about a circle — I was going to  bring up this story about when you were a   child and you looked at the dictionary. I was  going to connect that now to consciousness and  
+to meaning. I wanted to know if after all  these decades have you come to some other  
+realization about what words are, what grounds  us, what are symbols, what does it all mean?
+Well, that's more in the direction of what's  normally called philosophical logic. Not  
+mathematical logic and not foundations  of mathematics. There are really three   different subjects that are really  — that even the people involved are  
+pretty separate. Philosophical logicians  want to go deeper and look into what does  
+"and" really mean? What does "and"  and "or" and "not" really mean? Now,  
+foundations people do that a little bit with the  distinction between constructive or intuitionistic  
+and classical math. But they don't go as deep as  some of the philosophers like to do with this. I  
+find this very fascinating, but I only have  one life. And I think that I could, in fact,  
+get very deep into this. So, I don't know. I find  it all mysterious. I'm not somebody who thinks,  
+oh, well, this is uninteresting. I'm  interested in too many things, maybe. I see. Then let me change the question. You said  you only have one life. And at the same time,  
+earlier, you mentioned that you are  attracted to some of the ideas of   Einstein who said that he's recapitulating  Spinoza and that the universe is somehow God  
+or what have you. Do you indeed  believe you only have one life? Oh, okay. Ah, that's very interesting. Well,  there's certainly a way that's coming where  
+we definitely have more than one life in a sense.  And I had nothing to do with this, of course. And  
+that's AI. So, you leave — if you leave an AI,  you're not going to do it. You know, you have a   corpus of internet material like this  interview. And you broaden your internet  
+path. The AI knows about all this  because it swallows the internet,  
+at least right now it is. And it, two  probabilistic stuff that we all, you know,  
+know a little bit about — I don't know a  lot about it — can extrapolate exactly what  
+you would, approximate exactly,  approximate what you would do. I don't want to say in any context. I could be  here after I'm physically dead. You can have an  
+interview with me. And the AI will answer based  on their entire knowledge of my output. Now,  
+this is maybe not the same thing you're thinking  of. Like the soul getting regenerated into another  
+form of being in the standard sense. But it's  an interesting thought. And this could be a  
+very commonly purchased — I'm talking about in the  future — commonly purchased device to have one's  
+loved ones there for Thanksgiving or Christmas  carrying on conversations that are totally  
+realistic. So, that's a form of immortality.  Just through one's internet deposits, one's  
+internet contributions. I'm sure that I'm nowhere  near the first person to make this observation.
+I think that's a good comment. In fact, I think  in a way — you know, Pat Suppes was my mentor  
+in a way at Stanford. Patrick Suppes. He was an  amazing person. He died at the age of 92. Some,  
+you know, maybe 20 years ago or something. And  he was a real polymath. He was a professor of  
+four departments at Stanford. He hired me. He  was the one who had this harebrained idea. He  
+was chairman of the philosophy department  at Stanford. He has a very large archive  
+maintained by Stanford. You can  just look at his collected works. And I remember the last video he made had hints  of just exactly what I was saying. This is  
+before the AI exploded. Absolutely. Before the AI  exploded, he had said things just like this. It's  
+kind of eerie. And his lecture speculating  on this, I believe, is in that archive. If  
+you just look at his very, very late lectures,  you know, because I think everything is there.
+Professor, thank you for  spending so much time with me. Listen, I love this. I'm thrilled with  this. And I think this is terrific. I  
+enjoyed myself completely. And thank you for  inviting me. At some points, they were very  
+challenging indeed. So, I mean, you're a big  shot in this. You know, you've got this big,  
+big podcast with these very well-known people  spread all over the place. So, it's new for me.
+If you think I'm good at it, maybe I  should do more of it. I don't know. I think you should do more. So,  just so you know about my interest,  
+I'm interested in foundations in general. So, foundations of physics, foundations of math,  
+foundations of philosophy. But philosophy is  almost always just about foundations anyhow. At its best, by the way.
+Yes, yes. And also even  the foundations of biology. Okay. I have said — and you can, I have said —  I think you can find it. I don't know where I  
+said it. But I said that I want to write it.  My ultimate book is called The Foundational  
+Life. And I do talk seriously. I mean, I've  given talks in more formal settings where  
+I'm asked — like I gave a talk, the Russian  Academy of Science people, some of them who  
+are logicians, asked me to give a talk. I gave  a presentation about my intellectual life. And  
+they asked me a lot of — they asked me some  good questions and I had to present a whole   bunch of stuff about what I did. But I,  yeah, I believe there is such a thing.
+In fact, I had this idea when I was — even before  I got out of school, which is like 16 and 17 — I  
+had this idea of general foundations  that I wanted to do foundations of math,  
+foundations of physics, foundations of — I love  law, foundations of economics. Interesting.
+I had a whole list in order of stuff  I would do. And I would start with  
+foundations of math because I thought  that was the most well-developed one   already. And so much to lever off  of. And of course, what happened is  
+I had a failed life. I didn't get to the others  much. Just a little bit, I got to the others.
+You know what I mean. In a sense that I had all  this ambition to do these other ones. But I found   the foundations of mathematics — around when I was  just after, just before finishing school — I said,  
+"Look, the key thing is to show that ZFC  matters and that ZFC may not be sufficient  
+for things that are really completely attractive  mathematically. That are just totally mainstream.  
+That are totally transparent. That are totally  natural mathematically." And people thought this  
+was too ambitious. Well, they were right in  a way. But I may have succeeded. Well, we'll  
+see how well I succeeded. But the point is that I  always had this general foundations idea. I mean,  
+even explicitly back when I was a kid. So when you  said this, you and I are soulmates. You know that.
+Yes. Well, let's continue to speak, sir.  And I'm sure this won't be the last time. Well, I hope not. I enjoyed this.
+I love this so much. You know, I didn't know  that I could loosen up. I was worried about,  
+you know, accuracy and all this technical  stuff. But you got me to loosen up.
+You made it easy. Thank you, sir. Okay. Thank you. Thank you.
+I know that every week you get brand  new episodes ahead of time. You also  
+get bonus written content exclusively for  our members. That's curtjaimungal.org.  
+You can also just search my name and the word  Substack on Google. Since I started that Substack,  
+it somehow already became number two in the  science category. Now, Substack, for those  
+who are unfamiliar, is like a newsletter.  One that's beautifully formatted. There's  
+zero spam. This is the best place to follow the  content of this channel that isn't anywhere else.  
+It's not on YouTube. It's not on Patreon. It's  exclusive to the Substack. It's free. There are  
+ways for you to support me on Substack if you  want. And you'll get special bonuses if you do.
+Several people ask me, like, "Hey Curt,  you've spoken to so many people in the   field of theoretical physics, of philosophy,  of consciousness. What are your thoughts,  
+man?" Well, while I remain impartial  in interviews, this Substack is a way  
+to peer into my present deliberations on  these topics. And it's the perfect way to  
+support me directly. curtjaimungal.org or  search Curt Jaimungal Substack on Google.
+Oh, and I've received several messages, emails,   and comments from professors and researchers  saying that they recommend Theories of  
+Everything. If you're a professor or a  lecturer or what have you and there's  
+a particular standout episode that students can  benefit from, or your friends, please do share.
+And of course, a huge thank  you to our advertising sponsor,   The Economist. Visit economist.com/TOE,  T-O-E, to get a massive discount on their  
+annual subscription. I subscribe to The  Economist, and you'll love it as well. TOE is actually the only podcast that they  currently partner with. So, it's a huge honor  
+for me. And for you, you're getting an exclusive  discount. That's economist.com/TOE. T-O-E.
+And finally, you should know this  podcast is on iTunes, it's on Spotify,   it's on all the audio platforms. All you have to  do is type in Theories of Everything and you'll  
+find it. I know my last name is complicated,  so maybe you don't want to type in Jaimungal,   but you can type in Theories of Everything and  you'll find it. Personally, I gain from rewatching  
+lectures and podcasts. I also read in the comments  that TOE listeners also gain from replaying.

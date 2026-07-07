@@ -1,0 +1,572 @@
+Using “Annotator Rationales” to Improve
+Machine Learning for Text Categorization∗
+OmarF.Zaidan and JasonEisner ChristineD.Piatko
+DepartmentofComputerScience JHUAppliedPhysicsLaboratory
+JohnsHopkinsUniversity 11100JohnsHopkinsRoad
+Baltimore,MD21218,USA Laurel,MD20723USA
+{ozaidan,jason}@cs.jhu.edu christine.piatko@jhuapl.edu
+Abstract
+In some circumstances, rationales should not be
+We propose a new framework for supervised ma-
+tooexpensiveortime-consumingtocollect. Aslong
+chine learning. Our goal is to learn from smaller
+astheannotatorisspendingthetimetostudyexam-
+amountsofsupervisedtrainingdata,bycollectinga
+ple x and classify it, it may not require much extra
+richer kind of training data: annotations with “ra- i
+effortforhertomarkreasonsforherclassification.
+tionales.” When annotating an example, the hu-
+man teacher will also highlight evidence support-
+2 UsingRationalestoAidLearning
+ing this annotation—thereby teaching the machine
+learnerwhytheexamplebelongstothecategory. We We will not rely exclusively on the rationales, but
+providesomerationale-annotateddataandpresenta use them only as an added source of information.
+learning method that exploits the rationales during The idea is to help direct the learning algorithm’s
+trainingtoboostperformancesignificantlyonasam- attention—helpingitteaseapartsignalfromnoise.
+ple task, namely sentiment classification of movie Machine learning algorithms face a well-known
+reviews. We hypothesize that in some situations, “credit assignment” problem. Given a complex da-
+providing rationales is a more fruitful use of an an- tumx andthedesiredresponsey ,manyfeaturesof
+i i
+notator’stimethanannotatingmoreexamples. x could be responsible for the choice of y . The
+i i
+learning algorithm must tease out which features
+1 Introduction were actually responsible. This requires a lot of
+trainingdata,andoftenalotofcomputationaswell.
+Annotationcostisabottleneckformanynaturallan-
+Our rationales offer a shortcut to solving this
+guage processing applications. While supervised
+“credit assignment” problem, by providing the
+machine learning systems are effective, it is labor-
+learning algorithm with hints as to which features
+intensiveandexpensivetoconstructthemanytrain-
+of x were relevant. Rationales should help guide
+ing examples needed. Previous research has ex- i
+the learning algorithm toward the correct classifica-
+ploredactiveorsemi-supervisedlearningaspossible
+tion function, by pushing it toward a function that
+waystolessenthisburden.
+correctly pays attention to each example’s relevant
+Weproposeanewwayofbreakingthisannotation
+features. This should help the algorithm learn from
+bottleneck. Annotators currently indicate what the
+lessdataandavoidgettingtrappedinlocalmaxima.1
+correct answers are on training data. We propose
+In this paper, we demonstrate the “annotator ra-
+thattheyshouldalsoindicatewhy,atleastbycoarse
+tionales”techniqueonatextcategorizationproblem
+hints. Wesuggestnewmachinelearningapproaches
+previouslystudiedbyothers.
+thatcanbenefitfromthis“why”information.
+For example, an annotator who is categorizing 1Tounderstandthelocalmaximumissue,considerthehard
+phrases or documents might also be asked to high- problemoftrainingastandard3-layerfeed-forwardneuralnet-
+work.Iftheactivationsofthe“hidden”layer’sfeatures(nodes)
+light a few substrings that significantly influenced
+were observed at training time, then the network would de-
+herjudgment. Wecallsuchclues“rationales.” They compose into a pair of independent 2-layer perceptrons. This
+neednotcorrespondtomachinelearningfeatures. turnsanNP-hardproblemwithlocalmaxima(BlumandRivest,
+1992)toapolytime-solvableconvexproblem. Althoughratio-
+∗ThisworkwassupportedbytheJHUWSE/APLPartner- nalesmightonlyprovideindirectevidenceofthehiddenlayer,
+shipFund;NationalScienceFoundationgrantNo.0347822to thiswouldstillmodifytheobjectivefunction(seesection8)in
+thesecondauthor;andanAPLHafstadFellowshiptothethird. awaythattendedtomakethecorrectweightseasiertodiscover.
+260
+ProceedingsofNAACLHLT2007,pages260–267,
+Rochester,NY,April2007.(cid:13)c2007AssociationforComputationalLinguistics3 DiscriminativeApproach theirowncost,sotheobjectivefunction(1)becomes
+One popular approach for text categorization is to 1 X X
+kw~k2+C( ξ )+C ( ξ ) (5)
+use a discriminative model such as a Support Vec- 2 i contrast ij
+i i,j
+torMachine(SVM)(e.g.(Joachims,1998; Dumais,
+1998)). We propose that SVM training can in gen- TheparameterC ≥ 0determinestheimpor-
+contrast
+eralincorporateannotatorrationalesasfollows. tanceofsatisfyingthecontrastconstraints. Itshould
+From the rationale annotations on a positive ex- generally be less than C if the contrasts are noisier
+−→
+ample x i,wewillconstructoneormore“not-quite- thanthetrainingexamples.2
+−→
+as-positive” contrast examples v ij. In our text cat- Inpractice,itispossibletosolvethisoptimization
+egorization experiments below, each contrast docu- usingastandardsoft-marginSVMlearner. Dividing
+−→
+ment v ij was obtained by starting with the original equation(4)throughbyµ,itbecomes
+and“maskingout”oneoralloftheseveralrationale
+−→
+substrings that the annotator had highlighted (r ). (∀i,j) w~ ·x ·y ≥ 1−ξ , (6)
+ij ij i ij
+Theintuitionisthatthecorrectmodelshouldbeless
+sureofapositiveclassificationonthecontrastexam- where − x→ =def −→ xi−− v→ ij. Since equation (6) takes
+−→ −→ ij µ
+ple v ij than on the original example x~ i, because v ij the same form as equation (2), we simply add the
+−→
+lacksevidencethattheannotatorfoundsignificant. pairs (x ,y ) to the training set as pseudoexam-
+ij i
+Wecantranslatethisintuitionintoadditionalcon- ples,weightedbyC ratherthanC sothatthe
+contrast
+straintsonthecorrectmodel,i.e.,ontheweightvec- learnerwillusetheobjectivefunction(5).
+tor w~. In addition to the usual SVM constraint on There is one subtlety. To allow a biased hyper-
+−→
+positiveexamplesthatw~ ·x i ≥ 1,wealsowant(for plane, we use the usual trick of prepending a 1 el-
+−→
+eachj)thatw~ ·~x i−w~ ·v ij ≥ µ,whereµ ≥ 0con- ement to each training example. Thus we require
+−→
+trolsthesizeofthedesiredmarginbetweenoriginal w~ · (1,x ) ≥ 1 − ξ (which makes w play the
+i i 0
+andcontrastexamples. role of a bias term). This means, however, that we
+Anordinarysoft-marginSVMchoosesw~ andξ~ to must prepend a 0 element to each pseudoexample:
+minimize w~ · (1,~xi)−(1,− v→ ij) = w~ ·(0,− x→ ) ≥ 1−ξ .
+1 X µ ij ij
+kw~k2+C( ξ ) (1) In our experiments, we optimize µ, C, and
+i
+2
+i C contrast onheld-outdata(seesection5.2).
+subjecttotheconstraints
+4 RationaleAnnotationforMovieReviews
+−→
+(∀i) w~ · x i ·y i ≥ 1−ξ i (2) In order to demonstrate that annotator rationales
+(∀i) ξ ≥ 0 (3) help machine learning, we needed annotated data
+i
+thatincludedrationalesfortheannotations.
+−→
+where x i is a training example, y i ∈ {−1,+1} is Wechoseadatasetthatwouldbeenjoyabletore-
+its desired classification, and ξ i is a slack variable annotate: the movie review dataset of (Pang et al.,
+−→
+that allows training example x i to miss satisfying 2002; Pang and Lee, 2004).3 The dataset consists
+the margin constraint if necessary. The parameter of 1000 positive and 1000 negative movie reviews
+C > 0 controls the cost of taking such slack, and obtained from the Internet Movie Database (IMDb)
+shouldgenerallybelowerfornoisierorlesslinearly review archive, all written before 2002 by a total of
+separabledatasets. Weaddthecontrastconstraints 312authors,withacapof20reviewsperauthorper
+(∀i,j) w~ ·(−→ x −− v→ )·y ≥ µ(1−ξ ), (4) 2Taking C contrast to be constant means that all rationales
+i ij i ij
+areequallyvaluable. Onemightinsteadchoose, forexample,
+toreduceC forexamplesx thathavemanyrationales,
+−→ contrast i
+where v ij is one of the contrast examples con- topreventx i’scontrastexamplesv ij fromtogetherdominating
+structed from example −→ x i, and ξ ij ≥ 0 is an asso- theoptimization. However,inthispaperweassumethatanx i
+withmorerationalesreallydoesprovidemoreevidenceabout
+ciated slack variable. Just as these extra constraints
+thetrueclassifierw~.
+have their own margin µ, their slack variables have 3Polaritydatasetversion2.0.
+261category. PangandLeehavedividedthe2000docu-
+ments into 10 folds, each consisting of 100 positive
+reviewsand100negativereviews.
+The dataset is arguably artificial in that it keeps
+only reviews where the reviewer provided a rather
+high or rather low numerical rating, allowing Pang
+and Lee to designate the review as positive or neg-
+ative. Nonetheless, most reviews contain a difficult
+mix of praise, criticism, and factual description. In
+fact,itispossibleforamostlycriticalreviewtogive
+apositiveoverallrecommendation,orviceversa.
+Figure 1: Histograms of rationale counts per document (A0’s
+4.1 Annotationprocedure annotations). The overall mean of 8.55 is close to that of the
+fourannotatorsinTable1.Themedianandmodeare8and7.
+Rationale annotators were given guidelines4 that
+read,inpart:
+• Awomaninperil. Aconfrontation. Anexplosion. The
+end.Yawn.Yawn.Yawn.
+Eachreviewwasintendedtogiveeitherapositiveoraneg-
+ativeoverallrecommendation.Youwillbeaskedtojustifywhy • whenafilmmakeswatchingEddieMurphyatediousex-
+areviewispositiveornegative.Tojustifywhyareviewisposi- perience,youknowsomethingisterriblywrong.
+tive,highlightthemostimportantwordsandphrasesthatwould
+• the movie is so badly put together that even the most
+tellsomeonetoseethemovie.Tojustifywhyareviewisnega-
+casualviewermaynoticethemiserablepacingandstray
+tive,highlightwordsandphrasesthatwouldtellsomeonenotto
+plotthreads.
+seethemovie.Thesewordsandphrasesarecalledrationales.
+Youcanhighlighttherationalesasyounoticethem, which • don’tgoseethismovie
+shouldresultinseveralrationalesperreview. Doyourbestto
+mark enough rationales to provide convincing support for the The annotation involves boldfacing the rationale
+classofinterest. phrases using an HTML editor. Note that a fancier
+Youdonotneedtogooutofyourwaytomarkeverything.
+annotation tool would be necessary for a task like
+Youareprobablydoingtoomuchworkifyoufindyourselfgo-
+ingbacktoaparagraphtolookforevenmorerationalesinit. namedentitytagging,whereanannotatormustmark
+Furthermore,itisperfectlyacceptabletoskimthroughsections many named entities in a single document. At any
+thatyoufeelwouldnotcontainmanyrationales, suchasare-
+givenmoment,suchatoolshouldallowtheannota-
+viewer’splotsummary,evenifthatmightcauseyoutomissa
+rationalehereandthere. tor to highlight, view, and edit only the several ra-
+tionales for the “current” annotated entity (the one
+The last two paragraphs were intended to provide
+mostrecentlyannotatedorre-selected).
+someguidanceonhowmanyrationalestoannotate.
+One of the authors (A0) annotated folds 0–8 of
+Evenso,assection4.2shows,someannotatorswere
+the movie review set (1,800 documents) with ra-
+considerablymorethorough(andslower).
+tionales that supported the gold-standard classifica-
+Annotatorswerealsoshownthefollowingexam-
+tions. This training/development set was used for
+ples5 ofpositiverationales:
+all of the learning experiments in sections 5–6. A
+histogram of rationale counts is shown in Figure 1.
+• youwillenjoythehelloutofAmericanPie.
+Asmentionedinsection3,therationaleannotations
+• fortunately,theymanagedtodoitinaninterestingand
+were just textual substrings. The annotator did not
+funnyway.
+require knowledge of the classifier features. Thus,
+• heisoneofthemostexcitingmartialartistsonthebig
+our rationale dataset is a new resource4 that could
+screen, continuing to perform his own stunts and daz-
+zlingaudienceswithhisflashykicksandpunches. also be used to study exploitation of rationales un-
+• theromancewasenchanting. derfeaturesetsorlearningmethodsotherthanthose
+consideredhere(seesection8).
+andthefollowingexamples5 ofnegativerationales:
+4.2 Inter-annotatoragreement
+4Availableathttp://cs.jhu.edu/∼ozaidan/rationales.
+To study the annotation process, we randomly se-
+5For our controlled study of annotation time (section 4.2),
+differentexamplesweregivenwithfulldocumentcontext. lected 150 documents from the dataset. The doc-
+262Rationales %rationalesalso %rationalesalso %rationalesalso %rationalesalso %rationalesalso
+perdocument annotatedbyA1 annotatedbyA2 annotatedbyAX annotatedbyAY ann.byanyoneelse
+A1 5.02 (100) 69.6 63.0 80.1 91.4
+A2 10.14 42.3 (100) 50.2 67.8 80.9
+AX 6.52 49.0 68.0 (100) 79.9 90.9
+AY 11.36 39.7 56.2 49.3 (100) 75.5
+Table1:Averagenumberofrationalesandinter-annotatoragreementforTasks2and3. ArationalebyAi(“Ithinkthisisagreat
+movie!”) is considered to have been annotated also by Aj if at least one of Aj’s rationales overlaps it (“I think this is a great
+movie!”). Incomputingpairwiseagreementonrationales,weignoreddocumentswhereAiandAjdisagreedontheclass. Notice
+thatthemostthoroughannotatorAYcaughtmostrationalesmarkedbytheothers(exhibitinghigh“recall”),andthatmostrationales
+enjoyedsomedegreeofconsensus,especiallythosemarkedbytheleastthoroughannotatorA1(exhibitinghigh“precision”).
+umentsweresplitintothreegroups,eachconsisting min./KB A1time A2time AXtime AYtime
+Task1 0.252 0.112 0.150 0.422
+of50documents(25positiveand25negative). Each
+Task2 0.396 0.537 0.242 0.626
+subsetwasusedforoneofthreetasks:6 Task3 0.399 0.505 0.288 1.01
+min./doc. A1time A2time AXtime AYtime
+• Task1: Giventhedocument,annotateonlythe Task1 1.04 0.460 0.612 1.73
+class(positive/negative). min./rat. A1time A2time AXtime AYtime
+Task2 0.340 0.239 0.179 0.298
+Task3 0.333 0.198 0.166 0.302
+• Task 2: Given the document and its class, an-
+notatesomerationalesforthatclass.
+Table2:Averageannotationratesoneachtask.
+• Task3: Giventhedocument,annotateboththe
+• Evenwithitsnumerousflaws,themovieallcomesto-
+classandsomerationalesforit.
+gether,ifonlyforthosewho...
+• “Beloved” acts like anincrediblydifficult chamber
+We carried out a pilot study (annotators AX and
+dramapairedwithaghoststory.
+AY:twooftheauthors)andalater, morecontrolled
+study (annotators A1 and A2: paid students). The 4.3 Annotationtime
+latter was conducted in a more controlled environ- Average annotation times are in Table 2. As hoped,
+ment where both annotators used the same annota- rationalesdidnottaketoomuchextratimeformost
+tion tool and annotation setup as each other. Their annotators to provide. For each annotator except
+guidelineswerealsomoredetailed(seesection4.1). A2,providingrationalesonlytookroughlytwicethe
+In addition, the documents for the different tasks time(Task3vs. Task1),eventhoughitmeantmark-
+wereinterleavedtoavoidanypracticeeffect. ing an average of 5–11 rationales in addition to the
+Theannotators’classificationaccuraciesinTasks class.
+1 and 3 (against Pang & Lee’s labels) ranged from Why this low overhead? Because marking the
+92%–97%, with 4-way agreement on the class for class already required the Task 1 annotator to read
+89%ofthedocuments,andpairwiseagreementalso the document and find some rationales, even if s/he
+ranging from 92%–97%. Table 1 shows how many did not mark them. The only extra work in Task 3
+rationales the annotators provided and how well is in making them explicit. This synergy between
+theirrationalesagreed. class annotation and rationale annotation is demon-
+Interestingly, in Task 3, four of AX’s ratio- strated by the fact that doing both at once (Task 3)
+nales for a positive class were also partially wasfasterthandoingthemseparately(Tasks1+2).
+highlightedbyAY as support for AY’s (incorrect) Weremarkthatthistask—binaryclassificationon
+negativeclassifications,suchas: full documents—seems to be almost a worst-case
+scenariofortheannotationofrationales. Atapurely
+6Eachtaskalsohada“warmup”setof10documentstobe
+annotated before that tasks’s 50 documents. Documents for mechanical level, it was rather heroic of A0 to at-
+Tasks 2 and 3 would automatically open in an HTML editor tach 8–9 new rationale phrases r to every bit y
+ij i
+while Task 1 documents opened in an HTML viewer with no
+of ordinary annotation. Imagine by contrast a more
+editingoption.Theannotatorsrecordedtheirclassificationsfor
+Tasks1and3onaspreadsheet. local task of identifying entities or relations. Each
+263lower-levelannotationy willtendtohavefewerra- features(n-grams, partsofspeech, syntacticdepen-
+i
+tionalesr ,whiley itselfwillbemorecomplexand dencies ...) that depend in part on material in one
+ij i
+hence more difficult to mark. Thus, we expect that or more rationales. This could be done directly by
+the overhead of collecting rationales will be less in modifyingthefeatureextractors,orifoneprefersto
+manyscenariosthanthefactorof2wemeasured. use existing feature extractors, by “masking” rather
+Annotation overhead could be further reduced. thandeletingtherationalesubstring—e.g.,replacing
+Foramulti-classproblemlikerelationdetection,one each of its word tokens with a special MASK token
+couldasktheannotatortoproviderationalesonlyfor thatistreatedasanout-of-vocabularyword.
+the rarer classes. This small amount of extra time
+5.2 Trainingandtestingprocedures
+wherethedataissparsestwouldprovideextraguid-
+ancewhereitwasmostneeded. Anotherpossibility We transformed this problem to an SVM problem
+ispassivecollectionofrationalesviaeyetracking. (seesection3)andappliedSVMlightfortrainingand
+testing,usingthedefaultlinearkernel. Weusedonly
+5 ExperimentalProcedures
+A0’srationalesandthetrueclassifications.
+Fold 9 was reserved as a test set. All accuracy
+5.1 Featureextraction
+resultsreportedinthepaperaretheresultoftesting
+Although this dataset seems to demand discourse-
+onfold9,aftertrainingonsubsetsoffolds0–8.
+level features that contextualize bits of praise and
+Our learning curves show accuracy after training
+criticism, we exactly follow Pangetal. (2002) and
+on T < 9 folds (i.e., 200T documents), for various
+PangandLee(2004) in merely using binary uni-
+T. Toreducethenoiseintheseresults,theaccuracy
+gram features, corresponding to the 17,744 un-
+wereportfortrainingonT foldsisactuallytheaver-
+stemmedwordorpunctuationtypeswithcount≥ 4
+age of 9 different experiments with different (albeit
+inthefull2000-documentcorpus. Thus,eachdocu-
+overlapping)trainingsetsthatcoverfolds0–8:
+ment is reduced to a 0-1 vector with 17,744 dimen-
+sions,whichisthennormalizedtounitlength.7 8
+1 X
+We used the method of section 3 to place addi- acc(F 9 | θ∗,F i+1∪...∪F i+T) (7)
+9
+tionalconstraintsonalinearclassifier. Givenatrain- i=0
+ingdocument,wecreateseveralcontrastdocuments,
+where F denotes the fold numbered j mod 9, and
+j
+each by deleting exactly one rationale substring
+acc(Z | θ,Y) means classification accuracy on the
+from the training document. Converting documents
+setZ aftertrainingonY withhyperparametersθ.
+to feature vectors, we obtained an original exam-
+To evaluate whether two different training meth-
+−→ −→ −→
+ple x and several contrast examples v ,v ,....8
+i i1 i2 ods A and B gave significantly different average-
+Again, our training method required each original
+accuracy values, we used a paired permutation test
+document to be classified more confidently (by a
+(generalizing a sign test). The test assumes in-
+marginµ)thanitscontrastdocuments.
+dependence among the 200 test examples but not
+Ifwewereusingmorethanunigramfeatures,then
+among the 9 overlapping training sets. For each
+simply deleting a rationale substring would not al-
+of the 200 test examples in fold 9, we measured
+waysbethebestwaytocreateacontrastdocument,
+(a ,b ), where a (respectively b ) is the number
+i i i i
+as the resulting ungrammatical sentences might
+of the 9 training sets under which A (respectively
+cause deep feature extraction to behave strangely
+B) classified the example correctly. The p value
+(e.g.,parseerrorsduringpreprocessing). Thegoalin
+is the probability that the absolute difference be-
+creatingthecontrastdocumentismerelytosuppress
+tween the average-accuracy values would reach or
+7Thevectorsarenormalizedbeforeprependingthe1corre- exceed the observed absolute difference, namely
+spondingtothebiastermfeature(mentionedinsection3). | 1 P200 ai−bi|,ifeach(a ,b )hadanindependent
+200 i=1 9 i i
+8The contrast examples were not normalized to precisely 1/2chanceofbeingreplacedwith(b ,a ),asperthe
+i i
+unitlength,butinsteadwerenormalizedbythesamefactorused
+−→ nullhypothesisthatAandBareindistinguishable.
+tonormalizex . Thisconvenientlyensuredthatthepseudoex-
+i
+amples− x→ d=ef ~xi−−v→ ij weresparsevectors,with0coordinates For any given value of T and any given train-
+ij µ
+forallwordsnotinthejthrationale. ing method, we chose hyperparameters θ∗ =
+264The lower three curves (S3–S5) show that learn-
+ing is separately helped by the rationale and the
+non-rationale portions of the documents. S3–S5
+are degraded versions of the baseline S2: they are
+ordinary SVM classifiers that perform significantly
+worsethanS2(p < 0.001).
+Removing the rationale phrases from the train-
+ing documents (S3) made the test documents much
+harder to discriminate (compared to S2). This sug-
+gests that annotator A0’s rationales often covered
+mostoftheusableevidenceforthetrueclass.
+However, the pieces to solving the classification
+puzzle cannot be found solely in the short rationale
+phrases. Removing all non-rationale text from the
+Figure 2: Classification accuracy under five different experi-
+mental setups (S1–S5). At each training size, the 5 accura- training documents (S5) was even worse than re-
+ciesarepairwisesignificantlydifferent(pairedpermutationtest, movingtherationales(S3). Inotherwords,wecan-
+p < 0.02; seesection5.2), exceptfor{S3,S4}or{S4,S5}at
+not hope to do well simply by training on just the
+somesizes.
+rationales (S5), although that approach is improved
+(C,µ,C contrast) to maximize the following cross- somewhatinS4bytreatingeachrationale(similarly
+validationperformance:9 toS1)asaseparateSVMtrainingexample.
+This presents some insight into why our method
+8
+θ∗ = argmaxX acc(F | θ,F ∪...∪F ) gives the best performance. The classifier in S1
+i i+1 i+T
+θ is able to extract subtle patterns from the corpus,
+i=0
+(8) like S2, S3, or any other standard machine learn-
+Weusedasimplealternatingoptimizationprocedure ingmethod,butitisalsoabletolearnfromahuman
+thatbeginsatθ 0 = (1.0,1.0,1.0)andcyclesrepeat- annotator’sdecision-makingstrategy.
+edlythroughthethreedimensions,optimizingalong
+6.2 Usingfewerrationales
+each dimension by a local grid search with resolu-
+tion 0.1.10 Of course, when training without ratio- In practice, one might annotate rationales for only
+nales,wedidnothavetooptimizeµorC contrast. sometrainingdocuments—eitherwhenannotatinga
+new corpus or when adding rationales post hoc to
+6 ExperimentalResults
+an existing corpus. Thus, a range of options can be
+6.1 Thevalueofrationales foundbetweencurvesS2andS1ofFigure2.
+Figure3exploresthisspace,showinghowfarthe
+The top curve (S1) in Figure 2 shows that perfor-
+learning curve S2 moves upward if one has time to
+mance does increase when we introduce rationales
+annotaterationalesforafixednumberofdocuments
+forthetrainingexamplesascontrastexamples(sec-
+R. Thekeyusefuldiscoveryisthatmuchoftheben-
+tion 3). S1 is significantly higher than the baseline
+efit can actually be obtained with relatively few ra-
+curve(S2)immediatelybelowit,whichtrainsanor-
+tionales. Forexample,with800trainingdocuments,
+dinary SVM classifier without using rationales. At
+annotating(0%,50%,100%)ofthemwithrationales
+thelargesttrainingsetsize,rationalesraisetheaccu-
+gives accuracies of (86.9%, 89.2%, 89.3%). With
+racyfrom88.5%to92.2%,a32%errorreduction.
+the maximum of 1600 training documents, annotat-
+9One might obtain better performance (across all methods ing (0%, 50%, 100%) with rationales gives (88.5%,
+being compared) by choosing a separate θ∗ for each of the 9
+91.7%,92.2%).
+training sets. However, to simulate real limited-data training
+conditions, one should then find the θ∗ for each {i,...,j} us- Tomakethispointmorebroadly,wefindthatthe
+ingaseparatecross-validationwithin{i,...,j}only;thiswould R = 200 curve is significantly above the R = 0
+slowdowntheexperimentsconsiderably.
+curve (p < 0.05) at all T ≤ 1200. By contrast, the
+10ForoptimizingalongtheC dimension, onecouldusethe
+efficientmethodofBeinekeetal.(2004),butnotinSVMlight. R = 800,R = 1000,...R = 1600pointsateachT
+265randomsimulationoflazinesscouldnottestthat.
+7 RelatedWork
+Our rationales resemble “side information” in ma-
+chine learning—supplementary information about
+the target function that is available at training time.
+Side information is sometimes encoded as “virtual
+examples” like our contrast examples or pseudoex-
+amples. However, past work generates these by
+automatically transforming the training examples
+in ways that are expected to preserve or alter the
+classification (Abu-Mostafa, 1995). In another for-
+mulation, virtual examples are automatically gener-
+ated but must be manually annotated (Kuusela and
+Figure3:ClassificationaccuracyforT ∈{200,400,...,1600}
+trainingdocuments(x-axis)whenonlyR ∈ {0,200,...,T}of Ocone, 2004). Our approach differs because a hu-
+themareannotatedwithrationales(differentcurves). TheR= manhelpstogeneratethevirtualexamples. Enforc-
+0 curve above corresponds to the baseline S2 from Figure 2.
+ing a margin between ordinary examples and con-
+S1’spointsarefoundaboveastheleftmostpointsontheother
+curves,whereR=T. trastexamplesalsoappearsnew.
+Other researchers have considered how to reduce
+valueareall-pairsstatisticallyindistinguishable. annotation effort. In active learning, the annotator
+Thefigurealsosuggeststhatrationalesanddocu- classifiesonlydocumentswherethesystemsofaris
+mentsmaybesomewhatorthogonalintheirbenefit. less confident (Lewis and Gale, 1994), or in an in-
+When one has many documents and few rationales, formation extraction setting, incrementally corrects
+thereisnolongermuchbenefitinaddingmoredoc- detailsofthesystem’slessconfidententitysegmen-
+uments(thecurveisflatteningout),butaddingmore tationsandlabelings(CulottaandMcCallum,2005).
+rationales seems to provide a fresh benefit: ratio- Raghavanetal. (2005) asked annotators to iden-
+naleshavenotyetreachedtheirpointofdiminishing tifyglobally“relevant”features. Incontrast,ourap-
+returns. (While this fresh benefit was often statisti- proach does not force the annotator to evaluate the
+cally significant, and greater than the benefit from importance of features individually, nor in a global
+more documents, our experiments did not establish context outside any specific document, nor even to
+thatitwassignificantlygreater.) know the learner’s feature space. Annotators only
+TheaboveexperimentskeepallofA0’srationales mark text that supports their classification decision.
+onafractionoftrainingdocuments. Wealsoexper- Our methods then consider the combined effect of
+imented with keeping a fraction of A0’s rationales this text on the feature vector, which may include
+(chosenrandomlywithrandomizedrounding)onall complexfeaturesnotknowntotheannotator.
+training documents. This yielded no noteworthy or
+statisticallysignificantdifferencesfromFigure3. 8 FutureWork: Generativemodels
+Theselatterexperimentssimulatea“lazyannota-
+OurSVMcontrastmethod(section3)isnottheonly
+tor”whoislessassiduousthanA0. Suchannotators
+possiblewaytouserationales. Wewouldliketoex-
+may be common in the real world. We also suspect
+plicitly model rationale annotation as a noisy pro-
+that they will be more desirable. First, they should
+cess that reflects, imperfectly and incompletely, the
+beabletoaddmorerationalesperhourthantheA0-
+annotator’sinternaldecisionprocedure.
+style annotator from Figure 3: some rationales are
+A natural approach would start with log-linear
+simplymorenoticeablethanothers,andalazyanno-
+models in place of SVMs. We can define a proba-
+tatorwillquicklyfindthemostnoticeableoneswith-
+bilisticclassifier
+outwastingtimetrackingdowntherest. Second,the
+k
+“most noticeable” rationales that they mark may be p (y | x) =def 1 expX θ f (x,y) (9)
+θ h h
+the most effective ones for learning, although our Z(x)
+h=1
+266wheref~(·)extractsafeaturevectorfromaclassified 9 Conclusions
+document.
+We have proposed a quite simple approach to im-
+Astandardtrainingmethodwouldbetochooseθ
+proving machine learning by exploiting the clever-
+to maximize the conditional likelihood of the train-
+ness of annotators, asking them to provide enriched
+ingclassifications:
+annotations for training. We developed and tested
+n aparticulardiscriminativemethodthatcanuse“an-
+Y
+argmax p θ(y i | x i) (10) notator rationales”—even on a fraction of the train-
+θ~
+i=1 ing set—to significantly improve sentiment classifi-
+cationofmoviereviews.
+When a rationale r is also available for each
+i
+Wefoundfairlygoodannotatoragreementonthe
+(x ,y ), we propose to maximize a likelihood that
+i i
+rationales themselves. Most annotators provided
+triestopredicttheserationaledataaswell:
+several rationales per classification without taking
+Yn too much extra time, even in our text classification
+argmax p (y | x )·p (r | x ,y ,θ) (11)
+θ i i θ0 i i i scenario, where the rationales greatly outweigh the
+θ~
+i=1
+classifications in number and complexity. Greater
+Notice that a given guess of θ might make equa- speed might be possible through an improved user
+tion(10)large,yetaccordbadlywiththeannotator’s interfaceorpassivefeedback(e.g.,eyetracking).
+rationales. In that case, the second term of equa- In principle, many machine learning methods
+tion(11)willexertpressureonθtochangetosome- might be modified to exploit rationale data. While
+thing that conforms more closely to the rationales. our experiments in this paper used a discriminative
+If the annotator is correct, such a θ will generalize SVM,weplantoexploregenerativeapproaches.
+betterbeyondthetrainingdata.
+Inequation(11),p θ0 modelsthestochasticprocess References
+of rationale annotation. What is an annotator actu-
+Y.S.Abu-Mostafa. 1995. Hints. NeuralComputation,7:639–
+ally doing when she annotates rationales? In par-
+671,July.
+ticular, how do her rationales derive from the true P. Beineke, T. Hastie, and S. Vaithyanathan. 2004. The sen-
+timentalfactor: Improvingreviewclassificationviahuman-
+value of θ and thereby tell us about θ? Building a
+providedinformation. InProc.ofACL,pages263–270.
+good model p θ0 of rationale annotation will require A.L.BlumandR.L.Rivest. 1992. Traininga3-nodeneural
+someexploratorydataanalysis. Roughly,weexpect networkisNP-complete. NeuralNetworks,5(1):117–127.
+A.CulottaandA.McCallum. 2005. Reducinglabelingeffort
+that if θ f (x ,y) is much higher for y = y than
+h h i i forstructuredpredictiontasks. InAAAI,pages746–751.
+forothervaluesofy,thentheannotator’sr iiscorre- S.Dumais. 1998. UsingSVMsfortextcategorization. IEEE
+spondinglymorelikelytoindicateinsomewaythat IntelligentSystemsMagazine,13(4),July/August.
+T. Joachims. 1998. Text categorization with support vector
+feature f strongly influenced annotation y . How-
+h i machines:Learningwithmanyrelevantfeatures. InProc.of
+ever,wemustalsomodeltheannotator’slimitedpa- theEuropeanConf.onMachineLearning,pages137–142.
+P.KuuselaandD.Ocone. 2004. Learningwithsideinforma-
+tience(shemaynotannotateallimportantfeatures),
+tion: PAClearningbounds. J.ofComputerandSystemSci-
+sloppiness (she may indicate only indirectly that f h ences,68(3):521–545,May.
+is important), and bias (tendency to annotate some D.D.LewisandW.A.Gale. 1994. Asequentialalgorithmfor
+trainingtextclassifiers. InProc.ofACM-SIGIR,pages3–12.
+kindsoffeaturesattheexpenseofothers).
+B. Pang and L. Lee. 2004. A sentimental education: Sen-
+Oneadvantageofthisgenerativeapproachisthat timent analysis using subjectivity summarization based on
+it eliminates the need for contrast examples. Con- minimumcuts. InProc.ofACL,pages271–278.
+B. Pang, L. Lee, and S. Vaithyanathan. 2002. Thumbs up?
+sider a non-textual example in which an annotator
+Sentimentclassificationusingmachinelearningtechniques.
+highlightsthelinecrossinginadigitalimageofthe InProc.ofEMNLP,pages79–86.
+digit “8” to mark the rationale that distinguishes it H.Raghavan,O.Madani,andR.Jones. 2005. Interactivefea-
+tureselection. InProc.ofIJCAI,pages41–46.
+from“0.” Inthiscaseitisnotclearhowtomaskout
+that highlighted rationale to create a contrast exam-
+orblack,sincethatwouldcausenewfeaturestofire. Possibly
+pleinwhichrelevantfeatureswouldnotfire.11 onecouldsimplysuppressanyfeaturethatdependsinanyway
+on the highlighted pixels, but this would take away too many
+11One cannot simply flip those highlighted pixels to white importantfeatures,includingglobalfeatures.
+267

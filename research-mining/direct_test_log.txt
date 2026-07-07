@@ -1,0 +1,8 @@
+PASS test_case_insensitive_dedupe
+PASS test_cluster_jaccard_and_aggregate
+PASS test_edge_cases_empty_and_missing_fields
+PASS test_large_text_clustering
+PASS test_semantic_fallback_no_crash
+PASS test_text_signature_dedupe
+PASS test_tokenize_and_jaccard
+FAILED_COUNT=0

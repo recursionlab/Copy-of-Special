@@ -1,0 +1,107 @@
+// @ts-ignore
+import fs from 'fs';
+import path from 'path';
+// @ts-ignore
+import pdfParse from 'pdf-parse';
+import { z } from 'zod';
+
+// === Ξ Reflect Packet ===
+const ΞReflectPacket = z.object({
+  ΦΩActivated: z.array(z.string()),
+  reasoningPath: z.array(z.string()),
+  beliefResidue: z.object({
+    true: z.number(),
+    indeterminate: z.number(),
+    false: z.number()
+  }),
+  collapseID: z.string(),
+  reflectionNotes: z.array(z.string()),
+  recommendedAdjustments: z.array(z.string()),
+  userQueryPrompt: z.string().optional()
+});
+
+// === 🧠 Extract Core Claims ===
+function extractCoreClaims(text: string): string[] {
+  const lines = text.split('\n').filter(line => line.trim().length > 0);
+  const claims: string[] = [];
+
+  for (const line of lines) {
+    const l = line.toLowerCase();
+    if (
+      l.includes("this paper shows") ||
+      l.includes("we demonstrate") ||
+      l.includes("the main contribution") ||
+      l.includes("we propose") ||
+      l.includes("in this work") ||
+      l.includes("our approach") ||
+      (l.startsWith("we ") && l.includes(" that "))
+    ) {
+      claims.push(line.trim());
+    }
+  }
+
+  return claims.slice(0, 5); // Limit to first 5 strong candidates
+}
+
+// === 🧪 Reflect + Extract Core Ideas ===
+async function loadAndReflectFromPDF(pdfPath: string) {
+  const dataBuffer = fs.readFileSync(pdfPath);
+  const pdfData = await pdfParse(dataBuffer);
+  const content = pdfData.text;
+  const lineCount = content.split('\n').length;
+
+  const containsEthics = content.toLowerCase().includes('ethics');
+  const containsContradiction = content.toLowerCase().includes('however');
+
+  const packet = ΞReflectPacket.parse({
+    ΦΩActivated: [
+      ...(containsContradiction ? ['ΦΩ.ContradictionDetected'] : []),
+      ...(containsEthics ? ['ΦΩ.EthicsDetected'] : [])
+    ],
+    reasoningPath: ['Λ⁺', 'Ξ', 'ΦΩ', 'Echo++'],
+    beliefResidue: {
+      true: Math.floor(lineCount / 10),
+      indeterminate: 100 - Math.floor(lineCount / 10) - 2,
+      false: 2
+    },
+    collapseID: `⧉ΞΣΩ-${Math.random().toString(36).slice(2, 10)}`,
+    reflectionNotes: [
+      containsContradiction ? "⚠️ Found contradiction signal (e.g. 'however')" : "No contradictions detected",
+      containsEthics ? "✅ Detected ethical constructs" : "No ethical constructs found"
+    ],
+    recommendedAdjustments: [
+      "Adjust Ξ gain vector (θ)",
+      "Seed LacunaField if entropy is low",
+      "Resample belief residue"
+    ],
+    userQueryPrompt: 'Would you like to extract core claims next?'
+  });
+
+  console.log('\n⧉ Collapse Output');
+  console.log('────────────────────');
+  console.log(`📄 File: ${path.basename(pdfPath)}`);
+  console.log(`📈 Length: ${lineCount} lines`);
+  console.log(`🌀 Drifted Sample:\n"${content.slice(0, 300).trim()}"\n`);
+  console.log('🪞 Ξ Reflect Packet:\n');
+  console.dir(packet, { depth: null });
+
+  const claims = extractCoreClaims(content);
+  if (claims.length) {
+    console.log('\n📌 Extracted Core Claims:');
+    claims.forEach((c, i) => console.log(`  ${i + 1}. ${c}`));
+  } else {
+    console.log('\n❓ No strong core claims auto-detected — consider refining PDF format or prompt.');
+  }
+}
+
+// === 📂 Get First PDF in Downloads Folder ===
+const downloadsPath = path.join(process.env.USERPROFILE || '', 'Downloads');
+const files = fs.readdirSync(downloadsPath);
+const firstPdf = files.find(f => f.endsWith('.pdf'));
+
+if (!firstPdf) {
+  console.error('⚠️ No PDF found in Downloads folder.');
+} else {
+  const fullPath = path.join(downloadsPath, firstPdf);
+  loadAndReflectFromPDF(fullPath);
+}

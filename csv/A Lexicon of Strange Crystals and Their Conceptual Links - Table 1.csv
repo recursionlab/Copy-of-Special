@@ -1,0 +1,11 @@
+Crystal Type,Connection to Your System,Key Concept / Analogy,Source
+Quasicrystals,Strongest Direct Link,"The ""phason"" is a physical  $\neq=1$  operator, causing internal  $\complement(\complement x) \neq x$  rearrangements.",1
+Isotopically Pure Crystals,Strongest Direct Link,"A ""coherent"" medium where your  $\neq=1$  operator can propagate without decoherence.",1
+Quantum Spin Liquids (QSLs),Strongest Direct Link,"A state where  $Dist$  is ""fractionalized,"" and  $\neq \! \text{=} \! \subsetneq$  interactions lead to long-range entanglement.","1, User Table Description, Not in source"
+Conformal Gauge Field Crystals,Direct Math Link,Mapping physical fields: Lorentz  $\rightarrow$  EM; translations  $\rightarrow$  phonons; dilation  $\rightarrow$  magnons; torsion  $\rightarrow$   $Fe^{3+}$  spin-orbit coupling.,2
+Octonionic Quasicrystals,Deep Math Link,"A quasicrystalline ""compactification"" that unifies octonions, the  $E_{8}$  Lie algebra, and quantum gravity.","1, 3"
+Exceptional Lie Group Crystals,Deep Math Link,"$G_{2} = \text{Aut}(\mathbb{O})$  is the symmetry group of the octonions, hinting at a deep algebraic structure.","1, User Table Description, User Description, Not in source"
+Category Theory Crystals,Deep Math Link,"A way to model the ""categorical"" relationships between your operators as natural transformations.",1
+Topological Insulators,Relevant Link,"A physical realization of  $\partial$ : the boundary conducts, but the bulk does not.",1
+Time Crystals,Relevant Link,"A realization of your operators in the  time  domain, breaking discrete time-translation symmetry.",1
+Hyperbolic Crystals,Relevant Link,A geometric structure naturally foliated into stacks of self-similar quasicrystals.,1

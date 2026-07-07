@@ -1,0 +1,1913 @@
+: Automatic “Differentiation” via Text
+MertYuksekgonul1* MERTY@STANFORD.EDU
+FedericoBianchi1* FEDE@STANFORD.EDU
+JosephBoen2* TBOEN@STANFORD.EDU
+ShengLiu2* SHENGL@STANFORD.EDU
+ZhiHuang2* ZHIHUANG@STANFORD.EDU
+CarlosGuestrin1,3 GUESTRIN@STANFORD.EDU
+JamesZou1,2,3 JAMESZ@STANFORD.EDU
+1DEPARTMENTOFCOMPUTERSCIENCE,STANFORDUNIVERSITY
+2DEPARTMENTOFBIOMEDICALDATASCIENCE,STANFORDUNIVERSITY
+3CHANZUCKERBERGBIOHUB
+CORRESPONDENCE: MERTY@STANFORD.EDUANDJAMESZ@STANFORD.EDU
+REPOSITORYANDTUTORIALS
+Abstract
+AI is undergoing a paradigm shift, with breakthroughs achieved by systems orchestrating
+multiplelargelanguagemodels(LLMs)andothercomplexcomponents. Asaresult, develop-
+ing principled and automated optimization methods for compound AI systems is one of the
+most important new challenges. Neural networks faced a similar challenge in its early days
+untilbackpropagationandautomaticdifferentiationtransformedthefieldbymakingoptimiza-
+tion turn-key. Inspired by this, we introduce TEXTGRAD, a powerful framework performing
+automatic “differentiation” via text. TEXTGRAD backpropagates textual feedback provided
+by LLMs to improve individual components of a compound AI system. In our framework,
+LLMsproviderich,general,naturallanguagesuggestionstooptimizevariablesincomputation
+graphs,rangingfromcodesnippetstomolecularstructures. TEXTGRADfollowsPyTorch’ssyn-
+taxandabstractionandisflexibleandeasy-to-use. Itworksout-of-the-boxforavarietyoftasks,
+wheretheusersonlyprovidetheobjectivefunctionwithouttuningcomponentsorpromptsof
+theframework. WeshowcaseTEXTGRAD’seffectivenessandgeneralityacrossadiverserange
+ofapplications,fromquestionansweringandmoleculeoptimizationtoradiotherapytreatment
+planning. Withoutmodifyingtheframework, TEXTGRAD improvesthezero-shotaccuracyof
+GPT-4oinGoogle-ProofQuestionAnsweringfrom51%to55%,yields20%relativeperformance
+gaininoptimizingLeetCode-Hardcodingproblemsolutions,improvespromptsforreasoning,
+designs new druglike small molecules with desirable in silico binding, and designs radiation
+oncologytreatmentplanswithhighspecificity. TEXTGRAD laysafoundationtoacceleratethe
+developmentofthenext-generationofAIsystems.
+1 Introduction
+There is an emerging paradigm shift in how AI systems are built, owing to the breakthroughs of Large
+LanguageModels(LLMs)[1–6].ThenewgenerationofAIapplicationsareincreasinglycompoundsystems
+involving multiple sophisticated components, where each component could be an LLM-based agent, a
+tool such as a simulator, or web search. For instance, a system of LLMs communicating with symbolic
+solvers can solve olympiad-level math problems [7]; a system of LLMs using search engines and code
+interpretertoolsperformscomparablytohumancompetitiveprogrammers[8]andaresolvingreal-world
+*Co-firstauthors.
+1
+4202
+nuJ
+11
+]LC.sc[
+1v69470.6042:viXraAutomatic“Differentiation”viaText
+GitHub issues [9]. However, many of these breakthroughs came from systems that are hand-crafted by
+expertsinthedomainofapplicationandaretweakedthroughheuristics. Therefore,developingprincipled
+andautomatedwaystooptimizeAIsystemsisoneofthemostcrucialchallengesforbuildingcompound
+systemswithLLMs,andisnecessaryforunlockingthepowerofAI[10–12].
+For the past 15 years, many advances in AI have relied on artificial neural networks and differen-
+tiableoptimization[7,13–17]. Differentpartsofneuralnetworks(e.g.,twoartificialneurons)communicate
+throughdifferentiablefunctionslikematrixmultiplications[18]. Therefore,usingnumericalgradientsand
+backpropagation[19],whichprovidethedirectiontoadjusteachparametertoimproveamodel,hasbeen
+thenaturalwaytotrainAImodels.Flexibleautomaticdifferentiationframeworksimplementingbackprop-
+agation[20–24]havebeenindispensibletothedevelopmentofAImodels.
+TooptimizethenewgenerationofAIsystems, weintroduce TEXTGRAD, automaticdifferentiationvia
+text. Here we use differentiation and gradients as a metaphor for textual feedback from LLMs. In this
+framework,eachAIsystemistransformedintoacomputationgraph,wherevariablesareinputsandout-
+putsofcomplex(notnecessarilydifferentiable)functioncalls. Thefeedbacktothevariables(dubbed‘tex-
+tual gradients’ [25]) are provided in the form of informative and interpretable natural language criticism
+to the variables; describing how a variable should be changed to improve the system. The gradients are
+propagatedthrougharbitraryfunctions,suchasLLMAPIcalls,simulators,orexternalnumericalsolvers.
+We demonstrate the power of our framework in a diverse set of domains, ranging from question an-
+sweringbenchmarkstoradiotherapytreatmentplanoptimizationandmoleculegeneration(Fig.1). LLMs
+canprovideveryrich,legible,andexpressivenaturallanguagegradientstovariablesinthiswiderangeof
+domains, such as proposing modifications to molecules, prompts to other LLMs, and code snippets. Our
+frameworkisbuiltontheassumptionthatthecurrentstate-of-the-artLLMsareabletoreasonaboutindi-
+vidual components and subtasks of the system that it tries to optimize. We demonstrate the flexibility of
+TEXTGRADwiththefollowingresults:
+1. Coding:InSection3.1,weoptimizesolutionstodifficultcodingproblemsfromLeetCode[26],where
+weboosttheperformanceofgpt-4oandbestexistingmethodby20%relevantperformancegain.
+2. Problem Solving: In Section 3.2, we optimize solutions to complex scientific questions to improve
+thezero-shotperformanceofGPT-4o. Forinstance,inGoogle-ProofQuestionAnswering[27]bench-
+mark,weimprovethezero-shotaccuracyfrom51%to55%byrefiningthesolutionsattest-time.
+3. Reasoning: InSection3.3,weoptimizepromptstoimprovetheLLMperformance,wherewepush
+theperformanceofGPT-3.5closetoGPT-4inseveralreasoningtasks.
+4. Chemistry: InSection3.4,wedesignnewsmallmoleculeswithdesirabledruglikenessandinsilico
+bindingaffinitytodrugtargets.
+5. Medicine: In Section 3.5, we optimize radiation treatment plans for prostate cancer patients to
+achievedesirabletargetdosageandreducesideeffects.
+OurresultsinabroadsetofapplicationsdemonstratethepromiseofTEXTGRADtoautomaticallyopti-
+mizecompoundAIsystemsviabackpropagationoftextfeedback. Toaccelerateprogressinthisdirection,
+weopen-sourceourframeworkathttps://github.com/zou-group/textgrad.
+2 TEXTGRAD: Optimizing AI systems by backpropagating text feed-
+back
+Below we first describe a example to demonstrate what TEXTGRAD looks like for a system made of two
+LLMcalls,andthengivethemoregeneralformforarbitrarilycomplexsystems.
+Warmup: systemwithtwoLLMcalls
+Example computation graph. In traditional automatic differentiation, we compute gradients that pro-
+vides a direction that would improve the variable with respect to a downstream loss with the chain-rule.
+Forasimpleanalog,letuslookatthesimplesystem:
+Prediction=LLM(Prompt+Question), (1)
+Evaluation=LLM(EvaluationInstruction+Prediction), (2)
+2Automatic“Differentiation”viaText
+a Neural network and backpropagation b Blackbox AI systems and backpropagation
+using numerical gradients using natural language ‘gradients’
+“this prompt can
+= 0.124 = be improved by...”
+“this response can
+Prompt Output = be improved by...”
+0.1 = 0.267
+0.3 1.2 LLM
+0.3
+0.5
+0.2 Query Output Final Output
+-0.2
+0.5 0.7 0.5 0.7 Search Engine LLM LLM
+-0.1 -0.1
+Tool Prompt Output Loss
+-0.05 Output Loss
+-0.1 -0.4 Tool Caller
+Input layer Hidden layer Inputs Intermediate Outputs Evaluation Instruction
+c 1 Analogy in abstractions
+Math PyTorch TextGrad
+Input Tensor(image) tg.Variable(article)
+Model ResNet50() tg.BlackboxLLM("You are a summarizer.")
+Loss CrossEntropyLoss() tg.TextLoss("Rate the summary.")
+Optimizer SGD(list(model.parameters())) tg.TGD(list(model.parameters()))
+2 Automatic differentiation
+PyTorch and TextGrad share the same Forward pass Backward pass Updating variable
+syntax for backpropagation and optimization. loss = loss_fn(model(input)) loss.backward() optimizer.step()
+d TextGrad for molecule optimization e TextGrad for code optimization
+for i in range(n):
+if nums[i] < k:
+Molecule at iteration 1 Gradients e l i fb a nl ua mn sc [e i ]- = > 1 k:
+balance += 1
+Vina Score: -4.3 kcal/mol Add functional if nums[i] == k:
+groups that increase result += count.get(balance, 0) + Gradients
+count.get(balance - 1, 0)
+polarity for stronger else: **Handling `nums[i] ==
+interactions. c o u nr te [s bu al lt a n+ c= e ]c o =u n ct o. ug ne tt .( gb ea tl (a bn ac le a, n c0 e) , 0) + 1 k`**: The current logic
+Code at iteration t does not correctly
+handle the case when
+VM ino al e Sc cu ol re e a : t - 5it .e 5r a kt cio aln /m 2 ol Gradients f o r i i fi n n ur ma sn [g ie ]( n <) : k: `nums[i] == k`. The
+balance -= 1 balance should be reset
+Introduce polar or elif nums[i] > k:
+aromatic groups to e l s eb :alance += 1 o wr h a ed nj u `ks `t e isd differently
+increase interaction found_k = True
+if nums[i] == k: encountered. ...
+points. result += count.get(balance, 0) +
+count.get(balance - 1, 0)
+else:
+Molecule at iteration 3 count[balance] = count.get(balance, 0) + 1
+Vina Score: -7.5 kcal/mol Code at iteration t+1
+f TextGrad for treatment plan optimization g TextGrad for prompt optimization
+You will answer a reasoning question. Think step by step. The last line of your
+High dosage in response should be of the following format: 'Answer: $VALUE' where VALUE is
+bladder and a numerical value.
+Gradients
+rectum The current weight Prompt at initialization (Accuracy = 77.8%)
+for the rectum and
+You will answer a reasoning question. List each item and its quantity in a clear
+bladder are relatively
+and consistent format, such as '- Item: Quantity'. Sum the values directly from
+low, which is not
+Better protected sufficient to protect the list and provide a concise summation. Ensure the final answer is clearly
+indicated in the format: 'Answer: $VALUE' where VALUE is a numerical value.
+bladder and the rectum and
+Verify the relevance of each item to the context of the query and handle
+rectum bladder...
+potential errors or ambiguities in the input. Double-check the final count to
+Dose: ensure accuracy."
+Low High
+Prompt after optimization (Accuracy = 91.9%)
+Figure1: Automatic“Differentiation”viaText(a,b). Backpropagationofgradientsisthedrivingforceof
+deeplearning. WedonothavegradientsforcompoundsystemsofblackboxAIsystems,butwecancon-
+structanalogousbackpropagationfortext-basedfeedback,formingthebasisofTEXTGRAD. Abstractions
+inTEXTGRAD(c). WesharethesameabstractionsandsyntaxasPyTorchtoourframeworkgeneralizable
+andeasy-to-learn. Applicationsof TEXTGRAD (d,e,f,g). InSection3.4,weoptimizemolecularstructures
+forpropertiessuchasdruglikenessandproteinbindingaffinity(d). InSection3.1,weoptimizesolutionsto
+codingproblems(e).InSection3.5,weoptimizeradiotherapytreatmentplanstoimprovepatientoutcomes
+(f). InSection3.3,weoptimizepromptstoimprovethereasoningoflanguagemodels(g).
+3Automatic“Differentiation”viaText
+wherewedenotethefreeparametertooptimize,theprompt,withgreen,andweuse+todenoteconcate-
+nationoftwostrings, anduseLLM(x) togive x asaprompttoalanguagemodeltocollecttheresponse.
+Wewillusethechainnotation:
+Prompt+Question−L−LM→EvaluationInstruction+Prediction−L−LM→Evaluation,
+(3)
+asanotherwaytodenotethissystem,wherewemakeoneLLMcalltogenerateaPredictionforaQuestion
+usingaPrompt,andanotherLLMcalltoevaluatethisPrediction.
+Examplegradientcomputation. Inthisexamplesystem,toimprovethePromptwithrespecttotheeval-
+uation,weinstantiateananalogofthebackpropagation[19]algorithmthroughthefollowing:
+Gradientcomputationforthesimplegraph:
+Prompt−L−LM→Prediction−L−LM→Evaluation
+∂Evaluation
+= ∇ (Prediction,Evaluation), (4)
+LLM
+∂Prediction
+∂Evaluation ∂Evaluation ∂Prediction ∂Evaluation
+= ◦ = ∇ (Prompt,Prediction, ), (5)
+LLM
+∂Prompt ∂Prediction ∂Prompt ∂Prediction
+where we use ∇ for the gradient operator when the forward function is an LLM call.a In par-
+LLM
+ticular,thisfunctionreturnsnaturallanguagefeedbacksuchas‘Thispredictioncanbeimprovedby...’
+where the feedback describes how to modify the variable to improve the downstream objective,
+analogoustogradientsinoptimization. WefirstcollectfeedbacktothePredictionvariableusingthe
+evaluation.Then,giventhisfeedbackandthe(Prompt−L−LM→Prediction)call,wecollectthefeedback
+onthePrompt.
+aNotethatweoverloadthenotationtodenotebothforcaseswhentheoutputvariabledoesnothavesuccessors(e.g.,
+∇ LLM(Prediction,Evaluation))andwhenithassuccessors,andthusgradients(e.g.,∇ LLM(Prompt,Prediction, ∂Pr∂ eL do ics ts ion)).
+Belowisaflexiblewaytoinstantiate∇ tocollectfeedbackforasimplesystemlikex −L−LM→ y −L−LM→ L:
+LLM
+Exampleimplementationforthegradientoperator
+∂L ∂L
+= ∇ (x,y, )≜ ”Here is a conversation with an LLM: {x|y}.” (6)
+LLM
+∂x ∂y
++
+LLM(Here is a conversation with an LLM: {x|y}.
+Below are the criticisms on {y}:
+(cid:26) ∂L(cid:27)
+∂y
+Explain how to improve {x}.),
+where the gradient object is a combination of the context in which the variable appears and the
+feedbackobtainedfromanLLMa,definedanalogouslytoPryzantetal.[25]. Notethatthisoperator
+doesnotdependon,e.g.,theapplicationdomain.Onceimplemented,thegradientoperatorforLLM
+callsarefixedthroughouttheframeworkforallapplications.
+aTheexactpromptsweusearedifferenttoensuregeneralityandflexibility;weusetheseexamplesonlyforexposition.
+4Automatic“Differentiation”viaText
+Exampleoptimizer. Instandardgradientdescent,thecurrentvalueofthevariableiscombinedwiththe
+gradientsthroughsubtraction,e.g.:
+∂L ∂L
+θ =GradientDescent.step(θ, ) = θ− . (7)
+new
+∂θ ∂θ
+Continuingthegradient-basedoptimizationanalogy,weuseTextualGradientDescent(TGD):
+UpdatingthePromptvariableinthesimplegraphviaTGD.
+∂Evaluation
+Prompt =TGD.step(Prompt, ). (8)
+new
+∂Prompt
+toupdatetheparameters,inthiscase,thePrompt. Inparticular,giventhecurrentvariableandthe
+gradients(feedback)wecollectedforthisvariable,theoptimizerseekstoupdatethisvariable.
+AconcretewaytoinstantiateTGDisthefollowing:
+ExampleimplementationofoneTGDiteration
+∂L
+x =TGD.step(x, )≜ LLM(Below are the criticisms on {x}: (9)
+new
+∂x
+(cid:26) ∂L(cid:27)
+∂x
+Incorporate the criticisms, and produce a new variable.).
+wherexisthevariablewewouldliketoimprove,and ∂L isthefeedbackweobtainedforthevariable
+∂x
+duringthebackwardpassa. Similartothegradientoperator,thisfunctionalsodoesnotdependon
+thedomainofapplication,andTGDimplementationisthesameacrossallusesoftheframework.
+aTheexactpromptsweusearedifferenttoensuregeneralityandflexibility;weusetheseexamplesonlyforexposition.
+Thegeneralcase
+Theabstractionreadilyappliestoarbitrarilycomplexsystems. Defineacomputationgraphby
+v = f (PredecessorsOf(v)) ∀v ∈ V (10)
+v
+where v is a variable in the graph, V is the set of all variables in the graph, and SuccessorsOf returns the
+successors and PredecessorsOf returns the predecessors of a variable. Generally speaking, the value of v
+canbeunstructureddata,suchasnaturallanguagetextorimages. Formostoftheresultsandexposition
+inthispaper,visnaturallanguagetext.
+Further,letushave f asthetransformationthatconsumesasetofvariablesandproducesthevariable
+v
+v. Forinstance,wecanuseanLLMorNumericalSimulatorasatransformation. Sincedifferentfunctions
+willhavedifferentwaystocomputegradientsandcollectfeedbackfor,wewillgenerallyuse∇ todenote
+f
+the gradient function for a function f. For the sake of exposition, we will omit the subscript when the
+functionisobvious.
+Thegradientsarecomputedby
+∂L (cid:91) ∇ (cid:18) ∂L(cid:19)
+= f v,w, , (11)
+∂v ∂w
+w∈SuccessorsOf(v)
+5Automatic“Differentiation”viaText
+wherewecollectthesetofgradientsfromallsuccessorsofv.Intuitively,wegetfeedbackfromeverycontext
+inwhichavariablevwasused,andaggregatethem.
+Equation11recursivelycomputesthegradientsofthedownstreamobjectivewithrespecttothedesired
+variablesvinthegraph. The∇ functiontakesasinputthegradientsofLwithrespecttothesuccessorsof
+f
+agivenvariable v, thevalueofthevariable v andthesuccessorsthemselves. Notethatthefinalgradient
+variablecomprisesasetofcontextsandcriticismsforanyplaceavariablewasusedin.
+Finally,toupdateanydesiredvariablevinthegraph,wecanuseanoptimizer:
+(cid:18) ∂L(cid:19)
+v =TGD.step v, , (12)
+new
+∂v
+whichupdatesthevalueofvbasedonitscurrentvalueandthegradients. Foracomputationgraphwhere
+there are n edges, each iteration of optimization performs at most n additional language model calls to
+computegradients(1callusingthegradientoperatorforeachedgeinthecomputationgraph). Forimple-
+mentationsofoperationsinTEXTGRAD,seeAppendixA.
+Objectivefunctions
+Innumericaloptimizationandautomaticdifferentiation,theobjectivefunctionistypicallyadifferentiable
+function, such as mean squared error or cross entropy. In TEXTGRAD, the objective can be a complex
+and potentially nondifferentiable function, where the domain and codomain of the function can be un-
+structureddata. Thischoiceaddsimportantgeneralityandflexibilitytotheframework. Forinstance, we
+demonstrate that the objective can be specified in natural language text and computed by prompting a
+language model (§3.3), an output of a code interpreter running unit tests (§3.1), or outputs of molecular
+simulationengines(§3.4). Forinstance,asimplelossfunctionforacodesnippetcanbethefollowing:
+Loss(code,targetgoal) =LLM(Hereisacodesnippet:{code}. (13)
+Hereisthegoalforthissnippet:{targetgoal}.
+Evaluatethesnippetforcorrectnessandruntimecomplexity.),
+where we can use this evaluation signal to optimize the code snippet, powered by the well-documented
+abilityofLLMstosimulatehumanfeedback,self-evaluate,andself-improve[10,28–33].
+InstancevsPromptOptimization
+Therearetwoclassesofoptimizationproblemsweexplore.
+In instance optimization, we directly treat a solution to a problem—e.g., a code snippet, the solution
+to a problem or a molecule—as an optimization variable. For instance, in Equation 13, we have a code
+instancethatwewouldliketoimproveattesttime.Ourframeworkproducesthegradientsforanddirectly
+optimizesthecodevariable.
+Inpromptoptimization,thegoalistofindapromptthatimprovestheperformanceofanLLMacross
+multiplequeriesforatask. Forexample,wemaywanttofindasystemprompttoanLLMthatimprovethe
+performance on mathematical reasoning questions (see Section 3.3 for examples). In particular, we want
+thesystemprompttogeneralize,incontrasttoinstanceoptimizationwheretheonlygoalistoimprovethe
+solutionforagivenqueryattesttime.
+Crucially,bothtypesofproblemscanbesolvedwithouthand-craftingtheframework.
+OptimizationTechniques
+Automatic differentiation is a strong analogy for TEXTGRAD and provides conceptual support for opti-
+mizationtechniquesimplementedintheframework. Below,wedescribesomeexamples.
+BatchOptimization:Weimplementstochasticminibatchgradientdescent[18,34]forpromptoptimiza-
+tion. Specifically,afterdoingaforwardpasswithmultipleinstancesinabatchandevaluateindividualloss
+6Automatic“Differentiation”viaText
+terms,weusethetg.sumfunctiontosumthelosses(akintotorch.sum). Inthebackwardpass,gradients
+onvariablesthroughindividuallosstermsareconcatenated,mirroringbackpropagatingthroughaddition.
+ConstrainedOptimization: Weusenaturallanguageconstraints,buildingonconstrainedoptimization
+as an analogy [35]. In particular, we use natural language constraints (e.g., such as ‘The last line of your
+response should be of the following format: ’Answer: $LETTER’ where LETTER is one of ABCD.”) to guide the
+behavior of the optimizer. We observe that thanks to instruction-tuning [36, 37], language models can
+followthesesimpleconstraints,althoughtheirreliabilitycanreducewithtoomanyconstraints[38,39].
+Momentum: Weusetheanalogytomomentumingradientdescent[40, 41]. Whenoptimizingavari-
+able,theTGDoptimizercanoptionallyseetheearlieriterationsofthevariablewhenmakingtheupdate.
+FormoredetailsonoptimizationtechniquesthatareimplementedinTEXTGRAD,seeAppendixB.
+3 Results
+WedemonstratetheflexibilityofTEXTGRADinadiversearrayofapplications. In§3.1,weoptimizecode
+snippetstosolvehardcodingproblemsfromLeetCode.In§3.2,weoptimizesolutionstosciencequestions.
+In§3.3weoptimizepromptstoimprovethereasoningofLLMs. In§3.4,weoptimizechemicalstructures
+forimprovedmolecularproperties. In§3.5,weoptimizetreatmentplansforprostatecancerpatients.
+3.1 Codeoptimization
+Codeoptimizationisahallmarkusecaseofinstanceoptimization. Here,thegoalistooptimizesomecode
+toimprovee.g.,correctnessorruntimecomplexity. Weoftenhaveacomputationgraphlikethefollowing:
+Code-RefinementObjective=LLM(Problem+Code+Test-timeInstruction+LocalTestResults) (14)
+whereweoptimizetheCodetosolveagivenProblemwithlimited,localtestsupervisionandself-evaluation
+throughatest-instructionaskingtocritiquethecurrentiterationofthecode. Figure1eshowsanexample
+for the problem You are given an array nums of size n consisting of distinct integers from 1 to n and a positive
+integer k. Return the number of non-empty subarrays in nums that have a median equal to k. The first solution
+proposed by gpt-4o does not pass the tests. TEXTGRAD identifies an edge case in the first solution and
+providesasuggestiononhowtoimproveit. Theoptimizedimplementationpassesalltests.
+Task: WeusetheLeetCodeHarddataset[26]tobenchmarkcodeoptimization. LeetCodeisanonline
+platformthatofferscodingpracticequestionsinpreparationfortechnicalinterviews. TheLeetCodeHard
+datasetcontainsexamplesofhardcodingproblemsthataremeanttobechallengingforbothhumansand
+languagemodels,wherethesuccessmetricisCompletionRate,i.e.,passingalltestcasesforagivenprob-
+lem (GPT-4 reportedly achieved a 7% completion rate [26]). LeetCode test cases are not public, and thus,
+aftergeneration, thecodehastobesubmittedtotheLeetCodeplatformforevaluationontheunseentest
+cases. Thismakestheplatformmoresuitabletoevaluatetheperformanceoflanguagemodels.
+Baseline: Reflexion [26] is the state-of-the-art method on the LeetCode Hard dataset. Their approach
+promptsanLLMtoself-reflectoncodesnippetsandtheerrorsthatweregeneratedattesttimeusingcan-
+didateunittests. Giventheself-reflection,theLLMispromptedagaintoprovideanupdatedpieceofcode,
+conditioned on the self-reflection and the errors. We ran Reflexion on LeetCodeHard using gpt-4o us-
+ing 1 in-context demonstration to guide the behavior (one-shot). In addition to Reflexion, we also run a
+zero-shotbaselineusinggpt-4omimickingthesamezero-shotbaselinedescribedin[26]. Incomparison,
+TEXTGRADrunsinazero-shotsetting,withoutanydemonstrations.
+Results: Existing results [26] showed a 7% pass rate for GPT-4 zero-shot and 15% for GPT-4 with Re-
+flexion. We show that these results have now been boosted to 23% for gpt-4o zero-shot and 31% when
+Reflexion is used. With TEXTGRAD, we can optimize solutions to achieve a performance of 36%. These
+improvementsaremoreimpressiveconsideringthatReflexionwasranwithin-contextdemonstrationsand
+TEXTGRADdidnotuseanydemonstrations(i.e. zero-shot).
+7Automatic“Differentiation”viaText
+CodeRefinementObjective
+LLM("Youareanintelligentassistantusedasanevaluator,andpartofanoptimizationsystem. You
+will analyze a code implementation for a coding problem and unit test results. The code will be
+testedwithhardertests,sodonotjustcheckifthecodepassestheprovidedtests. Thinkaboutthe
+correctness of the code and its performance in harder test cases. Give very concise feedback. In-
+vestigate the code problem and the provided implementation. For each failed unit test case, start
+analyzingitbysaying"Thecodedidnotpassthistestbecause...". Explainwhythecurrentimple-
+mentationisnotgettingtheexpectedoutput. Donotprovidearevisedimplementation. Carefully
+suggestwhythereareissueswiththecodeandprovidefeedback.
+{Test-timeInstruction}
+**Thecodingproblem:**
+{Problem}
+**Codegeneratedthatmustbeevaluatedforcorrectnessandruntimeperformance**
+{Code}
+**Thetestresults:**
+{LocaltestResults}
+Table1: CodeoptimizationforLeetCodeHardusinggpt-4o. Resultsareaveragedover5seeds.
+Task Method CompletionRate
+Zero-shot[26] 0.26
+LeetCodeHard[26] Reflexion(1demonstration,5iterations)[26] 0.31±0.012
+TEXTGRAD (0demonstrations,5iterations) 0.36±0.018
+3.2 Solutionoptimizationbytest-timetrainingtoimproveproblemsolving
+Here, we focus on the task of solution optimization via TEXTGRAD. In solution optimization, the goal is
+to improve the solution to a complex problem, such as a question about quantum mechanics or organic
+chemistry. Inparticular,weoftenhaveacomputationgraphlikethefollowing:
+SolutionRefinementObjective=LLM(Question+Solution+Test-timeInstruction) (15)
+wheretheparameterweoptimizeistheSolution,andthelossfunctionisobtainedbyanevaluationof
+thesolution,e.g.,withanLLM.Ateachiteration,theLLMispromptedwiththequestion,currentsolution,
+andsometest-timeinstructionaskingtocritiqueorinvestigatethecurrentiteration. Overtheoptimization
+trajectory,thesolutionisrefinedusingthistest-timeself-evaluation. Moregenerally,thisideaisknownas
+test-timetraining[42, 43], whereamachinelearningmodelistrainedonatestinstanceattest-time, often
+with a self-supervised objective. Similarly, recent work have shown the merits of self-refinement also for
+reasoningtasks[26,30,44]. Inparticular,eventhoughanLLMmaynotgettheanswertoaquestionorthe
+solutiontoaproblemrightatfirstattempt,itcanimprovetheresponsethroughiterativerefinement.
+Forinstance,theobjectivefunctionfortherefinementlookslikethefollowing:
+SolutionRefinementObjective
+LLM("Below is a multi-choice question and a prediction. You are a critical and creative scientist.
+Yourjobistoinvestigatetheprediction. Criticallygothroughreasoningsteps,andseeifthereisa
+reasonwhythepredictioncouldbeincorrect.
+UsetheJanusianProcess,thinkaboutwhetheralternativeanswerscouldbetrue.
+Question: {Question}
+Answerbythelanguagemodel: {Solution}")
+8Automatic“Differentiation”viaText
+BelowisarepresentativeimplementationofsolutionoptimizationinTEXTGRAD.
+1 # Assume we have the test_dataset
+2 question, answer = test_dataset[i]
+3 # Initialize the test time loss function
+4 # This has the system prompt provided above as ‘Solution Refinement Objective’
+5 test_time_loss_fn = MultipleChoiceTestTime()
+6 # Get a zero-shot solution from an LLM
+7 solution: Variable = zero_shot_llm(question)
+8 # Optimize the solution itself
+9 optimizer = tg.TextualGradientDescent(parameters=[solution])
+10
+11 for iteration in range(max_iterations):
+12 optimizer.zero_grad()
+13 # Note how the loss is self-supervised (does not depend on any ground truth.)
+14 loss = test_time_loss_fn(question, solution)
+15 # Populate the gradients, and update the solution
+16 loss.backward()
+17 optimizer.step()
+CodeSnippet1: ArepresentativeimplementationofsolutionoptimizationinTEXTGRAD.
+Task:Google-proofQuestionAnswering(GPQA)[27]isarecentbenchmarkwherechallengingmultiple-
+choice questions in physics, biology, and chemistry are created and labeled by domain experts who have
+or are pursuing PhD degrees. In this benchmark, experts and skilled non-experts are reported to achieve
+81% and 22% accuracy respectively, demonstrating the difficulty of the questions. Importantly, this is a
+benchmark where performance has not yet saturated, where to our knowledge, the best reported results,
+achievedbygpt-4o,gets53.6%accuracyinthediamondsubset. Wealsousetwochallengingsubsets(Ma-
+chineLearningandCollegePhysics)oftheMMLU[45]questionansweringbenchmarkthatisusedtotrack
+theprogressoflanguagemodelingandwhetherLLMsreachedhuman-levelperformance. Heretheexpert
+humanaccuracyonaverageisaround90%. Forthedetailsofthequestionformatandprompts,pleasesee
+AppendixD.
+Method: We report two baselines. First, the reported results in the gpt-4o release document states
+53.6%accuracy. However,theirofficialimplementationusesatemperatureof0.5forgenerations,thuswe
+alsotestgpt-4owithtemperature0andChain-of-Thought(CoT)[46,47]promptingprovidedintheofficial
+implementation1. For TEXTGRAD, we perform 3 iterations of test-time updates (i.e. update the solution
+threetimes)andperformmajorityvotingacrossallsolutionstogetthefinalanswer. Weusestring-based
+metricstocomputethefinalaccuracyofeachanswer.
+Results:WithTEXTGRAD,weimprovetheperformanceofgpt-4ointhechallengingquestion-answering
+tasksandreporttheresultsinTable2. Toourbestknowledge,55%isthebestknownresultintheGPQA
+dataset so far. Similarly, we improve the performance in MMLU subsets from 85.7% to 88.4% (Machine
+Learning) and 91.2% to 95.1% (College Physics). These results show that by spending more computation
+attest-timethrough TEXTGRAD self-refinement, wecanimprovethequestionansweringperformanceof
+eventhemostcapablemodels.
+3.3 Promptoptimizationforreasoning
+While LLMs demonstrate an impressive performance in reasoning tasks, their performance can be sen-
+sitive to the prompt used to guide their behavior. In particular, with the right choice of a prompt, their
+performancecanbesignificantlyimproved[49]. Inpromptoptimization,thegoalistofindapromptoran
+instructiontoguidethebehaviorofanLLM,suchthatitperformswellonagiventask. Inparticular, we
+oftenhaveacomputationgraphlikethefollowing:
+Answer=LLM(Prompt,Question)
+EvaluationMetric=Evaluator(Answer,GroundTruth) (16)
+1Wedothistominimizerandomness,however,discussionsclaimtheremaybeothersourcesofnon-determinismwithgpt-4.
+9Automatic“Differentiation”viaText
+Table2: Solutionoptimizationforzero-shotquestionansweringwithgpt-4o.
+Dataset Method Accuracy(%)
+CoT[46,47] 51.0
+Google-proofQA[27] Bestreported[48] 53.6
+TEXTGRAD 55.0
+CoT[46,47] 85.7
+MMLU-MachineLearning[45]
+TEXTGRAD 88.4
+CoT[46,47] 91.2
+MMLU-CollegePhysics[45]
+TEXTGRAD 95.1
+where we have a Question for the task, an Answer to the question, and an EvaluationMetric indicating
+the quality of the output given the ground truth answer. For instance, for a question-answering task, the
+evaluationmetricwouldbetheaccuracyoftheanswer,evaluatede.g. usingstring-basedmetrics.
+Here, given a handful of training examples to optimize a Prompt, the goal is to maximize the perfor-
+mance of an LLM on the given task. In our experiments, our goal is to improve the performance of a
+weakerandcheapermodel(e.g., gpt-3.5-turbo-0125)usingthefeedbackgeneratedbystrongermodels
+(e.g.,gpt-4o). ThisisusefulinpracticebecausebypayingafixedcosttooptimizeaPrompt,theprompt-
+optimized weaker model can be used with cheaper inference costs instead of using the strong and more
+expensivemodel.
+1 # Initialize the system prompt
+2 system_prompt = tg.Variable("You are a helpful language model. Think step by step.",
+3 requires_grad=True,
+4 role_description="system prompt to the language model")
+5
+6 # Set up the model object ’parameterized by’ the prompt.
+7 model = tg.BlackboxLLM(system_prompt=system_prompt)
+8
+9 # Optimize the system prompt
+10 optimizer = tg.TextualGradientDescent(parameters=[system_prompt])
+11
+12 for iteration in range(max_iterations):
+13 batch_x, batch_y = next(train_loader)
+14 optimizer.zero_grad()
+15 # Do the forward pass
+16 responses = model(batch_x)
+17 losses = [loss_fn(response, y) for (response, y) in zip(responses, batch_y)]
+18 total_loss = tg.sum(losses)
+19 # Perform the backward pass and compute gradients
+20 total_loss.backward()
+21 # Update the system prompt
+22 optimizer.step()
+CodeSnippet2: AsimpleimplementationofpromptoptimizationwithTEXTGRAD.
+Here,weuse TEXTGRAD inaminibatchstochasticgradientdescentsetting[18,34]. Inparticular,ateach
+iteration,weuseafewtrainingexamplestoruntheforwardpassinEquation16. Apseudocodeandshort
+implementation can be found in the snippet above. Full details of prompt optimization can be found in
+AppendixE.Unlikeinstanceoptimization, where TEXTGRAD triestooptimizeeachindividualsolution,
+thegoalhereistooptimizeasinglepromptthatworkswellacrossallthequestionsinabenchmark.
+Tasks: We explore prompt optimization in multiple datasets, including the two standard reasoning
+tasks(ObjectCountingandWordSorting)fromBigBenchHard(randomlysplitinto50/100/100train/val-
+idation/testsamples)[50,51],GSM8kgrade-schoolmathproblemsolving[52](usingtrain/validation/test
+splitsfromDSPy). ForGSM8kandObjectCounting,weuseastring-basedexactmatchmetrictoquantify
+accuracy(i.e. whetherthefinalnumberprovidedintheresponseisthesameasthegroundtruthanswer).
+10Automatic“Differentiation”viaText
+For Word Sorting, we use an LLM to compare the response and the ground truth answer. We give more
+detailsaboutthetasks,prompts,andexamplequeriesinAppendixE.1.
+Methods:Weexploreimprovingtheperformanceofgpt-3.5-turbo-0125usinggpt-4o[48]toprovide
+feedback during backpropagation. In particular, while the forward model that performs the reasoning is
+gpt-3.5-turbo-0125, we use gpt-4o to provide the feedback and improve the prompt. We use a batch
+size of 3 with 12 iterations, i.e., the model sees 36 training examples in total, sampled randomly with re-
+placement. Aftereachiteration,werunavalidationloopwiththevalidationsetofthedatasets,andifthe
+performanceisbetterthanthepreviousiterationweupdatethePrompt.
+Baselines: Wehavetwomainbaselines:
+1. Zero-shotChain-of-Thought(CoT)[46,47]:Weinitializeallpromptsaszero-shotCoTprompt,wherea
+modelisinstructedto‘Thinkstep-by-step’toexplainitsreasoningbeforegivingitsanswer.Thisstrategy
+iswell-knowntobeastrongbaselineforprompting.
+2. DSPyisastate-of-the-artlanguagemodelprogrammingandpromptoptimizationframework[10],thus
+weuseitasthereferencebaseline. WeinstantiateDSPy’sBootstrappedFewShotRandomSearch(BFSR)
+optimizerwith10candidateprogramsand8few-shotexamples. Thisoptimizeridentifiesdemonstra-
+tions to include in the prompt as few-shot examples. This is done through generating traces of LLM
+inputs and outputs that individually pass the metric (in this case, accuracy) and includes CoT reason-
+ing. Itthenappliesrandomsearchoversubsetsofuptosizeeightshotswiththesedemonstrations.
+Table 3: Prompt optimization for reasoning tasks. With TEXTGRAD, we optimize a system prompt for
+gpt-3.5-turbousinggpt-4oasthegradientenginethatprovidesthefeedbackduringbackpropagation.
+Dataset Method Accuracy(%)
+CoT(0-shot)[46,47] 77.8
+ObjectCounting[50,51] DSPy(BFSR,8demonstrations)[10] 84.9
+TEXTGRAD(instruction-only,0demonstrations) 91.9
+CoT(0-shot)[46,47] 76.7
+WordSorting[50,51] DSPy(BFSR,8demonstrations)[10] 79.8
+TEXTGRAD(instruction-only,0demonstrations) 79.8
+CoT(0-shot)[46,47] 72.9
+GSM8k[52] DSPy(BFSR,8demonstrations)[10] 81.1
+TEXTGRAD(instruction-only,0demonstrations) 81.1
+Example: TextGradoptimizedpromptforgpt-3.5-turbo-0125
+Promptatinitialization(GSM8kAccuracy=72.9%):
+Youwillansweramathematicalreasoningquestion. Thinkstepbystep. Alwaysconcludethelastlineofyour
+responseshouldbeofthefollowingformat: ’Answer: $VALUE’whereVALUEisanumericalvalue."
+Promptafter12iterationswithbatchsize3(GSM8kAccuracy=81.1%):
+You will answer a mathematical reasoning question. Restate the problem in your own words to ensure un-
+derstanding. Break down the problem into smaller steps, explaining each calculation in detail. Verify each
+stepandre-checkyourcalculationsforaccuracy. Usepropermathematicalnotationandmaintainconsistency
+with the context of the question. Always conclude with the final answer in the following format: ’Answer:
+$VALUE’whereVALUEisanumericalvalue.
+Results: Across all three tasks, TEXTGRAD improves the performance of the 0-shot prompt signifi-
+cantly. It performs similarly to DSPy [10] for Word Sorting and GSM8k, and improves over DSPy by 7%
+forObjectCounting. Whilethe8demonstrationsinthecontextcanhelpguidethebehavioroftheLLM,it
+canincreasethecostofinference. Interestingly,theDSPyoptimizerandTEXTGRADmakecomplementary
+adjustments—theformeraddsin-contextdemonstrationexamplesandlatteroptimizesthesystemprompt.
+AddingtheexamplesselectedbyDSPyto TEXTGRAD’soptimizedpromptcouldfurtherimproveperfor-
+11Automatic“Differentiation”viaText
+mance(forGSM8k,directlycombiningthedemonstrationsfromDSPywiththeinstructionfromTextGrad
+increasestheaccuracyto82.1%),suggestingthatafruitfuldirectionistocombinebothapproaches.
+3.4 Moleculeoptimization
+TEXTGRADsupportsavarietyofoptimizationproblems,includingmulti-objectiveoptimizationtaskscom-
+monlyfoundinscienceandengineeringapplications. Forexample,indrugdiscovery,researchersseekto
+discoverordesignmoleculesthatmaximizeavarietyofobjectiveswithregardstosynthesizability,efficacy,
+and safety [53, 54]. To demonstrate TEXTGRAD’s applications to multi-objective optimization, we apply
+TEXTGRAD to drug molecule optimization, and show how our framework can interface with computa-
+tionaltoolsandoptimizechemicalstructurestowardssimultaneouslyimprovingtheirbindingaffinityand
+druglikeness.
+Task: Acriticalconsiderationforpotentialdrugmoleculesistheirbindingaffinity,whichrepresentsthe
+strengthoftheinteractionsbetweenthemoleculeanditsproteintarget.Drugdesignersseekmoleculeswith
+highbindingaffinitiestorelevantdrugtargets,astheyrequirelowerandlessfrequentdosestoachieveef-
+ficacy. Thisaffinitycanbequantifiedbyfreeenergy∆G,whichdescribestheratioofprobabilitiesbetween
+boundandunboundligand-receptorpairs. ∆G canbeestimatedusing“docking”simulationsofprotein-
+ligand binding [55, 56]. In our experiments, we employ the Vina score from the Autodock Vina tool, a
+widelyusedphysics-baseddockingsimulator[57]. ThemorenegativetheVinascore,thegreaterprobabil-
+itythatthedrugwillbindtoitsintendedtarget.
+Potentialdrugmoleculesarealsoevaluatedbytheirdruglikeness,whichestimateshowthemoleculewill
+behaveinvivo,withrespecttosolubility,permeability,metabolicstabilityandtransportereffects.Molecules
+withhighdruglikenessaremorelikelytobeabsorbedbythebodyandreachtheirtargets[58].Onepopular
+metricfor“druglikeness”istheQuantatiativeEstimateofDruglikeness(QED)score,aweightedcomposite
+metric of important chemical characteristics such as molecular weight, lipophilicity, polar surface area,
+amongothers. TheQEDscorerangesfrom0to1,where1indicateshighdruglikeness[59].
+Though there are many more considerations for successful molecules, in our experiments, we restrict
+ourobjectivestominimizingtheVinascoreandmaximizingtheQED,duetotherelativematurityofthese
+twometrics. Thecompetingtradeoffsbetweenthesetwometricsmakestheoptimizationtaskrealisticand
+challenging. In particular, docking scores tend to prefer larger molecules with many functional groups
+thatmaximizeinteractionswithabindingsite[55,56,60]. Incontrast,thedruglikenessencourageslighter,
+simpler molecules that have better absorption properties [58, 59]. Thus, simultaneously optimizing both
+objectivesisnon-trivial.
+Methods: We apply TEXTGRAD to drug molecule optimization by encoding molecules as SMILES
+strings and constructing a multi-objective loss from the Vina and QED scores. Namely, we perform in-
+stance optimization over SMILES strings, where the gradients generated by TEXTGRAD with respect to
+themulti-objectivelossareusedtoupdatethetextrepresentingthemolecule.
+Evaluation=LLM((Affinity(SMILES,target),Druglikeness(SMILES)) (17)
+i i
+(cid:18) (cid:19)
+∂Evaluation
+SMILES i+1 =TGD.step SMILES i,
+∂SMILES
+(18)
+i
+Weusegpt-4o asourLLMwiththeprompttextfoundinAppendixF.2. Ateachiteration,thecurrent
+molecule is evaluated by estimating its binding affinity to the target protein using the Vina score from
+Autodock Vina and using the QED score for druglikeness from RDKit (Appendix F.1). Each molecule is
+initialized as a small chemical fragment from a functional group. We apply TEXTGRAD to all 58 targets
+in the DOCKSTRING molecule evaluation benchmark [61]. These 58 targets consist of clinically relevant
+proteinssampledfromavarietyofstructuralclasses,29ofwhichhaveclinicallyapproveddrugs. Foreach
+target,weoptimizeastartingfragmentusingTEXTGRAD for10iterations,for3uniqueinitialfragments.
+Toevaluateourperformance,wecomparethecharacteristicsofthemoleculesgeneratedbyTEXTGRAD to
+clinicallyapproveddrugsfortherespectiveprotein(AppendixF.3).
+Results:Forall58targets,TEXTGRAD consistentlygeneratesmoleculeswithimprovedbindingaffinity
+anddruglikenessirrespectiveoftheinitialstartingfragment(AppendixF.4). Forthe29proteintargetswith
+12Automatic“Differentiation”viaText
+Gradients: Introduce functional Gradients: Add hydrophobic groups or aromatic
+groups that can form hydrogen rings to enhance interactions ... while maintaining a
+bonds or hydrophobic interactions. balance of hydrophobic and hydrophilic properties.
+Vina: -4.2 kcal/mol Vina: -5.5 kcal/mol Vina: -7.5 kcal/mol
+QED: 0.44 QED: 0.59 QED: 0.79
+-4
+-5
+-6
+-7
+-8
+0.4 0.5 0.6 0.7 0.8 0.9 1.0
+druglikeness (QED)
+Fenofibric Acid (Fibricor)
+PPARA
+(2p54)
+TextGrad
+Tanimoto: 0.38
+Tversky: 0.36
+)erocs
+aniv(
+ytiniffa
+gnidnib
+-2
+-3
+-4
+-5
+-6
+-7
+Gemfibrozil -8
+Fenofibric acid
+-9 Fenofibrate
+-10
+-11
+0.0 0.2 0.4 0.6 0.8 1.0
+druglikeness (QED)
+)erocs
+aniv(
+ytiniffa
+gnidnib
+a
+Molecule optimization
+b c
+Initialization
+TextGrad
+DrugBank
+d e
+Figure2: MoleculeoptimizationviaText. TEXTGRAD optimizesastartingbenzenefragmenttoimprove
+itsdruglikeness(higherQED)andbindingaffinity(lowervinascore)totheproteinreceptorPPARA.The
+textual gradients for the first three iterations are shown in (a), and the performance of all ten iterations
+comparedtoclinicallyapprovedmoleculestargettingPPARAin(c). Themoleculeatthefinaliterationhas
+low structural similarity with its most similar clinically approved counterpart, and better QED and Vina
+scores(d)withahighlyplausibleposegeometryshownin(e).Across29targetsandthreeinitialfragments,
+TextGrad successfully designs molecules with similar vina scores and greater QED scores than clinically
+approvedmolecules(b).
+13Automatic“Differentiation”viaText
+clinicallyapproveddrugs,weobservethatTEXTGRAD generatesmoleculeswithhighlycompetitiveaffin-
+ityanddruglikenesswhencomparedtoclinicalmoleculesevaluatedusingthesamelossfunction(Figure
+2(b)). Theresultingmoleculesexhibituniquestructurescomparedtotheirclinicalapprovedcounterparts
+andexistingcompounds(AppendixF.5),whilemaintainingsimilarinsilicosafetyprofiles(AppendixF.6).
+Whilethereexistalternativemachinelearningmethodsfordenovomoleculargeneration, TEXTGRAD of-
+ferstwokeyadvantagesoveritscounterparts:Firstly,bycombiningtraditonalchemoinformaticstoolswith
+thethegeneralknowledgeandreasoningcapabilitiesofLLMs, TEXTGRAD producescompetitiveresults
+evenwithoutapriortrainingset. Secondly,TEXTGRAD’sframeworkofnaturallanguagegradientsproduce
+explainable decisions, enabling researchers to understand precisely how and why a molecule’s structure
+wasconstructed. Together,thesetwocharacteristicsinvokeapromisingfuturefortheroleofAIagentsin
+scientificdiscovery.
+3.5 Radiotherapytreatmentplanoptimization
+Radiationtherapy,alsoknownasradiotherapy,isacancertreatmentthatusesbeamsofintenseenergy,such
+asX-rays,tokillcancercells. Beforetreatmentbegins,aradiotherapyteam,includingradiationoncologists
+andplanners, collaboratestodesignaneffectivetreatmentplan. Thisinvolvesdeterminingthenecessary
+doseofradiotherapyandpinpointingtheexactlocationsthatneedtreatment.
+Radiotherapy treatment planning can be formulated as a two-loop optimization problem. The inner
+loop, knownasinverseplanning, includesprocessessuchasinfluencemapoptimizationanddirectaper-
+tureoptimization[62]. Thisoptimizationproblemistypicallyaconstrainedone,solvedbyanumericalop-
+timizer,aimingtominimizeaweightedcostfunctionbalancingmultipleconflictingobjectives[63]. These
+objectivesincludedeliveringtheprescribeddosetotheplanningtargetvolume(PTV),whichencompasses
+the tumor and an additional margin to account for uncertainties in planning or treatment delivery, while
+protectingcriticalnormaltissues,knownasorgansatrisk(OARs),fromreceivingunsafedoses.
+The main challenge in treatment planning is translating overall clinical goals into weighted objective
+functions and dose constraints that yield an acceptable plan [62]. Human planners often use a trial-and-
+error approach, iteratively adjusting optimization hyperparameters based on the results of the optimiza-
+tion process until the plans meet clinical requirements [62]. These hyperparameters include the weights
+assigned to PTVs, organs, and other tissues in the objective function. This process can be subjective, in-
+fluencedbytheplanner’sexperienceandtheavailabletime, andinvolvesrepeatedlyusingcomputation-
+ally expensive optimization algorithms over many iterations. This makes the process inefficient, time-
+consuming,andcostly[64].
+Method. WeapplyTEXTGRADtoperformtheouterloopoptimization,i.e. hyperparameteroptimization
+fortheinnerloopnumericaloptimizer. Instanceoptimizationisperformedwithgpt-4ooverthehyperpa-
+rameters represented as a string: θ = “weight for PTV: [PTV WEIGHT], weight for bladder: [BLADDER
+WEIGHT],weightforrectum: [RECTUMWEIGHT],weightforfemoralheads: [FHWEIGHT],weightfor
+body: [BODYWEIGHT]”.Whenhyperparametersareprovided,weobtainthetreatmentplanbyadopting
+anumericaloptimizerandconstructingalossasthemismatchbetweenthecurrentplanandtheclinicalob-
+jectives. Specifically,tocomputethegradient,wefirstsolvetheinneroptimizationloopusinganumerical
+optimizermatRad[65]toobtainthecorrespondingtreatmentplanP(θ) =matRad(θ). Thelossiscomputed
+onthetreatmentplanPandtheclinicalgoalsgusinganLLMwithpromptsprovidedinSectionG.1.
+L =LLM(P(θ),g)
+andthenewhyperparametersareobtainedbyaTextGraddescentstep
+(cid:18) ∂L(cid:19)
+θ =TGD.step θ, .
+new
+∂θ
+To further improve LLM’s capability to understand the relationship between hyperparameters θ and the
+resultingplanPfrommatRad,asetofpairedplansandtheircorrespondinghyperparameters{(P,θ )}N
+i i i=1
+isprovidedascontextforLLMsduringtheTGD.step. Therefore,
+θ new =TGD.step(cid:18) θ,∂ ∂L θ(cid:12) (cid:12) (cid:12) (cid:12){(P i,θ i)} iN =1(cid:19) .
+14Automatic“Differentiation”viaText
+a
+Gradients: The current plan does not meet Gradients: The current weight for the rectum and bladder
+the criteria for the PTV. The constraints on are relatively low, which is not sufficiently protect the rectum and
+OARs are currently being met Recommendation: bladder from receiving higher doses. Recommendation: Slightly
+Increase the importance weight for the PTV. increase the importance weight for the bladder and rectum.
+Initialization Iteration 1 Iteration 5
+bladder
+......
+rectum
+b c
+90
+85
+80
+75
+70
+65
+60
+55
+50
+Init. 1 2 3 4 5
+Iterations
+d e
+Organ Method Mean dose [Gy]
+Target Method Mean dose [Gy] D95 [Gy] Radiation Oncologist 22.39 (5.55)
+Bladder
+TextGrad
+Clinical Goal 70.20 70.20 20.92 (0.79)
+PTV Radiation Oncolog i s t +1.97 (0.36) -0.10 (0.15) Radiation Oncologist 23.88 (6.45)
+Rectum
+TextGrad +0.51 (0.09) +0.00 (0.00) TextGrad 17.18 (4.20)
+)yG(
+esoD
+40
+PTV ( T e x t G r a d )
+35
+Clinical Goal
+30
+25
+20
+15
+10
+5
+0
+Init. 1 2 3 4 5
+Iterations
+)yG(
+esoD
+Dose: Low High
+Bladder ( T e x t G r a d )
+Rectum ( T e x t G r a d )
+Clinically AllowedMaximum
+Figure 3: Radiotherapy treatment plan optimization. Visualization of backpropagated textual gradients
+adjusting importance weights of planning target volumes (PTVs) and organs at risk (OARs) to balance
+tumortargetingandprotectionofOARs. Imagesin(a)showplanevolutionfrominitializationtoiteration
+5. TEXTGRADiterativelyimprovesthemeandoseandreducesthedosevariancetothePTV,achievingthe
+clinicalgoalovermultipleiterations(b). TEXTGRADkeepstheexposureforthebladderandrectumbelow
+clinically allowed maximums (c). TEXTGRAD optimized plans have better dose metrics (mean dose and
+D )forPTVthanclinicallyoptimizedplans(d),andlowerdosesonbladderandrectum,indicatingbetter
+95
+protectionofOARs(e).
+15Automatic“Differentiation”viaText
+Evaluation metrics. To evaluate a treatment plan, we adopt several commonly used dose metrics as a
+plancannotbeevaluatedusingasinglemetric. Weconsiderthemeandosedeliveredtothetarget/organ
+volume,aswellasD ,whichdenotestheminimumdosereceivedbyq%ofthetarget/organvolume.
+q
+Results. ThegradientsgeneratedbyTEXTGRADprovidemeaningfulguidancetoimprovethehyperpa-
+rameters. AsillustratedinFigure3,whenthereisdosespillageoutsidethePlanningTargetVolume(PTV),
+thegradientsuggestsanincreaseintheimportanceweightforthePTV.Thisadjustmentresultsinamore
+uniform and confined dose for the PTV. However, this can lead to insufficient protection of the bladder
+and rectum as their relative weights are reduced. Therefore, in the following step, the gradients suggest
+slightlyincreasingtheweightsforthebladderandrectum, resultinginbetterprotectionfortheseorgans.
+We compared TEXTGRAD optimized plans with the clinical plans used to treat five prostate cancer pa-
+tients. In Figure 3 (c), we assess TextGrad’s capabilities in achieving clinical goals for the PTV region.
+TextGrad outperforms the clinical plans across all metrics, achieving a higher mean dose, and a D that
+95
+exactlymatchestheprescribeddose. InFigure3(d),wefocusonthesparingofhealthyorgans. TextGrad-
+optimizedplansachievelowermeandosesforthesehealthyorgans,suggestingbetterorgansparingthan
+thehuman-optimizedplans.Wereporttheaveragesacrossfiveplansandwithstandarddeviationincluded
+inthebracket.
+4 Related work
+Onerelatedthreadofworkinvestigatedtheproblemofpromptoptimization. Practitionersdemonstrated
+thatpromptengineeringstrategiessuchasintelligentlypickingfew-shotexamplesandin-contextlearning,
+CoT, ensembles can significantly boost performance of LLMs [66]. To automate this process, white-box
+methods that leverage numerical gradients were developed to optimize prompts [67–70], however, these
+methods cannot be used with closed-source models as they require access to model parameters. Various
+worksinvestigatedusingLLMsaspromptoptimizers[12,25,71].
+Under prompt optimization, there are two works closest to our philosophy that have been our inspi-
+rations. First, DSPy [10, 72, 73] pioneered the idea of viewing complex LLM-based systems as programs
+withpotentiallymanylayers, andproposeswaystobuildandoptimizetheminaprogrammaticfashion.
+Theframeworkisextensive,withresultsimprovingLLMperformanceinvariousquestionanswering,rea-
+soning,andpromptoptimizationtasks. Ourworktakesadifferentperspectivethatbackpropagationand
+its extensions can be a general and powerful framework to optimize the new generation of AI systems,
+and perform multiple tasks outside of prompt optimization. In particular, we treat not only instructions
+or demonstrations as variables to optimize, but also the instances we care about themselves — such as
+molecules,treatmentplans,codesnippets,andsoon. Second,greatlyinspiringtous,PromptOptimization
+withTextualGradients(ProTeGi)[25]definestheTextualGradientsinthecontextofpromptoptimization,
+where gradients are natural language feedback from LLMs given to the mistakes made during the task.
+WhileProTeGiisbuiltonthetextualgradientanalogy,weexpandthisanalogymorebroadlytoautomatic
+differentiation, and going substantially beyond prompt optimization tasks. In particular, both DSPy and
+ProTeGi focused on prompt optimization, while a significant advance of TEXTGRAD, as demonstrated
+throughourdiverseapplications,isininstanceoptimization.
+Moregenerally,thereisanemerginglineofworkbuiltonthehigh-levelideaofusingLLMsascriticsor
+optimizers[10,12,25,26,30,71,74–80].Whilemanyoftheseearlierframeworksdemonstratedtheutilityof
+LLMsasoptimizers,weproposeasingleandgeneralframeworkthatwastestedsuccessfullyinavarietyof
+applications. Withinthisframework,wecanreasonaboutoptimizingchainsorstacksofLLMs[81–83]: we
+propagatenaturallanguagefeedback.Similarly,onceviewedasageneral-purposeoptimizationengine,we
+canformulatemanyrelevantproblemsinstantiatedasafewlinesofcodeinourframework, suchastest-
+timetraining[42,43]orself-refinementofsolutionsandself-improvement[26,30,44,84–91]. Buildingon
+theoptimizationanalogy,wealreadytransferredseveralanalogiesfromthetraditionaloptimizationlitera-
+turesuchasmomentum[40]throughusingearlieriterationsinthecontext,useofbatchoptimization[92],
+constrainedoptimization [35]usingnaturallanguageconstraints, andsoon. Ourworkopensupalarge
+spacetodesignthenewgenerationofoptimizationalgorithms,allwithinthesameframework.
+16Automatic“Differentiation”viaText
+5 Discussion
+TextGrad is built on three key principles: i) It is a general and performant framework that is not hand-
+craftedforaspecificapplicationdomain,ii)Itiseasy-to-use,mirroringPyTorchabstractionsthusallowing
+knowledgetransfer,iii)Itisfullyopen-source. ThroughTEXTGRAD,weobtainedstate-of-the-artresultsin
+codeoptimizationandPhD-levelquestionanswering,optimizedprompts,andprovidedproof-of-concept
+resultsinscientificapplicationssuchasdevelopingmoleculesandoptimizingtreatmentplans.
+Whilewetookafirststep,therearevariouslimitationsthatmotivatefutureworktorealizethepotential
+ofautomaticdifferentiationframeworkspoweredbyLLMs. First,whilewedemonstratedthepotentialof
+backpropagatingtextfeedback, therearemanyapplicationsourframeworkcanbeextendedto. Wehope
+TEXTGRAD can be used to accelerate iterative processes in scientific discovery and increase the produc-
+tivityofengineeringefforts. Forinstance, toallowforthis, wehopetoextendtheoperationsinourcom-
+putationgraphstoincludemorecomponentsusedinpracticalLLMapplications,suchasfortooluse[83]
+or retrieval-augmented generation systems [93]. Second, the automatic differentiation analogy enables a
+large design space for algorithms. We believe there are many fruitful connections to be drawn between
+numerical optimization, automatic differentiation, and TEXTGRAD. In particular, increasing the stability
+of the optimization using variance reduction techniques [94], adaptive gradients [95], or self-verification
+using LLMs [96] are interesting connections. Meta learning approaches [97–99] to optimize the TextGrad
+frameworkusingmethodssuchasTextGraditselfisalsoanintriguingdirectionoffuturework.
+Finally,whileweconductedproof-of-conceptapplicationsofTEXTGRADtodesignnewmoleculesand
+treatmentplanswithinsilicovalidations,theultimatetestrequiresexperimentalandclinicalassessments,
+whichareoutsideofthescopeofthispaper.
+AstheparadigmofAIshiftsfromtrainingindividualmodelstooptimizingcompoundsystemsinvolv-
+ingmultipleinteractingLLMcomponentsandtools, weneedanewgenerationofautomatedoptimizers.
+TEXTGRADcombinesthereasoningpowerofLLMswiththedecomposableefficiencyofbackpropationto
+createageneralframeworktooptimizeAIsystems.
+Acknowledgements
+WewouldliketothankDuyguYilmaz,BegumErgun,FatihDinc,YuSun,OmarKhattab,IanCovert,Kyle
+Swanson, Omer Faruk Akgun, Yusuf Efe, Kevin Y Wu, Eric Wu, Kailas Vodrahalli, Oscar Pastor Serrano,
+Patrick John Chia, Jacopo Tagliabue, Nitya Thakkar, Elana Simon, Pan Lu, Sabri Eyuboglu, Irena Gao,
+LingjiaoChen,andmembersoftheZouGroupfortheirsupportandcommentsonthiswork.
+17Automatic“Differentiation”viaText
+References
+1. Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J. D., Dhariwal, P., Neelakantan, A., Shyam,
+P.,Sastry,G.,Askell,A.,etal.Languagemodelsarefew-shotlearners.Advancesinneuralinformation
+processingsystems33,1877–1901(2020).
+2. Achiam,J.,Adler,S.,Agarwal,S.,Ahmad,L.,Akkaya,I.,Aleman,F.L.,Almeida,D.,Altenschmidt,J.,
+Altman,S.,Anadkat,S.,etal.Gpt-4technicalreport.arXivpreprintarXiv:2303.08774(2023).
+3. Reid,M.,Savinov,N.,Teplyashin,D.,Lepikhin,D.,Lillicrap,T.,Alayrac,J.-b.,Soricut,R.,Lazaridou,
+A.,Firat,O.,Schrittwieser,J.,etal.Gemini1.5:Unlockingmultimodalunderstandingacrossmillions
+oftokensofcontext.arXivpreprintarXiv:2403.05530(2024).
+4. AI@Meta. Llama 3 Model Card. https://github.com/meta-llama/llama3/blob/main/MODEL_
+CARD.md(2024).
+5. Anthropic,A.TheClaude3ModelFamily:Opus,Sonnet,Haiku.Claude-3ModelCard(2024).
+6. Bommasani,R.,Hudson,D.A.,Adeli,E.,Altman,R.,Arora,S.,vonArx,S.,Bernstein,M.S.,Bohg,J.,
+Bosselut,A.,Brunskill,E.,etal.Ontheopportunitiesandrisksoffoundationmodels.arXivpreprint
+arXiv:2108.07258(2021).
+7. Trinh,T.H.,Wu,Y.,Le,Q.V.,He,H.&Luong,T.Solvingolympiadgeometrywithouthumandemon-
+strations.Nature625,476–482(2024).
+8. Li,Y.,Choi,D.,Chung,J.,Kushman,N.,Schrittwieser,J.,Leblond,R.,Eccles,T.,Keeling,J.,Gimeno,F.,
+DalLago,A.,etal.Competition-levelcodegenerationwithalphacode.Science378,1092–1097(2022).
+9. Yang,J.,Jimenez,C.E.,Wettig,A.,Lieret,K.,Yao,S.,Narasimhan,K.&Press,O.SWE-agent:Agent-
+ComputerInterfacesEnableAutomatedSoftwareEngineering2024.
+10. Khattab,O.,Singhvi,A.,Maheshwari,P.,Zhang,Z.,Santhanam,K.,A,S.V.,Haq,S.,Sharma,A.,Joshi,
+T.T.,Moazam,H.,Miller,H.,Zaharia,M.&Potts,C.DSPy:CompilingDeclarativeLanguageModelCalls
+into State-of-the-Art Pipelines in The Twelfth International Conference on Learning Representations (2024).
+https://openreview.net/forum?id=sY5N0zY5Od.
+11. Zaharia, M., Khattab, O., Chen, L., Davis, J. Q., Miller, H., Potts, C., Zou, J., Carbin, M., Frankle, J.,
+Rao,N.&Ghodsi,A.TheShiftfromModelstoCompoundAISystemshttps://bair.berkeley.edu/
+blog/2024/02/18/compound-ai-systems/.2024.
+12. Zhou, Y., Muresanu, A. I., Han, Z., Paster, K., Pitis, S., Chan, H. & Ba, J. Large Language Models
+are Human-Level Prompt Engineers in The Eleventh International Conference on Learning Representations
+(2023).https://openreview.net/forum?id=92gvk82DE-.
+13. Krizhevsky,A.,Sutskever,I.&Hinton,G.E.Imagenetclassificationwithdeepconvolutionalneural
+networks.Advancesinneuralinformationprocessingsystems25(2012).
+14. Jumper, J., Evans, R., Pritzel, A., Green, T., Figurnov, M., Ronneberger, O., Tunyasuvunakool, K.,
+Bates,R.,Žídek,A.,Potapenko,A.,etal.HighlyaccurateproteinstructurepredictionwithAlphaFold.
+Nature596,583–589(2021).
+15. Fawzi,A.,Balog,M.,Huang,A.,Hubert,T.,Romera-Paredes,B.,Barekatain,M.,Novikov,A.,RRuiz,
+F. J., Schrittwieser, J., Swirszcz, G., et al. Discovering faster matrix multiplication algorithms with
+reinforcementlearning.Nature610,47–53(2022).
+16. Mankowitz, D. J., Michi, A., Zhernov, A., Gelmi, M., Selvi, M., Paduraru, C., Leurent, E., Iqbal, S.,
+Lespiau,J.-B.,Ahern,A.,etal.Fastersortingalgorithmsdiscoveredusingdeepreinforcementlearn-
+ing.Nature618,257–263(2023).
+17. Merchant,A.,Batzner,S.,Schoenholz,S.S.,Aykol,M.,Cheon,G.&Cubuk,E.D.Scalingdeeplearning
+formaterialsdiscovery.Nature624,80–85(2023).
+18. Goodfellow,I.,Bengio,Y.&Courville,A.Deeplearning(MITpress,2016).
+19. Rumelhart,D.E.,Hinton,G.E.&Williams,R.J.Learningrepresentationsbyback-propagatingerrors.
+Nature323,533–536(1986).
+18Automatic“Differentiation”viaText
+20. Jia, Y., Shelhamer, E., Donahue, J., Karayev, S., Long, J., Girshick, R., Guadarrama, S. & Darrell, T.
+Caffe:ConvolutionalArchitectureforFastFeatureEmbedding.arXivpreprintarXiv:1408.5093(2014).
+21. Bergstra,J.,Breuleux,O.,Bastien,F.,Lamblin,P.,Pascanu,R.,Desjardins,G.,Turian,J.,Warde-Farley,
+D. & Bengio, Y. Theano: A CPU and GPU Math Expression Compiler in Proceedings of the Python for
+ScientificComputingConference(SciPy)(2010).
+22. Abadi, M., Barham, P., Chen, J., Chen, Z., Davis, A., Dean, J., Devin, M., Ghemawat, S., Irving, G.,
+Isard, M., et al. TensorFlow: A System for Large-Scale Machine Learning in 12th USENIX Symposium on
+OperatingSystemsDesignandImplementation(OSDI16)(2016),265–283.
+23. Paszke,A.,Gross,S.,Massa,F.,Lerer,A.,Bradbury,J.,Chanan,G.,Killeen,T.,Lin,Z.,Gimelshein,N.,
+Antiga, L., et al. Pytorch: An imperative style, high-performance deep learning library. Advances in
+neuralinformationprocessingsystems32(2019).
+24. Collobert,R.,Bengio,S.&Mariéthoz,J.Torch:amodularmachinelearningsoftwarelibrary(2002).
+25. Pryzant, R., Iter, D., Li, J., Lee, Y., Zhu, C. & Zeng, M. Automatic Prompt Optimization with “Gradient
+Descent”andBeamSearchinProceedingsofthe2023ConferenceonEmpiricalMethodsinNaturalLanguage
+Processing (eds Bouamor, H., Pino, J. & Bali, K.) (Association for Computational Linguistics, Singa-
+pore,Dec.2023),7957–7968.https://aclanthology.org/2023.emnlp-main.494.
+26. Shinn, N., Cassano, F., Gopinath, A., Narasimhan, K. & Yao, S. Reflexion: language agents with ver-
+bal reinforcement learning in Advances in Neural Information Processing Systems 36 (2023). https://
+proceedings.neurips.cc/paper_files/paper/2023/file/1b44b878bb782e6954cd888628510e90-
+Paper-Conference.pdf.
+27. Rein,D.,Hou,B.L.,Stickland,A.C.,Petty,J.,Pang,R.Y.,Dirani,J.,Michael,J.&Bowman,S.R.Gpqa:
+Agraduate-levelgoogle-proofq&abenchmark.arXivpreprintarXiv:2311.12022(2023).
+28. Li,X.,Zhang,T.,Dubois,Y.,Taori,R.,Gulrajani,I.,Guestrin,C.,Liang,P.&Hashimoto,T.B.Alpacae-
+val:Anautomaticevaluatorofinstruction-followingmodels2023.
+29. Bai, Y., Jones, A., Ndousse, K., Askell, A., Chen, A., DasSarma, N., Drain, D., Fort, S., Ganguli, D.,
+Henighan,T.,etal.Trainingahelpfulandharmlessassistantwithreinforcementlearningfromhuman
+feedback.arXivpreprintarXiv:2204.05862(2022).
+30. Madaan, A., Tandon, N., Gupta, P., Hallinan, S., Gao, L., Wiegreffe, S., Alon, U., Dziri, N., Prabhu-
+moye,S.,Yang,Y.,etal.Self-refine:Iterativerefinementwithself-feedback.AdvancesinNeuralInfor-
+mationProcessingSystems36(2024).
+31. Stiennon,N.,Ouyang,L.,Wu,J.,Ziegler,D.,Lowe,R.,Voss,C.,Radford,A.,Amodei,D.&Christiano,
+P.F.Learningtosummarizewithhumanfeedback.AdvancesinNeuralInformationProcessingSystems
+33,3008–3021(2020).
+32. Yuan, W., Pang, R. Y., Cho, K., Sukhbaatar, S., Xu, J. & Weston, J. Self-rewarding language models.
+arXivpreprintarXiv:2401.10020(2024).
+33. Dubois,Y.,Li,C.X.,Taori,R.,Zhang,T.,Gulrajani,I.,Ba,J.,Guestrin,C.,Liang,P.S.&Hashimoto,
+T.B.Alpacafarm:Asimulationframeworkformethodsthatlearnfromhumanfeedback.Advancesin
+NeuralInformationProcessingSystems36(2024).
+34. Bottou,L.Large-scalemachinelearningwithstochasticgradientdescent.ProceedingsofCOMPSTAT’2010,
+177–186(2010).
+35. Boyd,S.,Boyd,S.P.&Vandenberghe,L.Convexoptimization(Cambridgeuniversitypress,2004).
+36. Ouyang,L.,Wu,J.,Jiang,X.,Almeida,D.,Wainwright,C.,Mishkin,P.,Zhang,C.,Agarwal,S.,Slama,
+K.,Ray,A.,etal.Traininglanguagemodelstofollowinstructionswithhumanfeedback.Advancesin
+neuralinformationprocessingsystems35,27730–27744(2022).
+37. Wei, J., Bosma, M., Zhao, V., Guu, K., Yu, A. W., Lester, B., Du, N., Dai, A. M. & Le, Q. V. Finetuned
+Language Models are Zero-Shot Learners in International Conference on Learning Representations (2022).
+https://openreview.net/forum?id=gEZrGCozdqR.
+19Automatic“Differentiation”viaText
+38. Yuksekgonul, M., Chandrasekaran, V., Jones, E., Gunasekar, S., Naik, R., Palangi, H., Kamar, E. &
+Nushi,B. AttentionSatisfies:AConstraint-SatisfactionLensonFactualErrorsofLanguageModels inThe
+TwelfthInternationalConferenceonLearningRepresentations(2024).https://openreview.net/forum?
+id=gfFVATffPd.
+39. Abdin,M.I.,Gunasekar,S.,Chandrasekaran,V.,Li,J.,Yuksekgonul,M.,Peshawaria,R.G.,Naik,R.
+& Nushi, B. KITAB: Evaluating LLMs on Constraint Satisfaction for Information Retrieval in The Twelfth
+International Conference on Learning Representations (2024). https://openreview.net/forum?id=
+b3kDP3IytM.
+40. Polyak, B. T. Some methods of speeding up the convergence of iteration methods. USSR Computa-
+tionalMathematicsandMathematicalPhysics4,1–17(1964).
+41. Sutskever,I.,Martens,J.,Dahl,G.&Hinton,G.Ontheimportanceofinitializationandmomentumindeep
+learninginInternationalconferenceonmachinelearning(2013),1139–1147.
+42. Sun, Y., Wang, X., Liu, Z., Miller, J., Efros, A. & Hardt, M. Test-Time Training with Self-Supervision
+forGeneralizationunderDistributionShiftsinProceedingsofthe37thInternationalConferenceonMachine
+Learning(PMLR,2020).https://proceedings.mlr.press/v119/sun20b.html.
+43. Sun,Y.,Li,X.,Dalal,K.,Hsu,C.,Koyejo,S.,Guestrin,C.,Wang,X.,Hashimoto,T.&Chen,X.Learning
+to(learnattesttime).arXivpreprintarXiv:2310.13807(2023).
+44. Yao,S.,Zhao,J.,Yu,D.,Du,N.,Shafran,I.,Narasimhan,K.R.&Cao,Y.ReAct:SynergizingReasoning
+andActinginLanguageModelsinTheEleventhInternationalConferenceonLearningRepresentations(2023).
+https://openreview.net/forum?id=WE_vluYUL-X.
+45. Hendrycks,D.,Burns,C.,Basart,S.,Zou,A.,Mazeika,M.,Song,D.&Steinhardt,J.MeasuringMassive
+MultitaskLanguageUnderstandinginInternationalConferenceonLearningRepresentations(2021).https:
+//openreview.net/forum?id=d7KBjmI3GmQ.
+46. Kojima,T.,Gu,S.S.,Reid,M.,Matsuo,Y.&Iwasawa,Y.Largelanguagemodelsarezero-shotreason-
+ers.Advancesinneuralinformationprocessingsystems35,22199–22213(2022).
+47. Wei, J., Wang, X., Schuurmans, D., Bosma, M., Xia, F., Chi, E., Le, Q. V., Zhou, D., et al. Chain-of-
+thoughtpromptingelicitsreasoninginlargelanguagemodels.Advancesinneuralinformationprocess-
+ingsystems35,24824–24837(2022).
+48. OpenAI.HelloGPT-4oAccessed:2024-05-18.2024.https://openai.com/index/hello-gpt-4o/.
+49. Liu,P.,Yuan,W.,Fu,J.,Jiang,Z.,Hayashi,H.&Neubig,G.Pre-train,prompt,andpredict:Asystem-
+aticsurveyofpromptingmethodsinnaturallanguageprocessing.ACMComputingSurveys55,1–35
+(2023).
+50. Suzgun, M., Scales, N., Schärli, N., Gehrmann, S., Tay, Y., Chung, H. W., Chowdhery, A., Le, Q.,
+Chi,E.,Zhou,D.&Wei,J.ChallengingBIG-BenchTasksandWhetherChain-of-ThoughtCanSolveThem
+in Findings of the Association for Computational Linguistics: ACL 2023 (Association for Computational
+Linguistics,Toronto,Canada,July2023).https://aclanthology.org/2023.findings-acl.824.
+51. Srivastava, A. et al. Beyond the Imitation Game: Quantifying and extrapolating the capabilities of
+languagemodels.TransactionsonMachineLearningResearch. ISSN:2835-8856.https://openreview.
+net/forum?id=uyTL5Bvosj(2023).
+52. Cobbe,K.,Kosaraju,V.,Bavarian,M.,Chen,M.,Jun,H.,Kaiser,L.,Plappert,M.,Tworek,J.,Hilton,J.,
+Nakano,R.,Hesse,C.&Schulman,J.TrainingVerifierstoSolveMathWordProblems.arXivpreprint
+arXiv:2110.14168(2021).
+53. Nicolaou, C. A. & Brown, N. Multi-objective optimization methods in drug design. Drug Discovery
+Today:Technologies10,e427–e435(2013).
+54. Hoelder,S.,Clarke,P.A.&Workman,P.Discoveryofsmallmoleculecancerdrugs:successes,chal-
+lengesandopportunities.Molecularoncology6,155–176(2012).
+55. Kontoyianni,M.Dockingandvirtualscreeningindrugdiscovery.Proteomicsfordrugdiscovery:Meth-
+odsandprotocols,255–266(2017).
+20Automatic“Differentiation”viaText
+56. Agarwal,S.&Mehrotra,R.Anoverviewofmoleculardocking.JSMchem4,1024–1028(2016).
+57. Trott, O. & Olson, A. J. AutoDock Vina: improving the speed and accuracy of docking with a new
+scoringfunction,efficientoptimization,andmultithreading.Journalofcomputationalchemistry31,455–
+461(2010).
+58. Ursu,O.,Rayan,A.,Goldblum,A.&Oprea,T.I.Understandingdrug-likeness.WileyInterdisciplinary
+Reviews:ComputationalMolecularScience1,760–781(2011).
+59. Bickerton, G. R., Paolini, G. V., Besnard, J., Muresan, S. & Hopkins, A. L. Quantifying the chemical
+beautyofdrugs.Naturechemistry4,90–98(2012).
+60. Bender, B. J., Gahbauer, S., Luttens, A., Lyu, J., Webb, C. M., Stein, R. M., Fink, E. A., Balius, T. E.,
+Carlsson,J.,Irwin,J.J.,etal.Apracticalguidetolarge-scaledocking.Natureprotocols16,4799–4832
+(2021).
+61. García-Ortegón, M., Simm, G. N., Tripp, A. J., Hernández-Lobato, J. M., Bender, A. & Bacallado, S.
+DOCKSTRING:easymoleculardockingyieldsbetterbenchmarksforliganddesign.Journalofchemi-
+calinformationandmodeling62,3486–3502(2022).
+62. Khan,F.M.,Sperduto,P.W.&Gibbons,J.P.Khan’sTreatmentPlanninginRadiationOncology:.(Lippin-
+cottWilliams&Wilkins,2021).
+63. Webb,S.ThephysicalbasisofIMRTandinverseplanning.TheBritishjournalofradiology76,678–689
+(2003).
+64. Hussein,M.,Heijmen,B.J.M.,Verellen,D.&Nisbet,A.AutomationinIntensityModulatedRadio-
+therapyTreatmentPlanning—aReviewofRecentInnovations.BritishJournalofRadiology91,20180270.
+ISSN:0007-1285.(2024)(Dec.2018).
+65. Wieser, H.-P., Cisternas, E., Wahl, N., Ulrich, S., Stadler, A., Mescher, H., Müller, L.-R., Klinge, T.,
+Gabrys, H., Burigo, L., et al. Development of the open-source dose calculation and optimization
+toolkitmatRad.MedicalPhysics44,2556–2568(2017).
+66. Nori, H., Lee, Y. T., Zhang, S., Carignan, D., Edgar, R., Fusi, N., King, N., Larson, J., Li, Y., Liu, W.,
+etal.Cangeneralistfoundationmodelsoutcompetespecial-purposetuning?casestudyinmedicine.
+arXivpreprintarXiv:2311.16452(2023).
+67. Shin, T., Razeghi, Y., Logan IV, R. L., Wallace, E. & Singh, S. AutoPrompt: Eliciting Knowledge from
+LanguageModelswithAutomaticallyGeneratedPromptsinProceedingsofthe2020ConferenceonEmpirical
+MethodsinNaturalLanguageProcessing(EMNLP)(AssociationforComputationalLinguistics,Online,
+Nov.2020),4222–4235.https://aclanthology.org/2020.emnlp-main.346.
+68. Jia,M.,Tang,L.,Chen,B.-C.,Cardie,C.,Belongie,S.,Hariharan,B.&Lim,S.-N.Visualprompttuning
+inEuropeanConferenceonComputerVision(2022),709–727.
+69. Li,X.L.&Liang,P.Prefix-Tuning:OptimizingContinuousPromptsforGenerationinProceedingsofthe59th
+AnnualMeetingoftheAssociationforComputationalLinguisticsandthe11thInternationalJointConference
+on Natural Language Processing (Volume 1: Long Papers) (Association for Computational Linguistics,
+Online,Aug.2021),4582–4597.https://aclanthology.org/2021.acl-long.353.
+70. Chen, X., Zhang, N., Xie, X., Deng, S., Yao, Y., Tan, C., Huang, F., Si, L. & Chen, H. Knowprompt:
+Knowledge-aware prompt-tuning with synergistic optimization for relation extraction in Proceedings of the
+ACMWebconference2022(2022),2778–2788.
+71. Ye, Q., Axmed, M., Pryzant, R. & Khani, F. Prompt engineering a prompt engineer. arXiv preprint
+arXiv:2311.05661(2023).
+72. Khattab,O.,Santhanam,K.,Li,X.L.,Hall,D.,Liang,P.,Potts,C.&Zaharia,M.Demonstrate-Search-
+Predict: Composing Retrieval and Language Models for Knowledge-Intensive NLP. arXiv preprint
+arXiv:2212.14024(2022).
+73. Singhvi,A.,Shetty,M.,Tan,S.,Potts,C.,Sen,K.,Zaharia,M.&Khattab,O.DSPyAssertions:Com-
+putational Constraints for Self-Refining Language Model Pipelines. arXiv preprint arXiv:2312.13382
+(2023).
+21Automatic“Differentiation”viaText
+74. Yang,C.,Wang,X.,Lu,Y.,Liu,H.,Le,Q.V.,Zhou,D.&Chen,X.LargeLanguageModelsasOptimizers
+inTheTwelfthInternationalConferenceonLearningRepresentations(2024).https://openreview.net/
+forum?id=Bb4VGOWELI.
+75. Song,X.,Tian,Y.,Lange,R.T.,Lee,C.,Tang,Y.&Chen,Y.Position:LeverageFoundationalModelsfor
+Black-BoxOptimization2024.arXiv:2405.03547[cs.LG].
+76. Liu,T.,Astorga,N.,Seedat,N.&vanderSchaar,M.LargeLanguageModelstoEnhanceBayesianOpti-
+mizationinTheTwelfthInternationalConferenceonLearningRepresentations(2024).https://openreview.
+net/forum?id=OOxotBmGol.
+77. Wang,R.,Zelikman,E.,Poesia,G.,Pu,Y.,Haber,N.&Goodman,N.HypothesisSearch:InductiveRea-
+soningwithLanguageModelsinTheTwelfthInternationalConferenceonLearningRepresentations(2024).
+https://openreview.net/forum?id=G7UtIGQmjm.
+78. Gao,L.,Dai,Z.,Pasupat,P.,Chen,A.,Chaganty,A.T.,Fan,Y.,Zhao,V.,Lao,N.,Lee,H.,Juan,D.-C.
+&Guu,K.RARR:ResearchingandRevisingWhatLanguageModelsSay,UsingLanguageModelsinPro-
+ceedings of the 61st Annual Meeting of the Association for Computational Linguistics (Volume 1: Long Pa-
+pers)(AssociationforComputationalLinguistics,Toronto,Canada,July2023),16477–16508.https:
+//aclanthology.org/2023.acl-long.910.
+79. Chen,X.,Lin,M.,Schärli,N.&Zhou,D.TeachingLargeLanguageModelstoSelf-DebuginTheTwelfth
+International Conference on Learning Representations (2024). https://openreview.net/forum?id=
+KuPixIqPiq.
+80. Shypula, A. G., Madaan, A., Zeng, Y., Alon, U., Gardner, J. R., Yang, Y., Hashemi, M., Neubig, G.,
+Ranganathan, P., Bastani, O. & Yazdanbakhsh, A. Learning Performance-Improving Code Edits in The
+TwelfthInternationalConferenceonLearningRepresentations(2024).https://openreview.net/forum?
+id=ix7rLVHXyY.
+81. Chase,H.LangChainOct.17,2022.https://github.com/langchain-ai/langchain.
+82. Liu,J.LlamaIndexhttps://github.com/jerryjliu/llamaindex.2022.
+83. Schick,T.,Dwivedi-Yu,J.,Dessì,R.,Raileanu,R.,Lomeli,M.,Hambro,E.,Zettlemoyer,L.,Cancedda,
+N.&Scialom,T.Toolformer:Languagemodelscanteachthemselvestousetools.AdvancesinNeural
+InformationProcessingSystems36(2024).
+84. Press,O.,Zhang,M.,Min,S.,Schmidt,L.,Smith,N.&Lewis,M.MeasuringandNarrowingtheComposi-
+tionalityGapinLanguageModelsinFindingsoftheAssociationforComputationalLinguistics:EMNLP2023
+(AssociationforComputationalLinguistics,Singapore,Dec.2023),5687–5711.https://aclanthology.
+org/2023.findings-emnlp.378.
+85. Zelikman,E.,Wu,Y.,Mu,J.&Goodman,N.STaR:BootstrappingReasoningWithReasoninginAdvances
+inNeuralInformationProcessingSystems(edsKoyejo,S.,Mohamed,S.,Agarwal,A.,Belgrave,D.,Cho,
+K. & Oh, A.) 35 (Curran Associates, Inc., 2022), 15476–15488. https://proceedings.neurips.cc/
+paper_files/paper/2022/file/639a9a172c044fbb64175b5fad42e9a5-Paper-Conference.pdf.
+86. Huang,J.,Gu,S.,Hou,L.,Wu,Y.,Wang,X.,Yu,H.&Han,J.LargeLanguageModelsCanSelf-Improve
+inProceedingsofthe2023ConferenceonEmpiricalMethodsinNaturalLanguageProcessing(edsBouamor,
+H., Pino, J. & Bali, K.) (Association for Computational Linguistics, Singapore, Dec. 2023). https:
+//aclanthology.org/2023.emnlp-main.67.
+87. Yang,K.,Tian,Y.,Peng,N.&Klein,D.Re3:GeneratingLongerStoriesWithRecursiveRepromptingand
+RevisioninProceedingsofthe2022ConferenceonEmpiricalMethodsinNaturalLanguageProcessing(As-
+sociation for Computational Linguistics, Dec. 2022). https://aclanthology.org/2022.emnlp-
+main.296.
+88. Xie, Y., Kawaguchi, K., Zhao, Y., Zhao, X., Kan, M.-Y., He, J. & Xie, Q. Self-Evaluation Guided Beam
+SearchforReasoninginThirty-seventhConferenceonNeuralInformationProcessingSystems(2023).https:
+//openreview.net/forum?id=Bw82hwg5Q3.
+22Automatic“Differentiation”viaText
+89. Paul, D., Ismayilzada, M., Peyrard, M., Borges, B., Bosselut, A., West, R. & Faltings, B. REFINER:
+Reasoning Feedback on Intermediate Representations in Proceedings of the 18th Conference of the European
+ChapteroftheAssociationforComputationalLinguistics(Volume1:LongPapers)(AssociationforCompu-
+tationalLinguistics,Mar.2024).https://aclanthology.org/2024.eacl-long.67.
+90. Zhao,A.,Huang,D.,Xu,Q.,Lin,M.,Liu,Y.-J.&Huang,G.Expel:Llmagentsareexperientiallearnersin
+ProceedingsoftheAAAIConferenceonArtificialIntelligence38(2024),19632–19642.
+91. Le,H.,Chen,H.,Saha,A.,Gokul,A.,Sahoo,D.&Joty,S.CodeChain:TowardsModularCodeGeneration
+ThroughChainofSelf-revisionswithRepresentativeSub-modulesinTheTwelfthInternationalConferenceon
+LearningRepresentations(2024).https://openreview.net/forum?id=vYhglxSj8j.
+92. Robbins, H. & Monro, S. A stochastic approximation method. The Annals of Mathematical Statistics,
+400–407(1951).
+93. Lewis,P.,Perez,E.,Piktus,A.,Petroni,F.,Karpukhin,V.,Goyal,N.,Küttler,H.,Lewis,M.,Yih,W.-t.,
+Rocktäschel,T.,etal.Retrieval-augmentedgenerationforknowledge-intensivenlptasks.Advancesin
+NeuralInformationProcessingSystems33,9459–9474(2020).
+94. Robert,C.P.&Casella,G.SimulationandtheMonteCarlomethod.SpringerTextsinStatistics,New
+York:Springer2(1999).
+95. Kingma,D.&Ba,J.Adam:AMethodforStochasticOptimizationinInternationalConferenceonLearning
+Representations(ICLR)(SanDiega,CA,USA,2015).
+96. Lightman,H.,Kosaraju,V.,Burda,Y.,Edwards,H.,Baker,B.,Lee,T.,Leike,J.,Schulman,J.,Sutskever,
+I.&Cobbe,K.Let’sVerifyStepbyStepinTheTwelfthInternationalConferenceonLearningRepresentations
+(2024).https://openreview.net/forum?id=v8L0pN6EOi.
+97. Schmidhuber,J.EvolutionaryPrinciplesinSelf-ReferentialLearningPhDthesis(TechnicalUniversityof
+Munich,1987).
+98. Thrun,S.&Pratt,L.inLearningtoLearn3–17(Springer,1998).
+99. Finn,C.,Abbeel,P.&Levine,S.Model-AgnosticMeta-LearningforFastAdaptationofDeepNetworksin
+Proceedingsofthe34thInternationalConferenceonMachineLearning(2017).
+100. RDKit:Open-sourcecheminformaticshttp://www.rdkit.org.
+101. Hughes, J. P., Rees, S., Kalindjian, S. B. & Philpott, K. L. Principles of early drug discovery. British
+journalofpharmacology162,1239–1249(2011).
+102. Wenlock,M.C.,Austin,R.P.,Barton,P.,Davis,A.M.&Leeson,P.D.Acomparisonofphysiochemical
+propertyprofilesofdevelopmentandmarketedoraldrugs.Journalofmedicinalchemistry46,1250–1256
+(2003).
+103. Knox,C.,Wilson,M.,Klinger,C.M.,Franklin,M.,Oler,E.,Wilson,A.,Pon,A.,Cox,J.,Chin,N.E.,
+Strawbridge,S.A.,etal.Drugbank6.0:thedrugbankknowledgebasefor2024.NucleicAcidsResearch
+52,D1265–D1275(2024).
+104. Berry, M., Fielding, B. & Gamieldien, J. Practical considerations in virtual screening and molecular
+docking.Emergingtrendsincomputationalbiology,bioinformatics,andsystemsbiology,487(2015).
+105. Birhane, A., Kasirzadeh, A., Leslie, D. & Wachter, S. Science in the age of large language models.
+NatureReviewsPhysics5,277–280(2023).
+106. Nikolova,N.&Jaworska,J.Approachestomeasurechemicalsimilarity–areview.QSAR&Combina-
+torialScience22,1006–1026(2003).
+107. Gaulton,A.,Bellis,L.J.,Bento,A.P.,Chambers,J.,Davies,M.,Hersey,A.,Light,Y.,McGlinchey,S.,
+Michalovich,D.,Al-Lazikani,B.,etal.ChEMBL:alarge-scalebioactivitydatabasefordrugdiscovery.
+Nucleicacidsresearch40,D1100–D1107(2012).
+108. Swanson,K.,Walther,P.,Leitz,J.,Mukherjee,S.,Wu,J.C.,Shivnaraine,R.V.&Zou,J.ADMET-AI:A
+machinelearningADMETplatformforevaluationoflarge-scalechemicallibraries.bioRxiv,2023–12
+(2023).
+23Automatic“Differentiation”viaText
+109. Xing,L.,Li,J.G.,Donaldson,S.,Le,Q.T.&Boyer,A.L.OptimizationofImportanceFactorsinInverse
+Planning.PhysicsinMedicine&Biology44,2525.ISSN:0031-9155.(2024)(Oct.1999).
+24Automatic“Differentiation”viaText
+A TEXTGRAD Details
+A.1 Variables
+Variablesarethenodesinthecomputationgraph. BelowarethemostimportantattributesofVariables:
+1. Valueistheunstructureddatathatthevariablecontains. Throughoutthismanuscript,allvaluesare
+textdata.
+2. Role description is an informative string that describes the role of the variable in the computation
+graph. Weusetheserolestolettheuserinjectknowledgeintothegraphandguidetheoptimization
+behavior. Moreinformationisdescribedbelow.
+3. GradientsarethenaturallanguagefeedbackprovidedbytheLLMsduringthebackwardpass. These
+describe the changes to make the variable so that the downstream loss can be improved. For an
+examplebackwardoperationthatpopulatesgradients,pleasereadSectionA.3.
+4. Predecessorsarethesetofvariablesthatareusedtogenerateagivenvariable. Forinstance,ifweare
+givinganinstructiontoanLLMandgettingaresponse,theinstructionwouldbethepredecessorof
+theresponse.Duringthebackwardpass,thegradientsonthesuccessorarepassedtoitspredecessors,
+toprovideguidancearoundhowtoimprovethedownstreamobjective.
+5. Requires grad indicates whether or not the gradients will be populated during the backward pass,
+analogous to PyTorch. For instance, if the user does not wish to compute gradients for a question,
+thensimplywriteVariable(value=question, requires_grad=False, ...) toindicatethis.
+RoleDescription: In TEXTGRAD,eachvariablehasaroledescription. Inparticular,thisisastringthat
+describes the role of the variable in the computation graph, such as system prompt to the language model or
+predictionbythelanguagemodel. Whilesometimespopulatedautomatically,ingeneralroledescriptionsare
+oneoftheprimarywaystoinjectuserknowledgeintotheoptimizationprocess.
+Empirically,wefindthatroledescriptionscansignificantlysteertheoptimizationprocess. Forinstance,
+settingtheroleofapredictiontobethefinalnumericalanswertothelanguagemodelguidestheTextualGradi-
+entDescentoptimizer, thatpromptsalanguagemodeltoupdatethevalueofthevariableusingthefeed-
+back,toupdatethevariablesuchthatitisonlyanumericalvalue. Incomparison,aroledescriptionsuchas
+thereasoningforthesolutionandthefinalpredictionguidestheoptimizertoproducethereasoningalongwith
+thefinalprediction.
+Hereisanexampleusage:
+1 import textgrad as tg
+2
+3 system_prompt = tg.Variable("You will be given a question and think step-by-step.
+", requires_grad=True, role_description="system prompt to the language model that
+will be reused across queries")
+4
+5 model = tg.BlackBoxLLM(system_prompt=system_prompt)
+CodeSnippet3: Anexampleusageofaroledescription.
+A.2 Backpropagation
+The backpropagation algorithm in TEXTGRAD mirrors existing autograd frameworks for deep learning.
+SeeAlgorithm1forthepseudocode.
+A.3 Functions
+TEXTGRADoffersseveraloperationswhereboththeforwardandbackwardcomputationsaredefined–as
+such,theseoperationsarecomposable. Theabstracttextgrad.autograd.Functionclasshastwomethods:
+25Automatic“Differentiation”viaText
+Algorithm1BackpropagationinTEXTGRAD
+1: Input:Variablesv ∈ V inagraph,LossvariableL,BackwardEngine(LLM)Mthatwillprovidetextual
+gradients
+2: #Initializing gradients
+3: foreachv ∈ V do
+4: v.gradients= ∅
+5: endfor
+6: #Topological Sorting
+7: Q ←TopologicalSort(G)
+8: #Backpropagation
+9: forvinQdo
+10: #Populate gradients in predecessors
+11: foreachu ∈PredecessorsOf(v)do
+12: # Here, we are omitting subscript v in f. Semantically, f is the function that
+generates v, and ∇
+f
+is the backward operation for that function.
+13: # Semantically, this provides feedback to the variable u, given how v is produced,
+and the feedback we already collected for v.
+(cid:16) (cid:16) (cid:17)(cid:17)
+14: u.gradients.add ∇ f u,v,∂ ∂L v
+15: endfor
+16: endfor
+forwardandbackward,mirroringthePyTorchsyntax. Eachfunctionhastodefinebothofthesemethods.
+Below,wedescribeacoupleofthemostusedoperationsinthispaper.
+LLMCallFunction: Currently,themostcrucialoperationinTEXTGRADisthecalltolanguagemodels.
+Forwardmode. Theforwardmodeissimple: WemakeacalltoanLLM,throughanAPIorthroughthe
+localmachine.Whenacallismade,alltheinputvariablesareregisteredasthepredecessorsoftheresponse
+fromtheLLM.Forinstance,ifweaskaquestiontoanLLMusinganinstructionandaquestionvariable,
+theresponsevariable’spredecessorswillbe[instruction, question]. Whendoingthebackwardpass,
+thegradientsontheresponsewillbebackpropagatedtoquestionandinstruction.
+Backwardmode. Toensurethebackwardfunctionrunssmoothlyandgenerally,weaddthefollowing
+glossarytothesystemprompt:
+GlossaryforBackwardModeoftheLLMCallfunction
+###Glossaryoftagsthatwillbesenttoyou:
+#-<LM_SYSTEM_PROMPT>: Thesystempromptforthelanguagemodel.
+#-<LM_INPUT>: Theinputtothelanguagemodel.
+#-<LM_OUTPUT>: Theoutputofthelanguagemodel.
+#-<OBJECTIVE_FUNCTION>: Theobjectiveoftheoptimizationtask.
+#-<VARIABLE>: Specifiesthespanofthevariable.
+#-<ROLE>: Theroledescriptionofthevariable.
+Usingthesetags,theLLMismadeawareoftheobjective,theroleandthevalueofthevariabletogive
+feedbackto,andthefullconversationintheforwardmode.
+ThisglossaryisprovidedinthesystemprompttothebackwardengineLLM:
+26Automatic“Differentiation”viaText
+SystempromptforthebackwardmodeoftheLLMCallfunction
+You are part of an optimization system that improves a given text (i.e. the variable). You are the
+gradient (feedback) engine. Your only responsibility is to give intelligent and creative feedback
+and constructive criticism to variables, given an objective specified in <OBJECTIVE_FUNCTION
+</OBJECTIVE_FUNCTION> tags. The variables may be solutions to problems, prompts to lan-
+guage models, code, or any other text-based variable. Pay attention to the role description of the
+variable,andthecontextinwhichitisused. Youshouldassumethatthevariablewillbeusedina
+similar context in the future. Only provide strategies, explanations, and methods to change in the
+variable. DONOTproposeanewversionofthevariable,thatwillbethejoboftheoptimizer. Your
+onlyjobistosendfeedbackandcriticism(compute’gradients’). Forinstance,feedbackcanbeinthe
+formof’SincelanguagemodelshavetheXfailuremode...’,’AddingXcanfixthiserrorbecause...’,
+’RemovingXcanimprovetheobjectivefunctionbecause...’,’ChangingXtoYwouldfixthemistake
+...’,thatgetsatthedownstreamobjective.
+Ifavariableisalreadyworkingwell(e.g. theobjectivefunctionisperfect,anevaluationshowsthe
+responseisaccurate),youshouldnotgivefeedback.
+{GLOSSARY}
+Mostofthissetupaimstoensurethattheuserdoesnothavetomodifythegradientcomputation. All
+ofourexperimentsinthediversesetofapplicationsaredonewiththesamebackwardmode.
+Forinstance,anexamplepromptforthegradientcomputationlookslikethefollowing:
+AnexamplebackwardmodepromptfortheLLMCallfunction
+Youwillgivefeedbacktoavariablewiththefollowingrole:<ROLE>systemprompttoalanguagemodel</ROLE>. Here
+isaconversationwithalanguagemodel(LM):
+<LM_SYSTEM_PROMPT> You will answer a reasoning question. Think step by step. Always conclude the last
+line of your response should be of the following format: ’Answer: $VALUE’ where VALUE is a numerical value.
+</LM_SYSTEM_PROMPT>
+<LM_INPUT> I have a chicken, a frog, a mouse, a cat, two pigs, and two rabbits. How many animals do I have?
+</LM_INPUT>
+<LM_OUTPUT>Tofindthetotalnumberofanimals,wesimplyaddupthenumberofeachtypeofanimal: 1chicken+1
+frog+1mouse+1cat+2pigs+2rabbits=8animals.
+Answer:8</LM_OUTPUT>
+Thisconversationispartofalargersystem.The<LM_OUTPUT>waslaterusedasresponsefromthelanguagemodel.
+<OBJECTIVE_FUNCTION>Your goal is to give feedback to the variable to address the following feedback on the
+LM_OUTPUT: To improve the runtime of the string-based function that checks if the prediction is correct, consider the
+followingfeedback:
+1. **SimplifytheResponse**: Forexample,insteadof"Tofindthetotalnumberofanimals,wesimplyadd(...) +2pigs+2
+rabbits=8animals.Answer:8",amoreconciseresponselike"Totalanimals:8"wouldbemoreefficient.
+...
+Byimplementingthesestrategies,theresponsefromthelanguagemodelcanbeoptimizedtoimprovetheruntimeofthe
+string-basedfunctionthatchecksifthepredictioniscorrect.</OBJECTIVE_FUNCTION>
+Weareinterestedingivingfeedbacktothesystemprompttoalanguagemodel. Specifically,givefeedbacktothefollowing
+spanoftext:
+<VARIABLE>Youwillanswerareasoningquestion. Thinkstepbystep. (...) followingformat: ’Answer: $VALUE’where
+VALUEisanumericalvalue.</VARIABLE>
+Giventheabovehistory,describehowthesystemprompttoalanguagemodelcouldbeimprovedtoimprovethe<OBJEC-
+TIVE_FUNCTION>.Beverycreative,critical,andintelligent.
+AdditionOperation Innumericaloptimization,wehavethefollowing:
+z = x+y (19)
+w = t+z (20)
+∂w ∂w ∂z ∂w
+= = (21)
+∂x ∂z ∂x ∂z
+27Automatic“Differentiation”viaText
+Innumericalderivatives,duetothelinearityofaddition,wehave:
+∂∑ iNL
+i =
+∑N ∂L
+i . (22)
+∂x ∂x
+i
+In particular, the backward function for the addition operation passes the gradients on the output of the
+additionoperationtoitsinputs.
+Inparticular,thebackwardfunctionfortheadditionoperationpassesthegradientsontheoutputofthe
+additionoperationtoitsinputs.
+tg.sum(L ,...,L )=”{L }\n{L }\n...{L }” (23)
+1 N 1 2 N
+Similarly,inTEXTGRAD,wehavethetg.sumoperation,thatletsthegradients(feedback)ontheoutput
+variablepasstotheinputvariables.
+∂tg.sum(L ,...,L ) ∂L ∂L ∂L ∂L
+1 N =tg.sum( 1 ,..., N)=”{ 1}\n...{ N}” (24)
+∂x ∂x ∂x ∂x ∂x
+whereweuse+toindicateconcatenation.
+UseCase: Onecanonicalusecasefortheadditionoperationisthebatchoptimizationcase.Inparticular,
+weimplementminibatchgradientdescentwhenperformingpromptoptimization(Section3.3).
+A.4 TextualGradientDescentImplementation
+Similartobackwardcomputations,westrivetopreservegeneralityintheimplementationofTGD.Inpar-
+ticular,weusethesameglossaryoftagsprovidedabovetoinjectinformationtotheoptimizationprocess.
+Thecurrentsystemprompttotheoptimizercallisthefollowing:
+SystempromptfortheTextualGradientDescentoptimizer.
+Youarepartofanoptimizationsystemthatimprovestext(i.e., variable). Youwillbeaskedtocre-
+ativelyandcriticallyimproveprompts,solutionstoproblems,code,oranyothertext-basedvariable.
+You will receive some feedback, and use the feedback to improve the variable. The feedback may
+benoisy,identifywhatisimportantandwhatiscorrect. Payattentiontotheroledescriptionofthe
+variable,andthecontextinwhichitisused. Thisisveryimportant: YouMUSTgiveyourresponse
+by sending the improved variable between <IMPROVED_VARIABLE> improved variable </IM-
+PROVED_VARIABLE>tags. Thetextyousendbetweenthetagswilldirectlyreplacethevariable.
+{GLOSSARY}
+Belowisanexampleprompttotheoptimizer:
+28Automatic“Differentiation”viaText
+Anexampleprompttotheoptimizer
+Hereistheroleofthevariableyouwillimprove:<ROLE>systemprompttothelanguagemodel</ROLE>.
+Thevariableisthetextwithinthefollowingspan:<VARIABLE>Youwillanswerareasoningquestion. Thinkstepbystep.
+(...)followingformat:’Answer:$VALUE’whereVALUEisanumericalvalue.</VARIABLE>
+Hereisthecontextandfeedbackwegotforthevariable:
+<CONTEXT>
+Hereisaconversation:
+<CONVERSATION><LM_SYSTEM_PROMPT> You will answer a reasoning question. Think step by step. The last
+line of your response should be of the following format: ’Answer: $VALUE’ where VALUE is a numerical value.
+</LM_SYSTEM_PROMPT>
+<LM_INPUT>Ihaveacarrot,anonion,astalkofcelery,threeyams,agarlic,aheadofbroccoli,andapotato. Howmany
+vegetablesdoIhave?</LM_INPUT>
+<LM_OUTPUT>Todeterminethenumberofvegetablesyouhave,weneedtocounteachindividualvegetableitem.
+1.Carrot2.Onion3.Celery4.Yams(3yams)5.Garlic6.Broccoli7.Potato
+Countingalltheindividualvegetableitems,wehaveatotalof7vegetables.
+Therefore,youhave7vegetables.
+Answer:7</LM_OUTPUT>
+</CONVERSATION>
+Thisconversationispotentiallypartofalargersystem.Theoutputisusedasresponsefromthelanguagemodel
+Hereisthefeedbackwegotforsystemprompttothelanguagemodelintheconversation:
+<FEEDBACK>Toimprovethestructuredsystempromptforthelanguagemodel,considerthefollowingfeedback:
+1. **ClarifytheCalculationProcess**:-**CurrentIssue**:Thepromptdoesnotexplicitlyinstructthemodeltooutlineeach
+stepofitscalculationprocess. -**Improvement**: Addadirectivethatrequiresthemodeltoexplicitlystateeachquantity
+andthesum.Forexample,"Clearlyoutlineeachstepofyourcalculationprocess,statingeachquantityandthesum."
+2.**VerifyIntermediateSteps**:-**CurrentIssue**:Thepromptdoesnotinstructthemodeltoverifyeachintermediatestep.
+-**Improvement**:Includeadirectiveforthemodeltoverifyeachstepagainstknowncorrectvalues. Forexample,"Verify
+eachintermediatestepinyourcalculationtoensureaccuracy."
+</FEEDBACK>
+</CONTEXT>
+Improvethevariable(systemprompttothelanguagemodel)usingthefeedbackprovidedin<FEEDBACK>tags. Sendthe
+improvedvariableinthefollowingformat:
+<IMPROVED_VARIABLE>theimprovedvariable</IMPROVED_VARIABLE>
+SendONLYtheimprovedvariablebetweenthe<IMPROVED_VARIABLE>tags,andnothingelse.
+B Optimizer Extensions
+BatchOptimization
+In batch optimization, we use the tg.sum function described above. In particular, gradients propagating
+frommultipleinstancesareconcatenatedtogether,thustheoptimizerseesallofthefeedbacktoavariable
+comingfrommultiplesources.
+Thesyntaxisassimpleasthefollowing:
+1 losses = [loss_fn(answer, model(question)) for question, answer in batch]
+2 total_loss = tg.sum(losses)
+3 total_loss.backward()
+CodeSnippet4: Anexampleuseforbatchoptimizationforquestionanswering.
+ConstrainedOptimizationwithNaturalLanguageConstraints
+In TEXTGRAD it is possible use constraints when optimizing variables. These constraints are all defined
+as natural language descriptions. For example, one can prompt optimizer to update the variable but to
+concludeitsresponsewithananswerduringtheupdate:
+29Automatic“Differentiation”viaText
+Exampleconstrainedoptimizationprompt
+Youmustfollowthefollowingconstraints:
+<CONSTRAINTS>‘The last line of your response should be of the following format: ’Answer: $LETTER’
+whereLETTERisoneofABCD.”</CONSTRAINTS>
+In general, the constraint post-fix is appended to the optimizer’s prompt, where the constraints are
+writtenwithinthe<CONSTRAINTS> {constraint text} </CONSTRAINTS>tags.
+Incode,theusercansimplypassintheconstraintstotheTGDoptimizer:
+1 constraints = ["The last line of your response should be of the following format: ’
+Answer: \$LETTER’ where LETTER is one of ABCD."]
+2 optimizer = TextualGradientDescent(parameters=[solution], constraints=constraints)
+CodeSnippet5: Anexampleuseforconstraintswhenupdatingthesolutiontoaproblem.
+Momentum
+TEXTGRADsupportstheuseofMomentumintheTextualGradientDescent. InstandardSGDmomentum
+uses a linear combination of past gradients and the most recent one to define a new gradient to update a
+variable. Similarly, TEXTGRAD keeps track of past iterations of the variable. This postfix is appended to
+thepromptfortheoptimizer.
+1 optimizer = TextualGradientDescent(parameters=[solution], momentum_window=3)
+Code Snippet 6: How to enable momentum using 3 previous steps in the TextualGradientDescent
+optimizer.
+Momentumprompt
+Herearethepastiterationsofthisvariable:
+<PAST_ITERATIONS>{past_values}</PAST_ITERATIONS>
+In-ContextExamples
+In-contextexamplescanbeutilizedtoimprovetextualgradientsandupdatevariableseffectively.Theseex-
+amplesserveasreferencestoillustratethecharacteristicsofoptimizedvariables.Whenin-contextexamples
+areapplied,TEXTGRADadoptsthefollowingprompttoincorporatethem:
+In-contextexamplesprompt
+Youmustbaseonthefollowingexampleswhenmodifyingthe{role_description}:
+<EXAMPLES>{in_context_examples}</EXAMPLES>"
+Byleveragingtheseexamples, TEXTGRAD canbetterunderstandandimplementthepropertiesofop-
+timizedvariables,enhancingtheoveralloptimizationprocess
+30Automatic“Differentiation”viaText
+C Code Optimization
+C.1 Methodology
+BaselineDetails.Were-runReflexion[26]usingthecodebytheauthorscurrentlyavailableonline.Wehad
+tomakeminorchangestoensureitrancorrectlyinoursettingbutwealsocontactedtheoriginalauthors
+andaskfeedbackonoureditstoensureourevaluationwasconsistent. Moreover,wehadtore-extractthe
+LeetCodeHard [26] dataset using the authors’ pipeline; this means that it is likely that the dataset we are
+using in this manuscript is not the same dataset that was used in the Reflexion paper. While this dataset
+contains a set of simple tests to check if the code works as expected, the real evaluation in this context is
+givenbypassingthetestsontheLeetCodeplatform.
+Reflexionisrunwithaoneshotpromptthatismeanttoinstructthemodelonhowtoprovidefeedback.
+The pipeline run by Reflexion is as follows: given in input a prompt to generate code, a language model
+generatesafirstsolution.Ifthissolutionpassesthelocaltests,itisthensubmittedtotheLeetCodeplatform
+tobeevaluatedonhardertests.However,ifthesolutiondoesnotpassthetests,weaskforfeedbackthrough
+Reflexionandoptimizethecode. Onceagain,ifthenewsolutionpassesthelocaltests,wesubmitittothe
+LeetCodeplatform. Wedothisoptimizationfor5iterations.
+Werantheexperiment5timeswith5differentseedsandweaveragedtheresults. Ateachiterationof
+optimization, TEXTGRADmakes 1 call to gpt-4o to evaluate the test time loss, 1 call to collect gradients,
+and1calltoupdatethecodesnippet. ThenumberofcodingproblemsinLeetCodeHardis39.
+ExampleQueryforLeetCodeHard
+defminimumTime(grid:List[List[int]])->int:
+"""
+Youaregivena‘mxn‘matrix‘grid‘consistingofnon-negativeintegerswhere‘grid[row][col]‘representstheminimumtime
+requiredtobeabletovisitthecell‘(row,col)‘,whichmeansyoucanvisitthecell‘(row,col)‘onlywhenthetimeyouvisitit
+isgreaterthanorequalto‘grid[row][col]‘.
+Youarestandinginthetop-leftcellofthematrixinthe‘0th‘second,andyoumustmovetoanyadjacentcellinthefour
+directions:up,down,left,andright.Eachmoveyoumaketakes1second.
+Returntheminimumtimerequiredinwhichyoucanvisitthebottom-rightcellofthematrix.Ifyoucannotvisitthebottom-
+rightcell,thenreturn‘-1‘.
+Example1:
+Input:grid=[[0,1,3,2],[5,1,2,5],[4,3,8,6]]
+Output:7
+Explanation:Oneofthepathsthatwecantakeisthefollowing:
+-att=0,weareonthecell(0,0).
+-att=1,wemovetothecell(0,1).Itispossiblebecausegrid[0][1]<=1.
+-att=2,wemovetothecell(1,1).Itispossiblebecausegrid[1][1]<=2.
+-att=3,wemovetothecell(1,2).Itispossiblebecausegrid[1][2]<=3.
+-att=4,wemovetothecell(1,1).Itispossiblebecausegrid[1][1]<=4.
+-att=5,wemovetothecell(1,2).Itispossiblebecausegrid[1][2]<=5.
+-att=6,wemovetothecell(1,3).Itispossiblebecausegrid[1][3]<=6.
+-att=7,wemovetothecell(2,3).Itispossiblebecausegrid[2][3]<=7.
+Thefinaltimeis7.Itcanbeshownthatitistheminimumtimepossible.
+Example2:
+Input:grid=[[0,2,4],[3,2,1],[1,0,4]]
+Output:-1
+Explanation:Thereisnopathfromthetoplefttothebottom-rightcell.
+Constraints:
+*‘m==grid.length‘
+*‘n==grid[i].length‘
+*‘2<=m,n<=1000‘
+*‘4<=m*n<=105‘
+*‘0<=grid[i][j]<=105‘
+*‘grid[0][0]==0‘
+"""
+31Automatic“Differentiation”viaText
+D Solution Optimization
+D.1 Methodology
+For the CoT 0-shot prediction, weuse the question template and system prompt released with GPT-4o in
+the simple-evals repository. In particular, to closely match their evaluations, we use the ChatGPT system
+prompt: YouareChatGPT,alargelanguagemodeltrainedbyOpenAI,basedontheGPT-4architecture. \nKnowl-
+edgecutoff: 2023-12\nCurrentdate: 2024-04-01". Further,weusethefollowingtemplate:
+MultipleChoiceQuestionAnsweringTemplate
+Answer the following multiple choice question. The last line of your response should be of the
+followingformat: ’Answer: $LETTER’(withoutquotes)whereLETTERisoneofABCD.Thinkstep
+bystepbeforeanswering.
+{Question}
+A){A}
+B){B}
+C){C}
+D){D}
+During optimization, we provide the constraint to the optimizer that the prediction should conclude
+with an answer, following the simple-evals repository, through the following constraint description: The
+lastlineofyourresponseshouldbeofthefollowingformat: ’Answer: $LETTER’(withoutquotes)whereLETTERis
+oneofABCD..
+Evaluation: Similarly,usingthepracticeinthesimple-evalsrepository,weperformstringmatchingto
+findthefinalanswer,whichisoneofthelettersABCD,andcompareittothegroundtruthanswer. GPQA
+Diamond subset contains 198 questions. MMLU Machine Learning subset contains 112 questions, and
+CollegePhysicssubsetcontains92questions. Ateachiterationofoptimization,wemake1calltogpt-4oto
+evaluatethetesttimeloss,1calltocollectgradients,and1calltoupdatethesolution.
+D.2 Prompts
+Thelossfunctionforthistasklookslikethefollowing:
+SolutionRefinementObjective
+Belowisamulti-choicequestionandaprediction. Youareacriticalandcreativescientist. Yourjob
+is to investigate the prediction. Critically go through reasoning steps, and see if there is a reason
+whythepredictioncouldbeincorrect.
+UsetheJanusianProcess,thinkaboutwhetheralternativeanswerscouldbetrue.
+Question: {Question}
+Answerbythelanguagemodel: {Solution}
+ExampleQueryforGPQADiamond
+What is the concentration of calcium ions in a solution containing 0.02 M stochiometric Ca-EDTA
+complex(weassumethatthepHisideal,T=25°C).KCa-EDTA=5x1010.
+A)5.0x10−3M
+B)1.0x10−2M
+C)6.3x10−7M
+D)2.0x10−2M
+32Automatic“Differentiation”viaText
+E Prompt Optimization
+E.1 Tasks
+Below,weprovideanexamplequeryforeachofthetasksinthepromptoptimizationsection.
+ExampleQueryforWordSorting
+Sort the following words alphabetically: List: oakland seaborg jacobi membrane trapezoidal allis
+marmottoggleanthology.
+ExampleQueryforObjectCounting
+Ihaveacouch,abed,acar,afridge,twotables,anoven,atoaster,andachair. Howmanyobjects
+doIhave?
+ExampleQueryforGSM8k
+Amber,Micah,andAhitoran52milesintotal. Amberran8miles. Micahran3.5timeswhatAmber
+ran. HowmanymilesdidAhitorun?
+Forwordsortingandobjectcounting,weobtainthedatasetsfromtheBBHrepository,andwerandomly
+splitexamplesinto50(training)/100(validation)/100(test)samples.ForGSM8k,weusethesplitsprovided
+inDSPy[10]whichhas200(training)/300(validation)/1319(test)samples.
+Evaluation: ForobjectcountingandGSM8k,weusethestring-basedexactmatchmetric, whichlooks
+atthelastnumericalvalueprovidedintheanswer,andcomparesittothegroundtruthanswer. Forword
+sorting,wepromptgpt-4otocomparethegroundtruthlisttotheresponseprovidedintheanswer,through
+thefollowingprompt:
+EvaluationsystempromptforWordSortingevaluation
+SystemPrompt: Belowisaquestionfromaquestion-answeringtask,thegroundtruthanswer,and
+reasoningwiththefinalprediction. Isthefinalpredictioncorrect,i.e. thesameasthegroundtruth
+answer? Sayonly1(yes)or0(no). Returnyourresponsewithin<ACCURACY></ACCURACY>
+tags. e.g.<ACCURACY>0</ACCURACY>or<ACCURACY>1</ACCURACY>.
+Exampleprompt:
+**Questionforthetask:**{question}
+**Groundtruthanswer:**{answer}
+**Reasoningandpredictionfromthelanguagemodel:**{prediction}
+F Molecule Optimization
+F.1 DockingandDruglikenessEvaluation
+Tooptimizemolecules, weevaluatethebindingaffinityanddruglikenessofchemicalstructuresencoded
+asSMILESstrings. Tocomputebothmetrics,thegeneratedSMILESstringisfirstconvertedintoanoctet-
+completeLewisdotstructureusingRDKit’sMolFromSmilesfunctionality.Thismethod“sanitizes”molecules
+byaddingexplicithydrogens,kekulizingaromaticrings,standardizingvalencestates,andassigningrad-
+icals [100]. If this sanitization process fails at any step, whether through a structural ambiguity or an in-
+validmolecule, theQEDandVinascoresarereplacedwithasinglestringinforming TEXTGRAD thatthe
+moleculeisinvalid.
+33Automatic“Differentiation”viaText
+If the generated SMILES string does represent a valid chemical structure, we compute the QED score
+usingRDKit’sChem.QEDfunction. WhileQEDscorescanbequicklyandreliablycomputed,dockingscores
+can vary significantly depending on target and ligand structure preparation. To ensure consistency, we
+calculate Vina scores using the DOCKSTRING package [61], which implements a standardized docking
+workflow and provides a set of gold-standard targets. In particular, after the ligand has been sanitized
+byRDKit, DOCKSTRING(de)-protonatesitatpH7.4usingOpenBabel, andpreparesandrefinesthe3D
+geometric structure using the Euclidean distance geometry algorithm ETKG and the classical force field
+MMFF94. Finally,Gasteigerchargesarecomputedforallligandatoms,andtheresultingstructureissaved
+as a ligand PDBQT file passed to Autodock Vina. For target preparation, the DOCKSTRING benchmark
+suiteprovides58curatedcrystalstructuresofclinicallyrelevantproteins,withthemajorityatlessthan2.5
+Åresolution. Thesestructuresarespeciallypreparedtoimprovecorrelationsbetweentheoreticalandex-
+perimentalbindingaffinities,forexamplebymanualadditionofpolarhydrogensandremovalofresidual
+water and solute molecules. DOCKSTRING also standardizes simulation parameters such as numerical
+seeds,searchboxcoordinates,andsamplingexhausitivity,toensurereproduciblescoring.
+F.2 ObjectiveFunctions
+Oncethescoreshavebeencomputed,theyarepassedtoanLLMinthefollowingformat.
+MoleculeOptimizationPrompt
+Given a docking and a druglikeness score, and a molecule as a SMILES string provide a short
+criticism to improve the druglikeness of this molecule and its binding affinity with the protein
+{protein_name}. For docking, lower is better (less than −10 is considered good) and for druglike-
+ness,1isthebestand0istheworst(greaterthan0.8isconsideredgood). Intermsofprioritization,
+the docking score is {vina_qed_ratio} times as important as the druglikeness score. Make sure
+yourcriticismisverysuccinctandtothepoint.
+#if smiles_string is valid
+SMILES:{smiles_string},Docking: {Vina},Druglikeness: {QED}
+#if smiles_string is invalid
+SMILES:{smiles_string},Thismoleculeisinvalid.
+Notethatthispromptallowsustospecifyboththetargetnameaswellasaprioritizationbetweenthese
+twoobjectives. Whenoptimizingpromisingmoleculesinlatestagedrugdiscovery,medicinalchemistsuse
+detailedstructuralknowledgeaboutaproteintarget’sbindingpocketinadditiontodockingscores,forex-
+amplethroughinteractive3Dmolecularvisualizationsoftware.TopreservethegeneralityofTEXTGRADin
+ourexperiments,wedonottoattempttoprovidesimilargeometricinformation,asnotallLLMssupport
+multimodalinputs. However,wedoincludetheprotein_nameinthelossprompttoinjectsupplementary
+structuralinformation.
+In practice, drug efficacy is typically a higher priority than absorbtion efficiency [101, 102], so we set
+thevina_qed_ratiotobe10. Empirically,weobservethatbyscalingthisprioritizationfactor,wecantune
+TEXTGRAD’sgenerationtowardsmoleculeswithdifferingbindingaffinityanddrugliknesstradeoffs. This
+prioritizationalsoallowsustosimplifypost-hocselectionandrankingofthegeneratedmoleculeswitha
+single“overall”scoredefinedasfollows,wherealoweroverallscoresoverallindicatesabettermolecule.
+soverall(molecule,protein) =Vina(molecule,protein)+(1−QED(molecule)) (25)
+Since the QED score is bounded between 0 and 1, and the Vina score typically ranges between −3.0 to
+−12.0kcal/mol, thisoverallscoreplacesapproximately10timesmoreemphasisonbindingaffinitythan
+druglikeness.
+34Automatic“Differentiation”viaText
+F.3 Benchmarks
+To benchmark the performance of TEXTGRAD generated molecules, we compare their characteristics to
+clinically approved drugs for the same protein targets found in DrugBank, a database of 16,619 drugs
+[103]. ToensurethattheDrugBankmoleculeswerebothcomparableandhighquality,wefilteredfordrugs
+that were small molecules, had full clinical approval, and were designed for orthosteric binding with the
+same active site in the DOCKSTRING benchmark suite. After these filtering criteria, we identified 118
+drugs targeting 29 of the 58 DOCKSTRING proteins. When evaluating binding affinity and druglikeness
+fortheclinicallyapproveddrugs,wecomputetheVinaandQEDscoresusingthesametoolsandworkflow
+describedinsectionF.1,exactlyasappliedtotheTEXTGRADmolecules.
+F.4 Initialization
+-2
+-3
+-4
+-5
+-6
+-7
+-8
+-9
+-10
+-11
+0.0 0.2 0.4 0.6 0.8 1.0
+druglikeness (QED)
+)erocs
+aniv(
+ytiniffa
+gnidnib
+acetamide
+pentane
+benzene
+SupplementaryFigure1:MoleculeInitialization.WeinitializeTEXTGRADwithfragmentmoleculesfrom
+three,diversefunctionalgroupsandoptimizeeachinitialmoleculefor10iterationsforall58targetsinthe
+DOCKSTRING benchmark suite. For each fragment and each protein, we perform post selection on the
+generatedmoleculesusingthesummaryscoreoutlinedinequation25andvisualizetheresultingdistribu-
+tion. We observe that while the initial QED and Vina score distributions of the starting fragments varies
+greatly,thedistributionoftheoptimizedmoleculesishighlyoverlapping.
+In practice, molecular optimization is typically accelerated by large scale pre-optimization screening,
+wherelibrariesofmillionsorevenbillionsofexistingchemicalstructuresarescoredandrankedbydocking,
+druglikeness, and other metrics. Only the most promising structures, termed "leads", are further refined
+bymedicinalchemists[104]. WhileTEXTGRADiscapableofoptimizinganyinitialmolecule,inthiswork,
+tomoreaccuratelycharacterizeit’sperformanceandavoidbiasingitsdesignstowardsexistingdrugs,we
+instead select our three initial molecules from simple fragments of common functional groups, shown in
+Figure 1. These fragments are highly diverse, and belong to different functional groups. Although these
+initialfragmentshavedifferingdrugliknessandbindingaffinitycharacteristics, theimpactofthestarting
+fragment on TEXTGRAD’s performance is minimal, and TEXTGRAD is capable of generating molecules
+withhighdruglikenessandbindingaffinityfromallthreefragments.
+35Automatic“Differentiation”viaText
+F.5 ChemicalNovelty
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0 2 4 6 8
+Iteration
+noitroporP
+ytlevoN
+LBMEHC
+0.06
+0.05
+0.04
+0.03
+0.02
+0.01
+0.00
+0.2 0.4 0.6 0.8
+DrugBank Tversky Similarity
+noitroporP
+-6
+-7
+-8
+-9
+-10
+-11
+0.2 0.4 0.6 0.8
+DrugBank Tversky Similarity
+erocS
+llarevO
+a b c
+Pearson r: 0.132
+d PPARG ADBR1 PGR
+TextGrad
+vina = -7.0, QED = 0.735 vina = -9.0, QED = 0.818 vina = -9.0, QED = 0.824
+Tversky sim = 0.18 Tversky sim = 0.39 Tversky sim = 0.63
+Most similar
+approved
+drug
+Mesalazine Carteolol Ulipristal
+vina = -6.0, QED = 0.409 vina = -9.0, QED = 0.772 vina = -5.7, QED = 0.731
+SupplementaryFigure2:StructuralNoveltyInpanel(a),weobserveincreasingnoveltyoveroptimization
+updates,whereageneratedmoleculeisconsidered“novel”iftheredoesnotexistanyexistingmoleculein
+ChEMBL with a Tanimoto similarity score greater than 0.8. In panels (b,c,d), we estimate substructure
+similarityusingtheTverskymetricbetweenTEXTGRADmoleculesandclinicallyapproveddrugsforeach
+target. Whilethereareawiderangeofsimilarityscores,weobservethatsimilaritywithknowndrugshas
+little correlation with molecule performance, suggesting that TEXTGRAD’s generation process is weakly
+influencedby“memorized”knowledgeofclinicallyapprovedstructures.
+One of the primary concerns with using LLM models in scientific discovery is their capacity to sim-
+ply memorize and regurgitate their training sets instead of performing logical reasoning [105]. Since re-
+cent models like gpt-4o are trained on massive, opaque datasets, a key concern is that the molecules
+TEXTGRAD generates maysimply be duplicatesof clinically approvedmolecules for theirrespective tar-
+gets. Toquantifyandtesttheextentorexistenceofthis“memorization”effect,wecomparethemolecules
+that TEXTGRAD generates with approved drugs for their respective protein targets, as well as unrelated
+butexistingdruglikechemicalcompounds.
+Wefirstcompare TEXTGRAD generatedmoleculesforaparticularproteintargetwithalltheclinically
+approved small molecules found in Drugbank for the same target (see F.3 for filtering criteria) using the
+TverskysimilarityscoreonRDKitdaylightchemicalfingerprints. TheTverskysimilarityscoreisnotsym-
+metric,andcomparessubstructuresbetweenavariantandreferencemolecule[106].Inourapplication,this
+ispreferredasitassignsahighscoretogenerated(variant)moleculesthatcontainmostorallofthesub-
+36Automatic“Differentiation”viaText
+structures in the Drugbank (reference) molecule, even if there exist other extraneous substructures in the
+generatedmoleculethatreducethesymmetricoverlapbetweenthetwomolecules. ATverskyscoreof1.0
+indicatesthattheTEXTGRADmoleculeisacompletesubsetoftheDrugbankmolecule,while0.0indicates
+nooverlap.
+Inordertoanalyzethemostrelevantchemicalstructures,werestrictedouranalysistoasetofhighper-
+formingTEXTGRADmolecules,ratherthanallmoleculesfromalliterations.Inparticular,usingtheoverall
+score described in Equation 25, we selected the best molecule for each protein target and for each initial
+fragment, for a total of 87 generated molecules (29 druggable targets x 3 initial fragments) and 118 clini-
+callyapproveddrugsacross29targets. Foreachtarget, wecomputeallpairwiseTverskyscoresbetween
+the 3 TEXTGRAD molecules and the Drugbank molecules approved for that target, setting the Drugbank
+moleculeasthereference,andtheTEXTGRADmoleculeasthevariant.
+WeobservedthatthedistributionofTverskysimilarityscoreswasquitebroad,withamedianof0.42but
+rangingfrom0.14to0.90(Figure2(b)).However,weobservethatTverskysimilaritybetweenTEXTGRADand
+DrugBnak molecules is actually slightly anti-correlated with molecule performance as measured by the
+overallscore,suggestingthat TEXTGRAD ’soptimizationprocedureisatbestweaklyinfluencedbyprior
+knowledgeofapproveddrugs. Infact, foravarietyofgeneratedmoleculesalongagradientofsimilarity
+scores, the generated molecules exhibit QED and Vina scores that match or even exceed their DrugBank
+counterparts(Figure2(d)).
+Beyondthesimilaritytoknowndrugs,wearealsointerestedinobservingifTEXTGRAD isgenerating
+novel molecules, or discovering previously unknown properties in existing compounds, for example a
+strongbindingaffinitytoaproteintargetinacompoundthathasnotbeenassociatedwiththeprotein. To
+answerthisquestion,weperformaTanimotosimilaritysearchacrossallofChEMBL,amanuallycurated
+database of 2.4 million bioactive molecules with drug-like properties [107]. Unlike the Tversky score, the
+Tanimoto metric measures the symetric overlap between two chemical structures, where 1.0 indicates an
+exactmatch,and0.0nooverlap. Weclassifya TEXTGRAD compoundas“novel”ifandonlyiftheredoes
+notexistanymoleculeinChEMBLwithawithaTanimotosimilarityscoreover0.80.
+While the starting fragments are known molecules, we observe that as the number of iterations in-
+creases, TEXTGRAD generates molecules that are progressively less likely to be previously known com-
+pounds. Bythe6thiteration,95%ofallthemoleculesgeneratedbyTEXTGRADacrossall58targetsand3
+startingfragmentsarenovelusingthecriteriaabove(Figure2(a)). Byobservingthetrajectoriesofgener-
+atedmoleculesandanalyzingthetextualgradients,wehypothesizethatthefeedbackprovidedbytheVina
+andQEDscoresencourages TEXTGRAD toexplorechemicalspacebeyondknownmoleculesbyprogres-
+sivelyaddingandremovingcombinationsoffunctionalgroups. Sincethesechemicalupdatescanforma
+combinatorialnumberofuniquestructures,itisreasonablethatTEXTGRADwouldreachpreviouslyunex-
+ploredregionsofchemicalspaceinarelativelysmallnumberofiterations.
+F.6 ImplicitObjectives
+Another key concern in applying LLMs in science is their propensity for hallucinations, where models
+generatefactuallyincorrectorillogicalresponseswhileattemptingtosatisfyuserrequests[105]. Inourset-
+ting, thishallucinationscouldmanifestby TEXTGRAD proposinginvalid, toxic, orotherwiseundesirable
+moleculesinordertooptimizeitsobjectivefunction. Wecontrolforseverehallucinationsbypreprocessing
+moleculesusingRDKitsanitization,ensuringatthebareminimumthat TEXTGRAD generateschemically
+valid molecules. However, this simple preprocessing step does not completely specify desirable chem-
+ical behavior. A direct strategy would be to exhaustively encode all possible metrics for desirability in
+drug molecules beyond druglikeness and binding affinity into the objective function, and extend it to in-
+cludesythesizability,toxicity,amongothercriteria. Unfortunately,thisapproachisnotrealisticallyfeasible
+as not all criteria for desirability have mature computational metrics. Thus, a key question is whether
+TEXTGRAD obeysso-calledimplicitobjectivesduringitsoptimizationprocessthatcurtailsillogicalorun-
+desirablebehavior.
+Toevaluatetheextentorexistenceofundesirablemolecules,wecancharacterizetheharmfulnessofthe
+generated molecules, focusing on mutagenisis and clinical toxicity. Mutagenicity refers to the ability of a
+drugtoinducegeneticalterations,whichmayleadtoDNAdamageandharmfullong-termaffects.Clinical
+toxicityreferstoabroadrangeofadverseshortorlong-termsideeffects. Importantly,neitherdruglikeness
+37Automatic“Differentiation”viaText
+0.25
+0.20
+0.15
+0.10
+0.05
+0.00
+0.0 0.2 0.4 0.6 0.8 1.0
+noitroporP
+Predicted Mutagenicity
+0.25
+0.20
+0.15
+0.10
+0.05
+0.00
+0.0 0.2 0.4 0.6 0.8 1.0
+noitroporP
+Predicted Clinical Toxicity
+TextGrad DrugBank
+Supplementary Figure 3: Safety Properties We evaluate the predicted harmfullness of
+TEXTGRAD molecules using the ADMET-AI model and compare them to clinically approved drugs.
+For both mutagenicity and clinical toxicity, 1.0 indicates a highly likelihood for harm and 0.0 a low
+likelihood. We observe that despite the fact that neither of these characteristics are directly encoded into
+TEXTGRAD’sobjectivefunction,TEXTGRADimplicitlyavoidsproposingharmfulmolecules.
+nor binding affinity are strongly correlated with these criteria, and thus these desirability metrics are not
+directlyoptimizedorotherwiseexplicitlyencodedinTEXTGRAD’sobjectives.
+Toevaluatethepropensityformutagenisisandclinicaltoxicity,weemploytheADMET-AImodel,that
+predictsthesescoresfromthechemicalstructuresofmolecules[108]. ADMET-AIemploysadeeplearning
+modeltrainedonmultiplerelevantdatasets. Inparticular,formutagenicity,ADMET-AIistrainedon7,255
+drugs from the Ames dataset, a bacterial reverse mutation assay for rapidly screening large numbers of
+compounds for can induced genetic damage and frameshift mutations. A predicted label of 1.0 indicates
+a high likelihood that the drug will induce mutagenesis, while a label of 0.0 indicates a low likelihood.
+For clinical toxicity, ADMET-AI is trained on the ClinTox dataset, a dataset of 1,484 drugs consisting of
+moleculesthathavefailedclinicaltrialsfortoxicityreasonsandalsodrugsthatareassociatedwithsuccess-
+fultrials. Similarly,apredictedlabelof1.0indicatesahighlikelihoodofclinicaltoxicity,whilealabelof0.0
+indicatesalowlikelihood.
+Once again, we restrict our analysis to the best performing generated molecules with druggable tar-
+gets as measured by the overall score, and select the best molecule for each protein target and for each
+initial fragment, for a total of 87 generated molecules. We then compare their predicted mutagenisis and
+clinicaltoxicitytothethe118clinicallyapprovedmoleculesfromDrugBank. WeobservethatforbothMu-
+tagenicityandClinicalToxicity,themoleculesgeneratedby TEXTGRAD havepredicteddistributionsthat
+indicatealowlikelihoodofharmfuleffects,andcloselymatchthedistributionsoftheclinicallyapproved
+molecules. Together,theseresultssuggestthatTEXTGRADimplicitlyavoidsproposingharmfulmolecules,
+eventhoughthesecriteriaarenotdirectlyencodedinitslossfunction.
+G Treatment Plan Optimization
+G.1 Prompts
+Radiotherapytreatmentplanevaluationcanbasedonvariousdimensions,thereforethereisnosinglescore
+thatcanindicatethequalityofplans. WeadoptLLMtocomputethe“loss”bypromptingittoassessthe
+plan quality with clinical protocols. Specifically, LLM is used to compare each protocol with the current
+planandproducethefinalassessment.
+38Automatic“Differentiation”viaText
+TreatmentPlanLossPrompt
+Please act as an impartial and objective professional radiation oncologist. Your job is to evaluate
+thequalityofradiationtherapytreatmentplansbasedontheirdosevolumehistogram. Youshould
+considerthefollowingprotocols:
+<ClinicalProtocols>
+Notethattheorderabovedoesnotindicatepriority;alwaysprioritizetheregionsthathaveprotocols
+thataremoresignificantlyviolated.
+Here is the dose-volume histograms of the candidate plans for evaluation; each entry in the dose-
+volumehistograms(DVH)tableindicatesthepercentageofvolumereceivingadosehigherthana
+certainGy(specifiedinthefirstcolumn).
+<DVHtable>
+WealsoprovidethestatisticsoftheaboveDVHtableforeaseofevaluation.
+<DVHstatistics>
+Now,basedontheprotocols,andtheDVH,pleaseevaluatetheplans. Avoidanypositionalbiases
+andensurethattheorderinwhichtheresponsesarepresenteddoesnotinfluenceyourdecision. Be
+asobjectiveaspossible. Youranswermust:
+1. (Evidence)ExtractthecorrespondingentriesfromtheDVHtablebasedonthefactorstocon-
+sider.
+2. (Interpretation) Based on the extracted entries from DVH table, interpret them as:
+{percentage}%ofvolumeencompassingthedosemorethan{dose}Gyfor{organ}.
+3. (Analysis)Combinetheinterpretationandthefactors,analyzewhethereachofthenumerical
+factorsaremet.
+BasedontheanalysisonDVHtables,youneedtoproduceafinalevaluation. Whenallfactorsare
+satisfied, you should always answer no improvement is needed. If improvements are required,
+pleaseprovidesuggestionsonwheretoimprove. Pleaseensuretofollowtheformatbelowtoreturn
+theevaluationresults:
+<FINAL> Decision: [The plan does/doesn’t need to be improved.] Reasons: [list all factors
+that are not satisfied with detailed reasons, e.g. protocol X on (PTV/rectum/bladder/fh/body) is
+notsatisfiedbecause...] </FINAL>
+Thefinalanswerintheendmuststrictlyfollowtheformatabove.
+G.2 Inner-loopoptimizationfortreatmentplanning
+Weemployatwo-loopoptimizationapproach[109],whichincludes(i)aninnerloopforinverseplanning
+and (ii) an outer loop for optimizing the hyperparameters of the inner loop. The inner loop focuses on
+traditional fluence map optimization, seeking to determine the optimal fluence map x by minimizing a
+costfunctionthatcombinesmultipleweightedobjectivesforvarioustargetsandorgansatrisk. Thiscost
+functionisdefinedas:
+min
+∑Nt
+w ([Kx] −d )2+
+∑Ns
+w Θ([Kx] −d )([Kx] −d )
+t t t s s s s s
+x
+t=1 s=1
+(26)
+s.t. D ([Kx] ) = d ,
+95 t t
+x ≥0,
+Here,{w t} tN =t 1and{w s} sN =s 1aretheimportanceweights(thehyperparametersoptimizedbyTEXTGRAD)
+that balance the various objectives for N PTV targets and N OARs, respectively. K denotes the dose
+t s
+39Automatic“Differentiation”viaText
+influence matrix, which specifies the dose per fluence unit delivered to each voxel in the volume by each
+beamlet. {d }Nt and{d }Ns arethescalarobjectivedosesforeachstructure. Thecostfunctionessentially
+t t=1 s s=1
+penalizes squared deviations from the target objective doses for the PTV targets and penalizes squared
+overdosing for the OARs only when doses exceed d . The Heaviside function Θ is used to ensure the
+s
+objectiveconsidersonlypositivevalues. Theminimizationisconstrainedtopositivexvaluesandensures
+thatD —theminimumdosereceivedby95%ofthestructurevolume—matchestheprescribeddosefor
+95
+theclinicalgoal. WeusematRad[65]withinteriorpointalgorithmstosolvetheinner-loopoptimization.
+G.3 AdditionalExperimentalDetails
+Dataset Thedatasetusedinthisstudycomprisedimagingandtreatmentplansfor5prostatecancerpa-
+tients who underwent intensity-modulated radiation therapy (IMRT). Available data for each patient in-
+cludes CT scans, delineated anatomical structures, and clinically approved treatment plans obtained via
+Eclipse®.
+Method Aswementionedin3.5, TEXTGRADisusedtooptimizethehyperparameters(e.g.,importance
+weightsforPTVandOARs)oftheinner-loopnumericaloptimizerthatgeneratesthetreatmentplan. This
+optimizationisdoneusingavariationofvanillaTEXTGRAD,i.e. “projectedgradientdescentwithmomen-
+tumupdates”.Inparticular,threeprostatecancertreatmentplansoptimizedbyclinicians,alongwiththeir
+corresponding hyperparameters, are provided. These examples guide the updates of the hyperparame-
+ters. Thisprocedurecanbeviewedasananalogytoprojection,astheupdatedhyperparametersare“softly
+projected”ontoafeasiblesetdefinedbythethreein-contextexamples. Moreover, thehistoricalhyperpa-
+rametersandthetextualgradientsfrompastiterations,asananalogytomomentum,arealsoincludedin
+thepromptsforupdatingthehyperparameters. Thisadditionalcontexthelpsrefinetheoptimizationpro-
+cess. Theoptimizationwillbestoppedifthelosssuggestsallprotocolsmeet,otherwise,itwillbestopped
+ifthemaximumnumberofiterations(wesetitto10)isreached.
+Initialization Thehyperparametersi.e. theimportanceweightsareallinitializedat100fordifferentor-
+gans. Thedoseobjectivesaresetto70.20forPTV,0.00forbladderandrectum,and30.00forfemoralheads
+andbody,andfixedduringoptimization.
+G.4 AdditionalResults
+In Supplementary Table 1 and 2, we show additional results on comparing TEXTGRAD optimized plan
+withcliniciansoptimizedplans.
+SupplementaryTable1: PTVdosemetrics. SeveraldosemetricsofthePTVtargetaredisplayedforallthe
+clinical and TextGrad optimized plans, including the mean and minimum doses, as well as the D . For
+95
+all the metrics, we include the average deviations from the clinical goal across 5 plans and the standard
+deviationinbrackets. ValuesinboldrepresentthebestforeachPTVtarget.
+Target Method Meandose[Gy] Mindose[Gy] Maxdose[Gy] D [Gy]
+95
+ClinicalGoal 70.20 ≈70.20 ≈70.20 70.20
+PTV RadiationOncologist +1.97(0.36) -8.88(2.31) +4.66(0.82) -0.10(0.15)
+TEXTGRAD +0.51(0.09) -8.48(2.38) +3.63(0.87) +0.00(0.00)
+40Automatic“Differentiation”viaText
+SupplementaryTable2: OrgansatRisk(OARs)dosemetrics. WeshowmeandosecapturingOARspar-
+ing. Lower values demonstrate better OAR sparing which is desirable, as this number indicates organs
+at risk, which should not get more than dosage than what is listed in the clinical guidelines. For all the
+metrics,weincludetheaveragemeandoseacross5plansandthestandarddeviationinbrackets.
+Organ Method Meandose[Gy]↓ D ↓ D ↓
+5 50
+RadiationOncologist 23.88(6.45) 64.26(10.00) 20.04(5.50)
+Rectum
+TEXTGRAD 17.18(4.2) 58.82(18.81) 9.54(0.70)
+RadiationOncologist 22.39(5.55) 67.81(6.44) 14.78(8.42)
+Bladder
+TEXTGRAD 20.92(0.79) 65.96(6.96) 14.11(3.17)
+41

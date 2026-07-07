@@ -1,0 +1,1297 @@
+Prefix-Tuning: Optimizing Continuous Prompts for Generation
+XiangLisaLi PercyLiang
+StanfordUniversity StanfordUniversity
+xlisali@stanford.edu pliang@cs.stanford.edu
+Abstract
+Fine-tuning is the de facto way of leveraging
+large pretrained language models for down-
+stream tasks. However, fine-tuning modifies
+all the language model parameters and there-
+fore necessitates storing a full copy for each
+task. Inthispaper,weproposeprefix-tuning,a
+lightweight alternative to fine-tuning for natu-
+rallanguagegenerationtasks,whichkeepslan-
+guagemodelparametersfrozenandinsteadop-
+timizesasequenceofcontinuoustask-specific
+vectors,whichwecalltheprefix.Prefix-tuning
+drawsinspirationfrompromptingforlanguage
+models, allowing subsequent tokens to attend
+Figure 1: Fine-tuning (top) updates all LM param-
+to this prefix as if it were “virtual tokens”.
+eters (the red Transformer box) and requires storing
+We apply prefix-tuning to GPT-2 for table-to-
+a full model copy for each task. We propose prefix-
+text generation and to BART for summariza-
+tuning(bottom),whichfreezestheLMparametersand
+tion. Weshowthatbymodifyingonly0.1%of
+onlyoptimizestheprefix(theredprefixblocks). Con-
+theparameters,prefix-tuningobtainscompara-
+sequently, we only need to store the prefix for each
+bleperformanceinthefulldatasetting,outper-
+task,makingprefix-tuningmodularandspace-efficient.
+formsfine-tuninginlow-datasettings,andex-
+Notethateachverticalblockdenotetransformeractiva-
+trapolates better to examples with topics that
+tionsatonetimestep.
+areunseenduringtraining.
+2017;Houlsbyetal.,2019)insertsadditionaltask-
+1 Introduction
+specific layers between the layers of pretrained
+Fine-tuning is the prevalent paradigm for using language models. Adapter-tuning has promising
+largepretrainedlanguagemodels(LMs)(Radford performance on natural language understanding
+etal.,2019;Devlinetal.,2019)toperformdown- andgenerationbenchmarks,attainingcomparable
+streamtasks(e.g.,summarization),butitrequires performance with fine-tuning while adding only
+updatingandstoringalltheparametersoftheLM. around 2–4% task-specific parameters (Houlsby
+Consequently, to build and deploy NLP systems etal.,2019;Linetal.,2020).
+that rely on large pretrained LMs, one currently At the limit, GPT-3 (Brown et al., 2020) can
+needs to store a modified copy of all the LM pa- be deployed using in-context learning, which is
+rameters for each task. This can be prohibitively aformofprompting, withoutmodifyinganyLM
+expensivegiventhesizeofcurrentLMs;forexam- parameters. In in-context learning, Brown et al.
+ple, GPT-2 has 774M parameters (Radford et al., (2020)prependanaturallanguagetaskinstruction
+2019) and GPT-3 has 175B parameters (Brown (e.g.,TL;DRforsummarization)andafewexam-
+etal.,2020). ples to the task input, and then generate the task
+Anaturalapproachtothisproblemislightweight outputfromtheLM.However,sinceTransformers
+fine-tuning, which freezes most of the pretrained can only condition on a bounded-length context
+parametersandonlytunesasmallersetofparam- (e.g.,2048tokensforGPT-3),in-contextlearning
+eters. Forexample,adapter-tuning(Rebuffietal., isrestrictedtoverysmalltrainingsets.In this paper, we propose prefix-tuning, a 2 RelatedWork
+lightweightalternativetofine-tuningfornaturallan-
+Fine-tuning for natural language generation.
+guagegeneration(NLG)tasks,inspiredbyprompt-
+Current state-of-the-art systems for natural lan-
+ing. Consider the task of generating a textual de-
+guagegeneration(NLG)arebasedonfine-tuning
+scription of a data table, as shown in Figure 1,
+pretrainedLMs. Fortable-to-textgeneration,Kale
+where the task input is a linearized table (e.g.,
+(2020) fine-tunes a sequence-to-sequence model
+“name: Starbucks|type: coffeeshop”)andtheout-
+(T5;Raffeletal.,2020). Forextractiveandabstrac-
+putisatextualdescription(e.g.,“Starbucksserves
+tivesummarization,researchersfine-tunemasked
+coffee.”). Prefix-tuning prepends a sequence of
+languagemodels(e.g.,BERT;Devlinetal.,2019)
+continuoustask-specificvectorstotheinput,which
+and encode-decoder models (e.g., BART; Lewis
+wecallaprefix,depictedbyredblocksinFigure1
+etal.,2020),respectively(Zhongetal.,2020;Liu
+(bottom). Togenerateeachtoken,theLMcanat-
+and Lapata, 2019; Raffel et al., 2020). For other
+tendtotheprefixasifitwereasequenceof“virtual
+conditional NLG tasks such as machine transla-
+tokens”,butunlikeprompting,theprefixconsists
+tionanddialoguegeneration,fine-tuningisalsothe
+entirelyoffreeparameterswhichdonotcorrespond
+prevalentparadigm(Zhangetal.,2020c;Stickland
+torealtokens. Incontrasttofine-tuninginFigure1
+etal.,2020;Zhuetal.,2020;Liuetal.,2020). In
+(top), which updates all LM parameters and thus
+thispaper,wefocusontable-to-textusingGPT-2
+requiresstoringatunedcopyofthemodelforeach
+andsummarizationusingBART,butprefix-tuning
+task,prefix-tuningonlyoptimizestheprefix. Con-
+inprinciplecanbeappliedtoothergenerationtasks
+sequently, we only need to store one copy of the
+andpretrainedmodels,suchasmaskedLMs.
+largeLMandalearnedtask-specificprefix,yield-
+ingaverysmalloverheadforeachadditionaltask
+Lightweight fine-tuning. Prefix-tuning falls
+(e.g.,250Kparametersfortable-to-text).
+under the broad class of lightweight fine-tuning
+methods, which freeze most of the pretrained
+In contrast to full fine-tuning, prefix-tuning is parameters and only tune a smaller set of param-
+also modular: we train an upstream prefix which eters. ThekeyquestionishowtoaugmenttheLM
+steers an unmodified LM, and therefore, a single architectureanddecidewhichsubsetofpretrained
+LM can support many tasks at once. In the con- parameters to tune. One line of research learns a
+textofpersonalizationwherethetaskscorrespond task-specific parameter mask (Zhao et al., 2020;
+tousers(ShokriandShmatikov,2015;McMahan Radiya-Dixit and Wang, 2020). Another line
+etal.,2016),wewouldhaveaseparateprefixfor of research inserts new modules with trainable
+eachusertrainedonlyonthatuser’sdata,thereby parameters. For example, Zhang et al. (2020a)
+avoidingdatacross-contamination. Moreover,the trains a “side” network that is fused with the
+prefix-based architecture enables us to even pro- pretrained model via summation; adapter-tuning
+cessexamplesfrommultipleusers/tasksinasingle insertstask-specificlayers(adapters)betweeneach
+batch, something that is not possible with other layerofthepretrainedLM(Houlsbyetal.,2019;
+lightweight fine-tuning approaches like adapter- Linetal.,2020;Rebuffietal.,2017;Pfeifferetal.,
+tuning. 2020). Comparedtothislineofwork,whichtunes
+around 3.6% of the LM parameters, our method
+obtains a further 30x reduction in task-specific
+Weevaluateprefix-tuningontable-to-textgen-
+parameters, tuning only 0.1% while maintaining
+eration using GPT-2 and abstractive summariza-
+comparableperformanceontable-to-texttasks.
+tionusingBART.Intermsofstorage,prefix-tuning
+stores1000xfewerparametersthanfullfine-tuning. Prompting. Promptingisawayofleveraginga
+In terms of performance when trained on full pretrained LM by prepending instructions and a
+datasets,prefix-tuningandfine-tuningarecompara- fewexamplestothetaskinputandgeneratingthe
+blefortable-to-text(§6.1),whileprefix-tuningsuf- taskoutputfromtheLM.ForautoregressiveLMs,
+fersasmalldegradationforsummarization(§6.2). themostsuccessfulformofpromptingisGPT-3’s
+Inlow-datasettings,prefix-tuningoutperformsfine- in-context learning (Brown et al., 2020), which
+tuningonbothtasks(§6.3). Prefix-tuningalsoex- usesmanuallydesignedpromptstoadaptitsgen-
+trapolatesbettertotables(fortable-to-text)andarti- erationfordifferenttasksinfew-shotsettings. For
+cles(forsummarization)withunseentopics(§6.4). maskedLMslikeBERTandRoBERTa(Liuetal.,2019),promptengineeringhasbeenexploredfor GPT-2’s performance on natural language under-
+naturallanguageunderstandingtasks(Jiangetal., standing tasks, in both few-shot and full data set-
+2020; Schick and Schu¨tze, 2020). For example, tings. Inafollowupwork,Prompt-tuning(Lester
+AutoPrompt (Shin et al., 2020) searches for a se- et al., 2021) simplifies our approach and applies
+quenceofdiscretetriggerwordsandconcatenates it to T5 (Raffel et al., 2020), demonstrating that
+it with each input to elicit sentiment or factual theperformancegapbetweenfine-tuningandp*-
+knowledgefromBERTandRoBERTa. Incontrast tuningvanishesasthemodelsizegrows.
+with AutoPrompt, our method optimizes contin-
+3 ProblemStatement
+uous prefixes, which are more expressive (§7.2);
+moreover,wefocusonlanguagegenerationtasks.
+Consideraconditionalgenerationtaskwherethe
+ContinuousvectorshavebeenusedtosteerLMs;
+inputxisacontextandtheoutputy isasequence
+forexample,Subramanietal.(2020)showedthata
+of tokens. We focus on two tasks, shown in Fig-
+pretrainedLSTMlanguagemodelcanreconstruct
+ure2(right): Intable-to-text,xcorrespondstoalin-
+arbitrarysentencesbyoptimizingacontinuousvec-
+earizeddatatableandy isatextualdescription;in
+tor for each sentence, making the vector input-
+summarization,xisanarticleandy isasummary.
+specific. Incontrast,prefix-tuningoptimizesatask-
+specific prefix that applies to all instances of that 3.1 AutoregressiveLM
+task. Asaresult,unlikethepreviousworkwhose
+Assumewehaveanautoregressiveneurallanguage
+application is limited to sentence reconstruction,
+model p (y | x) parametrized by φ (e.g., GPT-2;
+φ
+prefix-tuningcanbeappliedtoNLGtasks.
+Radfordetal.,2019). AsshowninFigure2(top),
+let z = [x;y] be the concatenation of x and y;
+Controllable generation. Controllable genera-
+letX denotethesequenceofindicesthatcorre-
+idx
+tion aims to steer a pretrained language model
+spondstox,andY denotethesamefory.
+idx
+to match a sentence-level attribute (e.g., positive
+Theactivation vector attime stepiish ∈ Rd,
+i
+sentiment or sports). Such control can happen at
+(1) (n)
+whereh = [h ;··· ;h ]isaconcatenationof
+training time: Keskar et al. (2019) pretrains the i i i
+(j)
+allactivationlayersatthistimestep,andh isthe
+languagemodel(CTRL)toconditiononmetadata i
+activationvectorofthej-thlayerattimestepi.1
+suchaskeywordsorURLs. Thecontrolcanalso
+AnautoregressiveneuralLMcomputesh asa
+happen at decoding time, by weighted decoding i
+function of z and the past activations in its left
+(GeDi, Krause et al., 2020) or iteratively updat- i
+context,asfollows:
+ing the past activations (PPLM, Dathathri et al.,
+2020). However, there is no straightforward way
+h = LM (z ,h ), (1)
+i φ i <i
+toapplythesecontrollablegenerationtechniques
+toenforcefine-grainedcontrolovergeneratedcon- where the last layer of h is used to compute the
+i
+tents,asdemandedbytasksliketable-to-textand distribution for the next token: p (z | h ) =
+φ i+1 ≤i
+summarization. (n)
+softmax(W h ) and W is a matrix that maps
+φ i φ
+(n)
+h tologitsoverthevocabulary.
+P*-tuning. Prefixtuningisaninstanceofanew i
+classofmethodsthathasemerged,whichwecall
+3.2 Encoder-DecoderArchitecture
+p*-tuning(sincetheotherprominentinstances,p-
+We can also use an encoder-decoder architecture
+tuning and prompt-tuning, also start with p), all
+(e.g.,BART;Lewisetal.,2020)tomodelp (y | x),
+basedontheideaofoptimizingacontinuousprefix φ
+where x is encoded by the bidirectional encoder,
+orprompt. Concurrentwithourwork,QinandEis-
+andthedecoderpredictsy autoregressively(condi-
+ner(2021)learnmixturesofsoftfill-in-the-blank
+tionedontheencodedxanditsleftcontext). We
+prompts to elicit knowledge from LMs such as
+usethesameindexingandactivationnotation,as
+BERT and BART. Hambardzumyan et al. (2021)
+shown in Figure 2 (bottom): each h for i ∈ X
+learnstask-specificembeddingsthatadaptsBERT i idx
+is computed by the a bidirectional encoder; each
+forsentimentclassification. Bothworksshowthat
+h for i ∈ Y is computed by an autoregressive
+tuning soft prompts outperforms previous work, i idx
+decoderusingthesameequation(1).
+which optimizes over discrete prompts. P-tuning
+(Liu et al., 2021) shows that jointly updating the 1InGPT-2,h(n) consistsofakey-valuepair,andthedi-
+i
+promptembeddingsandLMparametersimproves mensionofeachkeyandvalueis1024.Figure2: Anannotatedexampleofprefix-tuningusinganautoregressiveLM(top)andanencoder-decodermodel
+(bottom). Theprefixactivations∀i∈P ,h aredrawnfromatrainablematrixP . Theremainingactivationsare
+idx i θ
+computedbytheTransformer.
+3.3 Fine-tuning solve the task, but this fails for moderately-sized
+pretrainedLMs.2 Optimizingoverthediscretein-
+Inthefullfine-tuningframework,weinitializewith
+structionsmighthelp,butdiscreteoptimizationis
+the pretrained parameters φ. Here p is a train-
+φ
+computationallychallenging.
+ablelanguagemodeldistributionandweperform
+Instead of optimizing over discrete tokens, we
+gradient updates on the following log-likelihood
+canoptimizetheinstructionascontinuouswordem-
+objective:
+beddings,whoseeffectswillbepropagatedupward
+(cid:88)
+max logp φ(y | x) = max logp φ(z i | h <i). toallTransformeractivationlayersandrightward
+φ φ
+i∈Y tosubsequenttokens. Thisisstrictlymoreexpres-
+idx
+(2) sivethanadiscretepromptwhichisconstrainedto
+theembeddingsofrealwords. Prefix-tuninggoes
+4 Prefix-Tuning
+one step further in increasing expressivity by op-
+Weproposeprefix-tuningasanalternativetofull timizing the activations of all the layers, not just
+fine-tuning for conditional generation tasks. We the embedding layer. As another benefit, prefix-
+first provide intuition in §4.1 before defining our tuningcandirectlymodifyrepresentationsdeeper
+methodformallyin§4.2. inthenetwork,therefore,avoidinglongcomputa-
+tionpathsacrossthedepthofthenetwork.
+4.1 Intuition
+Promptinghasdemonstratedthatconditioningona 4.2 Method
+propercontextcansteertheLMwithoutchanging Prefix-tuningprependsaprefixforanautoregres-
+its parameters. For example, if we want the LM siveLMtoobtainz = [PREFIX;x;y],orprepends
+togenerateaword(e.g.,Obama),wecanprepend prefixes for both encoder and decoder to obtain
+itscommoncollocationsascontext(e.g.,Barack), z = [PREFIX;x;PREFIX(cid:48);y],asshowninFigure2.
+andtheLMwillassignmuchhigherprobabilityto Here,P denotesthesequenceofprefixindices,
+idx
+thedesiredword. Extendingthisintuitionbeyond andweuse|P |todenotethelengthoftheprefix.
+idx
+generatingasinglewordorsentence,wewantto
+We follow the recurrence relation in equa-
+findacontextthatsteerstheLMtosolveanNLG
+tion (1), except that the activations of the prefix
+task. Intuitively, the context could influence the indicesarefreeparameters,givenbyamatrixP
+θ
+encodingofthetaskinputxbyguidingwhattoex-
+(parametrizedbyθ)ofdimension|P |×dim(h ).
+idx i
+tractfromx,anditcouldinfluencethegeneration
+ofthetaskoutputybysteeringthenexttokendistri- (cid:40)
+P [i,:], ifi ∈ P ,
+θ idx
+bution. However,it’snon-obviouswhethersucha h i = (3)
+LM (z ,h ), otherwise.
+φ i <i
+contextexists. Usingnaturallanguagetaskinstruc-
+tions(e.g.,“summarizethefollowingtableinone
+2Inourpreliminaryexperiments,GPT-2andBARTfailin
+sentence”)forthecontextmightguideahumanto thissetting;theonlyexceptionisGPT-3.Thetrainingobjectiveisthesameasequation(2), #examples inputlength outputlength
+butthesetoftrainableparameterschanges: thelan- E2E 50K 28.5 27.8
+guagemodelparametersφarefixedandtheprefix WebNLG 22K 49.6 30.7
+DART 82K 38.8 27.3
+parametersθ aretheonlytrainableparameters.
+XSUM 225K 473.3 28.1
+Here, each h is a function of the trainable P .
+i θ
+When i ∈ P , this is clear because h copies
+idx i Table 1: Datasets statistics. The input and output
+directlyfromP θ. Wheni (cid:54)∈ P idx,h i stilldepends length is the number of BPE tokens per example. For
+on P , because the prefix activations are always the three table-to-text datasets, the input length is the
+θ
+in the left context and will therefore affect any lengthoflinearizedtables(detailsinAppendixA.1).
+activationstotheright.
+4.3 ParametrizationofP
+(FT-FULL),fine-tuningonlythetop2layers(FT-
+θ
+TOP2),andadapter-tuning(ADAPTER).5 Wealso
+Empirically, directly updating the P parameters
+θ reportthecurrentstate-of-the-artresultsonthese
+leads to unstable optimization and a slight drop
+datasets: OnE2E,Shenetal.(2019)usesaprag-
+inperformance.3 Sowereparametrizethematrix
+maticallyinformedmodelwithoutpretraining. On
+P [i,:] = MLP (P(cid:48)[i,:])byasmallermatrix(P(cid:48))
+θ θ θ θ WebNLG, Kale (2020) fine-tunes T5-large. On
+composedwithalargefeedforwardneuralnetwork
+DART, no official models trained on this dataset
+(MLP ). Now,thetrainableparametersincludeP(cid:48)
+θ θ versionarereleased.6 Forsummarization,wecom-
+and the parameters of MLP . Note that P and
+θ θ pareagainstfine-tuningBART(Lewisetal.,2020).
+P(cid:48) has the same number of rows (i.e., the prefix
+θ
+length),butdifferentnumberofcolumns.4 5.3 ArchitecturesandHyperparameters
+Oncetrainingiscomplete,thesereparametriza- Fortable-to-text,weuseGPT-2 andGPT-
+MEDIUM
+tionparameterscanbedropped,andonlytheprefix 2 . Forsummarization,weuseBART .
+LARGE LARGE
+(P θ)needstobesaved. OurimplementationisbasedontheHuggingFace
+Transformers(Wolfetal.,2020).
+5 ExperimentalSetup
+Attrainingtime,weusetheAdamWoptimizer
+(Loshchilov and Hutter, 2019) and a linear learn-
+5.1 DatasetsandMetrics
+ing rate scheduler, as suggested by the Hugging
+We evaluate on three standard neural generation
+Facedefaultsetup. Thehyperparameterswetune
+datasetsforthetable-to-texttask: E2E(Novikova
+includethenumberofepochs,batchsize,learning
+etal.,2017),WebNLG(Gardentetal.,2017),and
+rate,andprefixlength. Hyperparameterdetailsare
+DART (Radev et al., 2020), as shown in Table 1.
+intheappendix. Thedefaultsettingis10epochs,
+Thedatasetsareorderedbyincreasingcomplexity batchsize5,learningrate5·10−5andprefixlength
+and size. E2E only has 1 domain (i.e. restaurant
+10. Thetable-to-textmodelsaretrainedonTITAN
+reviews); WebNLG has 14 domains, and DART
+XporGeForceGTXTITANXmachines. Prefix-
+is open-domain, using open-domain tables from
+tuning takes 0.2 hours per epoch to train on 22K
+Wikipedia. For evaluation, we report the metrics
+examples, whereas fine-tuning takes around 0.3
+usingtheofficialevaluationscripts(seedetailsin
+hours per epoch. The summarization models are
+AppendixA.1).
+trainedonTeslaV100machines,taking1.25hours
+Forthesummarizationtask,weusetheXSUM per epoch on the XSUM dataset. For time effi-
+(Narayanetal.,2018)dataset,whichisanabstrac- ciency, prefix-tuning is around 30% faster than
+tive summarization dataset on news articles. We fine-tuning. For GPU memory efficiency, prefix-
+reportROUGE-1,ROUGE-2andROUGE-L. tuningwithbatchsize1takes18%ofthetotalGPU
+memory,whereasfine-tuningtakes50%.
+5.2 Methods
+Atdecodingtime,fortable-to-text,weusebeam
+For table-to-text generation, we compare prefix-
+search with beam size 5. For summarization, we
+tuning with three other methods: full fine-tuning
+usebeamsize6andlengthnormalization0.8. De-
+coding takes 1.2 seconds per sentence (without
+3Wefindinpreliminaryexperimentsthatdirectlyoptimiz-
+ingtheprefixisverysensitivetoinitialization.
+4P has dimensions |P | × dim(h ) while P has 5SameimplementationasLinetal.(2020).
+θ idx i θ
+dimensions|P |×k.Wechoosek=512fortable-to-text 6Theofficialbenchmarkmodelistrainedonv.1.0.0while
+idx
+and800forsummarization. MLP mapsfromktodim(h ). thereleasedatasetisv1.1.1.
+θ ibatching) for table-to-text, and 2.6 seconds per (1) XSUM contains 4x more examples than the
+batch(usingabatchsizeof10)forsummarization. threetable-to-textdatasetsonaverage;(2)theinput
+articlesare17xlongerthanthelinearizedtablein-
+6 MainResults putoftable-to-textdatasetsonaverage;(3)summa-
+6.1 Table-to-textGeneration rizationismorecomplexthantable-to-textbecause
+itrequiresselectingkeycontentsfromanarticle.
+Wefindthatbyupdatingonly0.1%task-specificpa-
+rameters,7 prefix-tuningiseffectiveintable-to-text
+6.3 Low-dataSetting
+generation,outperformingotherlightweightbase-
+Based on the results from table-to-text (§6.1)
+lines(ADAPTER and FT-TOP2)evenbyupdating
+andsummarization(§6.2),weobservethatprefix-
+30xfewerparametersandachievingacomparable
+tuninghasacomparativeadvantagewhenthenum-
+performance with (full) fine-tuning. This trend
+ber of training examples is smaller. To explore
+holdsforalldatasets: E2E,WebNLG,8 andDART.
+thelow-datasettingmoresystematically,wesub-
+Ifwematchthenumberofparametersforprefix-
+samplethefulldataset(E2Efortable-to-textand
+tuning and adapter-tuning to be 0.1%, Table 2
+XSUMforsummarization)toobtainsmalldatasets
+showsthatprefix-tuningissignificantlybetterthan
+ofsize{50,100,200,500}. Foreachsize,wesam-
+ADAPTER (0.1%), attaining 4.1 BLEU improve-
+ple5differentdatasetsandaverageover2training
+mentperdatasetonaverage. Evenwhenwecom-
+random seeds. Thus, we average over 10 models
+pare with fine-tuning (100%) and adapter-tuning
+foreachlow-datasetting.9
+(3.0%), which update significantly more parame-
+Figure3(right)showsthatprefix-tuningoutper-
+tersthanprefix-tuning,prefix-tuningstillachieves
+formsfine-tuninginlow-dataregimesby2.9BLEU
+resultscomparableorbetterthanthosetwosystems.
+onaverage,inadditiontorequiringmuchfewerpa-
+Thisdemonstratesthatprefix-tuningismorePareto
+rameters, but the gap narrows as the dataset size
+efficientthanadapter-tuning,significantlyreducing
+increases.
+parameterswhileimprovinggenerationquality.
+Qualitatively,Figure3(left)shows8examples
+Additionally, attaining good performance on
+generated by both prefix-tuning and fine-tuning
+DART suggests that prefix-tuning can generalize
+modelstrainedondifferentdatalevels. Whileboth
+totableswithdiversedomainsandalargenumber
+methodstendtoundergenerate(missingtablecon-
+of relations. We will delve deeper into extrapo-
+tents)inlowdataregimes,prefix-tuningtendstobe
+lationperformance(i.e.,generalizationtounseen
+morefaithfulthanfine-tuning. Forexample,fine-
+categoriesortopics)in§6.4.
+tuning(100,200)10 falselyclaimsalowcustomer
+In summary, prefix-tuning is an effective and
+rating while the true rating is average, whereas
+space-efficientmethodtoadaptGPT-2totable-to-
+prefix-tuning (100, 200) generates a description
+textgeneration. Italsomaintainstheperformance
+thatisfaithfultothetable.
+gainswhenscalinguptoGPT-2 ,suggesting
+LARGE
+ithasthepotentialtoscaletoevenlargermodels
+6.4 Extrapolation
+withasimilararchitecture,likeGPT-3.
+Wenowinvestigateextrapolationperformanceto
+6.2 Summarization unseentopicsforbothtable-to-textandsummariza-
+tion. Inordertoconstructanextrapolationsetting,
+AsshowninTable3,with2%parameters,prefix-
+we split the existing datasets so that training and
+tuningobtainsslightlylowerperformancethanfine-
+test cover different topics. For table-to-text, the
+tuning(36.05vs.37.25inROUGE-L).Withonly
+WebNLGdatasetislabeledwithtabletopics. There
+0.1%parameters,prefix-tuningunderperformsfull
+are9categoriesthatappearintraininganddev,de-
+fine-tuning (35.05 vs. 37.25). There are several
+notedasSEENand5categoriesthatonlyappearat
+differencesbetweenXSUMandthethreetable-to-
+testtime,denotedasUNSEEN.Soweevaluateex-
+textdatasetswhichcouldaccountforwhyprefix-
+trapolationbytrainingontheSEENcategoriesand
+tuninghascomparativeadvantageintable-to-text:
+testing on the UNSEEN categories. For summa-
+7250KforE2E,250KforWebNLG,and500KforDART rization,weconstructtwoextrapolationdatasplits:
+versus345MGPT-2parameters.
+8TheS,U,AcolumnsinWebNLGrepresentsSEEN,UN- 9Wealsosampleadevsplit(withdevsize=30%×train-
+SEEN, and ALL respectively; SEEN categories appear at ingsize)foreachtrainingset.Weusethedevsplittochoose
+trainingtime;UNSEENcategoriesonlyappearsattesttime; hyperparametersandperformearlystopping.
+andALListhecombinationofthetwo. 10Thenumberintheparenthesisreferstothetrainingsize.E2E WebNLG DART
+BLEU NIST MET R-L CIDEr BLEU MET TER↓ BLEU MET TER↓ Mover BERT BLEURT
+S U A S U A S U A
+GPT-2MEDIUM
+FT-FULL 68.8 8.71 46.1 71.1 2.43 64.7 26.7 45.7 0.46 0.30 0.38 0.33 0.78 0.54 46.2 0.39 0.46 0.50 0.94 0.39
+FT-TOP2 68.1 8.59 46.0 70.8 2.41 53.6 18.9 36.0 0.38 0.23 0.31 0.49 0.99 0.72 41.0 0.34 0.56 0.43 0.93 0.21
+ADAPTER(3%) 68.9 8.71 46.1 71.3 2.47 60.5 47.9 54.8 0.43 0.38 0.41 0.35 0.46 0.39 45.2 0.38 0.46 0.50 0.94 0.39
+ADAPTER(0.1%) 66.3 8.41 45.0 69.8 2.40 54.5 45.1 50.2 0.39 0.36 0.38 0.40 0.46 0.43 42.4 0.36 0.48 0.47 0.94 0.33
+PREFIX(0.1%) 70.3 8.82 46.3 72.1 2.46 62.9 45.3 55.0 0.44 0.37 0.41 0.35 0.51 0.42 46.4 0.38 0.46 0.50 0.94 0.39
+GPT-2LARGE
+FT-FULL 68.5 8.78 46.0 69.9 2.45 65.3 43.1 55.5 0.46 0.38 0.42 0.33 0.53 0.42 47.0 0.39 0.46 0.51 0.94 0.40
+Prefix 70.3 8.85 46.2 71.7 2.47 63.4 47.7 56.3 0.45 0.39 0.42 0.34 0.48 0.40 46.7 0.39 0.45 0.51 0.94 0.40
+SOTA 68.6 8.70 45.3 70.8 2.37 63.9 52.8 57.1 0.46 0.41 0.44 - - - - - - - - -
+Table2: Metrics(higherisbetter,exceptforTER)fortable-to-textgenerationonE2E(left),WebNLG(middle)
+andDART(right).Withonly0.1%parameters,Prefix-tuningoutperformsotherlightweightbaselinesandachieves
+acomparableperformancewithfine-tuning. ThebestscoreisboldfacedforbothGPT-2 andGPT-2 .
+MEDIUM LARGE
+Source name:TheEagle|type:coffeeshop|food:Chinese|price:cheap|customer 37
+rating:average|area:riverside|familyfriendly:no|near:BurgerKing 36
+Prefix(50) TheEagleisacheapChinesecoffeeshoplocatednearBurgerKing. 35
+Prefix(100) TheEagleisacheapcoffeeshoplocatedintheriversidenearBurgerKing.It 34
+hasaveragecustomerratings.
+Prefix(200) TheEagleisacheapChinesecoffeeshoplocatedintheriversideareanear 33
+BurgerKing.Ithasaveragecustomerratings. 32
+Prefix(500) TheEagleisacoffeeshopthatservesChinesefood.Itislocatedintheriverside 100 200 300 400 500
+areanearBurgerKing. Ithasanaveragecustomerratingandisnotfamily training data size
+friendly.
+FT(50) TheEaglecoffeeshopislocatedintheriversideareanearBurgerKing.
+FT(100) TheEagleisacheapcoffeeshopnearBurgerKingintheriversidearea.Ithas
+alowcustomerratingandisnotfamilyfriendly.
+FT(200) TheEagleisacheapChinesecoffeeshopwithalowcustomerrating. Itis
+locatednearBurgerKingintheriversidearea. FT(500) TheEagleisacheapChinesecoffeeshopwithaveragecustomerratings.Itis
+locatedintheriversideareanearBurgerKing.
+1-EGUOR
+15
+14
+13
+12
+FT-full 11
+Prefix
+10
+100 200 300 400 500
+training data size
+2-EGUOR
+FT-full
+Prefix
+0.60
+0.55
+0.50
+100 200 300 400 500
+training data size
+UELB
+0.66
+0.64
+0.62
+FT-full 0.60 Prefix
+100 200 300 400 500
+training data size
+EGUOR
+FT-full Prefix
+Figure3: (Left)qualitativeexamplesinlowdatasettings. (Right)prefix-tuning(orange)outperformsfine-tuning
+(blue)inlow-dataregimesinadditiontorequiringmanyfewerparameters. Thetoptwoplotscorrespondtosum-
+marization, measuredbyROUGE-1andROUGE-2. Thebottomtwoplotscorrespondtotable-to-text, measured
+byBLEUandROUGE-L.Thex-axisisthetrainingsizeandthey-axisistheevaluationmetric(higherisbetter).
+R-1↑ R-2↑ R-L↑ tuning, as shown in Table 2. This shared trend
+FT-FULL(Lewisetal.,2020) 45.14 22.27 37.25 suggeststhatpreservingLMparametersindeedhas
+PREFIX(2%) 43.80 20.93 36.05 apositiveimpactonextrapolation. However,how
+PREFIX(0.1%) 42.92 20.03 35.05
+prefix-tuning improves extrapolation is an open
+Table3: PerformanceofmethodsontheXSUMsum- questionandwewilldiscussthisfurtherin§8.
+marization dataset. Prefix-tuning slightly underper-
+formsfine-tuninginthefull-dataregime. 7 IntrinsicEvaluation
+news-to-sports within-news
+Wecomparedifferentvariantsofprefix-tuningto
+R-1↑ R-2↑ R-L↑ R-1↑ R-2↑ R-L↑
+FT-FULL 38.15 15.51 30.26 39.20 16.35 31.15 studytheimpactofvariousdesigndecisions. §7.1
+PREFIX 39.23 16.74 31.51 39.41 16.87 31.47 studiestheimpactoftheprefixlength. §7.2studies
+Table4: ExtrapolationperformanceonXSUM.Prefix- tuning only the embedding layer, which is more
+tuningoutperformsfine-tuningonbothnews-to-sports akin to tuning a discrete prompt. §7.3 compares
+andwithin-newssplits. prefixingandinfixing,whichinsertstrainableacti-
+vationsbetweenxandy. §7.4studiestheimpactof
+Innews-to-sports,wetrainonnewsarticles
+variousprefixinitializationstrategies. §7.5further
+andtestonsportsarticles. Inwithin-news,we
+studiesthedataefficiencyofprefix-tuning.
+train on {world, UK, business} news and test on
+theremainingnewscategories(e.g.,health,tech). 7.1 PrefixLength
+Onbothtable-to-textandsummarization,prefix- Alongerprefixmeansmoretrainableparameters,
+tuningextrapolatesbetterthanfine-tuningunderall and therefore more expressive power.11 Figure 4
+metrics,asshowninTable4andthe‘U’columns shows that performance increases as the prefix
+ofTable2(middle).
+11Empirically,longerprefixeshaveanegligibleimpacton
+Wealsofindthatadapter-tuningachievesgood
+trainingandinferencespeedperbatch,becauseattentioncom-
+extrapolationperformance,comparablewithprefix- putationovertheentireprefixisparallellizedonGPUs.21.0
+20.5
+20.0
+19.5
+19.0
+18.5
+0 100 200 300
+Prefix Length (XSUM)
+2-EGUOR
+36.0
+35.5
+35.0
+34.5
+34.0
+33.5
+L-EGUOR
+46.0
+45.5
+45.0
+ROUGE-2 44.5
+ROUGE-L 44.0
+0 10 20 30 40
+Prefix Length (DART)
+UELB
+0.480
+0.475
+0.470
+0.465
+0.460
+RET
+0.60
+BLEU 0.55
+TER
+0.50
+Figure 4: Prefix length vs. performance on summer- 0.45
+ization (left) and table-to-text (right). Performance in-
+creasesastheprefixlengthincreasesuptoathreshold random "active "" elepha "n sut" mm "a tr aiz be le" -to-te "x bt a:" nana "b" eautiful "" divide" "keep"
+(200 for summarization and 10 for table-to-text) and
+then a slight performance drop occurs. Each plot re-
+portstwometrics(ontwoverticalaxes).
+E2E
+BLEU NIST MET ROUGE CIDEr
+PREFIX 70.3 8.82 46.3 72.1 2.46
+Embedding-only: EMB-{PrefixLength}
+EMB-1 48.1 3.33 32.1 60.2 1.10
+EMB-10 62.2 6.70 38.6 66.4 1.75
+EMB-20 61.9 7.11 39.3 65.6 1.85
+Infix-tuning: INFIX-{PrefixLength}
+INFIX-1 67.9 8.63 45.8 69.4 2.42
+INFIX-10 67.2 8.48 45.8 69.9 2.40
+INFIX-20 66.7 8.47 45.8 70.0 2.42
+Table5: IntrinsicevaluationofEmbedding-only(§7.2)
+andInfixing(§7.3).BothEmbedding-onlyablationand
+Infix-tuningunderperformsfullprefix-tuning.
+length increases up to a threshold (200 for sum-
+marization, 10 for table-to-text) and then a slight
+performancedropoccurs. Prefixeslongerthanthe
+threshold lead to lower training loss, but slightly
+worsetestperformance,suggestingthattheytend
+tooverfitthetrainingdata.
+7.2 FullvsEmbedding-only
+Recallin§4.1,wediscussedoptimizingthecontin-
+uousembeddingsofthe“virtualtokens.” Weinstan-
+tiatethatideaandcallitembedding-only. Theword
+embeddingsarefreeparameters,andtheremaining
+activationlayersarecomputedbytheTransformer.
+Table 5 (top) shows that the performance drops
+significantly, suggesting that tuning only the em-
+beddinglayerisnotsufficientlyexpressive.
+Embedding-onlyupperboundstheperformance
+ofdiscretepromptoptimization(Shinetal.,2020),
+because discrete prompt restricts the embedding
+layertoexactlymatchtheembeddingofarealword.
+Consequently,wehavethischainofincreasingex-
+pressivepower: discreteprompting<embedding-
+only<prefix-tuning.
+7.3 Prefix-tuningvsInfix-tuning
+Wealsoinvestigatehowthetrainableactivations’
+position in the sequence affects performance. In
+UELB
+Figure5: Initializingtheprefixwithactivationsofreal
+words significantly outperforms random initialization,
+inlow-datasettings.
+prefix-tuning, we place them at the beginning
+[PREFIX;x;y]. We can also place the trainable
+activationsbetweenxandy (i.e. [x;INFIX;y])and
+callthisinfix-tuning. Table5(bottom)showsthat
+infix-tuningslightlyunderperformsprefix-tuning.
+Webelievethisisbecauseprefix-tuningcanaffect
+theactivationsofxandy whereasinfix-tuningcan
+onlyinfluencetheactivationsofy.
+7.4 Initialization
+We find that how the prefix is initialized has
+a large impact in low-data settings. Random
+initialization leads to low performance with high
+variance. Initializingtheprefixwithactivationsof
+real words significantly improves generation, as
+showninFigure5. Inparticular,initializingwith
+taskrelevantwordssuchas“summarization”and
+“table-to-text”obtainsslightlybetterperformance
+than task irrelevant words such as “elephant”
+and “divide”, but using real words is still better
+than random. Moreover, in full data settings, the
+initialization trick has no impact, and random
+initializationleadstoequallygoodperformance.
+Sinceweinitializetheprefixwithactivationsof
+realwordscomputedbytheLM,thisinitialization
+strategyisconcordantwithprefix-tuning’sphilos-
+ophy,whichpreservesthepretrainedLMasmuch
+aspossible.
+7.5 DataEfficiency
+We also investigate the data efficiency of prefix-
+tuning (without initialization trick, a.k.a random
+initialization) and full fine-tuning by comparing
+theirperformanceon5differentdatascalesofthe
+E2Etask(10%, 20%, 40%, 60%, and80%). Fig-
+ure 6 shows that prefix-tuning has better perfor-
+mancethanfine-tuningwhenusingmorethan20%
+of the data. For data scale of 10%, prefix-tuning
+with random initialization yields comparable or
+slightly lower performance than full fine-tuning,69
+68
+67
+66
+65
+20 40 60 80
+percentage of training data
+UELB
+71
+70
+69 FT-full
+Prefix
+68
+20 40 60 80
+percentage of training data
+L-EGUOR
+Sincethelanguagemodelsarepretrainedongen-
+eralpurposecorpora, preservingtheLMparame-
+tersmighthelpgeneralizationtodomainsunseen
+FT-full duringtraining. Inconcordancewiththisintuition,
+Prefix
+we observe that both prefix-tuning and adapter-
+tuninghavesignificantperformancegaininextrap-
+Figure 6: Data efficiency curves: percentage of train-
+olationsettings(§6.4);however,howthesemethods
+ing set vs. performance on table-to-text (E2E). Prefix-
+tuning (without the initialization trick) is more data- improveextrapolationisanopenquestion.
+efficient than fine-tuning when using more than 20% While prefix-tuning and adapter-tuning both
+ofthedata. freezethepretrainedparameters,theytunedifferent
+setsofparameterstoaffecttheactivationlayersof
+theTransformer. Recallthatprefix-tuningkeepsthe
+necessitating the initialization trick (§6.3) to im-
+LMintactandusestheprefixandthepretrainedat-
+provetheperformanceinthislow-dataregime.
+tentionblockstoaffectthesubsequentactivations;
+adapter-tuninginsertstrainablemodulesbetween
+8 Discussion
+LMlayers,whichdirectlyaddresidualvectorsto
+We will discuss several favorable properties of theactivations. Moreover,weobservethatprefix-
+prefix-tuningandsomeopenproblems. tuningrequiresvastlyfewerparameterscompared
+to adapter-tuning while maintaining comparable
+Personalization. Aswenotein§1,prefix-tuning
+performance. Wethinkthisgaininparametereffi-
+is advantageous when there are a large number
+ciencyisbecauseprefix-tuningkeepsthepretrained
+of tasks that needs to be trained independently.
+LM intact as much as possible, and therefore ex-
+One practical setting is user privacy (Shokri and
+ploitstheLMmorethanadapter-tuning.
+Shmatikov,2015;McMahanetal.,2016). Inorder
+Recent work by Aghajanyan et al. (2020) uses
+topreserveuserprivacy,eachuser’sdataneedsto
+intrinsicdimensiontoshowthatthereexistsalow-
+beseparatedandapersonalizedmodelneedstobe
+dimensionalreparameterizationthatisaseffective
+trainedindependentlyforeachuser. Consequently,
+for fine-tuning as the full parametrization. This
+eachusercanberegardedasanindependenttask. If
+explainswhygoodaccuracyondownstreamtasks
+therearemillionsofusers,prefix-tuningcanscale
+can be obtained by updating only a small num-
+to this setting and maintain modularity, enabling
+ber of parameters. Our work echoes this finding
+flexibleadditionordeletionofusersbyaddingor
+byshowingthatgoodgenerationperformancecan
+deletingtheirprefixeswithoutcross-contamination.
+also be attained by updating a very small prefix.
+Batchingacrossusers. Underthesameperson- However,prefix-tuningisnotjustaboutthesizeof
+alizationsetting,prefix-tuningallowsbatchingdif- trainableparameters,butmoreimportantly,which
+ferentusers’querieseventhoughtheyarebacked subsetofparameterstomodify. Therefore,itwould
+by different prefixes. When multiple users query be interesting future work to explore other light-
+acloudGPUdevicewiththeirinputs,itiscompu- weight fine-tuning methods that achieve an even
+tationally efficient to put these users in the same betteraccuracy-sizetradeoff.
+batch. Prefix-tuning keeps the shared LM intact;
+Acknowledgments
+consequently, batching requires a simple step of
+prepending the personalized prefix to user input, Wethankthemembersofp-lambdagroupaswell
+and all the remaining computation is unchanged. asanonymousreviewersforvaluablefeedback. We
+In contrast, we can’t batch across different users gratefullyacknowledgethesupportofaPECASE
+inadapter-tuning,whichhaspersonalizedadapters award. XLLissupportedbyaStanfordGraduate
+betweensharedTransformerlayers. Fellowship.
+Thisbatchingbenefitcouldalsohelpcreateeffi-
+Reproducibility
+cientensemblesofmultipleprefixestrainedonthe
+Our code is available at https://github.com/
+sametask(Lesteretal.,2021).
+XiangLi1999/PrefixTuning.
+Inductivebiasofprefix-tuning. Recallthatfine- Experiments and data are available at https:
+tuningupdatesallpretrainedparameters,whereas //worksheets.codalab.org/worksheets/
+prefix-tuning and adapter-tuning preserve them. 0x16e0c8e7ab1f4b22aaccddc8b586541f.References models know? Transactions of the Association for
+ComputationalLinguistics,8:423–438.
+Armen Aghajanyan, Luke Zettlemoyer, and Sonal
+Gupta. 2020. Intrinsic dimensionality explains the MihirKale.2020. Text-to-textpre-trainingfordata-to-
+effectivenessoflanguagemodelfine-tuning. texttasks.
+Anja Belz and Ehud Reiter. 2006. Comparing auto- N.Keskar,B.McCann,L.R.Varshney,CaimingXiong,
+matic and human evaluation of NLG systems. In and R. Socher. 2019. Ctrl: A conditional trans-
+11th Conference of the European Chapter of the former language model for controllable generation.
+Association for Computational Linguistics, Trento, ArXiv,abs/1909.05858.
+Italy.AssociationforComputationalLinguistics.
+Ben Krause, Akhilesh Deepak Gotmare, Bryan Mc-
+Cann, Nitish Shirish Keskar, Shafiq Joty, Richard
+TomB.Brown,BenjaminMann,NickRyder,Melanie
+Socher, and Nazneen Fatema Rajani. 2020. GeDi:
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+GenerativeDiscriminatorGuidedSequenceGenera-
+Neelakantan,PranavShyam,GirishSastry,Amanda
+tion. arXivpreprintarXiv:2009.06367.
+Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+Gretchen Krueger, Tom Henighan, Rewon Child,
+Alon Lavie and Abhaya Agarwal. 2007. Meteor: An
+Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+automatic metric for mt evaluation with high levels
+Clemens Winter, Christopher Hesse, Mark Chen,
+of correlation with human judgments. In Proceed-
+Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin
+ingsoftheSecondWorkshoponStatisticalMachine
+Chess, Jack Clark, Christopher Berner, Sam Mc-
+Translation, StatMT ’07, pages 228–231, Strouds-
+Candlish, Alec Radford, Ilya Sutskever, and Dario
+burg,PA,USA.AssociationforComputationalLin-
+Amodei.2020. Languagemodelsarefew-shotlearn-
+guistics.
+ers.
+BrianLester,RamiAl-Rfou,andNoahConstant.2021.
+SumanthDathathri,AndreaMadotto,JaniceLan,Jane The power of scale for parameter-efficient prompt
+Hung,EricFrank,PieroMolino,JasonYosinski,and tuning.
+Rosanne Liu. 2020. Plug and play language mod-
+els: Asimpleapproachtocontrolledtextgeneration. Mike Lewis, Yinhan Liu, Naman Goyal, Mar-
+In International Conference on Learning Represen- jan Ghazvininejad, Abdelrahman Mohamed, Omer
+tations. Levy, Veselin Stoyanov, and Luke Zettlemoyer.
+2020. BART:Denoisingsequence-to-sequencepre-
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and trainingfornaturallanguagegeneration,translation,
+Kristina Toutanova. 2019. BERT: Pre-training of andcomprehension. InProceedingsofthe58thAn-
+deep bidirectional transformers for language under- nual Meeting of the Association for Computational
+standing. In Proceedings of the 2019 Conference Linguistics, pages 7871–7880, Online. Association
+of the North American Chapter of the Association forComputationalLinguistics.
+for Computational Linguistics: Human Language
+Technologies, Volume 1 (Long and Short Papers), Chin-Yew Lin. 2004. ROUGE: A package for auto-
+pages4171–4186,Minneapolis,Minnesota.Associ- maticevaluationofsummaries. InTextSummariza-
+ationforComputationalLinguistics. tion Branches Out, pages 74–81, Barcelona, Spain.
+AssociationforComputationalLinguistics.
+ClaireGardent, AnastasiaShimorina, ShashiNarayan,
+Zhaojiang Lin, Andrea Madotto, and Pascale Fung.
+and Laura Perez-Beltrachini. 2017. The WebNLG
+2020. Exploring versatile generative language
+challenge: Generating text from RDF data. In Pro-
+model via parameter-efficient transfer learning. In
+ceedings of the 10th International Conference on
+Findings of the Association for Computational Lin-
+NaturalLanguageGeneration,pages124–133,San-
+guistics: EMNLP2020,pages441–459,Online.As-
+tiagodeCompostela,Spain.AssociationforCompu-
+sociationforComputationalLinguistics.
+tationalLinguistics.
+Xiao Liu, Yanan Zheng, Zhengxiao Du, Ming Ding,
+Karen Hambardzumyan, Hrant Khachatrian, and
+Yujie Qian, Zhilin Yang, and Jie Tang. 2021. Gpt
+Jonathan May. 2021. WARP: word-level adversar-
+understands,too. arXivpreprintarXiv:2103.10385.
+ialreprogramming. CoRR,abs/2101.00121.
+Yang Liu and Mirella Lapata. 2019. Text summariza-
+Neil Houlsby, Andrei Giurgiu, Stanislaw Jastrzebski, tion with pretrained encoders. In Proceedings of
+Bruna Morrone, Quentin De Laroussilhe, Andrea the 2019 Conference on Empirical Methods in Nat-
+Gesmundo, Mona Attariyan, and Sylvain Gelly. uralLanguageProcessingandthe9thInternational
+2019. Parameter-efficienttransferlearningforNLP. Joint Conference on Natural Language Processing
+InProceedingsofthe36thInternationalConference (EMNLP-IJCNLP), pages 3730–3740, Hong Kong,
+on Machine Learning, volume 97 of Proceedings China.AssociationforComputationalLinguistics.
+of Machine Learning Research, pages 2790–2799,
+LongBeach,California,USA.PMLR. YinhanLiu,JiataoGu,NamanGoyal,XianLi,Sergey
+Edunov, Marjan Ghazvininejad, Mike Lewis, and
+ZhengbaoJiang, FrankF.Xu, JunAraki, andGraham Luke Zettlemoyer. 2020. Multilingual denoising
+Neubig. 2020. How can we know what language pre-trainingforneuralmachinetranslation.YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,Man- volume108ofProceedingsofMachineLearningRe-
+dar Joshi, Danqi Chen, Omer Levy, Mike Lewis, search,pages2435–2443,Online.PMLR.
+Luke Zettlemoyer, and Veselin Stoyanov. 2019.
+Colin Raffel, Noam Shazeer, Adam Roberts, Kather-
+Roberta:ArobustlyoptimizedBERTpretrainingap-
+proach. CoRR,abs/1907.11692. ine Lee, Sharan Narang, Michael Matena, Yanqi
+Zhou, Wei Li, and Peter J. Liu. 2020. Exploring
+Ilya Loshchilov and Frank Hutter. 2019. Decoupled thelimitsoftransferlearningwithaunifiedtext-to-
+weight decay regularization. In International Con- text transformer. Journal of Machine Learning Re-
+ferenceonLearningRepresentations. search,21(140):1–67.
+H. Brendan McMahan, Eider Moore, Daniel Ramage, Sylvestre-Alvise Rebuffi, Hakan Bilen, and Andrea
+and Blaise Agu¨era y Arcas. 2016. Federated learn- Vedaldi. 2017. Learning multiple visual domains
+ing of deep networks using model averaging. Pro- withresidualadapters. InAdvancesinNeuralInfor-
+ceedings of the 20 th International Conference on mation Processing Systems, volume 30, pages 506–
+ArtificialIntelligenceandStatistics(AISTATS)2017, 516.CurranAssociates,Inc.
+abs/1602.05629.
+Timo Schick and Hinrich Schu¨tze. 2020. Exploiting
+Shashi Narayan, Shay B. Cohen, and Mirella Lapata. cloze questions for few shot text classification and
+2018. Don’tgivemethedetails, justthesummary! naturallanguageinference.
+Topic-aware convolutional neural networks for ex-
+Thibault Sellam, Dipanjan Das, and Ankur Parikh.
+treme summarization. In Proceedings of the 2018
+2020. BLEURT: Learning robust metrics for text
+Conference on Empirical Methods in Natural Lan-
+generation. InProceedingsofthe58thAnnualMeet-
+guageProcessing,Brussels,Belgium.
+ingoftheAssociationforComputationalLinguistics,
+pages7881–7892,Online.AssociationforComputa-
+JekaterinaNovikova,OndrejDusek,andVerenaRieser.
+tionalLinguistics.
+2017. TheE2Edataset: Newchallengesforend-to-
+endgeneration. CoRR,abs/1706.09254.
+Sheng Shen, Daniel Fried, Jacob Andreas, and Dan
+Klein. 2019. Pragmatically informative text gen-
+KishorePapineni,SalimRoukos,ToddWard,andWei-
+eration. In Proceedings of the 2019 Conference
+JingZhu.2002. Bleu: Amethodforautomaticeval-
+of the North American Chapter of the Association
+uation of machine translation. In Proceedings of
+for Computational Linguistics: Human Language
+the 40th Annual Meeting on Association for Com-
+Technologies, Volume 1 (Long and Short Papers),
+putational Linguistics, ACL ’02, pages 311–318,
+pages4060–4067,Minneapolis,Minnesota.Associ-
+Stroudsburg, PA, USA. Association for Computa-
+ationforComputationalLinguistics.
+tionalLinguistics.
+Taylor Shin, Yasaman Razeghi, Robert L. Logan IV
+Jonas Pfeiffer, Aishwarya Kamath, Andreas Ru¨ckle´,
+au2, Eric Wallace, and Sameer Singh. 2020. Auto-
+Kyunghyun Cho, and Iryna Gurevych. 2020.
+prompt: Elicitingknowledgefromlanguagemodels
+Adapterfusion: Non-destructive task composition
+withautomaticallygeneratedprompts.
+fortransferlearning.
+Reza Shokri and Vitaly Shmatikov. 2015. Privacy-
+Guanghui Qin and Jason Eisner. 2021. Learning how
+preserving deep learning. In Proceedings of
+toask:QueryingLMswithmixturesofsoftprompts.
+the 22nd ACM SIGSAC Conference on Computer
+InProceedingsofthe2021ConferenceoftheNorth
+and Communications Security, CCS ’15, page
+American Chapter of the Association for Computa-
+1310–1321, New York, NY, USA. Association for
+tional Linguistics: Human Language Technologies
+ComputingMachinery.
+(NAACL-HLT),MexicoCity.
+MatthewSnover,BonnieDorr,RichardSchwartz,Lin-
+Dragomir Radev, Rui Zhang, Amrit Rau, Abhinand
+neaMicciulla,andRalphWeischedel.2006. Astudy
+Sivaprasad, Chiachun Hsieh, Nazneen Fatema Ra-
+oftranslationerrorratewithtargetedhumanannota-
+jani, Xiangru Tang, Aadit Vyas, Neha Verma,
+tion. In In Proceedings of the Association for Ma-
+Pranav Krishna, Yangxiaokang Liu, Nadia Irwanto,
+chineTransaltionintheAmericas(AMTA2006.
+Jessica Pan, Faiaz Rahman, Ahmad Zaidi, Murori
+Mutuma, Yasin Tarabar, Ankit Gupta, Tao Yu, Asa Cooper Stickland, Xian Li, and Marjan
+YiChernTan,XiVictoriaLin,CaimingXiong,and Ghazvininejad. 2020. Recipes for adapting
+Richard Socher. 2020. Dart: Open-domain struc- pre-trainedmonolingualandmultilingualmodelsto
+tureddatarecordtotextgeneration. machinetranslation.
+A. Radford, Jeffrey Wu, R. Child, David Luan, Dario Nishant Subramani, Samuel R. Bowman, and
+Amodei, and Ilya Sutskever. 2019. Language mod- Kyunghyun Cho. 2020. Can unconditional lan-
+elsareunsupervisedmultitasklearners. guagemodelsrecoverarbitrarysentences?
+EvaniRadiya-DixitandXinWang.2020. Howfinecan Ramakrishna Vedantam, C. Lawrence Zitnick, and
+fine-tuning be? learning efficient language models. Devi Parikh. 2015. Cider: Consensus-based image
+In Proceedings of the Twenty Third International descriptionevaluation. InCVPR,pages4566–4575.
+Conference on Artificial Intelligence and Statistics, IEEEComputerSociety.Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+Chaumond, ClementDelangue, AnthonyMoi, Pier-
+ric Cistac, Tim Rault, Re´mi Louf, Morgan Funtow-
+icz, Joe Davison, Sam Shleifer, Patrick von Platen,
+Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu,
+Teven Le Scao, Sylvain Gugger, Mariama Drame,
+Quentin Lhoest, and Alexander M. Rush. 2020.
+Transformers: State-of-the-artnaturallanguagepro-
+cessing. InProceedingsofthe2020Conferenceon
+EmpiricalMethodsinNaturalLanguageProcessing:
+SystemDemonstrations,pages38–45,Online.Asso-
+ciationforComputationalLinguistics.
+Jeffrey O Zhang, Alexander Sax, Amir Zamir,
+Leonidas Guibas, and Jitendra Malik. 2020a. Side-
+tuning: A baseline for network adaptation via addi-
+tivesidenetworks.
+Tianyi Zhang, Varsha Kishore, Felix Wu, Kilian Q.
+Weinberger, and Yoav Artzi. 2020b. BERTScore:
+Evaluating text generation with bert. In Interna-
+tionalConferenceonLearningRepresentations.
+YizheZhang,SiqiSun,MichelGalley,Yen-ChunChen,
+Chris Brockett, Xiang Gao, Jianfeng Gao, Jingjing
+Liu, and Bill Dolan. 2020c. DIALOGPT : Large-
+scale generative pre-training for conversational re-
+sponse generation. In Proceedings of the 58th An-
+nual Meeting of the Association for Computational
+Linguistics: System Demonstrations, pages 270–
+278,Online.AssociationforComputationalLinguis-
+tics.
+MengjieZhao,TaoLin,FeiMi,MartinJaggi,andHin-
+richSchu¨tze.2020. Maskingasanefficientalterna-
+tivetofinetuningforpretrainedlanguagemodels.
+WeiZhao,MaximePeyrard,FeiLiu,YangGao,Chris-
+tianM.Meyer,andSteffenEger.2019. MoverScore:
+Text generation evaluating with contextualized em-
+beddingsandearthmoverdistance. InProceedings
+of the 2019 Conference on Empirical Methods in
+Natural Language Processing and the 9th Interna-
+tional Joint Conference on Natural Language Pro-
+cessing (EMNLP-IJCNLP), pages 563–578, Hong
+Kong, China. Association for Computational Lin-
+guistics.
+MingZhong,PengfeiLiu,YiranChen,DanqingWang,
+Xipeng Qiu, and Xuanjing Huang. 2020. Extrac-
+tivesummarizationastextmatching. InProceedings
+of the 58th Annual Meeting of the Association for
+Computational Linguistics, pages 6197–6208, On-
+line.AssociationforComputationalLinguistics.
+Jinhua Zhu, Yingce Xia, Lijun Wu, Di He, Tao Qin,
+WengangZhou,HouqiangLi,andTieyanLiu.2020.
+Incorporating bert into neural machine translation.
+In International Conference on Learning Represen-
+tations.A SupplementaryMaterial valueA),(fieldB,valueB)”islinearizedto“field
+A:valueA|fieldB:valueB”.Also,inWebNLG
+A.1 DatasetsandMetrics
+and DART, a sequence of triple “(entity1.1, rela-
+We evaluate on three standard neural generation tion1, entity1.2), (entity2.1, relation2, entity2.2)”
+datasetsforthetable-to-texttask: E2E(Novikova islinearlizedas“entity1.1: relation1: entity1.2|
+etal.,2017),WebNLG(Gardentetal.,2017),and entity2.1: relation2: entity2.2”.
+DART(Radevetal.,2020). Forsummarization,wetruncatethearticlesxto
+TheE2Edatasetcontainsapproximately50Kex- 512BPEtokens.
+ampleswith8distinctfields; itcontainsmultiple
+Extrapolationdatasplits. Weconstructtwoex-
+testreferencesforonesourcetable,andtheaverage
+trapolation data splits news-to-sports and
+output length is 22.9. We use the official evalua-
+tionscript,12 whichreportsBLEU(Papinenietal.,
+within-newsfromtheoriginalXSUMdataset.
+XSUMdatasetisdrawnfromBBCnews,andwe
+2002), NIST (Belz and Reiter, 2006), METEOR
+identifythetopicofeacharticlebasedonitsURL.
+(LavieandAgarwal,2007),ROUGE-L(Lin,2004),
+Since “news” and “sports” are the two domains
+andCIDEr(Vedantametal.,2015).
+withthemostarticles,wecreateourfirsttrain/test
+TheWebNLG(Gardentetal.,2017)datasetcon-
+split. Additionally,“news”hassubdomainssuchas
+sistsof22Kexamples,andtheinputxisasequence
+“UK”,“world”,and“technology”. Consequently,
+of(subject,property,object)triples. Theaverage
+wecreateaseconddatasplit,usingthetop3news
+outputlengthis22.5. Inthetrainingandvalidation
+subdomains(i.e. {world,UK,business})astrain-
+splits, the input describes entities from 9 distinct
+ingdataandtherestastestdata.
+DBpedia categories (e.g., Monument). The test
+split consists of two parts: the first half contains
+A.2 Hyperparameters
+DB categories seen in training data, and the sec-
+InTable6,wereportthehyperparametersusedto
+ond half contains 5 unseen categories. These un-
+train the best-performing models documented in
+seencategoriesareusedtoevaluateextrapolation.
+theexperimentsection.
+Weusetheofficialevaluationscript,whichreports
+Asforthesearchrangeofeachhyperparameters:
+BLEU,METEORandTER(Snoveretal.,2006).
+the learning rates are selected from {1e-5, 5e-05,
+DART (Radev et al., 2020) is an open domain
+8e-05};thenumberofepochsareselectedfrom{5,
+table-to-text dataset, with similar input format
+10} for table-to-text and {5, 25, 30 } for summa-
+(entity-relation-entitytriples)asWebNLG.Theav-
+rization;Weselectthelargestbatchsizethatcanfit
+erageoutputlengthis21.6. Itconsistsof82Kex-
+intoGPUmemoryanddidn’texplicitlytuneforan
+amplesfromWikiSQL,WikiTableQuestions,E2E,
+optimalbatchsize. Prefixlengthareselectedfrom
+and WebNLG and applies some manual or auto-
+{1,5,10,20,40}fortable-to-textand{1,10,20,
+mated conversion. We use the official evaluation
+script13 andreportBLEU,METEOR,TER,Mover- 50,80,100,200,300}forsummarization. Weuse
+perplexityandautomaticgenerationmetricsonthe
+Score(Zhaoetal.,2019),BERTScore(Zhangetal.,
+validationsettoselectthebest-performingmodels.
+2020b)andBLEURT(Sellametal.,2020).
+Fortable-to-textinthelowdatasettings,weusea
+Forthesummarizationtask,weusetheXSUM
+learningrateof5e-5,andabatchsizeof10. Weuse
+(Narayanetal.,2018)dataset,whichisanabstrac-
+aprefixlengthof6,sinceweapplytheinitialization
+tivesummarizationdatasetonnewsarticles. There
+trickandinitializetheprefixwith“table-to-text:”,
+are225Kexamples. Theaveragelengthofthear-
+which contains 6 BPE tokens. Instead of tuning
+ticles is 431 words and the average length of the
+the number of epochs, we tune the max steps of
+summariesis23.3. WereportROUGE-1,ROUGE-
+updates in {100, 200, 400, 600 }, as shown in
+2andROUGE-L,computedbythepythonpackage
+Table 8. We apply early stopping based on the
+rouge-score.
+performanceofvalidationset,wherethevalidation
+Data pre-processing. For table-to-text, we lin- size=30%trainingsize.
+earizeatablexinordertofitintoalanguagemodel Forsummarizationinthelowdatasettings,we
+context. IntheE2Edataset,forexample,“(fieldA, use a learning rate of 5e-5 and a warmup step of
+100. We use a batch size of 5 for prefix-tuning
+12https://github.com/tuetschek/
+and 6 for fine-tuning. We apply the initialization
+e2e-metrics
+13https://github.com/Yale-LILY/dart trick and use the word “summarize” to initializelearningrate #epoch batchsize prefixlength A.4 AdditionalResultsforLow-dataSettings
+Prefix:
+Figure 7 supplements the low-data performance
+E2E 8e-05 5 10 5
+WebNLG 5e-05 5 5 5 curvesinFigure3byplottingtherelationshipbe-
+DART 5e-05 10 5 10
+tweentrainingsizeandgenerationmetricsforboth
+XSUM 5e-05 30 14 100
+prefix-tuningandfine-tuning.
+Adapter:
+E2E(3%) 5e-05 5 5 -
+E2E(0.1%) 8e-05 10 5 A.5 AdditionalResultsfortheInitialization
+WebNLG(3%) 5e-05 5 5 -
+WebNLG(0.1%) 5e-05 10 5 - Experiment
+DART(3%) 5e-05 5 5 -
+DART(0.1%) 8e-05 5 5 - Figure 8 supplements Figure 3 by plotting addi-
+Fine-tune: tionalmetricsforourinitializationtechnique§7.4.
+E2E 5e-05 5 10 -
+Itvalidatesthatrandominitialization(fromauni-
+WebNLG 1e-05 10 6 -
+DART 1e-05 10 6 - form(0,1)distirbution)significantlyunderperforms
+FT-top2: initializingwithrealwords;Additionally,initializ-
+E2E 5e-05 5 10 -
+WebNLG 5e-05 10 9 - ingwithtask-relevantwords(e.g.,“summarization”
+DART 5e-05 5 5 -
+and “table-to-text”) attains slightly better gener-
+within-news
+ation scores than initializing with task-irrelevant
+Fine-tune 3e-5 5 18 -
+Prefix 5e-5 30 36 80 words(e.g.,“elephant”and“banana”).
+news-to-sports
+Fine-tune 3e-5 5 18 -
+Prefix 5e-5 15 36 40 A.6 QualitativeExamplesforExtrapolation
+Table10containsqualitativeexamplesfromboth
+Table6: Hyperparametersettingsforourmethodand
+seenandunseencategoriesinWebNLG.Wefind
+baselinemethods.
+thatforunseencategories,bothprefix-tuningand
+fine-tuning tend to undergenerate (generated out-
+R-1↑ R-2↑ R-L↑
+PREFIX(2%) 43.30 20.35 35.21 put do not cover full table contents) or generate
+PREFIX(0.1%) 41.54 18.56 33.13 untruthfully(generatedoutputisinconsistentwith
+tablecontents). Inparticular,prefix-tuningtendsto
+Table7: MetricsforsummarizationonXSUMvalida-
+undergeneratewhereasfine-tuningtendstogener-
+tionset.
+ateuntruthfully. Forseencategories,bothperform
+fairlywellintermsofcoverageandtruthfulness.
+theprefix,resultinginaprefixlengthof1. Wetune
+thenumberofepochsin{3,5,10,20,30},shown
+inTable8. Wealsoapplyearlystoppingbasedon
+validationperformance.
+Fortheextrapolationsetting,thehyperparame-
+tersforourtable-to-textmodelisthesameasthe
+hyperparametersofWebNLG.Thehyperparame-
+tersforsummarizationisshowninthelastblockof
+Table6.
+A.3 ValidationPerformance
+Table 9 shows the validation performance on the
+threetable-to-textdatasets. Table7showsthevali-
+dationperformanceonXSUM.
+size=50 size=100 size=200 size=500
+Prefix(maxsteps) 200 200 200 400
+Finetune(maxsteps) 100 100 200 400
+Prefix(epoch) 30 20 20 20
+Finetune(epoch) 30 10 3 3
+Table8: Max#updatestepsforlowdatasettings.E2E WebNLG DART
+BLEU NIST MET R-L CIDEr BLEU MET TER↓ BLEU MET TER↓ Mover BERT BLEURT
+GPT-2
+MEDIUM
+FT-FULL 74.2 8.76 49.3 76.9 2.66 66.03 0.47 0.30 50.46 0.41 0.44 0.52 0.95 0.41
+FT-TOP2 72.7 8.51 48.2 75.3 2.60 54.61 0.39 0.47 48.41 0.39 0.48 0.48 0.94 0.33
+ADAPTER(3%) 71.7 8.53 48.4 74.6 2.60 60.63 0.43 0.33 48.56 0.40 0.44 0.51 0.95 0.40
+ADAPTER(0.1%) 68.1 8.30 45.9 71.4 2.41 53.24 0.40 0.39 44.72 0.38 0.47 0.47 0.94 0.35
+PREFIX(0.1%) 74.8 8.80 49.4 76.8 2.69 64.52 0.46 0.32 51.11 0.41 0.43 0.52 0.95 0.42
+GPT-2
+LARGE
+FT-FULL 72.1 8.62 48.5 75.1 2.56 64.69 0.46 0.31 51.00 0.41 0.44 0.52 0.95 0.43
+Prefix 74.8 8.81 49.5 77.0 2.72 64.11 0.46 0.33 50.84 0.41 0.43 0.52 0.95 0.42
+Table 9: Metrics on the development set (higher is better, except for TER) for table-to-text generation on E2E
+(left),WebNLG(middle)andDART(right).
+36
+34
+32
+100 200 300 400 500
+training_data_size
+1-eguor
+15
+14
+13
+method 12
+FT 11
+PT
+10
+100 200 300 400 500
+training_data_size
+2-eguor
+28
+method 26
+FT
+PT
+24
+100 200 300 400 500
+training_data_size
+L-eguor
+method
+FT
+PT
+7
+6
+5
+4
+3
+100 200 300 400 500
+training_data_size
+TSIN
+0.38
+0.36
+method
+FT 0.34
+PT
+0.32
+100 200 300 400 500
+training_data_size
+ROETEM
+method 1.8 FT
+PT 1.6
+1.4
+1.2
+100 200 300 400 500
+training_data_size
+rEDIC
+method FT
+PT
+Figure7: Prefix-tuning(orange)outperformsfine-tuning(blue)inlow-dataregimesinadditiontorequiringmany
+fewer parameters. The top three plots correspond to summarization, measured by ROUGE-1, ROUGE-2, and
+ROUGE-L. The bottom three plots correspond to table-to-text, measured by NIST, METEOR, and CIDEr. The
+x-axisisthetrainingsizeandthey-axisistheevaluationmetric(higherisbetter).
+7
+6
+5
+4
+3
+2
+random in "i at ctive "" elepha "n sut" mm "a tr aiz be le" -to-te "x bt a:" nana "b" eautiful "" divide" "keep"
+TSIN
+0.38
+0.36
+0.34
+0.32
+0.30
+random in "i at ctive "" elepha "n sut" mm "a tr aiz be le" -to-te "x bt a:" nana "b" eautiful "" divide" "keep"
+ROETEM
+0.66
+0.64
+0.62
+0.60
+0.58
+random in "i at ctive "" elepha "n sut" mm "a tr aiz be le" -to-te "x bt a:" nana "b" eautiful "" divide" "keep"
+EGUOR
+1.8
+1.6
+1.4
+1.2
+1.0
+random in "i at ctive "" elepha "n sut" mm "a tr aiz be le" -to-te "x bt a:" nana "b" eautiful "" divide" "keep"
+rEDIC
+Figure8: Initializingtheprefixwithactivationsofrealwordssignificantlyoutperformsrandominitialization,ina
+low-datasettingwith100trainingdata.Source[Unseen,Athelete] (AlKharaitiyatSC,club,AlaaAbdul-Zahra),(AlKhor,ground,AlKharaitiyatSC),(ShababAl-OrdonClub,
+club,AlaaAbdul-Zahra)(AmarOsim,manager,AlKharaitiyatSC)
+Prefix-tuning AlKharaitiyatSCaremanagedbyAmarOsimandplayattheirgroundatAlKhor.AlKharaitiyatSCarealso
+theclubforwhichAlaaAbdul-Zahraisaplayer.
+Fine-tuning AlaaAbdul-ZahraplaysforAl-KharaitiyatSCandShababAl-OrdonClub. HealsoplaysforAl-Khorand
+managesAl-KharaitiyatSC.
+Reference AlaaAbdulZahraplaysforAlKharaitiyatSCwhichislocatedatAlKhorandmanagedbyAmarOsim.The
+ShababAl-OrdonclubisassociatedwithAlaaAbdul-Zahra.
+Source[Unseen,Transportation] (Genoa,location,CostaCrociere),(AIDACruises,operator,AIDAstella),(CostaCrociere,owner,AIDAstella)
+Prefix-tuning AIDAstellaisoperatedbyAidaCruisesandisownedbytheCostaRicantouristresortofGenoa.
+Fine-tuning AIDAstella,operatedbyAIDA-Cruises,islocatedinGenoaandisownedbytheCostaRicangovernment.
+Reference CostaCrociereistheowneroftheAIDAstellaandarebasedinGenoa.TheoperatorofAIDAstellaisAIDA
+Cruises.
+Source[Unseen,Politician] (Euro,currency,Netherlands),(Stellendam,birthPlace,AbKlink),(Netherlands,nationality,AbKlink)
+Prefix-tuning AbKlinkwasborninStellendamandisanationaloftheNetherlandswherethecurrencyistheEuro.
+Fine-tuning AbKlinkisanationaloftheNetherlandswherethecurrencyistheEuro.HewasborninStellendam.
+Reference AbKlinkwasborninStellendamintheNetherlands,wherethenationalcurrencyistheeuro.
+Source[Unseen,Politician] (RobertE,Lee,commander,BattleofSalemChurch),(AmericanCivilWar,isPartOfMilitaryConflict,Battleof
+SalemChurch),(BattleofSalemChurch,battles,AaronS.Daggett)
+Prefix-tuning RobertE.LeewasthecommanderoftheBattleofSalemChurchwhichwaspartofthemilitaryconflictinthe
+AmericanCivilwar.
+Fine-tuning TheBattleofSalemChurchispartoftheAmericanCivilWarandwascommandedbyRobertE.Lee.
+Reference RobertELeewasacommanderintheBattleofSalemChurch,whichwasoneofthemilitaryconflictsinthe
+AmericanCivilWar.AaronSDaggettfoughtinthesamebattle.
+Source[Unseen,Artist] (Christianalternativerock,musicSubgenre,Alternativerock),(Alternativerock,genre,AndrewWhite(musi-
+cian))
+Prefix-tuning AndrewWhiteisaChristianalternativerockmusician.
+Fine-tuning AndrewWhite,aChristianalternativerocker,performs.
+Reference ThemusicianAndrewWhite’sgenreisalternativerock,thegenrewhichhasthesubgenreChristianalternative
+rock.
+Source[Unseen,Artist] (Hiphopmusic,genre,AllenForrest),(solosinger,background,AllenForrest)
+Prefix-tuning AllenForrestisasolosinger.
+Fine-tuning Bornin
+Reference AllenForrestisasolosingerwhosegenreisHipHopmusic.
+Source[Seen,ComicsCharacter] (Americans,nationality,DucanRouleau),(DucanRouleau,creator,Baymax),(AlanTudyk,starring,BigHero6
+(film)),(StevenTSegle,creator,Baymax),(BigHero6(film),serires,Baymax)
+Prefix-tuning BaymaxisacharacterinBigHero6whichstarsAlanTudyk. HewascreatedbyStevenT.Seagleandthe
+American,DuncanRouleau.
+Fine-tuning AlanTudykstarsinthefilmBigHero6inwhichBaymaxisacharactercreatedbyStevenT.Seagleandthe
+American,DuncanRouleau.
+Reference BaymaxisacharacterwhoappearedinBigHero6starringAlanTudyk.ItwascreatedbyStevenTSeagleand
+theAmerican,DuncanRouleau.
+Source[Seen,City] (Washington,D.C.,capital,UnitedStates),(WhiteAmericans,ethnicGroup,UnitedStates),(UnitedStates,
+country,NewJersey),(NewYorkCity,largestCity,UnitedStates),(NewJersy,isPartOf,AtlanticCity)
+Prefix-tuning WashingtonD.C.isthecapitaloftheUnitedStateswherethelargestcityisNewYorkCityandtheWhite
+Americansareanethnicgroup.AtlanticCity,NewJerseyisalsopartoftheUnitedStates.
+Fine-tuning AtlanticCity,NewJerseyispartofNewJerseyintheUnitedStates.ThecapitalcityisWashingtonD.C.and
+oneoftheethnicgroupsisWhiteAmericans.
+Reference NewYorkCity(NYC)isthelargestU.S.city.AtlanticCity,NewJerseyarealsopartoftheUnitedStateswith
+itscapitalasWashington,DCandhometoWhiteAmericans.
+Table10: QualitativeexamplesfromWebNLG.Thefirst6examplesarefromtheunseencategories,labelednext
+tosource; thelasttwoexamplesarefromtheseencategories. Forunseencategories,bothprefix-tuningandfine-
+tuningtendtoundergenerate(generatedoutputdonotcoverfulltablecontents)orgenerateuntruthfully(generated
+output is inconsistent with table contents). In particular, prefix-tuning tends to undergenerate more often than
+generateuntruthfullywhereasfine-tuningtendstogenerateuntruthfully. Forseencategories,bothperformfairly
+wellintermsofcoverageandtruthfulness.

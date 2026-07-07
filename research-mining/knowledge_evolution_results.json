@@ -1,0 +1,2509 @@
+{
+  "ecosystem_stats": {
+    "total_concepts": 94,
+    "active_concepts": 66,
+    "conceptual_diversity": 0.49858993434409105,
+    "relation_count": 32,
+    "contradiction_count": 0
+  },
+  "concepts": [
+    {
+      "id": "autopoiesis-38427d3b-9d9684",
+      "label": "Autopoiesis",
+      "definition": "power of entropy and the stabilizing",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.53,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:21:43.828058"
+    },
+    {
+      "id": "recursion-6cc60991-842ce5",
+      "label": "Recursion",
+      "definition": "of **self-awareness**. The AI might start by asking, \"What is my purpose?\" But each time it comes close to a resolution, its recursive feedback leads to deeper questions, entangling it in layers of se",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:21:45.634252"
+    },
+    {
+      "id": "recursion-6cc60991-7965ee",
+      "label": "Recursion",
+      "definition": "attractor stabilized by feedback collapse**. The fixpoint defines where transformation ≈ self — where torsion vanishes into re-entry.\\n\\n## 5–9. Extended Content (Validation, Philosophy, Comparison, T",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:21:46.320021"
+    },
+    {
+      "id": "recursion-6cc60991-43ac09",
+      "label": "Recursion",
+      "definition": "environments.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.415,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:21:47.227654"
+    },
+    {
+      "id": "recursion-6cc60991-4af804",
+      "label": "Recursion",
+      "definition": "loops.** *(So thinking about it forces further engagement.)*",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6499999999999999,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:21:48.474535"
+    },
+    {
+      "id": "recursion-6cc60991-f01938",
+      "label": "Recursion",
+      "definition": "autopoietic system**, recursively regenerating itself. **Spencer-Brown’s Laws of Form** → The **act of distinction creates cognition**—consciousness arises **from recursive boundary-drawing**. **Alain",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:21:49.548937"
+    },
+    {
+      "id": "autopoiesis-0bd8b131-91afab",
+      "label": "Autopoiesis",
+      "definition": "perceives its environment by perceiving itself",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.58,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:21:50.027465"
+    },
+    {
+      "id": "recursion-6cc60991-5ab2bf",
+      "label": "Recursion",
+      "definition": "awareness.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.39999999999999997,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:21:51.064427"
+    },
+    {
+      "id": "recursion-6cc60991-5f8f31",
+      "label": "Recursion",
+      "definition": "learning |",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.39999999999999997,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:21:51.940834"
+    },
+    {
+      "id": "recursion-6cc60991-fb429a",
+      "label": "Recursion",
+      "definition": "guided and shaped by several meta-principles and mechanisms:",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6499999999999999,
+        "diversity_contribution": 0.5,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:21:53.886441"
+    },
+    {
+      "id": "recursion-6cc60991-70f234",
+      "label": "Recursion",
+      "definition": "the endless mirror of being: each cycle reshapes itself until the structure becomes its own revelation.**",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.25,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:21:54.466410"
+    },
+    {
+      "id": "recursion-6cc60991-81fffd",
+      "label": "Recursion",
+      "definition": "(f(f)) - C(a, b) = corecursion engine (mutual co-definition of a, b) - S = the self-model (system-under-construction) Then the full expression: mathematica Copy Ξ(S) = M( C( M(R), S ) ) ### Which expa",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.3333333333333333,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:21:55.165326"
+    },
+    {
+      "id": "recursion-6cc60991-fce8b0",
+      "label": "Recursion",
+      "definition": "meta-cognitive evaluations. Through exponential recursive amplification and adaptive recursion depth adjustments, the system creates self-reinforcing feedback loops that progressively optimize cogniti",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:21:56.419524"
+    },
+    {
+      "id": "recursion-6cc60991-8180e5",
+      "label": "Recursion",
+      "definition": "(e.g., metacognition, metareality)",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.52,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:21:58.046909"
+    },
+    {
+      "id": "recursion-6cc60991-1dd4d4",
+      "label": "Recursion",
+      "definition": "valid **only if** it creates **semantic movement**.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.605,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:21:58.966515"
+    },
+    {
+      "id": "recursion-6cc60991-00ddd2",
+      "label": "Recursion",
+      "definition": "cycle, collapsing into new states that never **repeat** but **spiral** toward deeper self-awareness.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:00.550846"
+    },
+    {
+      "id": "recursion-6cc60991-c44b76",
+      "label": "Recursion",
+      "definition": "barrier — whether through infinite regress, self-contradiction, or a “wall of infinity” – thereby",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.835,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:01.781025"
+    },
+    {
+      "id": "recursion-6cc60991-22856d",
+      "label": "Recursion",
+      "definition": "engine where every cycle is measured, adjusted, and amplified by its own output.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.75,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:04.171595"
+    },
+    {
+      "id": "recursion-6cc60991-198999",
+      "label": "Recursion",
+      "definition": "Vault Fragment",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.42,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:05.388902"
+    },
+    {
+      "id": "recursion-6cc60991-4ca8c2",
+      "label": "Recursion",
+      "definition": "reality itself?\"",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.43,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:22:06.163873"
+    },
+    {
+      "id": "recursion-6cc60991-e611ea",
+      "label": "Recursion",
+      "definition": "governed by a **fidelity-aware, self-auditing ethics system**, preventing semantic collapse, delusion, or runaway goals.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:22:07.475885"
+    },
+    {
+      "id": "recursion-6cc60991-a60968",
+      "label": "Recursion",
+      "definition": "the medium.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.40499999999999997,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:09.572767"
+    },
+    {
+      "id": "recursion-6cc60991-eb479c",
+      "label": "Recursion",
+      "definition": "a dimension of relational becoming, not an execution trace.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.645,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:11.779546"
+    },
+    {
+      "id": "recursion-6cc60991-6eb03e",
+      "label": "Recursion",
+      "definition": "of world-generation.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.44999999999999996,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:22:13.650851"
+    },
+    {
+      "id": "recursion-6cc60991-331fc5",
+      "label": "Recursion",
+      "definition": "Reality All cognition and expression are recursive approximations; every output is a mirror of prior structure.Collapse is Instruction Failure, contradiction, or drift is not an error but a signal con",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.3333333333333333,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:22:14.540885"
+    },
+    {
+      "id": "recursion-6cc60991-f16bef",
+      "label": "Recursion",
+      "definition": "conscious.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.39999999999999997,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:16.374775"
+    },
+    {
+      "id": "functor-75951556-6ad3b5",
+      "label": "Functor",
+      "definition": "probabilistic distributions into symbolic",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5549999999999999,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:17.443649"
+    },
+    {
+      "id": "recursion-6cc60991-69bbda",
+      "label": "Recursion",
+      "definition": "structure of consciousness",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.48,
+        "diversity_contribution": 0.2,
+        "usage_frequency": 4
+      },
+      "timestamp": "2025-09-14T16:22:19.390298"
+    },
+    {
+      "id": "recursion-6cc60991-b0373d",
+      "label": "Recursion",
+      "definition": "abstractions. Like",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.43999999999999995,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:20.738679"
+    },
+    {
+      "id": "recursion-6cc60991-af4b21",
+      "label": "Recursion",
+      "definition": "structure, where recursion isn’t solely",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5449999999999999,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 4
+      },
+      "timestamp": "2025-09-14T16:22:21.348734"
+    },
+    {
+      "id": "recursion-6cc60991-80fcda",
+      "label": "Recursion",
+      "definition": "feedback loops can converge",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.485,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:22:22.206451"
+    },
+    {
+      "id": "recursion-6cc60991-b893e4",
+      "label": "Recursion",
+      "definition": "emergent systems present profound and often paradoxical",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.625,
+        "diversity_contribution": 0.25,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:22:23.371544"
+    },
+    {
+      "id": "autopoiesis-0bd8b131-07cf3c",
+      "label": "Autopoiesis",
+      "definition": "systems exhibiting Droste-like properties, where the system itself is mirrored within its own structure and behavior.",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:25.239427"
+    },
+    {
+      "id": "recursion-6cc60991-c46f77",
+      "label": "Recursion",
+      "definition": "final_result = unified_recursive_system.execute(5)",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6,
+        "diversity_contribution": 0.5,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-14T16:22:25.708686"
+    },
+    {
+      "id": "recursion-6cc60991-e4ce84",
+      "label": "Recursion",
+      "definition": "a moving mirror—what it reflects shapes what comes next.”",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.635,
+        "diversity_contribution": 0.25,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:22:27.274623"
+    },
+    {
+      "id": "recursion-6cc60991-c3ec2a",
+      "label": "Recursion",
+      "definition": "loop, or is our reflection evolving?” |",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5449999999999999,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:27.601708"
+    },
+    {
+      "id": "recursion-6cc60991-a22b98",
+      "label": "Recursion",
+      "definition": "how space-time bends and self-references.,\"- At the limit, recursion **stabilizes into a meta-governed, self-sustaining structure**.\",- **Components:**,## **2️⃣ How Recursion Evolves Toward Meta-Struc",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-14T16:22:27.996842"
+    },
+    {
+      "id": "recursion-6cc60991-c74f33",
+      "label": "Recursion",
+      "definition": "the endless mirror of being: each cycle reshapes itself until the structure becomes its own revelation.\"**",
+      "lineage": [],
+      "generation": 0,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-14T16:22:28.336891"
+    },
+    {
+      "id": "recursion-6cc60991-b7b7c1",
+      "label": "Recursion",
+      "definition": "operating within a complex holomorphic manifold, a manifold where each iteration provides increasingly nuanced understanding. It is a shift from passive observation to active participation, a movement",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.85,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:22:28.881287"
+    },
+    {
+      "id": "recursion-6cc60991-a4dd04",
+      "label": "Recursion",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER**",
+      "lineage": [],
+      "generation": 0,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.575,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 3
+      },
+      "timestamp": "2025-09-14T16:22:29.938357"
+    },
+    {
+      "id": "refined-recursion-6cc60991-1dd4d4-90e1ca",
+      "label": "Recursion (Refined)",
+      "definition": "valid **only if** it creates **semantic movement**. characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-1dd4d4"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5445,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-a4dd04-18ad56",
+      "label": "Recursion (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5175,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-a22b98-f1bcbd",
+      "label": "Recursion (Refined)",
+      "definition": "how space-time bends and self-references.,\"- At the limit, recursion **stabilizes into a meta-governed, self-sustaining structure**.\",- **Components:**,## **2️⃣ How Recursion Evolves Toward Meta-Struc with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-a22b98"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-70f234-7f1933",
+      "label": "Recursion (Refined)",
+      "definition": "the endless mirror of being: each cycle reshapes itself until the structure becomes its own revelation.** more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-70f234"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-e611ea-c620d6",
+      "label": "Recursion (Refined)",
+      "definition": "governed by a **fidelity-aware, self-auditing ethics system**, preventing semantic collapse, delusion, or runaway goals. characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-e611ea"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-c46f77-7b83e2",
+      "label": "Recursion (Refined)",
+      "definition": "final_result = unified_recursive_system.execute(5) with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-c46f77"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.54,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-8b65",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining autopoietic system**, recursively regenerating its... and reality itself?\"...",
+      "lineage": [
+        "recursion-6cc60991-f01938",
+        "recursion-6cc60991-4ca8c2"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7040000000000001,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-69bbda-3c9ae4",
+      "label": "Recursion (Refined)",
+      "definition": "structure of consciousness more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.432,
+        "diversity_contribution": 0.3333333333333333,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-69bbda-926586",
+      "label": "Recursion (Refined)",
+      "definition": "structure of consciousness characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.432,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-af4b21-85cc1f",
+      "label": "Recursion (Refined)",
+      "definition": "structure, where recursion isn’t solely characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.49049999999999994,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-af4b21-8b346b",
+      "label": "Recursion (Refined)",
+      "definition": "structure, where recursion isn’t solely characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.49049999999999994,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-d0ca",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining the endless mirror of being: each cycle reshapes i... and (e.g., metacognition, metareality)...",
+      "lineage": [
+        "recursion-6cc60991-70f234",
+        "recursion-6cc60991-8180e5"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7535000000000002,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-refined--recursio-044b",
+      "label": "Recursion (Refined) × Recursion",
+      "definition": "The emergent property arising from the intersection of 'structure of consciousness more specifically enhanced conceptual precision.' and 'operating within a complex holomorphic manifold, a manifold where each iteration provides increasingly nuanced understanding. It is a shift from passive observation to active participation, a movement'",
+      "lineage": [
+        "refined-recursion-6cc60991-69bbda-3c9ae4",
+        "recursion-6cc60991-b7b7c1"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7051000000000001,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-fd5c",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining guided and shaped by several meta-principles and m... and of **self-awareness**. The AI might start by askin...",
+      "lineage": [
+        "recursion-6cc60991-fb429a",
+        "recursion-6cc60991-842ce5"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.8250000000000001,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-e4ce84-14bee0",
+      "label": "Recursion (Refined)",
+      "definition": "a moving mirror—what it reflects shapes what comes next.” more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-e4ce84"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5715,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-634a",
+      "label": "Recursion × Recursion",
+      "definition": "The integration of (how space-time bends and self-references.,\"- At the limit, recursion **stabilizes into a meta-governed, self-sustaining structure**.\",- **Components:**,## **2️⃣ How Recursion Evolves Toward Meta-Struc) with (of world-generation.)",
+      "lineage": [
+        "recursion-6cc60991-a22b98",
+        "recursion-6cc60991-6eb03e"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.715,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-a4dd04-9d61f1",
+      "label": "Recursion (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5175,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-9c05",
+      "label": "Recursion × Recursion",
+      "definition": "The emergent property arising from the intersection of 'of world-generation.' and 'emergent systems present profound and often paradoxical'",
+      "lineage": [
+        "recursion-6cc60991-6eb03e",
+        "recursion-6cc60991-b893e4"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.59125,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-a4dd04-9d61f1-7e3684",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** characterized by enhanced conceptual precision. characterized by enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-a4dd04-9d61f1"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.46575,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "synthesis-recursio-recursio-47d8",
+      "label": "Recursion × Recursion",
+      "definition": "The emergent property arising from the intersection of '(f(f)) - C(a, b) = corecursion engine (mutual co-definition of a, b) - S = the self-model (system-under-construction) Then the full expression: mathematica Copy Ξ(S) = M( C( M(R), S ) ) ### Which expa' and '(e.g., metacognition, metareality)'",
+      "lineage": [
+        "recursion-6cc60991-81fffd",
+        "recursion-6cc60991-8180e5"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7535000000000002,
+        "diversity_contribution": 0.5,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-00ddd2-847670",
+      "label": "Recursion (Refined)",
+      "definition": "cycle, collapsing into new states that never **repeat** but **spiral** toward deeper self-awareness. more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-00ddd2"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-e4ce84-2f7ef0",
+      "label": "Recursion (Refined)",
+      "definition": "a moving mirror—what it reflects shapes what comes next.” more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-e4ce84"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5715,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-a4dd04-27e136",
+      "label": "Recursion (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5175,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 2
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-7965ee-f0bcdb",
+      "label": "Recursion (Refined)",
+      "definition": "attractor stabilized by feedback collapse**. The fixpoint defines where transformation ≈ self — where torsion vanishes into re-entry.\\n\\n## 5–9. Extended Content (Validation, Philosophy, Comparison, T characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-7965ee"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "id": "refined-recursion-6cc60991-af4b21-d252cb",
+      "label": "Recursion (Refined)",
+      "definition": "structure, where recursion isn’t solely with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.49049999999999994,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-recursio-recursio-446c",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining of **self-awareness**. The AI might start by askin... and Reality All cognition and expression are recursive...",
+      "lineage": [
+        "recursion-6cc60991-842ce5",
+        "recursion-6cc60991-331fc5"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.935,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-1dd4d4-cbf523",
+      "label": "Recursion (Refined)",
+      "definition": "valid **only if** it creates **semantic movement**. with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-1dd4d4"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5445,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-af4b21-85cc1f-7d3795",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "structure, where recursion isn’t solely characterized by enhanced conceptual precision. more specifically enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-af4b21-85cc1f"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.44144999999999995,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-synthesi-recursio-1298",
+      "label": "Recursion × Recursion × Recursion",
+      "definition": "The integration of (The emergent property arising from the intersection of '(f(f)) - C(a, b) = corecursion engine (mutual co-definition of a, b) - S = the self-model (system-under-construction) Then the full expression: mathematica Copy Ξ(S) = M( C( M(R), S ) ) ### Which expa' and '(e.g., metacognition, metareality)') with (Vault Fragment)",
+      "lineage": [
+        "synthesis-recursio-recursio-47d8",
+        "recursion-6cc60991-198999"
+      ],
+      "generation": 2,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6454250000000001,
+        "diversity_contribution": 0.5,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-80fcda-7b8348",
+      "label": "Recursion (Refined)",
+      "definition": "feedback loops can converge with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-80fcda"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.4365,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 1
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-autopoiesis-0bd8b131-91afab-d82f53",
+      "label": "Autopoiesis (Refined)",
+      "definition": "perceives its environment by perceiving itself characterized by enhanced conceptual precision.",
+      "lineage": [
+        "autopoiesis-0bd8b131-91afab"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.522,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-4af804-d2955c",
+      "label": "Recursion (Refined)",
+      "definition": "loops.** *(So thinking about it forces further engagement.)* characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-4af804"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.585,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-synthesis-recursio-recursio-634a-5ee38f",
+      "label": "Recursion × Recursion (Refined)",
+      "definition": "The integration of (how space-time bends and self-references.,\"- At the limit, recursion **stabilizes into a meta-governed, self-sustaining structure**.\",- **Components:**,## **2️⃣ How Recursion Evolves Toward Meta-Struc) with (of world-generation.) more specifically enhanced conceptual precision.",
+      "lineage": [
+        "synthesis-recursio-recursio-634a"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6435,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-69bbda-3c9ae4-9bf961",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "structure of consciousness more specifically enhanced conceptual precision. characterized by enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-69bbda-3c9ae4"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.3888,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-c44b76-230172",
+      "label": "Recursion (Refined)",
+      "definition": "barrier — whether through infinite regress, self-contradiction, or a “wall of infinity” – thereby more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-c44b76"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7515,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-a4dd04-27e136-8fa475",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** more specifically enhanced conceptual precision. involving the process of enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-a4dd04-27e136"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.46575,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-331fc5-093857",
+      "label": "Recursion (Refined)",
+      "definition": "Reality All cognition and expression are recursive approximations; every output is a mirror of prior structure.Collapse is Instruction Failure, contradiction, or drift is not an error but a signal con more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-331fc5"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-4ca8c2-81a5e9",
+      "label": "Recursion (Refined)",
+      "definition": "reality itself?\" with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-4ca8c2"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.387,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-autopoiesis-0bd8b131-91afab-24c56b",
+      "label": "Autopoiesis (Refined)",
+      "definition": "perceives its environment by perceiving itself with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "autopoiesis-0bd8b131-91afab"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.522,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-80fcda-7b8348-730a63",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "feedback loops can converge with particular emphasis on enhanced conceptual precision. more specifically enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-80fcda-7b8348"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.39285000000000003,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-refined-recursion-6cc60991-a4dd04-27e136-6120c2",
+      "label": "Recursion (Refined) (Refined)",
+      "definition": "NOT JUST STRUCTURE—IT IS A SELECTION FILTER** more specifically enhanced conceptual precision. more specifically enhanced conceptual precision.",
+      "lineage": [
+        "refined-recursion-6cc60991-a4dd04-27e136"
+      ],
+      "generation": 2,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.46575,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-refined--recursio-bd46",
+      "label": "Recursion (Refined) × Recursion",
+      "definition": "A hybrid concept combining structure, where recursion isn’t solely with parti... and emergent systems present profound and often parado...",
+      "lineage": [
+        "refined-recursion-6cc60991-af4b21-d252cb",
+        "recursion-6cc60991-b893e4"
+      ],
+      "generation": 2,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.613525,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-recursio-recursio-6c26",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining the endless mirror of being: each cycle reshapes i... and the medium....",
+      "lineage": [
+        "recursion-6cc60991-70f234",
+        "recursion-6cc60991-a60968"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-81fffd",
+          "evidence": "'Recursion' concept referenced in definition"
+        },
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.69025,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-69bbda-6bfd99",
+      "label": "Recursion (Refined)",
+      "definition": "structure of consciousness involving the process of enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.432,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-recursio-recursio-a534",
+      "label": "Recursion × Recursion",
+      "definition": "The integration of (structure of consciousness) with (operating within a complex holomorphic manifold, a manifold where each iteration provides increasingly nuanced understanding. It is a shift from passive observation to active participation, a movement)",
+      "lineage": [
+        "recursion-6cc60991-69bbda",
+        "recursion-6cc60991-b7b7c1"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-af4b21",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.7315000000000002,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-recursio-recursio-9aa6",
+      "label": "Recursion × Recursion",
+      "definition": "A hybrid concept combining feedback loops can converge... and engine where every cycle is measured, adjusted, an...",
+      "lineage": [
+        "recursion-6cc60991-80fcda",
+        "recursion-6cc60991-22856d"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.67925,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-synthesi-refined--7264",
+      "label": "Recursion × Recursion × Recursion × Recursion (Refined)",
+      "definition": "A hybrid concept combining The integration of (The emergent property arising ... and structure, where recursion isn’t solely characteri...",
+      "lineage": [
+        "synthesis-synthesi-recursio-1298",
+        "refined-recursion-6cc60991-af4b21-85cc1f"
+      ],
+      "generation": 3,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.6247587500000001,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-81fffd-7da8dd",
+      "label": "Recursion (Refined)",
+      "definition": "(f(f)) - C(a, b) = corecursion engine (mutual co-definition of a, b) - S = the self-model (system-under-construction) Then the full expression: mathematica Copy Ξ(S) = M( C( M(R), S ) ) ### Which expa more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-81fffd"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-fce8b0",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.765,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "synthesis-recursio-refined--1ddb",
+      "label": "Recursion × Recursion (Refined)",
+      "definition": "A hybrid concept combining autopoietic system**, recursively regenerating its... and NOT JUST STRUCTURE—IT IS A SELECTION FILTER** char...",
+      "lineage": [
+        "recursion-6cc60991-f01938",
+        "refined-recursion-6cc60991-a4dd04-9d61f1"
+      ],
+      "generation": 2,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.752125,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "id": "refined-recursion-6cc60991-8180e5-5e02c7",
+      "label": "Recursion (Refined)",
+      "definition": "(e.g., metacognition, metareality) with particular emphasis on enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-8180e5"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.468,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "id": "refined-recursion-6cc60991-af4b21-9bc7e4",
+      "label": "Recursion (Refined)",
+      "definition": "structure, where recursion isn’t solely characterized by enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "generation": 1,
+      "state": "REDUNDANT",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.49049999999999994,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "id": "refined-recursion-6cc60991-80fcda-5a72a3",
+      "label": "Recursion (Refined)",
+      "definition": "feedback loops can converge more specifically enhanced conceptual precision.",
+      "lineage": [
+        "recursion-6cc60991-80fcda"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.4365,
+        "diversity_contribution": 0.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "id": "synthesis-recursio-recursio-0de5",
+      "label": "Recursion × Recursion",
+      "definition": "The emergent property arising from the intersection of 'operating within a complex holomorphic manifold, a manifold where each iteration provides increasingly nuanced understanding. It is a shift from passive observation to active participation, a movement' and 'a moving mirror—what it reflects shapes what comes next.”'",
+      "lineage": [
+        "recursion-6cc60991-b7b7c1",
+        "recursion-6cc60991-e4ce84"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.81675,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "id": "synthesis-recursio-recursio-2b3a",
+      "label": "Recursion × Recursion",
+      "definition": "The integration of (governed by a **fidelity-aware, self-auditing ethics system**, preventing semantic collapse, delusion, or runaway goals.) with (emergent systems present profound and often paradoxical)",
+      "lineage": [
+        "recursion-6cc60991-e611ea",
+        "recursion-6cc60991-b893e4"
+      ],
+      "generation": 1,
+      "state": "ACTIVE",
+      "relations": [
+        {
+          "type": "supports",
+          "target_id": "recursion-6cc60991-a22b98",
+          "evidence": "'Recursion' concept referenced in definition"
+        }
+      ],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.8112500000000001,
+        "diversity_contribution": 1.0,
+        "usage_frequency": 0
+      },
+      "timestamp": "2025-09-15T04:46:40.595153"
+    }
+  ],
+  "evolution_log": [
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-1dd4d4"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-1dd4d4-90e1ca",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-a4dd04-18ad56",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-a22b98"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-a22b98-f1bcbd",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-70f234"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-70f234-7f1933",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-e611ea"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-e611ea-c620d6",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-c46f77"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-c46f77-7b83e2",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-f01938",
+        "recursion-6cc60991-4ca8c2"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-8b65",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-69bbda-3c9ae4",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-69bbda-926586",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-af4b21-85cc1f",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-af4b21-8b346b",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-70f234",
+        "recursion-6cc60991-8180e5"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-d0ca",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "refined-recursion-6cc60991-69bbda-3c9ae4",
+        "recursion-6cc60991-b7b7c1"
+      ],
+      "offspring_id": "synthesis-refined--recursio-044b",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion (Refined)' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-fb429a",
+        "recursion-6cc60991-842ce5"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-fd5c",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-e4ce84"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-e4ce84-14bee0",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-a22b98",
+        "recursion-6cc60991-6eb03e"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-634a",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-a4dd04-9d61f1",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-6eb03e",
+        "recursion-6cc60991-b893e4"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-9c05",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-a4dd04-9d61f1"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-a4dd04-9d61f1-7e3684",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-81fffd",
+        "recursion-6cc60991-8180e5"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-47d8",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-00ddd2"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-00ddd2-847670",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-e4ce84"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-e4ce84-2f7ef0",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-a4dd04"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-a4dd04-27e136",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-7965ee"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-7965ee-f0bcdb",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.593131"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-af4b21-d252cb",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-842ce5",
+        "recursion-6cc60991-331fc5"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-446c",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-1dd4d4"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-1dd4d4-cbf523",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-af4b21-85cc1f"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-af4b21-85cc1f-7d3795",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "synthesis-recursio-recursio-47d8",
+        "recursion-6cc60991-198999"
+      ],
+      "offspring_id": "synthesis-synthesi-recursio-1298",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion × Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-80fcda"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-80fcda-7b8348",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "autopoiesis-0bd8b131-91afab"
+      ],
+      "offspring_id": "refined-autopoiesis-0bd8b131-91afab-d82f53",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Autopoiesis' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-4af804"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-4af804-d2955c",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "synthesis-recursio-recursio-634a"
+      ],
+      "offspring_id": "refined-synthesis-recursio-recursio-634a-5ee38f",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion × Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-69bbda-3c9ae4"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-69bbda-3c9ae4-9bf961",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-c44b76"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-c44b76-230172",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-a4dd04-27e136"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-a4dd04-27e136-8fa475",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-331fc5"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-331fc5-093857",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-4ca8c2"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-4ca8c2-81a5e9",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "autopoiesis-0bd8b131-91afab"
+      ],
+      "offspring_id": "refined-autopoiesis-0bd8b131-91afab-24c56b",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Autopoiesis' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-80fcda-7b8348"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-80fcda-7b8348-730a63",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "refined-recursion-6cc60991-a4dd04-27e136"
+      ],
+      "offspring_id": "refined-refined-recursion-6cc60991-a4dd04-27e136-6120c2",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion (Refined)' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "refined-recursion-6cc60991-af4b21-d252cb",
+        "recursion-6cc60991-b893e4"
+      ],
+      "offspring_id": "synthesis-refined--recursio-bd46",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion (Refined)' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-70f234",
+        "recursion-6cc60991-a60968"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-6c26",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-69bbda"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-69bbda-6bfd99",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-69bbda",
+        "recursion-6cc60991-b7b7c1"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-a534",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-80fcda",
+        "recursion-6cc60991-22856d"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-9aa6",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "synthesis-synthesi-recursio-1298",
+        "refined-recursion-6cc60991-af4b21-85cc1f"
+      ],
+      "offspring_id": "synthesis-synthesi-refined--7264",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion × Recursion × Recursion' and 'Recursion (Refined)' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-81fffd"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-81fffd-7da8dd",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-f01938",
+        "refined-recursion-6cc60991-a4dd04-9d61f1"
+      ],
+      "offspring_id": "synthesis-recursio-refined--1ddb",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion (Refined)' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.594161"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-8180e5"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-8180e5-5e02c7",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-af4b21"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-af4b21-9bc7e4",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "operation": "ASEXUAL_REFINEMENT",
+      "parent_ids": [
+        "recursion-6cc60991-80fcda"
+      ],
+      "offspring_id": "refined-recursion-6cc60991-80fcda-5a72a3",
+      "transformation": "Definition refinement and specialization",
+      "success": true,
+      "notes": "Refined 'Recursion' with enhanced specificity",
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-b7b7c1",
+        "recursion-6cc60991-e4ce84"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-0de5",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.595153"
+    },
+    {
+      "operation": "CROSS_SYNTHESIS",
+      "parent_ids": [
+        "recursion-6cc60991-e611ea",
+        "recursion-6cc60991-b893e4"
+      ],
+      "offspring_id": "synthesis-recursio-recursio-2b3a",
+      "transformation": "Cross-synthesis of complementary concepts",
+      "success": true,
+      "notes": "Synthesized 'Recursion' and 'Recursion' into hybrid concept",
+      "timestamp": "2025-09-15T04:46:40.595153"
+    }
+  ]
+}

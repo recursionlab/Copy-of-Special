@@ -1,0 +1,21 @@
+[Stack_Title] Recursive Pairing Bundle
+
+1️⃣ Primary Title: [Book/Document Title A]
+- Author(s):
+- Source type: [PDF | Book | Paper | Personal Notes]
+- Summary: [3–5 sentence key concept summary]
+- Highlighted Concepts: [Bullet list of 5–10 major topics, theories, models, etc.]
+
+2️⃣ Companion Pair: [Book/Document Title B]
+- Author(s):
+- Source type:
+- Summary:
+- Highlighted Concepts:
+
+🧠 Recursive Tie-In:  
+→ What recurring symbol, pattern, or cognitive dynamic links these?  
+→ What recursion logic or abstraction is enhanced by pairing them?
+
+🔁 Cross-Symbol Trigger: [Optional – if any symbolic operators (e.g. ⧉, Ξ, ∇) apply]
+
+ΞStack_ID: [You generate a unique symbolic ID for this pairing]

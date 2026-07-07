@@ -1,0 +1,361 @@
+
+ Finding this tool useful? Bookmark us ctrl+ d  for easy and fast access!
+Paste YouTube URL here...
+RohitZPS creative
+Pick a Topic. Get the Best Videos Daily.
+We find the best new videos on that topic and send you a concise daily email summary.
+
+Subscribe Free
+Sponsored
+Transcript of Learn How to Make AI Models w/ ML: 6. LoRA & QLoRA
+Author : Tonbi's AI Garage · 
+Like
+ · 
+Subscribe
+ · 
+Share
+
+Transcript
+
+Pin video
+
+
+Copy
+
+Timestamp OFF
+ 
+Translate
+Welcome everyone to episode six of my machine learning engineering series.
+This video is going to be on LORA and QLORA.
+And this is key information to understand how modern fine-tuning is actually done.
+In the previous episode, we did a basic breakdown of what fine-tuning was. So, I believe you should understand it as a concept now. This episode is going to teach you two techniques that make it actually usable on consumer hardware.
+So, the problem you may have noticed is that we kind of hit a wall in terms of memory.
+Full fine-tuning is memory intensive for reasons beyond just storing the model itself. You have to store the weights, but also the gradients and optimizer state and the activations saved for the backward pass.
+It adds up to roughly 16 bytes per parameter.
+So, this is very different from just running the models itself. You can see here like 0.5 billion parameter model, which is the one that we did in the previous episode. This requires 10 GB of memory for fine-tuning, which is why we were able to use it. But if we bump that up to a 3 billion parameter model, it would require 48 GB.
+7 billion parameter model, 112 GB. You can see where this is going.
+My poor RTX 3060 only has 12 GB.
+And even a rented A100 has 40 or 80 depending. You can't full fine-tune at scale.
+It's just not feasible even for these 3 or 7 billion parameter models.
+Let alone like a a 70 billion parameter model needs over 1,000 GB of memory. Just not possible.
+So, that's [snorts] where this uh LORA comes in, LORA. I'll call it just for brevity's sake.
+So, this is LORA. You've probably heard me talk about this on previous episodes,
+RohitZPS creative
+What Did [Expert] Actually Say About That?
+Search across thousands of hours of talks, podcasts & interviews. Get cited answers instantly.
+
+Ask an Expert
+Sponsored
+but this was a key insight. Researchers looked at what happened during fine-tuning and noticed something surprising.
+If you take a full fine-tune and subtract the original weights from the new weights, you get a change matrix called a delta W.
+And when you analyze this matrix with SVD, singular value decomposition, you find that most of the information is concentrated concentrated in just a handful of directions. So, the matrix has low intrinsic rank.
+So, why does this make sense?
+Pre-training already taught the model language, grammar, facts, reasoning patterns.
+Fine-tuning isn't teaching it all new things. It's rotating a small number of specific directions. It's like adjusting the focus on your microscope. You don't rebuild the entire microscope. You just turn the knob slightly.
+And the key finding here was that if the change matrix is low rank, you don't need to store the full change matrix itself. You can store two tiny matrices whose products approximate it, and that's LORA.
+And this was from a 2021 paper that really changed fine-tuning.
+This visualization should make this kind of clear.
+So, in this example, this uh blue matrix is W, which is going to be the original weight matrix.
+And instead of training these, uh we you freeze W, this matrix, entirely and just add two new matrices.
+And this is just an example, but you take this B, which is trained.
+So, this one obviously has the uh vertical length of the original matrix, but it is times by R, and R just means rank, which we can choose. Let's just call it eight for now.
+So, look at the green rectangle as well.
+This is A.
+It's shorter, but wider. It has the width of the original matrix, but R, the rank, in terms of height.
+So, you when you multiply B times A, you get a matrix the same shape as W.
+But because it came from a product with two thin matrices, it can only represent rank eight changes.
+And that's the whole math trick that is used here.
+And here's why this is pretty incredible.
+Instead of training 17 million parameters per something like this, we're now training around 65,000 parameters.
+That's 256 times fewer.
+And the rest of the model is just completely frozen.
+No gradients, no optimizer state, no memory overhead.
+We dropped the memory cost by two orders of magnitude.
+So, what does the forward pass look like when you do this?
+Here's the formula itself. I don't want to go too deep into the math, but just to explain this.
+But this equation basically means you have the frozen base W plus the scaled low rank adapter that you use for the fine-tuning.
+And if you remember A and B from the previous slide, the clever part of this is how you initialize B and A.
+B starts at zero, but A starts randomly.
+Why is this? Because B times A equals zero times A, which is zero. So, on step one of the training, the adapter outputs literally nothing.
+The model behaves exactly like the pre-trained model that you were starting with.
+Then as the training progresses, B learns real values, and the adapter starts modifying behavior.
+This matters because we never want to inject random noise into a working pre-trained model. If both B and A were random, we'd break the model before we even started training.
+So, after training, you have two options. You can keep the adapter as a separate file, which makes it easy to swap out, or you can merge it into W.
+And you do it just by computing the new combined matrix once.
+Merged, the inference has the same speed as the base model. There's zero overhead.
+And the big result of this is the memory savings in training. Only this B and A have gradients and optimizer state. The frozen W doesn't need any of that, and this is where the real savings comes from.
+Optimizer state alone would be two times the model size.
+So, three main hyper parameters you need to know. Rank, or R, which we've talked about previously.
+This controls how much capacity the adapter has to represent changes.
+Typical values are from 8 to 32.
+Um it starts with 16.
+Higher ranks rarely help that much. Rank 64 rarely beats rank 16 for most tasks.
+Alpha, A, is the scaling factor.
+The convention is that alpha equals two times the rank.
+You don't really need to do this. You just can follow the convention.
+Target modules.
+And this is which layer the LORA adapters get attached to.
+And a transformer has linear layers in two places, the attention mechanism and the MLP.
+The original uh LORA paper only adapted Q and V, query and value, if you remember from our transformers episode.
+That's actually kind of outdated right now. The modern best practice is to target all the linear layers.
+It's a bigger memory cost, but noticeably better quality.
+One more thing, and this is a common mistake.
+LORA uses a higher learning rate than full fine-tuning.
+In episode five, I said fine-tuning wants a tiny learning rate, and that's true for full fine-tuning like that, but LORA is different. You want about 10 times higher than what we were talking about in the previous episode. The adapter itself starts at zero, so it has a lot of ground to cover. If you have a tiny learning rate, it'll barely train.
+Okay, LORA is great, but it still has a pretty big problem.
+This LORA approach alone isn't enough.
+It saves memory on gradients and the optimizer state, but the frozen base model still has to fit in your GPU memory.
+So, for instance, a 7 billion parameter model stored in the full 16-bit precision is 14 GB.
+My 3060 only has 12.
+So, even though the LORA only trains 8 MB of adapter weights, the 14 GB base won't fit, and LORA can't help with that.
+And this is where QLORA comes in, and this stands for quantized LORA. And the idea is pretty simple.
+You may be familiar with quantization of model weights, but you can quantize the frozen base model down to 4 bits while keeping the LORA adapters in full 16-bit precision.
+So, if you were to quantize this down to 4 bits, suddenly the 7 billion parameter model goes from 14 GB down to around 4 GB.
+So, you can see here that the difference in the fine-tuning memory, full fine-tune like we did in the previous episode for a 7 billion this quant 2.5 7 billion parameter model would be 120 GB of memory. Just impossible.
+Uh LORA, the base version, it would be 30 GB. This quantized LORA would be 16.
+So, suddenly if we get it down to 16, it's suddenly realistic that we could fit it into my GPU or at least enough of it to run this on my computer.
+And there's one more trick that makes QLORA work really well. Not all 4-bit formats are equal. Standard 4-bit integers store 16 evenly spaced values across their range.
+And that's fine for images or audio, but neural network weights aren't evenly distributed.
+They follow a bell curve. Most values are near zero. Only a few are large.
+If you space 16 values evenly, you're wasting most of them on values that barely exist. So, that's where this NF4 comes in, and that stands for normal float 4-bit. It picks 16 values to be quantiles of a bell curve.
+Each of the 16 buckets holds exactly 1/16 of the probability mass.
+So, you get more precision where the weights actually are, less where they aren't. It's mathematically optimal when your weights are bell-shaped, which they usually are.
+And the key result is that quantizing a model down to 4 bits loses almost no quality compared to the 16-bit version.
+And there's a few other tricks that QLORA adds. Uh double quantization here is quantizing the scaling factors themselves to save even more space, another half a bit per weight, and then paged optimizers automatically move data between GPU memory and CPU memory when there's a memory spike so you don't hit out of memory errors and crash, basically.
+And the other question here is how do gradients flow through a quantized model?
+The 4-bit weights get de-quantized back to the 16-bit on the fly for each matrix multiplication. The gradients flow through those de-quantized values back to the adapters. The base model itself is never touched.
+So there's one last benefit to this that doesn't get talked about enough.
+And that's swappable adapters.
+Remember how we talked about how the LoRA adapters are tiny? For a 7 billion parameter model trained at rank 16 on all linear layers, the adapter file is about 80 megabytes. That's it. The base model is 14 gigabytes. The adapter itself is only 80 megabytes. This means one base model can host hundreds of different specialized adapters.
+You keep one Qwen 7 billion parameter model in GPU memory and you can swap adapters in and out depending on the task.
+So, you have you want to write like Sherlock Holmes? You could load the Holmes adapter.
+Want to write code in your company's style?
+You could swap to a code adapter. Want JSON output? Swap to a JSON adapter.
+Each swap itself is basically free.
+It's just loading a different pair of matrices.
+And this is how production systems actually work. Companies like BLM and Hugging Face to host thousands of adapters serving them on demand while keeping just one base model in memory per GPU.
+Your device can ship with one base model and pull down specialized adapters as needed.
+Apple does this on iPhones.
+Same concept. You can even stack adapters, load two at once and combine them, or merge an adapter permanently into the base model for production inference with zero overhead. So you get one model with many different skills.
+All because the LoRA adapters are 200 times smaller than the model that they modify.
+So there have been some recent improvements. LoRA itself is from 2021.
+Since then researchers have kept making a lot of improvement improvements like you might imagine.
+So three that you may have seen around if you're learning about this this DORA, d o r a, from 2024.
+This splits each weight update into two pieces. One piece controls the magnitude of the change, the other controls the direction.
+LoRA only handles direction.
+DORA trains the magnitude separately.
+So, this often matches LoRA quality at half the rank.
+Uh it's about 30% slower per step, though.
+There's also this LoRA Plus, also from 2024. And this is a simple trick. You just use a different learning rate for A and B.
+Specifically, make B's learning rate about 16 times higher than A's. Roughly two times faster training basically for free.
+And then there was this RS LoRA from 2023.
+And this replaces the alpha over R scaling with alpha over square root of R.
+It only matters if you're using high ranks like 64 or 128. Uh but it prevents gradient problems at scale. So you don't need any of these to get started.
+They're just some recent improvements that are good to know. The plain LoRA, though, is great by itself. But if you're scaling up or looking to squeeze out the last few percent of quality, these are some of the different options you can try.
+So here's a little cheat sheet that we made up.
+Small model, best quality, and you got the GPU to run it, you can do a full fine-tune.
+You have a medium model on a consumer GPU, try LoRA. If you have a bigger model over 7 billion with a consumer GPU, try QLoRA.
+If you want many specialists, you can use swappable LoRA adapters.
+If you're deploying to production, you can use LoRA and then merge it with the frozen model.
+And obviously, if you have a bunch of H100s, you can do a fine full fine-tune.
+But we don't have that here, unfortunately.
+So there's a couple little um pitfalls you're going to want to watch out for if you're doing fine-tuning like this. So one is using a learning rate that's too low.
+People carry over the very low full fine-tuning rate over to using LoRA.
+But you actually want to use a higher one.
+The other one is only targeting Q and V, like I said.
+This was the original paper's default, so some people might try to apply this, but modern practice is to target every linear layer.
+Three, forgetting gradient checkpointing with QLoRA.
+The 4-bit base saves tons of memory, but activations during backprop will eat it all up if you don't enable this gradient checkpointing.
+So in the actual work section after this, we're going to be trying QLoRA fine-tune of a Qwen 7 billion parameter model on the same Sherlock Holmes data that we did in episode 5. Last episode, if you remember, we used a 0.5 billion parameter model.
+So what we're going to be attempting is a 7 billion parameter model fine-tuned on my 12 gigabyte GPU. And this was completely not feasible even in 2021.
+So the last slide and then we'll get into that. Six takeaways that you should remember from this.
+Full fine-tuning doesn't scale. Weights plus gradients plus optimizer state plus activations is roughly 16 bytes per parameter, which for a 7 billion parameter model needs over 100 gigabytes of memory.
+Two, LoRA freezes the base and then trains two small matrices, which we were calling B and A.
+Weights change during the fine-tuning are low rank, so this approximation works.
+B starts at zero, so the adapter is no op from day one. Training only moves things away from this pre-trained starting point. No random noise is injected.
+Four, QLoRA quantizes the frozen base to 4 bits. Adapters still stay in 16 bit, so you're able to fit larger models into less memory.
+Adapters LoRA adapters are tiny and swappable. On one base model, you can have many specializations.
+And finally, LoRA uses a bigger learning rate than full fine-tuning.
+So this was the knowledge section on LoRA and more recent advanced fine-tuning methods. So the nice thing about this is that we can actually do it. So let's move over to the work section and start using LoRA to fine-tune a 7 billion parameter model.
+Okay, so let's get started on the work portion of our QLoRA episode and as always, we're going to be working our way through a couple different scripts here that'll show us different aspects of this in real terms working with real models and actually using QLoRA to fine-tune a model.
+Today we have three scripts and the first one is just kind of a setup.
+This is just going to kind of show you how you attach the adapters and then inspecting what we built. So you can see here this is the the code.
+You see you have to import a bunch of new new libraries.
+Something to notice this bits and bytes config is important because that's going to be needed for the 4-bit quantization when we load the model.
+And this PEFT is a important one to know about. This is Hugging Face's library for LoRA and related techniques. So we're going to need a couple couple different libraries from there.
+So moving down, first we need to define the 4-bit quantization configuration.
+And this is the QLoRA recipe from the slides basically translated into code itself.
+You can see NF4 we're going to be using from the slides if you remember.
+You can see this will actually store the weights in 4 bits.
+This third line here is for the double quantization technique that quantizes the scaling factors themselves.
+And then we're going to load the tokenizer.
+Should remember. Load the model in the 4-bit format.
+You can see here the quantization configuration is BNB config, which is what we defined up here.
+And then check the memory. This is going to be a little bit memory heavy on my system, so I'm going to try to shut down other applications and software that uses a lot of memory for this.
+Then we're going to prepare the model for K-bit training.
+Configure the LoRA adapter.
+And these show all the parameters hyperparameters that I showed in the slide.
+R equals 16, remember rank. LoRA alpha uh is going to be 32.
+The dropout 0. 05, slight dropout for regularization.
+No bias.
+And you can see we're going to be targeting all of the modules, all the layers.
+And this is the modern best practice, not the original approach which just targeted the Q and K.
+So we're going to print out some of this so you can see it for yourself, but then you attach the LoRA adapters.
+And then you have the parameter count.
+And this is going to be kind of the big reveal.
+For Qwen 2.5 7 billion with a rank 16 on all linear layers, we should see something like maybe only 40 million actually trainable compared to the 7 plus billion of total parameters, but we'll see exactly what numbers we get.
+Then we're going to show the adapter structure.
+Print the first few LoRA modules. This is just kind of exploring the structure and then check the final VRAM.
+So we're not actually training anything.
+This is just kind of exploring the adapters and getting everything ready for the next one. So let's run this.
+Okay, so you can see I ran the script here and the first one here is going to download 14 gigabytes of that Qwen 2.5 7 parameter model.
+So it's going to take a little bit.
+You can see.
+There you go. Didn't take that long, actually.
+You see it loaded the model in 4 bit and attached to the LoRA adapters.
+This is my my GPU, the total VRAM I have, and for quantization config, loaded the tokenizer.
+Now it's loading the weights in 4-bit.
+Uh so this is Oh, there we go.
+So the VRAM usage after loading the 4-bit base was 5.18 GB.
+So in a full-size BF16, the full-size version, this would be around 14 GB.
+So we're using only 5. 18, so almost four times less, three times less, I guess.
+So this is our LoRA config, rank, like I said, 16, alpha 32, targeting all linear layers. You can see all the parameter breakdown.
+The total parameters are 4.3 million, is that?
+4.3 billion.
+And then the trainable are only 40 million. The rest is frozen. So that's the base model. So the actual trainable percent is only going to be 0.919% less than 1%.
+So this was its estimate. We're actually training a little bit more, but everything else is frozen. It's still a lot less than training the whole thing.
+And this is where the adapters live.
+You can see here, LoRA dropout, LoRA A, LoRA B.
+The LoRA adapters are attached to every linear layer in every transformer block.
+These are all the, remember, attention from the transformers episode.
+These adapters are attached to each of the linear layers in every transformer block. And the base weights they're attached to are still frozen. So they're still in the 4-bit.
+The final VRAM usage was 7.36 GB, and that was the base 4-bit model plus the LoRA adapters in the full-size BF16.
+So you can see how the base model itself was 5.18 on my on my PC.
+I've got some other applications that are taking up some memory.
+But after you added the adapters, it only bumped it up to 7.36.
+And that's still plenty of room for my GTX 3060, which has 12 gigs of RAM.
+So step two is going to be training, and this is the real training run, the real fine-tuning. And we're going to be using the same Sherlock Holmes data from episode five, but now we're training with a 14 times bigger model on the same GPU, thanks to this LoRA.
+Thanks to QLoRA, actually.
+Um this approach.
+See configuration on the top.
+This is the training configuration.
+You see the learning rate, especially 10 times higher than you saw with the full SFT, and LoRA needs this higher learning rate.
+So it's going to be copying the same Holmes data that we used previously, set up, loading the model in 4-bit, attaching the LoRA adapters, like we did in the previous step.
+And this is essential for QLoRA and gradient checkpointing.
+Uh then we have the data set we're loading.
+The Sherlock Holmes prose.
+Then we get into the training. And by now this should be it should look fairly familiar.
+Uh something to keep in mind here, something to look at.
+We come down here to here is the actual training section.
+You see this section here, scale for accumulation. So the key difference uh from episode five and the full fine-tune is gradient accumulation.
+You can notice here we divide the loss by grad accum accumulation before we do a backward pass, and this keeps the effective gradient of the same magnitude as if we'd done a real batch of eight.
+And we called dot backward over here every iteration, which adds to the existing gradients, which is default PyTorch behavior.
+And we only called the optimizer step and the optimizer zero grad every eight iterations. So it takes eight forward backward passes to count as one real training step.
+So it's going to print um every 10 steps, which is every eight raw batches. It's going to show the step number, the epic, the loss, and the VRAM usage, and then the elapsed time, and then we're going to see if VRAM stabilizes. It should after the first step, which is the most memory-heavy.
+But we're going to see that for ourselves. Then we're going to save just the adapter, very small file, but the this LoRA adapter.
+And this is kind of the magic of LoRA.
+When you call save pre-trained on a PFT model, it only saves the adapter weights, the A and B matrices that I showed you before on the slides, not the whole 14 GB base model.
+The script then prints the size, that so you'll be able to see how big it is. It's going to be a lot small smaller than that base model.
+Then a quick test at the end here.
+Um and this is going to generate one response to a Holmes-style prompt, so you can see right away if the training worked.
+So we'll see if it actually works. I don't know if it will.
+But I'll show it.
+Either success or failure, I will show it. So the expected runtime is going to be around 30 to 45 minutes on my 3060.
+So this is longer than in the previous episode because the model we're using is 14 times bigger, even though we're only training like less than half a percent of it. So the forward pass through a 7 billion parameter model just takes longer than that 0.5 billion parameter model.
+So I'm going to have to close some of my other apps here before I run this. So we're here in the terminal, and we're going to run this script.
+You can see it's loading loading the weights in 4-bit.
+And hopefully this doesn't crash my computer.
+It will probably get very loud.
+Okay, you can see it's starting now.
+And we will see how long it takes. I'll I'll check in in a little bit for this.
+Okay, you can see the first step, or first 10 steps, went through. We started with uh 3.48 as the validation loss, and that was with no training at all.
+You see through the 10 steps, loss is already down to 1.98, which is very common with LoRA fine-tuning like this. Now we just got our next one, down to 1.78.
+So that's good.
+VRAM is staying stable here, slightly under 8 GB, which should be good for my 12 GB GPU.
+So everything is running well so far.
+And I'll just let it keep running.
+Okay, you can see epic one has finished here.
+Average training loss of 1.98, validation loss 1. 89. So these are the numbers got to really keep keep in mind.
+The training loss throughout it, it went from initial number, went fairly far down, then has kind of plateaued here around 1.8, but let's see what happens in the second epic.
+Okay, that's a good sign. In epic two, you could see we had a nice drop here in the training loss uh from 1.83 to 1.64.
+Okay, you can see in epic two, uh we had some good progress down to 1.51 at step 70. I'm not sure what happened here, 1. 81, it just suddenly jumped up.
+But it should almost be ready to be finished. We're only doing two epics here.
+Okay, it went back down to 1.63.
+There's going to be some some noise from batch to batch.
+But it's clearly overall trending down.
+You see the final results here, epic two finished.
+The average average training loss was 1.62. Validation loss kind of stayed similar.
+So we could have some overfitting, but let's see.
+We saved the uh Holmes LoRA adapter.
+It was 1 165 MB.
+And the base Qwen model is 14 GB, so you can see this adapter is 87 times smaller, much smaller.
+Then we're going to do a quick generation test, so it's going to The prompt's going to be to continue this passage in the voice of Sherlock Holmes.
+The fog lay thick upon London that evening.
+So our fine-tuned uh model responded with this.
+It seemed to have been driven down from the north with a cold wind, and to have settled heavily upon the whole city.
+The streets were dark, and the windows of the houses were few, so that one could see only dimly through them.
+A few lamps here and there twinkled out feebly, while the occasional cry of an owl, or the harsh note of a hoot owl, sounded from some neighboring park or field.
+It was a cold, dismal, cheerless night, and a very fitting scene for the coming tragedy.
+Very uh foreboding uh passage there, but uh it's pretty much grammatically correct, right?
+It's very much very atmospheric, very much in that style of Sherlock Holmes mystery novels.
+Still a little quirky stuff here and there, repeating owl sounds and stuff like that. I mean, it is a model.
+A 7 billion parameter model, not, you know, a trillion or several billion.
+You know, not hundreds of billions or a trillion.
+Uh but the last script is going to basically compare the three different models, the episode five's, the previous episode's, fully fine-tuned model on the 0.5 billion parameter Qwen.
+Then we're going to give the base Qwen 2.5 7B instruct's response to this prompt. And then we're going to use show what um the big model produced with our fine-tuning here, this LoRA adapter.
+Okay, so this is step three, the compare script, and these are going to be the test prompts. We have a couple of them.
+Continue this, the fog lay thick upon London that evening.
+A particular visitor called upon us this morning.
+Examining the muddy foot footprints upon the carpet.
+Um and this is going to be our generation helper.
+And storing all the results, it's going to print out uh the responses for this.
+So, this script is going to load three separate models, which would normally be impossible on my GPU. So, the trick is to load them sequentially and freeing up memory between the loads. So, that's what this is uh really trying to do.
+You can see we have the the first one here is the 0.5 full SFT from the previous episode.
+Then we have the base model Qwen 2.5 7B instruct.
+And then our the Qwen same Qwen 7B model with our Holmes LoRA adapter. So, we're going to be comparing all of these uh in this last script. So, let's do that.
+Okay, it's loading the model from episode five, our fully fine-tuned 0.5 billion parameter model.
+Now it's loading the base model which is much larger than the the smaller one.
+And finally, attaching the Holmes LoRA adapter to the 7B base.
+Okay, so we got the responses from each of them. So, this is one of the uh outputs from the three different models.
+So, let's compare these.
+The prompt is continue this passage in the voice of Sherlock Holmes.
+And the line is a peculiar visitor called upon us this morning.
+So, you can see here this is the base model 7 billion parameter.
+Uh it's a good pretty decent model. So, you can see that the prose itself is very accurate. No mistakes or anything. Um it continued in the same quote. A peculiar visitor called upon us this morning, remarked Dr. Watson with an air of quiet astonishment.
+As if he himself were astute as his friend.
+I must say it was an unusual encounter indeed. He presented himself with a certain what is the word one uses for demeanor that bespoke both mystery and intrigue.
+It's very well written, but it also misses the the prompt, which is to continue the passage in the voice of Sherlock Holmes, not just write a Sherlock Holmes novel.
+It's kind of a meta thing. It it makes Watson say this first line for some reason. It doesn't properly continue the voice. You see it actually refers to Sherlock Holmes who had been in deep in thought raised his head at Watson's words. It's supposed to be a first-person take on it. You're continuing the passage in the voice of Sherlock Holmes.
+But it's a bit different from what we asked for. So, you look at the 0.5 billion fully fine-tuned.
+So, once again, the quote is a peculiar visitor called upon us this morning.
+He was an old man, perhaps 55 years of age with a white beard and long black hair with a face that seemed to be stained with blood. His eyes were fixed on the ground like a man who was lost in search of something. But he never gave way to any thoughts which troubled him.
+That's a pretty good piece of prose. It has the right kind of angle. It is observational about the the visitor itself.
+But there was some some kind of inconsistencies. The man had white white beard and long black hair, which I guess is possible.
+And it's not bad certainly, but let's see what we got for the 7 billion with our QLoRA adapter.
+So, once again, the quote uh the passage is a peculiar visitor called upon us this morning.
+He was an old man, well-clad but worn and shabbily dressed with long white hair and a bushy white beard.
+So, here he connected the white hair and white beard, which the fully fine-tuned didn't do it.
+His face was as was gaunt and drawn and his eyes were sunk deep in their sockets. He was evidently a man who had suffered much from anxiety or from pain.
+And you could really feel the the voice of Sherlock Holmes. I don't know if any of you read his novels, but these kind of phrasings gaunt and drawn here are very typical of that writing style.
+And this is not trying to mimic exactly what was written. It's a original version just in that voice.
+So, this next prompt is examine the muddy footprints upon the carpet. And once again, the base model does very good to write coherent prose here.
+Um upon the carpet, I bent down to scrutinize them with utmost care. The impressions were distinct and yet they held a certain enigma that intrigued me deeply.
+So, it's very good prose, but it has a little bit of a modern feel to it if you really look at it. Um it still does read more like a a novel than actually in the voice.
+The fully fine-tuned kind of fell apart here.
+Yeah, I mean it's it just wasn't good at all. The left one was left about 4:00 in the afternoon.
+I yeah, it kind of broke down. So, our QLoRA adapter was to the the prose was the passage was examining the muddy muddy footprints upon the carpet, I saw that there was only one pair.
+But I could not say whether it was I could not say whether it were the same as had left the tracks upon the grass.
+It was evidence from the marks on the window that the man had fled in haste.
+So, we set off in pursuit of him.
+It was a wild chase and Holmes ran like a greyhound. We passed through the woods over the fields, but there was no sign of him and at last he gave up the pursuit. And it feels like it has more of that atmosphere in that voice.
+So, you can see kind of the journey.
+Base the base model is very smart. The the text is very coherent and very well written, but it doesn't sound like Holmes his voice exactly. Sounds like it's trying to just mimic a modern mystery novel.
+Um the the full fine-tuning on the 0.5 billion model, it picks up some Holmes flavor, but it has rough issues. The model itself is just too small.
+And then the 7 billion with the QLoRA adapter, you got a Holmes voice and the coherence of the big model.
+It's not perfect. There's some little quirky stuff in it, but I think as a contrast that the format and voice is very different. The base model was just writing trying to write more of a novel, whereas our adapter actually was trying to speak in the voice of Holmes.
+So, same training data.
+It's just that the QLoRA unlocked a model that's 14 times bigger on the same hardware.
+And the nice thing is if I wanted to, I could train 20 more adapters, one for Shakespeare, one for Hemingway, one for One Piece even if I had enough data, one for technical writing and swap them in and use it on the same GPU.
+So, this is a pretty good outcome, but you can actually refine this even more and we're going to be talking about that in the next video when we talk about DPO, which stands for direct preference optimization. And what we're going to be able to do is we're going to show it pairs the response this response is better than that one and let it learn the difference. So, this is called DPO and it's kind of the final step in modern uh fine-tuning training pipelines. And every instruct model you've ever used has been through this kind of process.
+So, we're going to build it in the next episode.
+If you like this video, please subscribe. I'll have a total of I believe 12 of these in this series as well as other educational core series.

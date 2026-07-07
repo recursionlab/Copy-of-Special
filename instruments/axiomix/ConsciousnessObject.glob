@@ -1,0 +1,93 @@
+DIGEST 0b59d9d0ae0b845004d5011da86ccdd0
+FConsciousnessObject
+R133:143 ProofSystem <> <> lib
+R161:174 MetaAxiomMonad <> <> lib
+R192:204 SelfModKernel <> <> lib
+R222:234 LaterModality <> <> lib
+R252:269 BootstrapDialgebra <> <> lib
+def 486:504 <> ConsciousnessObject
+R508:518 ProofSystem <> ProofSystem rec
+R528:533 ProofSystem <> axioms proj
+R528:533 ProofSystem <> axioms proj
+R528:533 ProofSystem <> axioms proj
+R596:600 ProofSystem <> rules proj
+R596:600 ProofSystem <> rules proj
+R690:698 ProofSystem <> derivable proj
+R690:698 ProofSystem <> derivable proj
+R788:797 ProofSystem <> refl_deriv proj
+R788:797 ProofSystem <> refl_deriv proj
+R872:882 ProofSystem <> trans_deriv proj
+R872:882 ProofSystem <> trans_deriv proj
+R1002:1011 ProofSystem <> rule_deriv proj
+R1002:1011 ProofSystem <> rule_deriv proj
+R538:539 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R541:543 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R580:582 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R587:588 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R544:549 ProofSystem <> axioms proj
+R552:561 LaterModality <> StableCore def
+R563:578 ProofSystem <> EmptyProofSystem def
+binder 540:540 <> p:1
+R583:586 Coq.Init.Logic <> True ind
+binder 609:609 <> p:2
+binder 611:611 <> q:3
+R616:624 ProofSystem <> derivable proj
+R627:636 LaterModality <> StableCore def
+R638:653 ProofSystem <> EmptyProofSystem def
+R657:665 Coq.Init.Specif <> proj1_sig def
+R667:667 ConsciousnessObject <> p:2 var
+R671:679 Coq.Init.Specif <> proj1_sig def
+R681:681 ConsciousnessObject <> q:3 var
+binder 707:707 <> p:4
+binder 709:709 <> q:5
+R714:722 ProofSystem <> derivable proj
+R725:734 LaterModality <> StableCore def
+R736:751 ProofSystem <> EmptyProofSystem def
+R755:763 Coq.Init.Specif <> proj1_sig def
+R765:765 ConsciousnessObject <> p:4 var
+R769:777 Coq.Init.Specif <> proj1_sig def
+R779:779 ConsciousnessObject <> q:5 var
+binder 806:806 <> p:6
+R811:820 ProofSystem <> refl_deriv proj
+R823:832 LaterModality <> StableCore def
+R834:849 ProofSystem <> EmptyProofSystem def
+R853:861 Coq.Init.Specif <> proj1_sig def
+R863:863 ConsciousnessObject <> p:6 var
+binder 891:891 <> p:7
+binder 893:893 <> q:8
+binder 895:895 <> r:9
+binder 897:898 <> H1:10
+binder 900:901 <> H2:11
+R906:916 ProofSystem <> trans_deriv proj
+R919:928 LaterModality <> StableCore def
+R930:945 ProofSystem <> EmptyProofSystem def
+R949:957 Coq.Init.Specif <> proj1_sig def
+R959:959 ConsciousnessObject <> p:7 var
+R963:971 Coq.Init.Specif <> proj1_sig def
+R973:973 ConsciousnessObject <> q:8 var
+R977:985 Coq.Init.Specif <> proj1_sig def
+R987:987 ConsciousnessObject <> r:9 var
+R990:991 ConsciousnessObject <> H1:10 var
+R993:994 ConsciousnessObject <> H2:11 var
+binder 1020:1020 <> p:12
+binder 1022:1022 <> q:13
+binder 1024:1024 <> H:14
+R1029:1038 ProofSystem <> rule_deriv proj
+R1041:1050 LaterModality <> StableCore def
+R1052:1067 ProofSystem <> EmptyProofSystem def
+R1071:1079 Coq.Init.Specif <> proj1_sig def
+R1081:1081 ConsciousnessObject <> p:12 var
+R1085:1093 Coq.Init.Specif <> proj1_sig def
+R1095:1095 ConsciousnessObject <> q:13 var
+R1098:1098 ConsciousnessObject <> H:14 var
+ax 1386:1407 <> consciousness_terminal
+R1425:1442 BootstrapDialgebra <> BootstrapDialgebra rec
+binder 1421:1421 <> D:15
+R1448:1455 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R1504:1506 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R1460:1471 ProofSystem <> ProofFunctor rec
+R1473:1491 ConsciousnessObject <> ConsciousnessObject def
+R1494:1500 BootstrapDialgebra <> carrier proj
+R1502:1502 ConsciousnessObject <> D:15 var
+binder 1456:1456 <> F:16
+R1507:1510 Coq.Init.Logic <> True ind

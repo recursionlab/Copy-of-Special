@@ -1,0 +1,14 @@
+{
+  "dedupe_algorithm": "sha256",
+  "dedupe_fields": [
+    "definition",
+    "mathematical_formulation",
+    "notes"
+  ],
+  "clustering_mode": "jaccard",
+  "threshold": 0.45,
+  "units_input": "D:\\149\\research-mining\\archive\\conversation_export_units.json",
+  "units_count": 6830,
+  "deduped_count": 3079,
+  "clusters_count": 2617
+}

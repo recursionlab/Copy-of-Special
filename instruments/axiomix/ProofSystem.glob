@@ -1,0 +1,230 @@
+DIGEST a2349f9fce435910b3e30a5ce2600603
+FProofSystem
+R113:116 Coq.Lists.List <> <> lib
+R126:138 Coq.Lists.List ListNotations <> mod
+rec 351:361 <> ProofSystem
+proj 370:375 <> axioms
+proj 387:391 <> rules
+proj 423:431 <> derivable
+proj 463:472 <> refl_deriv
+proj 503:513 <> trans_deriv
+proj 582:591 <> rule_deriv
+R401:404 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R395:400 ProofSystem <> axioms:2 meth
+R411:414 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R405:410 ProofSystem <> axioms:2 meth
+R441:444 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R435:440 ProofSystem <> axioms:2 meth
+R451:454 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R445:450 ProofSystem <> axioms:2 meth
+binder 483:483 <> p:5
+R486:494 ProofSystem <> derivable:4 meth
+R498:498 ProofSystem <> p:5 var
+R496:496 ProofSystem <> p:5 var
+binder 524:524 <> p:7
+binder 526:526 <> q:8
+binder 528:528 <> r:9
+R544:547 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R531:539 ProofSystem <> derivable:4 meth
+R543:543 ProofSystem <> q:8 var
+R541:541 ProofSystem <> p:7 var
+R561:564 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R548:556 ProofSystem <> derivable:4 meth
+R560:560 ProofSystem <> r:9 var
+R558:558 ProofSystem <> q:8 var
+R565:573 ProofSystem <> derivable:4 meth
+R577:577 ProofSystem <> r:9 var
+R575:575 ProofSystem <> p:7 var
+binder 602:602 <> p:11
+binder 604:604 <> q:12
+R616:619 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R607:611 ProofSystem <> rules:3 meth
+R615:615 ProofSystem <> q:12 var
+R613:613 ProofSystem <> p:11 var
+R620:628 ProofSystem <> derivable:4 meth
+R632:632 ProofSystem <> q:12 var
+R630:630 ProofSystem <> p:11 var
+rec 847:858 <> ProofFunctor
+proj 887:890 <> fobj
+proj 918:922 <> frule
+proj 982:987 <> fderiv
+R867:877 ProofSystem <> ProofSystem rec
+binder 861:861 <> A:14
+binder 863:863 <> B:15
+R902:905 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R894:899 ProofSystem <> axioms proj
+R901:901 ProofSystem <> A:14 var
+R906:911 ProofSystem <> axioms proj
+R913:913 ProofSystem <> B:15 var
+binder 933:933 <> p:18
+binder 935:935 <> q:19
+R949:952 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R938:942 ProofSystem <> rules proj
+R944:944 ProofSystem <> A:14 var
+R946:946 ProofSystem <> p:18 var
+R948:948 ProofSystem <> q:19 var
+R953:957 ProofSystem <> rules proj
+R959:959 ProofSystem <> B:15 var
+R962:965 ProofSystem <> fobj:17 meth
+R967:967 ProofSystem <> p:18 var
+R971:974 ProofSystem <> fobj:17 meth
+R976:976 ProofSystem <> q:19 var
+binder 998:998 <> p:21
+binder 1000:1000 <> q:22
+R1018:1021 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1003:1011 ProofSystem <> derivable proj
+R1013:1013 ProofSystem <> A:14 var
+R1015:1015 ProofSystem <> p:21 var
+R1017:1017 ProofSystem <> q:22 var
+R1022:1030 ProofSystem <> derivable proj
+R1032:1032 ProofSystem <> B:15 var
+R1035:1038 ProofSystem <> fobj:17 meth
+R1040:1040 ProofSystem <> p:21 var
+R1044:1047 ProofSystem <> fobj:17 meth
+R1049:1049 ProofSystem <> q:22 var
+def 1090:1099 <> id_functor
+R1106:1116 ProofSystem <> ProofSystem rec
+binder 1102:1102 <> A:24
+R1121:1132 ProofSystem <> ProofFunctor rec
+R1134:1134 ProofSystem <> A:24 var
+R1136:1136 ProofSystem <> A:24 var
+R1158:1161 ProofSystem <> fobj proj
+R1158:1161 ProofSystem <> fobj proj
+R1158:1161 ProofSystem <> fobj proj
+binder 1170:1170 <> p:25
+R1175:1175 ProofSystem <> p:25 var
+R1158:1161 ProofSystem <> fobj proj
+R1158:1161 ProofSystem <> fobj proj
+R1158:1161 ProofSystem <> fobj proj
+binder 1170:1170 <> p:26
+R1175:1175 ProofSystem <> p:26 var
+def 1282:1293 <> functor_comp
+R1304:1314 ProofSystem <> ProofSystem rec
+binder 1296:1296 <> A:27
+binder 1298:1298 <> B:28
+binder 1300:1300 <> C:29
+R1324:1335 ProofSystem <> ProofFunctor rec
+R1337:1337 ProofSystem <> A:27 var
+R1339:1339 ProofSystem <> B:28 var
+binder 1320:1320 <> F:30
+R1347:1358 ProofSystem <> ProofFunctor rec
+R1360:1360 ProofSystem <> B:28 var
+R1362:1362 ProofSystem <> C:29 var
+binder 1343:1343 <> G:31
+R1367:1378 ProofSystem <> ProofFunctor rec
+R1380:1380 ProofSystem <> A:27 var
+R1382:1382 ProofSystem <> C:29 var
+R1404:1407 ProofSystem <> fobj proj
+R1404:1407 ProofSystem <> fobj proj
+R1404:1407 ProofSystem <> fobj proj
+binder 1416:1416 <> p:32
+R1422:1425 ProofSystem <> fobj proj
+R1435:1438 ProofSystem <> fobj proj
+R1446:1446 ProofSystem <> p:32 var
+R1404:1407 ProofSystem <> fobj proj
+R1404:1407 ProofSystem <> fobj proj
+R1404:1407 ProofSystem <> fobj proj
+binder 1416:1416 <> p:33
+R1422:1425 ProofSystem <> fobj proj
+R1435:1438 ProofSystem <> fobj proj
+R1446:1446 ProofSystem <> p:33 var
+R1479:1483 ProofSystem <> frule proj
+R1493:1496 ProofSystem <> fobj proj
+R1509:1512 ProofSystem <> fobj proj
+R1525:1529 ProofSystem <> frule proj
+R1479:1483 ProofSystem <> frule proj
+R1493:1496 ProofSystem <> fobj proj
+R1509:1512 ProofSystem <> fobj proj
+R1525:1529 ProofSystem <> frule proj
+R1572:1577 ProofSystem <> fderiv proj
+R1587:1590 ProofSystem <> fobj proj
+R1603:1606 ProofSystem <> fobj proj
+R1619:1624 ProofSystem <> fderiv proj
+R1572:1577 ProofSystem <> fderiv proj
+R1587:1590 ProofSystem <> fobj proj
+R1603:1606 ProofSystem <> fobj proj
+R1619:1624 ProofSystem <> fderiv proj
+rec 1927:1940 <> ProofTransform
+proj 1994:2002 <> component
+R1949:1959 ProofSystem <> ProofSystem rec
+binder 1943:1943 <> A:34
+binder 1945:1945 <> B:35
+R1969:1980 ProofSystem <> ProofFunctor rec
+R1982:1982 ProofSystem <> A:34 var
+R1984:1984 ProofSystem <> B:35 var
+binder 1963:1963 <> F:36
+binder 1965:1965 <> G:37
+binder 2013:2013 <> p:39
+R2016:2024 ProofSystem <> derivable proj
+R2026:2026 ProofSystem <> B:35 var
+R2030:2033 ProofSystem <> fobj proj
+R2035:2035 ProofSystem <> A:34 var
+R2037:2037 ProofSystem <> B:35 var
+R2039:2039 ProofSystem <> F:36 var
+R2041:2041 ProofSystem <> p:39 var
+R2046:2049 ProofSystem <> fobj proj
+R2051:2051 ProofSystem <> A:34 var
+R2053:2053 ProofSystem <> B:35 var
+R2055:2055 ProofSystem <> G:37 var
+R2057:2057 ProofSystem <> p:39 var
+ind 2344:2354 <> EmptyAxioms
+scheme 2344:2354 <> EmptyAxioms_rect
+scheme 2344:2354 <> EmptyAxioms_ind
+scheme 2344:2354 <> EmptyAxioms_rec
+scheme 2344:2354 <> EmptyAxioms_sind
+def 2373:2388 <> EmptyProofSystem
+R2392:2402 ProofSystem <> ProofSystem rec
+R2428:2433 ProofSystem <> axioms proj
+R2428:2433 ProofSystem <> axioms proj
+R2428:2433 ProofSystem <> axioms proj
+R2455:2459 ProofSystem <> rules proj
+R2455:2459 ProofSystem <> rules proj
+R2486:2494 ProofSystem <> derivable proj
+R2486:2494 ProofSystem <> derivable proj
+R2521:2530 ProofSystem <> refl_deriv proj
+R2521:2530 ProofSystem <> refl_deriv proj
+R2566:2576 ProofSystem <> trans_deriv proj
+R2566:2576 ProofSystem <> trans_deriv proj
+R2620:2629 ProofSystem <> rule_deriv proj
+R2620:2629 ProofSystem <> rule_deriv proj
+R2438:2448 ProofSystem <> EmptyAxioms ind
+R2475:2479 Coq.Init.Logic <> False ind
+R2510:2514 Coq.Init.Logic <> False ind
+binder 2539:2539 <> p:43
+R2550:2550 ProofSystem <> p:43 var
+binder 2585:2585 <> p:45
+binder 2587:2587 <> q:46
+binder 2589:2589 <> r:47
+binder 2591:2591 <> H:48
+R2604:2604 ProofSystem <> H:48 var
+binder 2638:2638 <> p:50
+binder 2640:2640 <> q:51
+binder 2642:2642 <> H:52
+R2653:2653 ProofSystem <> H:52 var
+R2428:2433 ProofSystem <> axioms proj
+R2428:2433 ProofSystem <> axioms proj
+R2428:2433 ProofSystem <> axioms proj
+R2455:2459 ProofSystem <> rules proj
+R2455:2459 ProofSystem <> rules proj
+R2486:2494 ProofSystem <> derivable proj
+R2486:2494 ProofSystem <> derivable proj
+R2521:2530 ProofSystem <> refl_deriv proj
+R2521:2530 ProofSystem <> refl_deriv proj
+R2566:2576 ProofSystem <> trans_deriv proj
+R2566:2576 ProofSystem <> trans_deriv proj
+R2620:2629 ProofSystem <> rule_deriv proj
+R2620:2629 ProofSystem <> rule_deriv proj
+R2438:2448 ProofSystem <> EmptyAxioms ind
+R2475:2479 Coq.Init.Logic <> False ind
+R2510:2514 Coq.Init.Logic <> False ind
+binder 2539:2539 <> p:54
+R2550:2550 ProofSystem <> p:54 var
+binder 2585:2585 <> p:56
+binder 2587:2587 <> q:57
+binder 2589:2589 <> r:58
+binder 2591:2591 <> H:59
+R2604:2604 ProofSystem <> H:59 var
+binder 2638:2638 <> p:61
+binder 2640:2640 <> q:62
+binder 2642:2642 <> H:63
+R2653:2653 ProofSystem <> H:63 var

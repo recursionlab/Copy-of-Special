@@ -1,0 +1,101 @@
+{
+  "ecosystem_stats": {
+    "total_concepts": 3,
+    "active_concepts": 3,
+    "high_quality_concepts": 0,
+    "mid_quality_concepts": 3,
+    "refinement_queue_size": 0,
+    "merged_concepts": 0,
+    "conceptual_diversity": 0.0,
+    "relation_count": 0,
+    "contradiction_count": 0,
+    "quality_score": 0.7600000000000001,
+    "refinement_success_rate": 0.0
+  },
+  "concepts": [
+    {
+      "id": "concept-15289584",
+      "label": "Unknown",
+      "definition_full": "A subset of artificial intelligence that enables computers to learn and make decisions from data without being explicitly programmed for every task",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:38:02.692198"
+    },
+    {
+      "id": "concept-f5eea662",
+      "label": "Unknown",
+      "definition_full": "A subset of machine learning that uses artificial neural networks with multiple layers to model and understand complex patterns in data",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:38:02.693198"
+    },
+    {
+      "id": "concept-7ee2f786",
+      "label": "Unknown",
+      "definition_full": "Computational models inspired by biological neural networks that consist of interconnected nodes (neurons) that process and transmit information",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:38:02.694198"
+    }
+  ],
+  "evolution_log": [],
+  "refinement_queue": [],
+  "quality_thresholds": {
+    "high_quality_threshold": 0.8,
+    "mid_quality_threshold": 0.4,
+    "refinement_threshold": 0.3,
+    "discard_threshold": 0.15,
+    "adaptive_length_minimum": 20,
+    "evidence_strength_weight": 0.3,
+    "completeness_weight": 0.5,
+    "support_strength_weight": 0.2
+  }
+}

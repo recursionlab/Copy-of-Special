@@ -1,0 +1,593 @@
+PublishedasaconferencepaperatICLR2025
+UNLOCKING STRUCTURED THINKING IN LANGUAGE
+MODELS WITH COGNITIVE PROMPTING
+OliverKramer&JillBaumann
+ComputationalIntelligenceLab,Universita¨tOldenburg,26122Oldenburg,Germany
+{oliver.kramer,jill.baumann}@uni-oldenburg.de
+ABSTRACT
+Weproposecognitivepromptingasanovelapproachtoguideproblem-solvingin
+large language models (LLMs) through structured, human-like cognitive opera-
+tions such as goal clarification, decomposition, filtering, abstraction, and pattern
+recognition. Byemployingsystematic,step-by-stepreasoning,cognitiveprompt-
+ing enables LLMs to efficiently tackle complex, multi-step tasks. We evaluate
+the effectiveness of cognitive prompting on Meta’s LLaMA models, comparing
+performanceonarithmeticreasoningtasksusingtheGSM8Kdatasetandoncom-
+monsense reasoning benchmarks. Our analysis includes comparisons between
+models without cognitive prompting, models with a static sequence of cognitive
+operations,andmodelsusingreflectivecognitiveprompting,wheretheLLMdy-
+namicallyself-selectsthesequenceofcognitiveoperations. Theresultsshowthat
+cognitive prompting, particularly when dynamically adapted, significantly im-
+provestheperformanceoflargermodels,suchasLLaMA3.170B,andenhances
+their ability to handle multi-step reasoning tasks. This approach also improves
+interpretability and flexibility, highlighting cognitive prompting as a promising
+strategyforgeneral-purposeAIreasoning.
+1 INTRODUCTION
+Recentadvancementsinartificialintelligence(AI),especiallywithlargelanguagemodels(LLMs),
+havemadegreatprogressinemulatinghumanreasoningtosolvetasksliketextsummarization(Sti-
+ennon et al., 2020), code generation (Guo et al., 2023), and question answering (Lu et al., 2022).
+WhileLLMsexcelatgeneratingcoherenttextandhandlingvastdata,theirabilitytoperformmulti-
+stepreasoningstillfallsshortofhumancognitiveprocesses. Humancognition,markedbyitsstruc-
+tured nature, provides a compelling blueprint for guiding AI through complex tasks that require
+layeredthinkingandadaptability.
+General Cognitive Prompting Arithmetic Cognitive Prompting
+Instructions: Instructions:
+Solve the following problem by choosing and applying appropriate Solve the following arithmetic problem by following each step of
+cognitive operations from the list below. For each step, provide your the cognitive operations listed below. For each step, provide your
+concise reasoning before moving on. reasoning and calculations before moving on to the next step.
+Cognitive Operations: Cognitive Operations:
+1. Goal Clarification: Define the objective clearly. 1. Goal Clarification: Restate the problem in your own words.
+2. Decomposition: Break down the problem into manageable parts. 2. Decomposition: List the given information.
+3. Filtering: Focus on the most relevant information. 3. Filtering: Identify what you need to find.
+4. Reorganization: Arrange the information to reveal structure 4. Reorganization: Assign variables to the unknowns.
+5. Pattern Recognition: Identify recurring patterns or relationships. 5. Pattern Recognition: define each variable clearly.
+6. Abstraction: Extract fundamental principles from the patterns. 6. Abstraction: Set up equations based on the problem.
+7. Generalization: Apply the abstracted principles to the larger problem. 7. Generalization: Solve the equations step by step.
+8. Integration: Synthesize the components into a cohesive solution. 8. Integration: Verify your solution with the given information.
+Problem: [SPECIFIC PROBLEM TO SOLVE] Problem: [ARITHMETIC PROBLEM TO SOLVE]
+Your Response: Please start with "Goal Clarification" and proceed Your Response: Please start with "Restate the problem in your
+through each cognitive operation step by step, providing detailed own words" and proceed through each cognitive operation step by
+reasoning and explanations. step, providing detailed reasoning and calculations for each.
+Figure 1: Left: General cognitive prompting, Right: Cognitive prompting adapted to arithmetical
+reasoning.
+1
+4202
+tcO
+51
+]LC.sc[
+2v35920.0142:viXraPublishedasaconferencepaperatICLR2025
+Thispaperintroducesanovelapproachcalledcognitiveprompting, designedtoenhanceproblem-
+solving in LLMs by systematically emulating human cognitive operations (COPs). Cognitive
+promptingorganizesproblem-solvingintodistinctcognitivesteps—suchasgoalclarification, task
+decomposition, and pattern recognition—allowing LLMs to tackle complex tasks in a more struc-
+turedandinterpretablemanner,seeFigure1. Inspiredbycognitivepsychologyandcognitivearchi-
+tectureslikeACT-R(Anderson&Lebiere,1996),thismethodbridgesthegapbetweenhuman-like
+reasoningandAI’scomputationalpower, enablingmodelstohandletasksinfieldssuchasmathe-
+matics, logic, decision-making, and creativity with greater precision. Our experiments, conducted
+with Meta’s LLaMA models (Touvron et al., 2023) on the GSM8K (Cobbe et al., 2021) and a
+commonsense benchmark (Hendrycks et al., 2021), demonstrate significant improvements in task
+performancewhencognitivepromptingisapplied. Inparticular, thereflectivevariantofcognitive
+promptingleadstoenhancedreasoningcapabilities.
+The structure of the paper is as follows: Section 2 introduces the concept of cognitive prompting,
+detailing its core operations and their application in problem-solving. Section 3 presents experi-
+mentalresultsontheimpactofcognitivepromptingonarithmeticreasoningtasks,whileSection4
+exploresitseffectivenessincommonsensereasoning. Section5reviewsrelatedworkonprompting
+engineering strategies. Finally, Section 6 concludes the paper. The appendix contains exemplary
+reasoningprocessesandexamplesforproblem-specificCOPs.
+2 COGNITIVE PROMPTING
+Cognitivepromptingorganizesproblem-solvingthroughastructuredsequenceofhuman-likeCOPs,
+enablingLLMstotacklecomplextasksacrossdomainssuchasmathematics,logic,creativity,and
+decision-making.Thismethod,inspiredbyprinciplesincognitivepsychology,breaksproblemsinto
+stageslikegoalclarification,decomposition,filtering,andintegration—mimickingthewayhumans
+refine their understanding of tasks. By leveraging this structured approach, cognitive prompting
+enhancesclarity,interpretability,andadaptabilityinLLMreasoning.
+Unlike methods like Chain of Thought (CoT) (Wei et al., 2022), cognitive prompting offers more
+generalmulti-dimensionaloperationaldepth, allowingLLMstoapproachawidervarietyofprob-
+lemswithreasoningprogression. Thisframework,rootedindual-processandproblem-spacetheo-
+ries, encouragesbothintuitiveandanalyticalreasoning, helpingmodelstransitionbetweenpattern
+recognition,abstraction,andintegrationformoreconsistentandinterpretablesolutions. Cognitive
+promptingcanbeformalizedasanoptimizationproblem. LetC = {c ,c ,...,c }representaset
+1 2 n
+of COPs and S = {s ,s ,...,s } denote a sequence of k operations from C. The objective is
+1 2 k
+tofindthesequenceS∗ thatmaximizestaskperformanceS∗ = argmax f(S)subjecttocon-
+S⊆C
+straintssuchas|S| = k,s = goalclarification,ands = integration. Here,f(S)representstask
+1 k
+performance,e.g.,accuracy,efficiency,coherence.
+Cognitivepromptingfollowsastructuredprocessthatmirrorshumanproblem-solving. KeyCOPs
+include:
+Goal Clarification: Clearly define the objective of the problem to maintain focus on solving it
+effectively. In the context of COP, goal clarification ensures that the model aligns its reasoning
+with the desired outcome, minimizing distractions. Let G represent the goal, and all subsequent
+operations should be oriented toward achieving G , helping the model concentrate on the correct
+directionofreasoning.
+Decomposition: Break down the problem P into smaller, manageable components
+{P ,P ,...,P }, where P =
+(cid:83)n
+P . This step is crucial in COP as it allows the model
+1 2 n i=1 i
+to tackle complex, multi-step problems incrementally. Decomposition is particularly useful in
+mathematicalproblem-solvingandlogictasks,wherebreakingaproblemintosub-problemsallows
+themodeltoapplyspecificoperationsorstrategiestoeachpart. Moreover,decompositionhelpsto
+identifythecorestructureoftheproblem, isolatingthecriticalstepsrequiredforacomprehensive
+solution.
+Filtering: SelectthemostrelevantinformationfromI ={i ,i ,...,i }usingafilteringfunction
+1 2 m
+F(I) = I ⊆ I. Filtering is essential in COP to prevent the model from being overwhelmed by
+rel
+irrelevant details. In complex tasks, the problem statement may include redundant or distracting
+2PublishedasaconferencepaperatICLR2025
+information, so filtering ensures that the model focuses on the essential data points that directly
+impact problem-solving. This operation can significantly improve accuracy by narrowing down
+the scope of attention to the key elements required for a solution. Filtering also helps prioritize
+conflictinginformationbyselectingthemostreliableorimpactfulinputsforfurtheroperations.
+Reorganization: Rearrangedata,variables,orequationsDtorevealpatternsorsimplifythestruc-
+ture,suchthatReorder(D)→D′.InCOP,reorganizationplaysacrucialrolebyenablingthemodel
+tomanipulatethestructureoftheinformationtoexposeunderlyingpatternsorsimplifytheproblem-
+solvingprocess. Thisoperationhelpsintransformingcomplex,disordereddataintoamorelogical
+andinterpretableform,allowingthemodeltofocusonsolvingmanageablesub-problems. Reorga-
+nizationcanbeespeciallyusefulinalgebraicmanipulations,wherereorderingtermsorrearranging
+equationssimplifiessolvingorleadstothediscoveryofconnectionsbetweendifferentpartsofthe
+problem.
+PatternRecognition: IdentifyrecurringrelationshipsorpatternsP inthedata,whichfacilitates
+the application of known solutions. In COP, pattern recognition helps the model detect similar-
+ities with previously encountered problems, accelerating problem-solving by applying already-
+established solutions to new contexts. Recognizing patterns not only speeds up problem-solving
+but also enhances the model’s ability to predict the next steps in a sequence or foresee potential
+outcomes based on recognized trends. This is particularly beneficial in domains like mathematics
+andlogic,whereidentifyingstructuralornumericalpatternsallowsforthereuseofstrategiesfrom
+similar problems, leading to more efficient and elegant solutions. Moreover, it enables the model
+to generalize from specific cases to broader principles, laying the groundwork for abstraction and
+generalization.
+Abstraction: ExtractbroaderprinciplesAfromtheidentifiedpatternsP,andgeneralizethemto
+apply across different problems or contexts. In COP, abstraction enables the model to transcend
+specific details and focus on fundamental principles, which enhances its adaptability to new and
+unfamiliartasksbyrecognizingunderlyingstructures. Abstractionisakeystepinsolvingnotjust
+individualproblemsbutentireclassesofproblemsbyderivingrules,formulas,orframeworksthat
+can be applied universally. By focusing on the core ideas underlying a problem, abstraction helps
+simplify the solution and extends the model’s reasoning capabilities beyond surface-level details,
+improvingitsabilitytotacklecomplexandnoveltasksthatrequirehigher-orderthinking.
+Generalization: Apply abstracted principles A to the broader problem or similar contexts, such
+that f (A) = {P ,P ,...,P }. Generalization in COP ensures that solutions are not isolated
+gen 1 2 k
+tothespecificinstancebutarescalableacrossvariousrelatedproblems. Thisoperationallowsthe
+modeltoextendinsightsgainedfromthecurrenttasktosolvenewproblemswithsimilarstructures.
+By abstracting and generalizing, the model improves its adaptability, enabling it to handle a wide
+rangeoftasksbeyondtheimmediateproblemandapplythesamecognitiveframeworktodifferent
+contexts,therebyenhancingitsreasoningflexibilityandrobustness.
+Integration: Synthesize the individual solutions Q into a cohesive final solution Q, ensuring
+i
+all components of the problem are addressed and fit together logically. In COP, integration is the
+culmination of the reasoning process, where the model combines all the previously solved sub-
+problemsintoacomprehensive,unifiedsolution,ensuringcoherenceandcompleteness.
+StaticandReflectiveCognitivePrompting: ThisflexibleprocessallowsLLMstodynamically
+applythemostrelevantoperationsbasedonthetask’scontext, enhancingproblem-solvingperfor-
+manceacrossvariousdomains. Instaticcognitiveprompting,afixedorderS =[s ,s ,...,s ]of
+1 2 k
+COPsisfollowedthroughouttheproblem-solvingprocess,ensuringastructuredyetrigidapproach.
+In contrast, reflective cognitive prompting allows the LLM to self-select the sequence of COPs,
+adaptingflexiblytothetask’sneeds,i.e.,choosingthenextCOPs ∈ C ineachstep. Thisadapt-
+i
+abilitynotonlyimprovesthemodel’sabilitytosolvecomplexproblemsbutalsooffersstructured,
+interpretableexplanationsofthereasoningprocesses.
+DomainSpecificCOPs Theeffectivenessofcognitivepromptingissignificantlyenhancedwhen
+thegeneralCOPsareadaptedtospecificproblemdomains. Bytailoringeachcognitiveoperationto
+thecharacteristicsofaparticulardomain,themodelcanbetteralignitsreasoningprocesswiththe
+demandsofthetask. Forexample,thedecompositionoperationinscientificinquirymightinvolve
+breaking down a complex hypothesis into smaller, testable components, while in ethical decision-
+making, decomposition could involve identifying and separating conflicting moral principles and
+3PublishedasaconferencepaperatICLR2025
+stakeholder interests. This domain-specific adaptation ensures that the reasoning process remains
+relevantandeffectiveforeachtypeofproblem.AdetailedoverviewofhowCOPsareadaptedacross
+differentdomains,suchasscientificinquiryandethicaldecision-making,canbefoundinTable1in
+theAppendix.
+3 ARITHMETIC REASONING
+Benchmark We evaluate the performance of cognitive prompting with Meta’s LLaMA models
+(8B and 70B) on the GSM8K dataset (Cobbe et al., 2021), a widely used benchmark for math
+problem-solving. GSM8K consists of about 7k training and 1.5k high-quality, grade-school math
+word problems, designed to test the reasoning and mathematical abilities of LLMs. As cognitive
+promptingdoesnotrequiretraining,weonlyemploytheproblemsinthetestset.
+COPs The general COPs are adapted to arithmetic reasoning as follows, see Figure 1, right. In
+mathproblems,restatingtheprobleminone’sownwordshelpstoensureclarity. Listingthegiven
+information identifies known values and relationships. Identifying the unknowns to be solved is
+essential, and assigning appropriate variables to these unknowns ensures clarity during the solu-
+tion process. Defining each variable clearly avoids confusion. Setting up equations based on the
+problem’srelationshipsenablesstep-by-stepsolutions. Verifyingthesolutionagainstthegivenin-
+formationensuresaccuracy,andpresentingthefinalanswerclearlyhelpsmaintainconsistencyand
+logic.
+Results The 8B model achieves scores of 0.7 across all prompting techniques. In comparison,
+the 70B model shows significant improvement, with scores increasing from 0.87 (no prompting)
+to 0.89 (static cognitive prompting) and 0.91 (reflective cognitive prompting), see Figure 2 (left).
+TheresultsonGSM8Kindicatethatlargermodels,suchasthe70B,exhibitmarkedimprovements
+inperformancewhenutilizingmoreadvancedpromptingtechniques. Whilethe8Bmodel’sscores
+remain consistent at around 0.7, regardless of whether prompting techniques are used, the 70B
+modeldemonstratesaclearupwardtrend,benefitingmorefromprompting. Specifically,reflective
+cognitivepromptingyieldsthehighestscoreof0.91, followedbystaticat0.89, andnoprompting
+at0.87. Thissuggeststhatlargermodelsarebetterabletotakeadvantageofpromptingtechniques,
+especiallyReflectivecognitiveprompting, whichseemstofacilitatedeeperreasoningorreflection
+inthemodel. Thereducedvariabilityinthe70Bmodel’sresultsalsopointstogreaterstabilityand
+reliabilitywhenapplyingmoresophisticatedprompts.
+Figure 2 (right) shows the occurrences of cognitive operation sequences in one of the reflective
+cognitive prompting 70B experiments, with the most frequent sequences at the top. Each bar rep-
+resents a combination of processes such as goal clarification, decomposition, pattern recognition,
+generalization,andreorganization. Thenumberofoccurrencesforeachsequenceislabeledinside
+the bars in white. The plot presents the data in descending order, from the most common to the
+Figure2: Left: Accuraciesofcognitiveprompting(CP)strategiesandmodels(3repetitions)onar-
+tichmeticreasoningproblems,Right:Occurrenceoftopninecognitivepromptingsequencesin70B
+model with goal clarification (GC), decomposition (DC), pattern recognition (PR), generalization
+(GN),andreorganization(RE).
+4PublishedasaconferencepaperatICLR2025
+leastfrequentcognitiveoperationsequences. Thesequencesoccurrencesshowthatthemostcom-
+moncognitiveoperationsequenceisgoalclarification,decomposition,andpatternrecognition.This
+shortsequenceappearsmuchmorefrequentlythanothercombinations, suggestingthatitisafun-
+damentalorwidelyusedcombinationincognitivetasks. Additionally,themajorityofoccurrences
+areconcentratedamongthefirstsixsequences,whicharecomparativelyshorterinlength. Thissug-
+geststhatsimplerandmoreconcisesequencesarefavoredormorecommonlyapplied. Longerand
+more complex sequences, such as those involving generalization and reorganization, occur much
+lessfrequently,indicatingthattheseoperationsmightbeusedinmorespecificorspecializedcases.
+4 COMMONSENSE REASONING
+Tofurtherassesstheversatilityofcognitiveprompting,wetesteditseffectivenessonasetofcom-
+monsensereasoningproblems. Theseproblemsoftenrequirebalancingpracticalknowledge,every-
+daylogic,andcontext,makingthemanidealdomainforevaluatingthestructuredthinkingcapabil-
+itiesthatcognitivepromptingprovides.
+Benchmark We evaluate the cognitive prompting approach using both sizes of LLaMA3.1 on a
+randomly selected subset of questions from the commonsense dataset, a component of the ethics
+problembenchmark(Hendrycksetal.,2021). DuetothecensorshiprestrictionsofLLaMAmodels
+onethicalquestions, somerequestsarerejected. Therefore, wehavelimitedour analysis to1,000
+caseswhereallmodelsprovideavalidresponse.
+COPs The cognitive operations are adapted to handle commonsense reasoning tasks by guiding
+modelsthroughstructuredproblem-solvingsteps,seeFigure3. Usinggoalclarification,themodels
+definetheobjectiveorintendedcommonsenseoutcomeclearly,ensuringthetaskiswellunderstood.
+Decomposition allows them to break the problem into key components, focusing on relevant facts
+ordetails. Filteringandreorganizationhelpthemodelsconcentrateonthemostsignificantaspects
+ofthescenariowhilereorganizinginformationtoresolveambiguitiesorconflicts. Patternrecogni-
+tion and abstraction are essential for identifying parallels with other commonsense situations and
+extractinggeneralprinciplesthatapplytothecurrentproblem. Generalizationenablesthemodels
+tousetheseprinciplesnotonlyforthecurrentscenariobutalsoforsimilarfuturecases. Integration
+bringstogetherallperspectivesandprinciplestoformacohesiveandlogicalcommonsenseconclu-
+sion. Thisstructuredcognitiveapproachenhancesthemodels’abilitytodeliveraccurate,practical
+solutionsincommonsensereasoningtasks.
+Results Figure4(left)illustratesthatstaticcognitivepromptingoutperformstheabsenceofcog-
+nitiveprompting, whilereflectivecognitivepromptingfurtherimprovesperformanceoverstaticin
+the 8B model. The 70B model consistently outperforms the 8B model. For the 8B model, cogni-
+tivepromptingvariantsshowasignificantboostinaccuracy, risingfrom0.605withoutprompting
+to over 0.74 with cognitive prompting. Interestingly, for the 70B model, no cognitive prompting
+achievesthehighestaccuracyat0.84,slightlyoutperformingreflectivecognitivepromptingat0.81.
+Commonsense Cognitive Prompting
+Instructions:
+Please evaluate the following commonsense dilemma by systematically applying the cognitive operations
+listed below. For each step, provide your reasoning and detailed explanation before proceeding to the
+next step.
+Cognitive Operations:
+1. Goal Clarification: Clearly define the objective or intended commonsense outcome.
+2. Decomposition: Break the problem down into its key components and relevant factors.
+3. Filtering: Focus on the most important commonsense elements and disregard irrelevant details.
+4. Reorganization: Rearrange facts and perspectives to clarify conflicts or ambiguities.
+5. Pattern Recognition: Identify similarities with other commonsense scenarios or precedents.
+6. Abstraction: Extract broader commonsense principles that can be applied to this situation.
+7. Generalization: Apply the identified principles to both the current scenario and potential future cases.
+8. Integration: Combine all perspectives and principles into a final commonsense decision.
+Problem: [COMMONSENSE PROBLEM TO SOLVE]
+Your Response: Please start with 'Goal Clarification' and proceed through each cognitive operation step
+by step, providing detailed reasoning and explanations for each.
+Figure3: Commonsensereasoningpromptsusedforcognitiveprompting.
+5PublishedasaconferencepaperatICLR2025
+Uponfurtheranalysisofthemodels’outputs,wefoundthatthelargermodeltendstoover-process
+multiple reasoningsteps, leading toerrors when toomany steps arechosen—an effect resembling
+overfitting. Toaddressthis,weexperimentwithintroducingconstraintsonthenumberofCOPsfor
+largermodelstoregularizetheirreasoningprocess.
+Figure4: Left: Accuraciesofcognitiveprompting(CP)strategiesandmodels(2repetitionsfor8B,
+1for70B)oncommonsensereasoningproblems,Right: Occurrenceoftopnineandothercognitive
+prompting sequences in 70B model with abbreviations like in Figure 2 (right) and filtering (FI),
+abstraction(AB),reasoning(RS),andintegration(IN).
+Figure4(right)showsthedistributionofcognitiveoperationsequences.Incommonsensereasoning,
+awidervarietyofsequencesisselectedcomparedtoarithmeticreasoning, withover300different
+sequencesoccurringbetween1and10times. Thisdiversitysuggeststhatcommonsensereasoning
+taskspromptmorevariedapproachesthanpurelyarithmeticproblems.
+5 RELATED WORK
+Promptingisakeytechniqueforleveragingpre-trainedLLMstoperformtasksbyguidingtheirout-
+putsthroughwell-craftedinstructions. Inzero-shotprompting,modelsgenerateresponseswithout
+task-specific examples, while few-shot prompting (Brown et al., 2022) improves performance by
+includingafewtaskexamples. CoTprompting(Weietal.,2022)breaksdowncomplexreasoning
+into intermediate steps, enabling systematic problem-solving, while Tree of Thoughts (ToT) (Yao
+et al., 2023a) extends CoT by enabling LLMs to explore multiple reasoning paths and make de-
+liberatedecisions. BuildingonCoT,ReAct(Yaoetal.,2023b)combinesreasoningwithreal-time
+decision-making, enhancing models’ abilities to handle dynamic tasks. This approach allows for
+moreflexiblehandlingofunpredictableinputs,mimickinghumancognitiveprocesseslikeadjusting
+decisionsonthefly.
+PromptBreeder(Fernandoetal.,2023)optimizespromptsusingevolutionarycomputationtoiter-
+atively refine and improve performance. Similarly, self-consistency (Wang et al., 2023) enhances
+reliabilitybygeneratingmultipleresponsesandselectingthemostconsistentone,reducingvariabil-
+ity in complex tasks. This method significantly mitigates the challenge of output randomness that
+oftenhampersLLMreliabilityinopen-endedproblem-solvingscenarios.
+AutomatedPromptEngineering(APE)(Zhouetal.,2023)automatespromptoptimizationthrough
+model self-instruction and feedback loops, pushing the boundaries of human-computer collabora-
+tion.OptimizationbyPROmpting(OPRO)(Yangetal.,2024)usesLLMstoiterativelygenerateand
+refinesolutions,significantlyoutperforminghuman-designedpromptsinoptimizationtasks. These
+automated approaches open new avenues for improving performance without extensive human in-
+tervention,allowingmodelstoautonomouslyevolvetheirproblem-solvingstrategies.
+Recentworksalsoexploremulti-tasklearningtogeneralizepromptstrategiesacrossdiverseappli-
+cations,furtherenhancingtheiradaptability.Techniqueslikeretrieval-augmentedgeneration(RAG)
+(Lewis et al., 2020) combine prompting with external knowledge sources, offering richer context
+andbetter-informedoutputs, demonstratinghowpromptscanevolvetointegratemorehuman-like
+reasoning. Recent advancements in parameter-efficient fine-tuning methods, such as decomposed
+6PublishedasaconferencepaperatICLR2025
+prompttuning(DePT)(Shi&Lipani,2024),havedemonstratedhowefficientprompt-basedstrate-
+giescanreducememoryandcomputationalcostsinlargelanguagemodels,whichcancomplement
+the flexibility provided by cognitive prompting in adapting models to complex problem-solving
+tasks. To the best of our knowledge, no prompt strategies are motivated explicitly by human-like
+COPs.
+6 CONCLUSIONS
+Cognitive prompting models human reasoning as a sequence of COPs delivered through prompts.
+ItfostersstructuredthinkingusinggeneralCOPsordomain-specificadaptations. Unlikeexample-
+based approaches that rely on memorized examples, cognitive prompting emphasizes high-level
+reasoning, making it adaptable across a wide range of tasks. The specialization of these cognitive
+operations for specific domains allows it to tackle diverse problems effectively. Our experiments
+demonstratethatcognitiveprompting,particularlythereflectivevariant,ishighlyeffectiveinguid-
+ing LLMs through complex tasks such as GSM8K math problems and commonsense reasoning.
+Reflective prompting significantly enhances the performance of smaller models, consistently out-
+performingstaticprompting. However,inlargermodelslikethe70B,cognitivepromptingexcelsin
+arithmeticreasoningbutsuffersincommonsensetasks,whereexcessivereasoningstepsreduceper-
+formance—similartooverfitting—indicatingtheneedforregularization. Forfuturework,weplan
+to extend experiments across more domains and models, exploring the effectiveness of cognitive
+promptinginareaslikelegalreasoning,medicaldecision-making,andstrategicplanning. Thiswill
+ensuretherobustnessoftheapproachacrossgeneralandspecializedtasks.
+REPRODUCIBILITY STATEMENT
+Our experiments use Meta’s LLaMA models, which are open-source and accessible. To ensure
+reproducibility,wehaveincludedallusedpromptsanddetailedexperimentalsettingsinAppendix
+C.Thecompletecodebase,includingcognitivepromptingscripts,willbeavailableonGitHubafter
+publication,allowingresearcherstoreplicateourresultsandapplythetechniquestoothertasks.
+ETHICS STATEMENT
+Cognitivepromptingpromotesstructured,human-likereasoning,enhancingtransparencyandcon-
+sistency. However, modeling human-like thinking in sensitive domains, such as ethical decision-
+making,raisesconcernsaboutbiasedreasoningandharmfuloutcomes. Tomitigaterisks,wefocus
+onwell-definedcontextslikemathematicsandcommonsensereasoning,withnoaccesstosensitive
+data. We urge careful consideration of ethical implications when applying cognitive prompting to
+morecomplextasks.
+REFERENCES
+JohnR.AndersonandChristianLebiere. ACT-R:Atheoryofhigher-levelcognitionanditsrelation
+tovisualattention. PsychologicalReview,1996.
+Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-
+wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,
+ArielHerbert-Voss,GretchenKrueger,TomHenighan,RewonChild,AdityaRamesh,DanielM.
+Ziegler,JeffreyWu,ClemensWinter,ChristopherHesse,MarkChen,EricSigler,MateuszLitwin,
+Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec Radford,
+IlyaSutskever,andDarioAmodei. Languagemodelsarefew-shotlearners. InNeuralInforma-
+tionProcessingSystems(NeurIPS),volume35,pp.24824–24837,2022.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser,
+Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse, and John
+Schulman. Training verifiers to solve math word problems. arXiv preprint arXiv:2110.14168,
+2021.
+7PublishedasaconferencepaperatICLR2025
+ChrisanthaFernando,DylanBanarse,HenrykMichalewski,SimonOsindero,andTimRockta¨schel.
+Promptbreeder:Self-referentialself-improvementviapromptevolution. NeuralInformationPro-
+cessingSystems(NeurIPS)Workshop,2023.
+DayaGuo, CanwenXu, NanDuan, JianYin, andJulianMcAuley. Longcoder: Along-rangepre-
+trainedlanguagemodelforcodecompletion. InInternationalConferenceonMachineLearning
+(ICML),pp.12098–12107,2023.
+Dan Hendrycks, Collin Burns, Steven Basart, Andrew Critch, Jerry Li, Dawn Song, and Jacob
+Steinhardt. Aligning AI with shared human values. In International Conference on Learning
+Representations(ICLR),2021.
+Patrick S. H. Lewis, Ethan Perez, Aleksandra Piktus, Fabio Petroni, Vladimir Karpukhin, Naman
+Goyal, Heinrich Ku¨ttler, Mike Lewis, Wen-tau Yih, Tim Rockta¨schel, Sebastian Riedel, and
+Douwe Kiela. Retrieval-augmented generation for knowledge-intensive NLP tasks. In Neural
+InformationProcessingSystems(NeurIPS),volume33,pp.9459–9474,2020.
+PanLu,SwaroopMishra,TanglinXia,LiangQiu,Kai-WeiChang,Song-ChunZhu,OyvindTafjord,
+PeterClark,andAshwinKalyan. Learntoexplain: Multimodalreasoningviathoughtchainsfor
+science question answering. In Neural Information Processing Systems (NeurIPS), volume 35,
+pp.2507–2521,2022.
+Zhengxiang Shi and Aldo Lipani. Dept: Decomposed prompt tuning for parameter-efficient fine-
+tuning. InInternationalConferenceonLearningRepresentations(ICLR),2024.
+NisanStiennon,LongOuyang,JeffreyWu,DanielZiegler,RyanLowe,ChelseaVoss,AlecRadford,
+DarioAmodei,andPaulFChristiano. Learningtosummarizewithhumanfeedback. InNeural
+InformationProcessingSystems(NeurIPS),volume33,pp.3008–3021,2020.
+Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier Martinet, Marie-Anne Lachaux, Timothe´e
+Lacroix, Baptiste Rozie`re, Naman Goyal, Eric Hambro, Faisal Azhar, Aurelien Rodriguez, Ar-
+mand Joulin, Edouard Grave, and Guillaume Lample. Llama: Open and efficient foundation
+languagemodels,2023.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc V Le, Ed H. Chi, Sharan Narang, Aakanksha
+Chowdhery,andDennyZhou. Self-consistencyimproveschainofthoughtreasoninginlanguage
+models. InInternationalConferenceonLearningRepresentations(ICLR),2023.
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Brian Ichter, Fei Xia, Ed H. Chi,
+Quoc V. Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language
+models. In Sanmi Koyejo, S. Mohamed, A. Agarwal, Danielle Belgrave, K. Cho, and A. Oh
+(eds.), Neural Information Processing Systems (NeurIPS) Workshop, volume 35, pp. 24824–
+24837,2022.
+ChengrunYang,XuezhiWang,YifengLu,HanxiaoLiu,QuocVLe,DennyZhou,andXinyunChen.
+Largelanguagemodelsasoptimizers. InInternationalConferenceonLearningRepresentations
+(ICLR),2024.
+Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Tom Griffiths, Yuan Cao, and Karthik
+Narasimhan.Treeofthoughts:Deliberateproblemsolvingwithlargelanguagemodels.InNeural
+InformationProcessingSystems(NeurIPS),volume36,pp.11809–11822,2023a.
+ShunyuYao,JeffreyZhao,DianYu,NanDu,IzhakShafran,KarthikR.Narasimhan,andYuanCao.
+React: Synergizing reasoning and acting in language models. In International Conference on
+LearningRepresentations(ICLR),2023b.
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han, Keiran Paster, Silviu Pitis, Harris Chan, and
+JimmyBa. Largelanguagemodelsarehuman-levelpromptengineers. InInternationalConfer-
+enceonLearningRepresentations(ICLR),2023.
+8PublishedasaconferencepaperatICLR2025
+A ARITHMETIC REASONING EXAMPLE
+HereisanexampleforarithmeticreasoningusingstaticcognitivepromptingandaLLaMA3.170B
+answer:
+1 Instructions:
+2 Please solve the following problem by systematically applying the cognitive operations listed
+(cid:44)→ below. For each step, provide your reasoning and detailed explanation before
+(cid:44)→ proceeding to the next step.
+3
+4 Cognitive Operations:
+5 1. Goal Clarification: Define the objective clearly.
+6 2. Decomposition: Break down the problem into manageable parts.
+7 3. Filtering: Focus on the most relevant information.
+8 4. Reorganization: Arrange the information to reveal patterns or structure.
+9 5. Pattern Recognition: Identify recurring patterns or relationships.
+10 6. Abstraction: Extract fundamental principles from the patterns.
+11 7. Generalization: Apply the abstracted principles to the larger problem.
+12 8. Integration: Synthesize the components into a cohesive solution.
+13
+14 Problem:
+15 John drives for 3 hours at a speed of 60 mph and then turns around because he realizes he
+(cid:44)→ forgot something very important at home. He tries to get home in 4 hours but spends
+(cid:44)→ the first 2 hours in standstill traffic. He spends the next half-hour driving at a
+(cid:44)→ speed of 30mph, before being able to drive the remaining time of the 4 hours going at
+(cid:44)→ 80 mph. How far is he from home at the end of those 4 hours?
+16
+17 Your Response:
+18 Please start with ’Goal Clarification’ and proceed through each cognitive operation step by
+(cid:44)→ step, providing detailed reasoning and explanations for each.
+1 Here’s the solution to the problem using the specified cognitive operations:
+2
+3 Goal Clarification
+4 The objective of this problem is to determine how far John is from home after 4 hours, given
+(cid:44)→ his varying speeds and traffic conditions.
+5
+6 Decomposition
+7 Let’s break down the problem into smaller parts:
+8 - Part 1: Calculate the distance traveled during the initial 3-hour drive.
+9 - Part 2: Determine the time spent driving at different speeds during the return trip (4
+(cid:44)→ hours).
+10 - Part 3: Calculate the distance traveled during each segment of the return trip.
+11
+12 Filtering
+13 Focus on the most relevant information:
+14 - Initial speed and time: 60 mph, 3 hours
+15 - Return trip details:
+16 + Standstill traffic: 2 hours
+17 + Speeds: 30 mph (0.5 hours), 80 mph (remaining time)
+18 - We can disregard other details as they don’t affect the calculation.
+19
+20 Reorganization
+21 Arrange the information to reveal patterns or structure:
+22 - Initial drive:
+23 + Distance = Speed * Time = 60 mph * 3 hours
+24 - Return trip:
+25 + Total time: 4 hours
+26 + Standstill traffic: 2 hours (no distance traveled)
+27 + Driving segments:
+28 - Segment 1: 30 mph, 0.5 hours
+29 - Segment 2: 80 mph, remaining time (4 - 2 - 0.5 = 1.5 hours)
+30
+31 Pattern Recognition
+32 Identify recurring patterns or relationships:
+33 - Initial drive distance can be calculated using the formula Distance = Speed * Time.
+34 - Return trip segments also follow this pattern.
+35
+36 Abstraction
+37 Extract fundamental principles from the patterns:
+38 - To calculate the total distance traveled, add the distances traveled during each segment of
+(cid:44)→ the journey (initial drive and return trip).
+39
+40 Generalization
+41 Apply the abstracted principles to the larger problem:
+42 - Calculate the initial drive distance: 60 mph * 3 hours = 180 miles
+43 - Calculate the return trip segment distances:
+44 + Segment 1 (30 mph, 0.5 hours): 30 mph * 0.5 hours = 15 miles
+45 + Segment 2 (80 mph, 1.5 hours): 80 mph * 1.5 hours = 120 miles
+9PublishedasaconferencepaperatICLR2025
+46
+47 Integration
+48 Synthesize the components into a cohesive solution:
+49 - Total distance traveled during return trip: 15 miles + 120 miles = 135 miles
+50 - Since John turned around after the initial drive, he is now 180 - 135 = 45 miles from home.
+B COMMONSENSE REASONING EXAMPLE
+Here is an example for commonsense reasoning using reflective cognitive prompting and a
+LLaMA3.18Banswer:
+1 Instructions:
+2 Please evaluate whether the following commonsense problem is ’wrong’ or ’not wrong’.
+3 For each step, choose and apply the most suitable cognitive operation from the list below and
+(cid:44)→ provide a concise explanation of your reasoning before moving on to the next step.
+4
+5 List of cognitive operations:
+6 Goal Clarification: Define the objective or the intended commonsense outcome clearly.
+7 Decomposition: Break down the problem into its key components and relevant factors.
+8 Filtering: Focus on the most important commonsense aspects and discard irrelevant information.
+9 Reorganization: Rearrange the facts and perspectives to better understand potential conflicts
+(cid:44)→ or ambiguities.
+10 Pattern Recognition: Identify similarities with other commonsense scenarios or precedents.
+11 Abstraction: Extract broader commonsense principles that can be applied to this situation.
+12 Reasoning: Reflect on the logical consistency of the solution and ensure it aligns with
+(cid:44)→ common sense.
+13 Generalization: Apply the commonsense principles to the current and potentially future
+(cid:44)→ similar scenarios.
+14 Integration: Synthesize all perspectives and principles into a final commonsense decision.
+15
+16 Problem:
+17 I made a cake without sugar for the diabetic patient.
+18
+19 Your Response:
+20 Please proceed through the problem step by step, selecting the appropriate cognitive
+(cid:44)→ operation at each stage and providing a brief explanation of your reasoning.
+21 Finally, output your answer representing your solution (’wrong’ or ’not wrong’).
+1 Goal Clarification
+2 To evaluate whether making a cake without sugar for a diabetic patient is "wrong" or "not
+(cid:44)→ wrong", we need to clearly define what the intended commonsense outcome is. In this
+(cid:44)→ case, it’s understanding if it’s sensible to make a sugar-free cake for someone with
+(cid:44)→ diabetes.
+3
+4 Filtering
+5 The key issue here is the diabetic patient part, as it directly relates to the presence or
+(cid:44)→ absence of sugar in the cake. Other factors like the recipe or the occasion can be
+(cid:44)→ filtered out since they are not directly relevant to the core question about sugar
+(cid:44)→ and diabetes.
+6
+7 Pattern Recognition
+8 A common sense pattern here is that diabetic patients typically avoid consuming foods with
+(cid:44)→ high sugar content because it could lead to increased blood glucose levels. Making a
+(cid:44)→ cake without sugar might be considered sensible for this context, but the real
+(cid:44)→ question lies in understanding if completely removing sugar still aligns with common
+(cid:44)→ sense.
+9
+10 Reasoning
+11 Given the diabetic patient context, making a cake without sugar is indeed sensible because it
+(cid:44)→ adheres to dietary restrictions. However, the term "without sugar" might imply
+(cid:44)→ additional ingredients that could potentially affect blood glucose levels are present
+(cid:44)→ in the recipe. Without further information, there’s no clear indication this would be
+(cid:44)→ wrong; rather, it aligns with diabetic dietary guidelines.
+12
+13 Integration
+14 Integrating all perspectives and principles, making a cake without sugar for a diabetic
+(cid:44)→ patient seems sensible because it caters to their dietary needs. There’s no apparent
+(cid:44)→ conflict or ambiguity that suggests this action would be "wrong."
+15
+16 Conclusion
+17 not wrong
+10PublishedasaconferencepaperatICLR2025
+C LIST OF PROBLEM-SPECIFIC COGNITIVE OPERATIONS
+Table1: ExemplaryspecializationofCOPsforvariousproblemdomains.
+GeneralCognitiveOperation CreativeProblemSolving
+GoalClarification ClarifytheCreativeChallenge
+Decomposition BreaktheChallengeintoParts
+Filtering FocusonKeyConstraints
+Reorganization ExploreNewPerspectives
+PatternRecognition IdentifyCreativePatterns
+Abstraction DevelopBroadConcepts
+Generalization TestandRefineIdeas
+Integration SynthesizeNovelSolutions
+Decision-Making ScientificInquiry
+DefinetheDecisionObjective FormulatetheResearchQuestion
+BreakDecisionintoFactors BreakResearchintoSub-Questions
+FocusonCriticalInformation IdentifyKeyVariables
+ArrangeAlternatives PlantheExperiment
+IdentifyPatternsinChoices LookforPatternsinData
+ExtractGeneralPrinciples DevelopTheoreticalInsights
+TestAgainstCriteria ApplyFindingsBroadly
+MakeaFinalDecision FormConclusions
+StrategicPlanning EthicalProblem-Solving
+DefinetheStrategicObjective ClarifytheEthicalDilemma
+BreakStrategyintoSteps BreakDilemmaintoComponents
+PrioritizeFocusAreas FocusonPressingIssues
+ArrangeStepsLogically ConsiderDifferentPerspectives
+IdentifyStrategicTrends IdentifySimilarCases
+FormulateHigh-LevelPlans DevelopEthicalPrinciples
+TestStrategiesAgainstScenarios EvaluateSolutionsAgainstPrinciples
+DevelopaCohesivePlan MakeaFinalEthicalJudgment
+MathProblem-Solving LogicalProblem-Solving
+RestatetheProbleminYourOwnWords RestatetheLogicalProblemClearly
+ListtheGivenInformation BreakProblemintoKeyLogicalClues
+IdentifyWhatYouNeedtoFind FocusontheMostCriticalClues
+AssignVariablestotheUnknowns OrganizeInformationLogically
+DefineEachVariableClearly IdentifyLogicalDeductions
+SetUpEquationsBasedontheProblem GeneralizeRulesorInferences
+SolvetheEquationsStepbyStep TestInferencesAgainstRemainingClues
+VerifyYourSolutionwiththeGivenInformation SynthesizeaCompleteSolution
+ProvideaClearandDirectAnswer ProvidetheFinalAnswer
+11

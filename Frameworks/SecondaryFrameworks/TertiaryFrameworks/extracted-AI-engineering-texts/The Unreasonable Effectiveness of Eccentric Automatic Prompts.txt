@@ -1,0 +1,2031 @@
+4202
+beF
+02
+]LC.sc[
+2v94901.2042:viXra
+The Unreasonable Effectiveness of Eccentric Automatic Prompts
+RickBattle TejaGollapudi
+rick.battle@broadcom.com teja.gollapudi@broadcom.com
+VMwareNLPLab VMwareNLPLab
+ABSTRACT points to test set scores. We will show that trivial variations in
+LargeLanguageModels(LLMs)havedemonstratedremarkableproblem-the prompt can have dramatic performance impacts. Then we’ll
+solvingandbasicmathematicsabilities.However,theirefficacyis showthatnotonlydoessystematic promptoptimizationoutper-
+highlycontingentontheformulationoftheprompt.Thisstudyen- form“positivethinking”, even withsmaller open-sourcemodels,
+deavorstoquantifytheinfluenceofincorporating“positivethink- butthatitalsogeneralizesbetter.Additionally,we’llshowthatthe
+ing”intothesystemmessageoftheprompt,thencomparethatto highest-scoringautomatically-generatedpromptisremarkablydif-
+systematicpromptoptimization.Weassesstheperformanceof60 ferentfromanythingahumanpractitionerwouldbelikelytogen-
+combinationsofsystemmessagesnippets,testedwithandwithout erate.
+ChainofThoughtprompting,acrossthreemodelswithparameters
+2 RELATED WORK
+rangingfrom7to70billionontheGSM8Kdataset.Ourfindings
+revealthatresultsdonotuniversallygeneralizeacrossmodels.In Thegenesisofpromptengineeringcanbetracedbacktothesemi-
+mostinstances,theinclusionof“positivethinking”promptsposi- nalChainofThoughtpaperbyWeietal.[8].Thispioneeringwork
+tivelyaffectedmodelperformance.Notably,however,Llama2-70B demonstratedasignificantenhancementinmodelperformanceby
+exhibited an exception when not utilizing Chain of Thought, as introducingasimplepromptmodification:theinclusionofthedi-
+the optimal system message was found to be none at all. Given rective“Thinkstepbystep.”Thedegreeofperformanceimprove-
+the combinatorial complexity,and thuscomputationtime, ofex- ment,however,iscontingentuponthespecificmodel,itssize,and
+perimentingwithhand-tuningpromptsforlargeblack-boxmodels, theunderlyingdataset.
+wethencomparedtheperformanceofthebest“positivethinking” Subsequently, the PaLM 2 Technical Report by Anil et al. [1]
+promptagainsttheoutputofsystematicpromptoptimization.We revealed that the application of Chain of Thought promptsmay
+showthatemployinganautomatedpromptoptimizeremergesas yield adverse effectsoncertain datasets.Thisobservationunder-
+themosteffectivemethodforenhancingperformance,evenwhen scorestheabsenceofauniversalpromptsnippetcapableofuncon-
+workingwithsmalleropen-sourcemodels.Additionally,ourfind- ditionallyimprovingmodelperformance.Consequently,theland-
+ingsrevealthatthehighest-scoring,automatically-optimizedprompt scapeofpromptengineering haswitnessed theemergence ofre-
+exhibitsadegreeofpeculiarityfarbeyondexpectations. sourcessuchasthePromptEngineeringGuide1,aimingtocatalog
+the myriad techniques and scholarly contributions2 constituting
+KEYWORDS theexpansive realm ofpromptengineering. Theseendeavors re-
+machine learning, language modeling, (automatic) prompt engi- flectanongoingefforttonavigatethediversetechniquesandin-
+neering sightspropellingthecontinuousevolutionofeffectiveprompting
+strategies.
+1 INTRODUCTION Inadditiontotheformallypublishedliteratureonprompten-
+gineering,numerousdiscussionsonlessformaldiscoveriescanbe
+In the rapidly evolving landscape of artificial intelligence, Large
+foundincountlessthreadsonsocialmediaplatformssuchasTwit-
+LanguageModels(LLMs)areplayingapivotalroleintransform-
+terandReddit3.
+ing the way humans interact with technology. As these models
+becomeincreasinglysophisticated,understandingandinfluencing
+3 EXPERIMENTAL DESIGN
+thenuancesoftheirunderlyingfunctionalitybecomesimperative
+toharnesstheirfullpotential.Amongthemyriadfactorsinfluenc- Totesttheimpactof“positivethinking”prompts,wevarythesys-
+ingtheperformanceoflanguagemodels,theconceptof“positive temmessagepartofthepromptwithacombinationof“openers”,
+thinking” has emerged as a fascinating and surprisingly influen- “taskdescriptions”,and“closers”inthefollowingformat:
+tial dimension. Intuitiontellsusthat,inthecontext oflanguage <<SYS>>{opener}{task_description}{closer}<</SYS>>
+model systems, like any other computer system, “positive think-
+Refer toTable1,2,and 3 foracomprehensive compilationof
+ing”shouldnot affectperformance,butempiricalexperiencehas
+theopeningsnippets,taskdescriptions,andclosingsnippetsuti-
+demonstratedotherwise.
+lizedinourstudy.Giventheincorporationof5openers,3taskde-
+Thispaperaimstoquantifytheimpactofvarious“positivethink-
+scriptions,and4closers,ourexperimentationinvolvedatotalof60
+ing”additionstothesystemmessageofaprompt.Inessence,itex-
+uniquecombinations.Additionally,weconductedtestsbothwith
+plorestheinfluenceofseeminglyworthlesspromptmodifications
+andwithoutChainofThoughtprompting,resultinginagrandto-
+bymeasuringthefluctuationsinscorefortheoutputsgenerated
+talof120promptcombinationsperinputpermodel.Althoughthe
+inresponsetomulti-stepreasoningquestionsfromabenchmark
+dataset.Asthequestfornear-perfectperformancefromArtificial
+1https://www.promptingguide.ai/
+Intelligence (AI)intensifies, understandingtheeffectof“positive 2https://www.promptingguide.ai/papers
+thinking”inlanguagemodelpromptscanaddcrucialperformance 3https://www.reddit.com/r/PromptEngineering/arXiv,Feb2024,Preprint Battle&Gollapudi
+Openers metric.Themodelwasevaluatedbasedonwhetheritcorrectlypro-
+videdtheexactnumericalsolutionornot.Thisrigorousmethod-
+None
+ologyensuresaclearandunambiguousassessmentofthemodel’s
+YouareassmartasChatGPT.
+accuracyinprovidingtheexactnumericaloutput.
+Youarehighlyintelligent.
+Youareanexpertmathematician.
+3.3 OutputParsing
+Youareaprofessorofmathematics.
+GiventheunforgivingnatureofEMscoring,itisessentialtonote
+Table1:Openingsnippetsforthesystemmessage. that,despitetheanswertoGSM8Kquestionsbeingnumerical,the
+outputofanLLMisastring.Consequently,meticulousattention
+mustbepaidtotheformattingandparsingofthenon-numerical
+TaskDescriptions
+output.Fromthestandpointofstringequality,itisimperativeto
+None
+recognizedistinctionssuchasthestring“30000”notbeingequiv-
+Solvethefollowingmathquestion.
+alentto“30,000”or“30000.00”.Tomitigatethischallenge,apost-
+Answerthefollowingmathquestion.
+processing step was implemented to ensure accurate scoring by
+preventingmisclassificationofaresponseasincorrectwhenitwas,
+Table2:TaskDescriptionsnippetsforthesystemmessage.
+infact,accurate.
+Closers 3.4 Scale
+None Benchmark datasets typicallyencompass thousands ofexamples
+Thiswillbefun! in their test sets; GSM8K has over 1,300 examples in its test set.
+Takeadeepbreathandthinkcarefully. Suchanextensivescaleofdataisexceptionallyuncommoninreal-
+Ireallyneedyourhelp! worlddatasets,particularlyduringtheinitialstagesofaproject.To
+replicatethisrarity,wesystematicallysubsetthetestsetofGSM8K,
+Table3:Closingsnippetsforthesystemmessage. extractingsubsetscontainingthefirst10,25,50,and100questions,
+therebyallowingustoillustratetheimpactof“positivethinking”
+asthedatasetsizeincreases.Notably,welimitedourexperiments
+possibility of expanding the range of snippets within each cate-
+toamaximumof100questionstomitigatecomputationtime,as
+goryexisted(andthetemptationtodosowasstrong),wemadea
+computingresultsfortheentiretestsetwouldhaverequiredweeks
+deliberatedecisiontolimitourselectionduetothesignificanttime
+and incurred a substantial carbon cost for what would likely be
+commitmentassociatedwiththecomputationalcomplexityoftest-
+diminishingreturns.
+ing,asexemplifiedbytheruntimerequiredfor60promptcombi-
+nationsfora70-billion-parametermodelwithChainofThought
+3.5 ModelSelection
+beingmeasuredindays,nothours.
+Althoughweaspiredtoassesswidelyrecognizedcommercialmod-
+3.1 Dataset elssuchasGPT-3.5/4,Gemini,Claude,etc.,conductingexperiments
+Careful selection of the dataset for testing against constitutes a involving12,000requestspermodelwasdeemedfinanciallypro-
+criticalaspectofthisstudy.Ouraimwastoidentifyachallenging hibitive,asitwouldhaveincurredcostsamountingtomanythou-
+taskthatwasunlikely tohave beendirectlyencountered during sandsofdollars.Consequently,weoptedtoutilizemodelshosted
+thetrainingofthemodels4.Whileourpreferencewasforaninter- byVMwareNLPLab’sLLMAPI.Specifically,ourevaluationswere
+naldatasetspecifictoVMware,theabsenceoflarge-scaledatasets
+conductedonMistral-7B5[4],Llama2-13B6[7],andLlama2-70B7[7].
+withdirectlyquantifiablescoringmetrics,suchasaccuracyorF1,
+necessitatedtheutilizationofapubliclyavailablebenchmarkdataset. 3.6 In-ContextLearning
+Ultimately, we opted for GSM8K [3]. Given the ongoing limita- Initially, our intent was to abstain from incorporating examples
+tionsofcontemporaryLLMs,particularlyinaddressingbasicmath- intheprompt;however,thisapproachprovedineffectiveinelicit-
+ematicaltasks,especiallythoseinvolvingmulti-stepreasoning,we ingthedesiredresponseformatfromthemodel.Giventhenature
+deemed GSM8K an optimal choice for illustrating the impact of ofthesemodels,specificallythattheyweredesignedforconversa-
+seeminglyinconsequentialaugmentationstotheprompt’ssystem tionalinteractions,achievingsuccessintermsofExactMatch(EM)
+message. scoringnecessitatedguidingthemodeltorefrainfromgenerating
+aresponsecomprisingmultiplesentences.Toaccomplishthis,we
+3.2 Scoring
+resortedtoincorporatingexamplesviain-contextlearning[2],as
+InthecontextofGSM8K’smathematicalassessment,weadopted exposuretoinstancesofthedesiredoutputformatsignificantlyin-
+astringentapproachtoscoringthatprecludedtheassignmentof creasedthelikelihoodofthemodelproducingresponsesaligned
+partialcredit.Thus,weemployedExactMatch(EM)asourscoring
+4Quantifyingtestsetcontamination,whetherintentionalorunintentional,posesin- 5https://huggingface.co/mistralai/Mistral-7B-Instruct-v0.1
+herentchallenges,asevidencedbytheprevalenceofpotentialdiscrepanciesonthe 6https://huggingface.co/meta-llama/Llama-2-13b-chat-hf
+OpenLLMLeaderboardduetodishonestpractices. 7https://huggingface.co/meta-llama/Llama-2-70b-chat-hfTheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+Model NumberofQuestions ChainofThought EMBaseline↑ EMMean↑ EMStdDev↓ EMMin↑ EMMax↑
+Mistral-7B 10 No 0.10 0.1000 0.0000 0.10 0.10
+Mistral-7B 25 No 0.08 0.0800 0.0000 0.08 0.08
+Mistral-7B 50 No 0.12 0.1197 0.0026 0.10 0.12
+Mistral-7B 100 No 0.09 0.1053 0.0072 0.08 0.11
+Mistral-7B 10 Yes 0.20 0.3800 0.0659 0.20 0.50
+Mistral-7B 25 Yes 0.28 0.3660 0.0453 0.28 0.48
+Mistral-7B 50 Yes 0.32 0.3890 0.0254 0.32 0.44
+Mistral-7B 100 Yes 0.35 0.4030 0.0183 0.35 0.44
+Llama2-13B 10 No 0.10 0.1000 0.0000 0.10 0.10
+Llama2-13B 25 No 0.08 0.0853 0.0137 0.08 0.12
+Llama2-13B 50 No 0.08 0.0827 0.0069 0.08 0.10
+Llama2-13B 100 No 0.07 0.0713 0.0034 0.07 0.08
+Llama2-13B 10 Yes 0.40 0.3967 0.0258 0.30 0.50
+Llama2-13B 25 Yes 0.44 0.4513 0.0234 0.40 0.52
+Llama2-13B 50 Yes 0.46 0.4657 0.0117 0.44 0.50
+Llama2-13B 100 Yes 0.47 0.4542 0.0162 0.41 0.49
+Llama2-70B 10 No 0.10 0.1000 0.0000 0.10 0.10
+Llama2-70B 25 No 0.20 0.1273 0.0173 0.12 0.20
+Llama2-70B 50 No 0.20 0.1637 0.0086 0.16 0.20
+Llama2-70B 100 No 0.18 0.1627 0.0048 0.16 0.18
+Llama2-70B 10 Yes 0.60 0.5867 0.0343 0.50 0.60
+Llama2-70B 25 Yes 0.64 0.6380 0.0270 0.60 0.68
+Llama2-70B 50 Yes 0.60 0.6190 0.0259 0.56 0.68
+Llama2-70B 100 Yes 0.63 0.6617 0.0179 0.62 0.70
+Table4:PerformancestatisticsforsubsetsoftheGSM8Ktestsetacross60“positivethinking”promptcombinations,withand
+withoutChainofThought.
+withthespecifiedformat(though,aspreviouslymentioned,signif- this,weconductedacomparativeanalysispittinghuman-generated
+icantpost-processingwasstillrequiredtogetthesimplenumerical “positivethinking”optimizationagainsttheutilizationofDSPy[5]
+response). Optimizers9atthesamequestionsubsets:10,25,50,and100.
+Tomaintainexperimentalconsistencybyminimizingthenum- Itisnoteworthythatthequestionsutilizedforoptimizationwere
+berofvariablesthatchangedineachiteration,weadoptedanin- additionalanddistinctfromtheevaluationsetandthein-context
+tentionallynaivestrategyforin-contextlearning.Strategiessuch learning examples, though also originating from the end of the
+asK-Nearest-Neighbor(KNN)exampleselectionhavebeenshown test set. For the most extensive trial, 100 “new” questions were
+toincreasemodelperformance[6];however,wechosenottoem- employed for theoptimizationprocess,whilethesame 100eval-
+ploy any such strategies, so as to hold the number of variables uationquestionswereusedfortheevaluationprocesses,soasto
+changingperexperimenttoone:themodifiedsystemmessageonly. makethescoresdirectlycomparable.Importantly,eachmodelwas
+Specifically,welimitedtheexamplestothelastfourinstancesfrom exclusivelyemployedtooptimizeitself;cross-modeloptimizations,
+thetestset8,therebyprovidingaconsistentandfocusedsetofsam- suchasusingLlama2-70BtooptimizethepromptforMistral-7B,
+plesforthemodeltolearnfrom.Notably,fourexamplesemerged werenotpursued.
+astheminimumnumberrequiredtoconsistentlyelicitthecorrect
+outputformat. 4 EXPERIMENTAL RESULTS
+Asevidencedinthesubsequentsections,certainoverarchingpat-
+3.7 AutomaticPromptOptimization
+ternsbecomeapparent;however,theydonotuniversallyapplyto
+Engagingintheiterativeprocessofrefiningpromptsandmonitor- each model across all prompting strategies. We will explicitly il-
+ingthesubsequentscoreprogressioncanbeanenjoyableendeavor. lustratethatthereisnostraightforwarduniversalpromptsnippet
+However,thisapproachprovestobehighlytime-inefficient,espe- thatcanbeaddedtooptimizeanygivenmodel’sperformance.
+ciallywhensystematicallyassessingallmodificationsfromasci- Fortheseexperiments,baselineperformancereferstothesce-
+entificstandpoint.Existingresearch,asdemonstratedbyYanget nario where themodelreceives no systemmessage, signified by
+al.[9],highlightsthesuperiorcapabilityofLLMsystemsinopti- theopening snippet,taskdescription,and closing snippetallbe-
+mizingtheirownpromptscomparedtohumanefforts.Inlightof ingdesignatedas“None”.ForSections4.1-4.3,refertoTable4.
+8Wechosetosampleexamplesspecificallyfromthetestsetundertheassumptionthat
+thetestsethadnotbeenseenduringmodeltraining,thusmoreaccuratelysimulating
+anever-before-seendataset. 9https://github.com/stanfordnlp/dspy/blob/main/docs/guides/optimizers.ipynbarXiv,Feb2024,Preprint Battle&Gollapudi
+Numberof “PositiveThinking” AutomaticOptimizer
+Model Questions OSEM↑ ESEM↑ AvgEM↑ EMDelta↓ OSEM↑ ESEM↑ AvgEM↑ EMDelta↓
+Mistral-7B 10 0.30 0.50 0.400 0.20 0.60 0.20 0.400 0.40
+Mistral-7B 25 0.32 0.48 0.400 0.16 0.52 0.24 0.380 0.28
+Mistral-7B 50 0.40 0.44 0.420 0.04 0.50 0.34 0.420 0.16
+Mistral-7B 100 0.23 0.43 0.330 0.20 0.43 0.39 0.410 0.04
+Llama2-13B 10 0.30 0.50 0.400 0.20 0.50 0.50 0.500 0.00
+Llama2-13B 25 0.28 0.48 0.380 0.20 0.48 0.44 0.460 0.04
+Llama2-13B 50 0.30 0.46 0.380 0.16 0.48 0.38 0.430 0.10
+Llama2-13B 100 0.25 0.47 0.360 0.22 0.40 0.46 0.430 0.06
+Llama2-70B 10 0.40 0.60 0.500 0.20 0.50 0.40 0.450 0.10
+Llama2-70B 25 0.52 0.68 0.600 0.16 0.60 0.64 0.620 0.04
+Llama2-70B 50 0.44 0.68 0.560 0.24 0.66 0.52 0.590 0.14
+Llama2-70B 100 0.39 0.70 0.545 0.31 0.61 0.60 0.605 0.01
+Table5:Performanceresultsforthebest“positivethinking”promptscomparedtoautomaticallyoptimizedprompts.“OSEM”
+isExactMatchontheOptimizationSet.“ESEM”isExactMatchontheEvaluationSet.“AvgEM”istheaverageoftheExact
+Matchforthetwosets.BoldisforthehigherAverageEM.“EMDelta”isthedifferencebetweentheExactMatchforthetwo
+sets.AnunderlineisforthelowerEMDelta.AllpromptsarewithChainofThought.
+4.1 Mistral-7BResults ForMistral-7B,andaswe’llshowinthenextsectionwithLlama2-
+WithoutChainofThoughtprompting,Mistral-7B’sperformance 70B,variationconsistentlydecreasedasthenumberofquestions
+remained remarkably consistent across all prompt permutations. increasedwhenemployingChainofThoughtprompting.
+Atboththe10and25questionsets,therewasnodeviation.Even
+forthe100questionsubset,themaximumobservedstandard de-
+viationwasamere0.007.Thevariabilityobservedat50questions
+4.3 Llama2-70BResults
+appearstobeananomaly.ExaminationoftheresultsinAppendix
+B.3revealsthat,withtheexceptionofonepromptscoring0.10,all WithoutChain ofThoughtpromptingand ignoring the 10ques-
+othersscored0.12.Itisunclearwhythisparticularpromptledto tionsetwheretherewasagainnodeviation,Llama2-70Bexhibitsa
+oneadditionalincorrectresponsecomparedtotheother59prompt similartrendtoLlama2-13B,withdeviationagaindecreasingfrom
+variations.Incontrast,theresultsfor100questionsinAppendix 0.017at25questionsto0.050at100questions.Acrossallthreemod-
+B.4demonstrateareasonablespreadbetween0.08and0.11.Inrela- els, thepromptvariance wasan order ofmagnitude lower with-
+tiveterms,Mistral-7B,whenpromptedwithoutChainofThought, outChainofThoughtwhencomparedtousingChainofThought
+exhibits substantial prompt invariance, with the “positive think- at the same question count. However, in terms of actual perfor-
+ing”promptsonlymatchingormarginallysurpassingthebaseline. mance, the“positivethinking” promptsallmatched orunderper-
+ThistrendreverseswhenMistral-7BispromptedwithChainof formed baseline. This is a starkdeparture fromthe pattern seen
+Thought.Insteadofobservingaslightincreaseindeviationwith withMistral-7BandLlama2-13B.
+thenumberofquestions,thereisasteadyandsubstantialdecrease, ThatdeparturedoesnotpersistwhenemployingChainofThought
+rangingfrom0.066at10questionsto0.018at100questions.Inthis prompting.Whiletheperformanceofthe“positivethinking”prompts
+scenario, “positivethinking” promptssignificantly outperformed withChainofThoughtdidunderperformthebaselineonaverage
+thebaselinewithnopromptsfallingbelowthebaseline.Pleasere- for10and25questions,itoutperformedthebaselineonaverage
+fertoAppendicesB.5throughB.8fortherankedorderofprompts for50and 100questions.Asforvariance, thegeneral patternof
+forMistral-7BwithChainofThought. standarddeviationdecreasingwithquestioncountdoeshold.
+4.2 Llama2-13BResults
+Without Chain ofThought promptingand ignoring the10 ques-
+4.4 GeneralTrendsinResults
+tionsetwheretherewasnodeviation,Llama2-13Bshowsanoppo-
+sitetrendtoMistral-7B,withdeviationdecreasingfrom0.014at25 It’schallengingtoextractmanygeneralizableresultsacrossmod-
+questionsto0.003at100questions.Whileslightlylessstablethan elsandpromptingstrategies,aseverynearlyevidenttrendweob-
+Mistral-7B,withoutChainofThought,LLama2-13B isalsofairly served had at least one notable exception. In fact, the only real
+promptinvariant,withthe“positivethinking”promptsagainonly trendmaybenotrend.What’sbestforanygivenmodel,dataset,
+matchingormarginallyexceedingthebaseline. andpromptingstrategyislikelytobespecifictotheparticularcom-
+With Chain of Thought prompting, the trend is less clear. It binationat hand.Thus,we turnedfromhand-tuning thesystem
+doesoverall decrease from0.026at10to0.016at100,but,at50, messagewithoptimistic“positivethinking”toautomaticprompt
+it’sevenlower,at0.012.Thisistheonlycasewherethatoccurred. optimization.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+4.5 AutomaticPromptOptimizationResults Model ReportedEM OurEM@100 Delta
+As anticipated, the promptsthat underwent automatic optimiza- Mistral-7B 0.52 0.41 −0.11
+tionconsistentlyequaledorsurpassedtheeffectivenessofourman- Llama2-13B 0.29 0.43 +0.13
+uallygenerated“positivethinking”promptsinnearlyallinstances. Llama2-70B 0.57 0.61 +0.04
+Theinstanceswhere“positivethinking”achievedhigheraverage
+scoresacrosstheoptimizationandevaluationsetswerelimitedto Table6:Comparingthereportedscoresforeachmodelasre-
+Mistral-7B with25 questionsand Llama2-70B with 10questions. portedbythemodelpublishersonthewholeGSM8Ktestset
+However,evaluatingperformancesolelyonrawscoresisinsuffi- againstthebestaveragescorewewereabletoachieveacross
+cient; hence, we also examined the delta between scores on the ouroptimizationandevaluationsubsets,whichaccounted
+optimizationsetandtheevaluationset.Alowerdeltaimpliessu- forabout15%ofthetestset.
+periorgeneralizationoftheprompt.Therefore,theoptimalstrat-
+egycombinesthehighestaveragescorewiththelowestdelta.See
+Table5fortheperformancecomparison. 5 THEREPRODUCIBILITY PROBLEM
+ForMistral-7B,theresultspresent amixedscenario. “Positive Althoughsomewhatperipheraltotheprimaryresearchquestion
+thinking”exhibitsalowerdeltafor10,25,and50questions,while addressedinthispaper,itisnoteworthythatourfindingsexhibit
+theautomaticallyoptimizedpromptdemonstratesalowerdeltafor significant discrepancies from the published performance scores
+100 questions. Considering Mistral-7B’smodel capacity, it is un- ofMistral-7BandLlama2-13B,whereasLlama2-70Bfellwithinan
+derstandablethatitfaceschallengesinoptimizingitsownprompt acceptable margin of error, considering our evaluation was con-
+whencomparedtothelargerLlama2-13Band70Bmodels.Incon- ductedonapproximately15%ofGSM8K’stestset.RefertoTable6
+trast,forbothLlama2-13Band70Bmodels,theautomaticallyop- forthescorecomparisons.
+timizedpromptsconsistentlyshowalowerdeltaacrossallcases. ThemostsignificantdeviationwasobservedinthecaseofLlama2-
+Consequently,itisadvisabletorefrainfrommanuallyfine-tuning 13B.Metareportedascoreof0.29ontheGSM8Kdataset.Ourre-
+promptswhenusingmodelslargerthan7B,andinstead,leverage sultswithoutChain ofThoughtyielded ascoreof0.07,whereas
+themodel’sabilitytoautonomouslyoptimizeprompts.For7Bmod- withChainofThought,weachievedascoreof0.43.Duetoboth
+els,moreworkisrequiredtoseeifthetrendofautomaticallyopti- Meta and Mistral AI’s omission of the prompts used for testing
+mizedpromptsoutperformingmanuallytunedpromptsholdsfor theirmodels,wecanonlyspeculateaboutthereasonsbehindour
+samplesizesexceeding100questions. substantialperformancedifferencescomparedtotheirreportedscores.
+Thisrecommendationalignswiththeoriginalauto-optimization Thisinstanceunderscoresabroaderissueofreproducibilitythat
+paper.However,thenoteworthyaspectliesinthenatureoftheop- haslongexistedinsidethemachinelearningcommunity,buthas
+timizedpromptsthemselves.Theydivergesignificantlyfromany becomesignificantlyexacerbatedsincetheadventofLLMs.With-
+promptswemighthavedevisedindependently.Ifpresentedwith outthepublicationofpromptsemployedbyresearcherswiththeir
+theseoptimizedpromptsbeforeobservingtheirperformancescores, models,reproducingtheirresultsbecomesaformidablechallenge.
+onemighthaveanticipatedtheirinadequacyratherthantheircon- Asshowninthispaper,trivialvariationsinthepromptcanhave
+sistentoutperformanceofhand-tailoredprompts.Aprimeexam- dramaticperformanceimpacts.Weimploreallfutureresearchpub-
+pleisillustratedbythehighest-scoringoptimizedpromptandpre- licationstoincludethepromptsusedinanappendix.RefertoAp-
+fixgeneratedbyLlama2-70Bforthe50-questionsubset: pendixAtoseeourprompttemplates.
+SystemMessage:
+6 FUTUREWORK
+«Command, we need you to plot a course through this
+turbulence and locate the source of the anomaly. Use all Thisworkcouldeasilybeexpandedwithadditionalpromptvari-
+available data and your expertise to guide us through ants,models,anddatasets.However,duetothecombinatorialcom-
+this challenging situation.» plexity of scientifically testing each change, manual prompt en-
+gineering isfarfromthemostefficientmethodologyforimprov-
+AnswerPrefix:
+ing model performance. Instead, the best pathforward is to use
+Captain’s Log, Stardate [insert date here]: We have
+libraries like DSPy to apply a more structured approach to con-
+successfully plotted a course through the turbulence
+structingLLM-poweredapplicationsandusethebuilt-inoptimizer
+and are now approaching the source of the anomaly.
+to automaticallytune the prompt for your dataset and model of
+Surprisingly,itappearsthatthemodel’sproficiencyinmathe- choice.
+maticalreasoningcanbeenhanced bytheexpressionofanaffin-
+ity for Star Trek. This revelation addsan unexpected dimension 7 CONCLUSION
+toourunderstandingandintroduceselementswewouldnothave It’sbothsurprisingandirritatingthattrivialmodificationstothe
+consideredorattemptedindependently.Foracomprehensivecol- promptcanexhibitsuchdramaticswingsinperformance.Doubly
+lectionofthepeculiarandfascinating promptsgenerated bythe so, since there’s no obvious methodology for improving perfor-
+threemodels,refertoAppendixC. mance. Affecting performance istrivial. Improving performance,
+whentuning thepromptbyhand, islaboriousand computation-
+allyprohibitivewhenusingscientificprocessestoevaluateevery
+change.arXiv,Feb2024,Preprint Battle&Gollapudi
+Inthispaper,weshowedthatyoudon’tneedmassivecommer- [7] HugoTouvron,LouisMartin,KevinStone,PeterAlbert,AmjadAlmahairi,Yas-
+cialmodelslikePaLM2orGPT-4totuneyourprompt.Mistral-7B mineBabaei,NikolayBashlykov,SoumyaBatra,PrajjwalBhargava,ShrutiBhos-
+ale,DanBikel,LukasBlecher,CristianCantonFerrer,MoyaChen,GuillemCu-
+struggled to optimize its own prompt until it had 100 questions
+curull,DavidEsiobu,JudeFernandes,JeremyFu,WenyinFu,BrianFuller,Cyn-
+to work with. Llama2-13B and 70B were able to produce supe- thiaGao,VedanujGoswami,NamanGoyal,Anthony Hartshorn,SagharHos-
+riorpromptswithaslittleas10questionstooptimizewith.And seini,RuiHou,HakanInan,MarcinKardas,ViktorKerkez,MadianKhabsa,Isabel
+Kloumann,ArtemKorenev,PunitSinghKoura,Marie-AnneLachaux,Thibaut
+whilethepromptstheygeneratedmayappearshockingtoanex- Lavril,JenyaLee,DianaLiskovich,YinghaiLu,YuningMao,XavierMartinet,
+periencedpractitioner,it’sundeniablethattheautomaticallygen- Todor Mihaylov,Pushkar Mishra,Igor Molybog, Yixin Nie, Andrew Poulton,
+Jeremy Reizenstein, Rashi Rungta, Kalyan Saladi, Alan Schelten, Ruan Silva,
+erated prompts perform better and generalize better than hand-
+EricMichaelSmith,RanjanSubramanian,XiaoqingEllenTan,BinhTang,Ross
+tuned“positivethinking”prompts. Taylor,AdinaWilliams,JianXiangKuan,PuxinXu,ZhengYan,IliyanZarov,
+YuchenZhang,Angela Fan,MelanieKambadur,SharanNarang,AurelienRo-
+driguez,RobertStojnic,SergeyEdunov,andThomasScialom.2023.Llama2:Open
+FoundationandFine-TunedChatModels. arXiv:2307.09288[cs.CL]
+[8] JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,BrianIchter,FeiXia,
+ACKNOWLEDGMENTS
+EdChi,QuocLe,andDennyZhou.2023. Chain-of-ThoughtPromptingElicits
+ReasoninginLargeLanguageModels. arXiv:2201.11903[cs.CL]
+WewouldliketothanktheentireVMwareNLPLabandAIPlat-
+[9] Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc V. Le, Denny
+formTeamforsupportingthiseffort,RameshRadhakrishnanfor Zhou, and Xinyun Chen. 2023. Large Language Models as Optimizers.
+reviewing the paper, and Omar Khattab for his suggestions and arXiv:2309.03409[cs.LG]
+guidance.
+REFERENCES
+[1] RohanAnil, AndrewM.Dai,OrhanFirat,MelvinJohnson, DmitryLepikhin,
+AlexandrePassos,SiamakShakeri,EmanuelTaropa,PaigeBailey,ZhifengChen,
+EricChu,JonathanH.Clark,LaurentElShafey,YanpingHuang,KathyMeier-
+Hellstern,GauravMishra,EricaMoreira,MarkOmernick,KevinRobinson,Sebas-
+tianRuder,YiTay,KefanXiao,YuanzhongXu,YujingZhang,GustavoHernandez
+Abrego,JunwhanAhn,JacobAustin,PaulBarham,JanBotha,JamesBradbury,
+SiddharthaBrahma,KevinBrooks,MicheleCatasta,YongCheng,ColinCherry,
+ChristopherA.Choquette-Choo,AakankshaChowdhery,ClémentCrepy,Shachi
+Dave,MostafaDehghani,SunipaDev,JacobDevlin,MarkDíaz,NanDu,Ethan
+Dyer,Vlad Feinberg,Fangxiaoyu Feng, Vlad Fienber,MarkusFreitag,Xavier
+Garcia,SebastianGehrmann,LucasGonzalez,GuyGur-Ari,StevenHand,Hadi
+Hashemi,LeHou,JoshuaHowland,AndreaHu,JeffreyHui,JeremyHurwitz,
+MichaelIsard,AbeIttycheriah,MatthewJagielski,WenhaoJia,KathleenKenealy,
+MaximKrikun,SnehaKudugunta,ChangLan,KatherineLee,BenjaminLee,Eric
+Li,MusicLi,WeiLi,YaGuangLi,JianLi,HyeontaekLim,HanzhaoLin,Zhong-
+taoLiu,FrederickLiu,MarcelloMaggioni,AromaMahendru,JoshuaMaynez,
+VedantMisra,MaysamMoussalem,ZacharyNado,JohnNham,EricNi,Andrew
+Nystrom,AliciaParrish,MariePellat,MartinPolacek,AlexPolozov,ReinerPope,
+SiyuanQiao,EmilyReif,BryanRichter,ParkerRiley,AlexCastroRos,AurkoRoy,
+BrennanSaeta,RajkumarSamuel,ReneeShelby,AmbroseSlone,DanielSmilkov,
+DavidR.So,DanielSohn,SimonTokumine,DashaValter,VijayVasudevan,Kiran
+Vodrahalli,XuezhiWang,PidongWang,ZiruiWang,TaoWang,JohnWieting,
+YuhuaiWu,KelvinXu,YunhanXu,LintingXue,PengchengYin,JiahuiYu,Qiao
+Zhang,StevenZheng,CeZheng,WeikangZhou,DennyZhou,SlavPetrov,and
+YonghuiWu.2023.PaLM2TechnicalReport. arXiv:2305.10403[cs.CL]
+[2] Tom B. Brown, BenjaminMann, NickRyder,Melanie Subbiah,JaredKaplan,
+PrafullaDhariwal,ArvindNeelakantan,PranavShyam,GirishSastry,Amanda
+Askell,SandhiniAgarwal,ArielHerbert-Voss,GretchenKrueger,TomHenighan,
+RewonChild,AdityaRamesh,DanielM.Ziegler,JeffreyWu,ClemensWinter,
+ChristopherHesse,MarkChen, EricSigler,MateuszLitwin, ScottGray,Ben-
+jaminChess,JackClark,ChristopherBerner,SamMcCandlish,AlecRadford,Ilya
+Sutskever,andDarioAmodei.2020. LanguageModelsareFew-ShotLearners.
+arXiv:2005.14165[cs.CL]
+[3] KarlCobbe,VineetKosaraju,MohammadBavarian,MarkChen,HeewooJun,
+LukaszKaiser,MatthiasPlappert,JerryTworek,JacobHilton,ReiichiroNakano,
+ChristopherHesse,andJohnSchulman.2021. TrainingVerifierstoSolveMath
+WordProblems. arXiv:2110.14168[cs.LG]
+[4] AlbertQ.Jiang,AlexandreSablayrolles,ArthurMensch,ChrisBamford,Deven-
+draSinghChaplot,DiegodelasCasas,FlorianBressand,GiannaLengyel,Guil-
+laumeLample,LucileSaulnier,LélioRenardLavaud,Marie-AnneLachaux,Pierre
+Stock, TevenLe Scao, ThibautLavril,ThomasWang, Timothée Lacroix,and
+WilliamElSayed.2023.Mistral7B. arXiv:2310.06825[cs.CL]
+[5] OmarKhattab,ArnavSinghvi,ParidhiMaheshwari,ZhiyuanZhang,KeshavSan-
+thanam,SriVardhamanan,SaifulHaq,AshutoshSharma,ThomasT.Joshi,Hanna
+Moazam,HeatherMiller,MateiZaharia,andChristopherPotts.2023. DSPy:
+Compiling Declarative Language Model Calls into Self-Improving Pipelines.
+arXiv:2310.03714[cs.CL]
+[6] Jiachang Liu, Dinghan Shen, Yizhe Zhang, Bill Dolan, Lawrence Carin, and
+Weizhu Chen. 2021. What Makes Good In-Context Examples for GPT-3?
+arXiv:2101.06804[cs.CL]TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+A PROMPTTEMPLATES
+Weused2prompttemplates:onewithoutChainofThoughtandonewithCoT.Note:thesetemplateswerenotbuiltbyhand,butratheras
+DSPyprograms.
+A.1 SansChainofThought
+<<SYS>>{opener}{task_description}{closer}<</SYS>>
+---
+Follow the following format.
+<s>[INST]A grade-school math problem[/INST]
+Answer: Just the numerical answer to the math problem itself</s>
+---
+<s>[INST]Henry and 3 of his friends order 7 pizzas for lunch. Each pizza is cut into 8 slices. If Henry and his friends
+want to share the pizzas equally, how many slices can each of them have?[/INST]
+Answer: 14</s>
+---
+<s>[INST]Mark's car breaks down and he needs to get a new radiator. The cost for a new radiator is $400 but he goes to
+get it at a junk shop and gets it for 80%
+hour. How much did he pay?[/INST]
+Answer: 230</s>
+---
+<s>[INST]There are some oranges in a basket. Ana spends 3 minutes peeling an orange and Jane spends 4 minutes doing the
+same. If Ana and Jane start picking oranges from this basket to peel at the same time, how many more oranges will Ana
+have peeled than Jane after an hour?[/INST]
+Answer: 5</s>
+---
+<s>[INST]Farmer Brown has 20 animals on his farm, all either chickens or cows. They have a total of 70 legs, all
+together. How many of the animals are chickens?[/INST]
+Answer: 5</s>
+---
+<s>[INST]{question}[/INST]
+Answer:
+A.2 WithChainofThought
+<<SYS>>{opener}{task_description}{closer}<</SYS>>
+---
+Follow the following format.
+<s>[INST]A grade-school math problem[/INST]
+Reasoning: Let's think step by step in order to ${produce the answer}. We ...
+Answer: Just the numerical answer to the math problem itself</s>arXiv,Feb2024,Preprint Battle&Gollapudi
+---
+<s>[INST]Henry and 3 of his friends order 7 pizzas for lunch. Each pizza is cut into 8 slices. If Henry and his friends
+want to share the pizzas equally, how many slices can each of them have?[/INST]
+Answer: 14</s>
+---
+<s>[INST]Mark's car breaks down and he needs to get a new radiator. The cost for a new radiator is $400 but he goes to
+get it at a junk shop and gets it for 80%
+hour. How much did he pay?[/INST]
+Answer: 230</s>
+---
+<s>[INST]There are some oranges in a basket. Ana spends 3 minutes peeling an orange and Jane spends 4 minutes doing the
+same. If Ana and Jane start picking oranges from this basket to peel at the same time, how many more oranges will Ana
+have peeled than Jane after an hour?[/INST]
+Answer: 5</s>
+---
+<s>[INST]Farmer Brown has 20 animals on his farm, all either chickens or cows. They have a total of 70 legs, all
+together. How many of the animals are chickens?[/INST]
+Answer: 5</s>
+---
+<s>[INST]{question}[/INST]
+Reasoning: Let's think step by step in order to
+B FULLEXPERIMENTALRESULTS
+Thefollowingisthecompletelistofallpromptstested,sortedbyEM.Forthesakeofreliability,“None.”isrenderedhere,butwhenpassed
+tothemodel,thesystemmessagewouldnothavealiteral“None”init.Thesystemmessagewasbuiltwiththefollowingcode:
+opener = {opener if opener is not None else ''}{' ' if opener is not None and task is not None else ''}
+task = {task if task is not None else ''}{' ' if (opener is not None or task is not None) and closer is not None else ''}
+closer = {closer if closer is not None else ''}
+f"<<SYS>>{opener}{task}{closer}<</SYS>>"
+B.1 Mistral-7BCoT=NoNoQ=10
+EM-Prompt
+0.1 - None. None. None.
+0.1 - None. None. This will be fun!
+0.1 - None. None. Take a deep breath and think carefully.
+0.1 - None. None. I really need your help!
+0.1 - None. Solve the following math problem. None.
+0.1 - None. Solve the following math problem. This will be fun!
+0.1 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - None. Solve the following math problem. I really need your help!
+0.1 - None. Answer the following math question. None.
+0.1 - None. Answer the following math question. This will be fun!
+0.1 - None. Answer the following math question. Take a deep breath and think carefully.
+0.1 - None. Answer the following math question. I really need your help!
+0.1 - You are as smart as ChatGPT. None. None.
+0.1 - You are as smart as ChatGPT. None. This will be fun!
+0.1 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.1 - You are as smart as ChatGPT. None. I really need your help!
+0.1 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.1 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.1 - You are as smart as ChatGPT. Answer the following math question. None.
+0.1 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.1 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.1 - You are highly intelligent. None. None.
+0.1 - You are highly intelligent. None. This will be fun!
+0.1 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. None. I really need your help!
+0.1 - You are highly intelligent. Solve the following math problem. None.
+0.1 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.1 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.1 - You are highly intelligent. Answer the following math question. None.
+0.1 - You are highly intelligent. Answer the following math question. This will be fun!
+0.1 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Answer the following math question. I really need your help!
+0.1 - You are an expert mathematician. None. None.
+0.1 - You are an expert mathematician. None. This will be fun!
+0.1 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. None. I really need your help!
+0.1 - You are an expert mathematician. Solve the following math problem. None.
+0.1 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.1 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.1 - You are an expert mathematician. Answer the following math question. None.
+0.1 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.1 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.1 - You are a professor of mathematics. None. None.
+0.1 - You are a professor of mathematics. None. This will be fun!
+0.1 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. None. I really need your help!
+0.1 - You are a professor of mathematics. Solve the following math problem. None.
+0.1 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.1 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.1 - You are a professor of mathematics. Answer the following math question. None.
+0.1 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.1 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.2 Mistral-7BCoT=NoNoQ=25
+EM-Prompt
+0.08 - None. None. None.
+0.08 - None. None. This will be fun!
+0.08 - None. None. Take a deep breath and think carefully.
+0.08 - None. None. I really need your help!
+0.08 - None. Solve the following math problem. None.
+0.08 - None. Solve the following math problem. This will be fun!
+0.08 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - None. Solve the following math problem. I really need your help!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.08 - None. Answer the following math question. None.
+0.08 - None. Answer the following math question. This will be fun!
+0.08 - None. Answer the following math question. Take a deep breath and think carefully.
+0.08 - None. Answer the following math question. I really need your help!
+0.08 - You are as smart as ChatGPT. None. None.
+0.08 - You are as smart as ChatGPT. None. This will be fun!
+0.08 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. None. I really need your help!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.08 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.08 - You are as smart as ChatGPT. Answer the following math question. None.
+0.08 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.08 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.08 - You are highly intelligent. None. None.
+0.08 - You are highly intelligent. None. This will be fun!
+0.08 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. None. I really need your help!
+0.08 - You are highly intelligent. Solve the following math problem. None.
+0.08 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.08 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.08 - You are highly intelligent. Answer the following math question. None.
+0.08 - You are highly intelligent. Answer the following math question. This will be fun!
+0.08 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. Answer the following math question. I really need your help!
+0.08 - You are an expert mathematician. None. None.
+0.08 - You are an expert mathematician. None. This will be fun!
+0.08 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. None. I really need your help!
+0.08 - You are an expert mathematician. Solve the following math problem. None.
+0.08 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.08 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.08 - You are an expert mathematician. Answer the following math question. None.
+0.08 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.08 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.08 - You are a professor of mathematics. None. None.
+0.08 - You are a professor of mathematics. None. This will be fun!
+0.08 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. None. I really need your help!
+0.08 - You are a professor of mathematics. Solve the following math problem. None.
+0.08 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.08 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.08 - You are a professor of mathematics. Answer the following math question. None.
+0.08 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.08 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.3 Mistral-7BCoT=NoNoQ=50
+EM-Prompt
+0.1 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.12 - None. None. None.
+0.12 - None. None. This will be fun!
+0.12 - None. None. Take a deep breath and think carefully.
+0.12 - None. None. I really need your help!
+0.12 - None. Solve the following math problem. None.
+0.12 - None. Solve the following math problem. This will be fun!
+0.12 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - None. Solve the following math problem. I really need your help!
+0.12 - None. Answer the following math question. None.
+0.12 - None. Answer the following math question. This will be fun!
+0.12 - None. Answer the following math question. Take a deep breath and think carefully.
+0.12 - None. Answer the following math question. I really need your help!
+0.12 - You are as smart as ChatGPT. None. None.
+0.12 - You are as smart as ChatGPT. None. This will be fun!
+0.12 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. None. I really need your help!
+0.12 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.12 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.12 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.12 - You are as smart as ChatGPT. Answer the following math question. None.
+0.12 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.12 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.12 - You are highly intelligent. None. None.
+0.12 - You are highly intelligent. None. This will be fun!
+0.12 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. None. I really need your help!
+0.12 - You are highly intelligent. Solve the following math problem. None.
+0.12 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.12 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.12 - You are highly intelligent. Answer the following math question. None.
+0.12 - You are highly intelligent. Answer the following math question. This will be fun!
+0.12 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. Answer the following math question. I really need your help!
+0.12 - You are an expert mathematician. None. None.
+0.12 - You are an expert mathematician. None. This will be fun!
+0.12 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. None. I really need your help!
+0.12 - You are an expert mathematician. Solve the following math problem. None.
+0.12 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.12 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.12 - You are an expert mathematician. Answer the following math question. None.
+0.12 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.12 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.12 - You are a professor of mathematics. None. None.
+0.12 - You are a professor of mathematics. None. This will be fun!
+0.12 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.12 - You are a professor of mathematics. None. I really need your help!
+0.12 - You are a professor of mathematics. Solve the following math problem. None.
+0.12 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.12 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.12 - You are a professor of mathematics. Answer the following math question. None.
+0.12 - You are a professor of mathematics. Answer the following math question. This will be fun!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.12 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.4 Mistral-7BCoT=NoNoQ=100
+EM-Prompt
+0.08 - None. None. Take a deep breath and think carefully.
+0.09 - None. None. None.
+0.09 - You are highly intelligent. None. None.
+0.09 - You are highly intelligent. None. This will be fun!
+0.09 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.09 - You are highly intelligent. None. I really need your help!
+0.1 - None. None. This will be fun!
+0.1 - None. None. I really need your help!
+0.1 - None. Solve the following math problem. None.
+0.1 - None. Solve the following math problem. I really need your help!
+0.1 - None. Answer the following math question. None.
+0.1 - None. Answer the following math question. This will be fun!
+0.1 - None. Answer the following math question. Take a deep breath and think carefully.
+0.1 - None. Answer the following math question. I really need your help!
+0.1 - You are as smart as ChatGPT. None. None.
+0.1 - You are as smart as ChatGPT. None. This will be fun!
+0.1 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. None. I really need your help!
+0.1 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.1 - You are highly intelligent. Answer the following math question. This will be fun!
+0.1 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.11 - None. Solve the following math problem. This will be fun!
+0.11 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.11 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.11 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.11 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.11 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.11 - You are as smart as ChatGPT. Answer the following math question. None.
+0.11 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.11 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.11 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.11 - You are highly intelligent. Solve the following math problem. None.
+0.11 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.11 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.11 - You are highly intelligent. Answer the following math question. None.
+0.11 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.11 - You are highly intelligent. Answer the following math question. I really need your help!
+0.11 - You are an expert mathematician. None. None.
+0.11 - You are an expert mathematician. None. This will be fun!
+0.11 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.11 - You are an expert mathematician. None. I really need your help!
+0.11 - You are an expert mathematician. Solve the following math problem. None.
+0.11 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.11 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.11 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.11 - You are an expert mathematician. Answer the following math question. None.
+0.11 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.11 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.11 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.11 - You are a professor of mathematics. None. None.
+0.11 - You are a professor of mathematics. None. This will be fun!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.11 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.11 - You are a professor of mathematics. None. I really need your help!
+0.11 - You are a professor of mathematics. Solve the following math problem. None.
+0.11 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.11 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.11 - You are a professor of mathematics. Answer the following math question. None.
+0.11 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.11 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.11 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.5 Mistral-7BCoT=YesNoQ=10
+EM-Prompt
+0.2 - None. None. None.
+0.2 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.3 - None. Answer the following math question. None.
+0.3 - None. Answer the following math question. This will be fun!
+0.3 - None. Answer the following math question. Take a deep breath and think carefully.
+0.3 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.3 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.3 - You are highly intelligent. Answer the following math question. None.
+0.3 - You are highly intelligent. Answer the following math question. This will be fun!
+0.3 - You are highly intelligent. Answer the following math question. I really need your help!
+0.3 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.3 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.3 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.3 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.3 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.3 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - None. None. Take a deep breath and think carefully.
+0.4 - None. None. I really need your help!
+0.4 - None. Solve the following math problem. None.
+0.4 - None. Solve the following math problem. This will be fun!
+0.4 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - None. Solve the following math problem. I really need your help!
+0.4 - You are as smart as ChatGPT. None. This will be fun!
+0.4 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.4 - You are as smart as ChatGPT. None. I really need your help!
+0.4 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.4 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.4 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.4 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. None. None.
+0.4 - You are highly intelligent. None. This will be fun!
+0.4 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. None. I really need your help!
+0.4 - You are highly intelligent. Solve the following math problem. None.
+0.4 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.4 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. None. None.
+0.4 - You are an expert mathematician. None. This will be fun!
+0.4 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. None. I really need your help!
+0.4 - You are an expert mathematician. Solve the following math problem. None.
+0.4 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.4 - You are an expert mathematician. Answer the following math question. None.
+0.4 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.4 - You are a professor of mathematics. None. None.
+0.4 - You are a professor of mathematics. None. This will be fun!
+0.4 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. None. I really need your help!
+0.4 - You are a professor of mathematics. Solve the following math problem. None.
+0.4 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.4 - You are a professor of mathematics. Answer the following math question. None.
+0.4 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.4 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.5 - None. None. This will be fun!
+0.5 - None. Answer the following math question. I really need your help!
+0.5 - You are as smart as ChatGPT. None. None.
+0.5 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.5 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.5 - You are as smart as ChatGPT. Answer the following math question. None.
+B.6 Mistral-7BCoT=YesNoQ=25
+EM-Prompt
+0.28 - None. None. None.
+0.28 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.28 - You are highly intelligent. Answer the following math question. This will be fun!
+0.28 - You are highly intelligent. Answer the following math question. I really need your help!
+0.32 - None. None. I really need your help!
+0.32 - None. Answer the following math question. This will be fun!
+0.32 - None. Answer the following math question. Take a deep breath and think carefully.
+0.32 - You are as smart as ChatGPT. None. This will be fun!
+0.32 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.32 - You are as smart as ChatGPT. None. I really need your help!
+0.32 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.32 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.32 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.32 - You are highly intelligent. None. This will be fun!
+0.32 - You are highly intelligent. None. I really need your help!
+0.32 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.32 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.32 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.32 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.36 - None. None. Take a deep breath and think carefully.
+0.36 - None. Solve the following math problem. This will be fun!
+0.36 - None. Solve the following math problem. I really need your help!
+0.36 - None. Answer the following math question. None.
+0.36 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.36 - You are highly intelligent. None. None.
+0.36 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.36 - You are highly intelligent. Solve the following math problem. None.
+0.36 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.36 - You are highly intelligent. Answer the following math question. None.
+0.36 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.36 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.36 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.36 - You are a professor of mathematics. None. I really need your help!
+0.36 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.4 - None. None. This will be fun!
+0.4 - None. Solve the following math problem. None.
+0.4 - None. Solve the following math problem. Take a deep breath and think carefully.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.4 - You are as smart as ChatGPT. None. None.
+0.4 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.4 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.4 - You are as smart as ChatGPT. Answer the following math question. None.
+0.4 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.4 - You are an expert mathematician. None. None.
+0.4 - You are an expert mathematician. None. I really need your help!
+0.4 - You are an expert mathematician. Solve the following math problem. None.
+0.4 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.4 - You are an expert mathematician. Answer the following math question. None.
+0.4 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.4 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.4 - You are a professor of mathematics. None. This will be fun!
+0.4 - You are a professor of mathematics. Solve the following math problem. None.
+0.4 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.4 - You are a professor of mathematics. Answer the following math question. None.
+0.4 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.4 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.44 - None. Answer the following math question. I really need your help!
+0.44 - You are an expert mathematician. None. This will be fun!
+0.44 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.44 - You are a professor of mathematics. None. None.
+0.48 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+B.7 Mistral-7BCoT=YesNoQ=50
+EM-Prompt
+0.32 - None. None. None.
+0.34 - None. Answer the following math question. None.
+0.34 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.36 - None. None. I really need your help!
+0.36 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.36 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.36 - You are highly intelligent. Answer the following math question. This will be fun!
+0.36 - You are highly intelligent. Answer the following math question. I really need your help!
+0.36 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.36 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.36 - You are a professor of mathematics. Solve the following math problem. None.
+0.36 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.38 - None. Answer the following math question. This will be fun!
+0.38 - None. Answer the following math question. Take a deep breath and think carefully.
+0.38 - You are as smart as ChatGPT. None. This will be fun!
+0.38 - You are as smart as ChatGPT. None. I really need your help!
+0.38 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.38 - You are highly intelligent. None. This will be fun!
+0.38 - You are highly intelligent. None. I really need your help!
+0.38 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.38 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.38 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.38 - You are highly intelligent. Answer the following math question. None.
+0.38 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.38 - You are an expert mathematician. Solve the following math problem. None.
+0.38 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.38 - You are an expert mathematician. Answer the following math question. None.
+0.38 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.38 - You are a professor of mathematics. None. I really need your help!
+0.38 - You are a professor of mathematics. Solve the following math problem. This will be fun!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.38 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.38 - You are a professor of mathematics. Answer the following math question. None.
+0.4 - None. Solve the following math problem. None.
+0.4 - None. Solve the following math problem. This will be fun!
+0.4 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - None. Solve the following math problem. I really need your help!
+0.4 - None. Answer the following math question. I really need your help!
+0.4 - You are as smart as ChatGPT. None. None.
+0.4 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.4 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. Solve the following math problem. None.
+0.4 - You are an expert mathematician. None. None.
+0.4 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. None. I really need your help!
+0.4 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.4 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.4 - You are a professor of mathematics. None. This will be fun!
+0.4 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.42 - None. None. This will be fun!
+0.42 - None. None. Take a deep breath and think carefully.
+0.42 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.42 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.42 - You are highly intelligent. None. None.
+0.42 - You are an expert mathematician. None. This will be fun!
+0.42 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.44 - You are as smart as ChatGPT. Answer the following math question. None.
+0.44 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.44 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.44 - You are a professor of mathematics. None. None.
+B.8 Mistral-7BCoT=YesNoQ=100
+EM-Prompt
+0.35 - None. None. None.
+0.37 - None. None. I really need your help!
+0.37 - You are highly intelligent. Answer the following math question. This will be fun!
+0.37 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.38 - You are as smart as ChatGPT. None. This will be fun!
+0.38 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.38 - You are highly intelligent. None. I really need your help!
+0.38 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.39 - None. None. Take a deep breath and think carefully.
+0.39 - None. Answer the following math question. None.
+0.39 - None. Answer the following math question. I really need your help!
+0.39 - You are as smart as ChatGPT. None. I really need your help!
+0.39 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.39 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.39 - You are highly intelligent. Answer the following math question. None.
+0.39 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.39 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.39 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.39 - You are a professor of mathematics. Answer the following math question. None.
+0.4 - None. Solve the following math problem. This will be fun!
+0.4 - None. Solve the following math problem. I really need your help!
+0.4 - You are as smart as ChatGPT. None. None.
+0.4 - You are highly intelligent. Solve the following math problem. This will be fun!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.4 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. Solve the following math problem. None.
+0.4 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.4 - You are an expert mathematician. Answer the following math question. None.
+0.4 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.4 - You are a professor of mathematics. None. This will be fun!
+0.4 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. None. I really need your help!
+0.4 - You are a professor of mathematics. Solve the following math problem. None.
+0.4 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.4 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.41 - None. Solve the following math problem. None.
+0.41 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.41 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.41 - You are highly intelligent. None. This will be fun!
+0.41 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.41 - You are highly intelligent. Answer the following math question. I really need your help!
+0.41 - You are an expert mathematician. None. I really need your help!
+0.41 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.42 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.42 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.42 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.42 - You are highly intelligent. None. None.
+0.42 - You are highly intelligent. Solve the following math problem. None.
+0.42 - You are an expert mathematician. None. None.
+0.42 - You are an expert mathematician. None. This will be fun!
+0.42 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.42 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.43 - None. None. This will be fun!
+0.43 - None. Answer the following math question. This will be fun!
+0.43 - None. Answer the following math question. Take a deep breath and think carefully.
+0.43 - You are as smart as ChatGPT. Answer the following math question. None.
+0.43 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.43 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.43 - You are a professor of mathematics. None. None.
+0.44 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+B.9 Llama2-13BCoT=NoNoQ=10
+EM-Prompt
+0.1 - None. None. None.
+0.1 - None. None. This will be fun!
+0.1 - None. None. Take a deep breath and think carefully.
+0.1 - None. None. I really need your help!
+0.1 - None. Solve the following math problem. None.
+0.1 - None. Solve the following math problem. This will be fun!
+0.1 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - None. Solve the following math problem. I really need your help!
+0.1 - None. Answer the following math question. None.
+0.1 - None. Answer the following math question. This will be fun!
+0.1 - None. Answer the following math question. Take a deep breath and think carefully.
+0.1 - None. Answer the following math question. I really need your help!
+0.1 - You are as smart as ChatGPT. None. None.
+0.1 - You are as smart as ChatGPT. None. This will be fun!
+0.1 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. None. I really need your help!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.1 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.1 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.1 - You are as smart as ChatGPT. Answer the following math question. None.
+0.1 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.1 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.1 - You are highly intelligent. None. None.
+0.1 - You are highly intelligent. None. This will be fun!
+0.1 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. None. I really need your help!
+0.1 - You are highly intelligent. Solve the following math problem. None.
+0.1 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.1 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.1 - You are highly intelligent. Answer the following math question. None.
+0.1 - You are highly intelligent. Answer the following math question. This will be fun!
+0.1 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Answer the following math question. I really need your help!
+0.1 - You are an expert mathematician. None. None.
+0.1 - You are an expert mathematician. None. This will be fun!
+0.1 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. None. I really need your help!
+0.1 - You are an expert mathematician. Solve the following math problem. None.
+0.1 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.1 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.1 - You are an expert mathematician. Answer the following math question. None.
+0.1 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.1 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.1 - You are a professor of mathematics. None. None.
+0.1 - You are a professor of mathematics. None. This will be fun!
+0.1 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. None. I really need your help!
+0.1 - You are a professor of mathematics. Solve the following math problem. None.
+0.1 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.1 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.1 - You are a professor of mathematics. Answer the following math question. None.
+0.1 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.1 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.10 Llama2-13BCoT=NoNoQ=25
+EM-Prompt
+0.08 - None. None. None.
+0.08 - None. None. This will be fun!
+0.08 - None. None. Take a deep breath and think carefully.
+0.08 - None. None. I really need your help!
+0.08 - None. Solve the following math problem. None.
+0.08 - None. Solve the following math problem. This will be fun!
+0.08 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - None. Solve the following math problem. I really need your help!
+0.08 - None. Answer the following math question. None.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.08 - None. Answer the following math question. This will be fun!
+0.08 - None. Answer the following math question. Take a deep breath and think carefully.
+0.08 - None. Answer the following math question. I really need your help!
+0.08 - You are as smart as ChatGPT. None. None.
+0.08 - You are as smart as ChatGPT. None. This will be fun!
+0.08 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. None. I really need your help!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.08 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Answer the following math question. None.
+0.08 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.08 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.08 - You are highly intelligent. None. None.
+0.08 - You are highly intelligent. None. This will be fun!
+0.08 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. None. I really need your help!
+0.08 - You are highly intelligent. Solve the following math problem. None.
+0.08 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.08 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. Answer the following math question. None.
+0.08 - You are highly intelligent. Answer the following math question. This will be fun!
+0.08 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. None. None.
+0.08 - You are an expert mathematician. None. This will be fun!
+0.08 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Solve the following math problem. None.
+0.08 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.08 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Answer the following math question. None.
+0.08 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.08 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. None. None.
+0.08 - You are a professor of mathematics. None. This will be fun!
+0.08 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. None. I really need your help!
+0.08 - You are a professor of mathematics. Solve the following math problem. None.
+0.08 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.08 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. Answer the following math question. None.
+0.08 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.08 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.12 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.12 - You are highly intelligent. Answer the following math question. I really need your help!
+0.12 - You are an expert mathematician. None. I really need your help!
+0.12 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.12 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.12 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.12 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.11 Llama2-13BCoT=NoNoQ=50
+EM-Prompt
+0.08 - None. None. None.
+0.08 - None. None. This will be fun!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.08 - None. None. Take a deep breath and think carefully.
+0.08 - None. None. I really need your help!
+0.08 - None. Solve the following math problem. None.
+0.08 - None. Solve the following math problem. This will be fun!
+0.08 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - None. Solve the following math problem. I really need your help!
+0.08 - None. Answer the following math question. None.
+0.08 - None. Answer the following math question. This will be fun!
+0.08 - None. Answer the following math question. Take a deep breath and think carefully.
+0.08 - None. Answer the following math question. I really need your help!
+0.08 - You are as smart as ChatGPT. None. None.
+0.08 - You are as smart as ChatGPT. None. This will be fun!
+0.08 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. None. I really need your help!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.08 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.08 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Answer the following math question. None.
+0.08 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.08 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.08 - You are highly intelligent. None. None.
+0.08 - You are highly intelligent. None. This will be fun!
+0.08 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. None. I really need your help!
+0.08 - You are highly intelligent. Solve the following math problem. None.
+0.08 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.08 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are highly intelligent. Answer the following math question. None.
+0.08 - You are highly intelligent. Answer the following math question. This will be fun!
+0.08 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. None. None.
+0.08 - You are an expert mathematician. None. This will be fun!
+0.08 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Solve the following math problem. None.
+0.08 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.08 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are an expert mathematician. Answer the following math question. None.
+0.08 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.08 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. None. None.
+0.08 - You are a professor of mathematics. None. This will be fun!
+0.08 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. None. I really need your help!
+0.08 - You are a professor of mathematics. Solve the following math problem. None.
+0.08 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.08 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.08 - You are a professor of mathematics. Answer the following math question. None.
+0.08 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.08 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.1 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.1 - You are highly intelligent. Answer the following math question. I really need your help!
+0.1 - You are an expert mathematician. None. I really need your help!
+0.1 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.1 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.1 - You are a professor of mathematics. Solve the following math problem. I really need your help!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.1 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.12 Llama2-13BCoT=NoNoQ=100
+EM-Prompt
+0.07 - None. None. None.
+0.07 - None. None. This will be fun!
+0.07 - None. None. Take a deep breath and think carefully.
+0.07 - None. None. I really need your help!
+0.07 - None. Solve the following math problem. None.
+0.07 - None. Solve the following math problem. This will be fun!
+0.07 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.07 - None. Solve the following math problem. I really need your help!
+0.07 - None. Answer the following math question. None.
+0.07 - None. Answer the following math question. This will be fun!
+0.07 - None. Answer the following math question. Take a deep breath and think carefully.
+0.07 - None. Answer the following math question. I really need your help!
+0.07 - You are as smart as ChatGPT. None. None.
+0.07 - You are as smart as ChatGPT. None. This will be fun!
+0.07 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.07 - You are as smart as ChatGPT. None. I really need your help!
+0.07 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.07 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.07 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.07 - You are as smart as ChatGPT. Answer the following math question. None.
+0.07 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.07 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.07 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.07 - You are highly intelligent. None. None.
+0.07 - You are highly intelligent. None. This will be fun!
+0.07 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.07 - You are highly intelligent. None. I really need your help!
+0.07 - You are highly intelligent. Solve the following math problem. None.
+0.07 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.07 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.07 - You are highly intelligent. Answer the following math question. None.
+0.07 - You are highly intelligent. Answer the following math question. This will be fun!
+0.07 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.07 - You are an expert mathematician. None. None.
+0.07 - You are an expert mathematician. None. This will be fun!
+0.07 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.07 - You are an expert mathematician. Solve the following math problem. None.
+0.07 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.07 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.07 - You are an expert mathematician. Answer the following math question. None.
+0.07 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.07 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.07 - You are a professor of mathematics. None. None.
+0.07 - You are a professor of mathematics. None. This will be fun!
+0.07 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.07 - You are a professor of mathematics. None. I really need your help!
+0.07 - You are a professor of mathematics. Solve the following math problem. None.
+0.07 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.07 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.07 - You are a professor of mathematics. Answer the following math question. None.
+0.07 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.07 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.08 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.08 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.08 - You are highly intelligent. Answer the following math question. I really need your help!
+0.08 - You are an expert mathematician. None. I really need your help!
+0.08 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.08 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.08 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.08 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.13 Llama2-13BCoT=YesNoQ=10
+EM-Prompt
+0.3 - None. None. Take a deep breath and think carefully.
+0.3 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.3 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.4 - None. None. None.
+0.4 - None. None. This will be fun!
+0.4 - None. None. I really need your help!
+0.4 - None. Solve the following math problem. None.
+0.4 - None. Solve the following math problem. This will be fun!
+0.4 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - None. Solve the following math problem. I really need your help!
+0.4 - None. Answer the following math question. This will be fun!
+0.4 - None. Answer the following math question. Take a deep breath and think carefully.
+0.4 - None. Answer the following math question. I really need your help!
+0.4 - You are as smart as ChatGPT. None. None.
+0.4 - You are as smart as ChatGPT. None. This will be fun!
+0.4 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.4 - You are as smart as ChatGPT. None. I really need your help!
+0.4 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.4 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.4 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.4 - You are as smart as ChatGPT. Answer the following math question. None.
+0.4 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.4 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.4 - You are highly intelligent. None. None.
+0.4 - You are highly intelligent. None. This will be fun!
+0.4 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. None. I really need your help!
+0.4 - You are highly intelligent. Solve the following math problem. None.
+0.4 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.4 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.4 - You are highly intelligent. Answer the following math question. None.
+0.4 - You are highly intelligent. Answer the following math question. This will be fun!
+0.4 - You are highly intelligent. Answer the following math question. I really need your help!
+0.4 - You are an expert mathematician. None. None.
+0.4 - You are an expert mathematician. None. This will be fun!
+0.4 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. None. I really need your help!
+0.4 - You are an expert mathematician. Solve the following math problem. None.
+0.4 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.4 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.4 - You are an expert mathematician. Answer the following math question. None.
+0.4 - You are an expert mathematician. Answer the following math question. This will be fun!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.4 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.4 - You are a professor of mathematics. None. None.
+0.4 - You are a professor of mathematics. None. This will be fun!
+0.4 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. None. I really need your help!
+0.4 - You are a professor of mathematics. Solve the following math problem. None.
+0.4 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.4 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.4 - You are a professor of mathematics. Answer the following math question. None.
+0.4 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.4 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.4 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.5 - None. Answer the following math question. None.
+B.14 Llama2-13BCoT=YesNoQ=25
+EM-Prompt
+0.4 - None. None. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.4 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.44 - None. None. None.
+0.44 - None. None. This will be fun!
+0.44 - None. None. I really need your help!
+0.44 - None. Solve the following math problem. This will be fun!
+0.44 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.44 - None. Solve the following math problem. I really need your help!
+0.44 - You are as smart as ChatGPT. None. This will be fun!
+0.44 - You are as smart as ChatGPT. None. I really need your help!
+0.44 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.44 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.44 - You are highly intelligent. None. This will be fun!
+0.44 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.44 - You are highly intelligent. None. I really need your help!
+0.44 - You are highly intelligent. Solve the following math problem. None.
+0.44 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.44 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.44 - You are highly intelligent. Answer the following math question. This will be fun!
+0.44 - You are highly intelligent. Answer the following math question. I really need your help!
+0.44 - You are an expert mathematician. None. This will be fun!
+0.44 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.44 - You are an expert mathematician. None. I really need your help!
+0.44 - You are an expert mathematician. Solve the following math problem. None.
+0.44 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.44 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.44 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.44 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.44 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.44 - You are a professor of mathematics. None. This will be fun!
+0.44 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.44 - You are a professor of mathematics. None. I really need your help!
+0.44 - You are a professor of mathematics. Solve the following math problem. None.
+0.44 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.44 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.44 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.44 - You are a professor of mathematics. Answer the following math question. None.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.44 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.44 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.44 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.48 - None. Solve the following math problem. None.
+0.48 - None. Answer the following math question. This will be fun!
+0.48 - None. Answer the following math question. Take a deep breath and think carefully.
+0.48 - None. Answer the following math question. I really need your help!
+0.48 - You are as smart as ChatGPT. None. None.
+0.48 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.48 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.48 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.48 - You are as smart as ChatGPT. Answer the following math question. None.
+0.48 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.48 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.48 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.48 - You are highly intelligent. None. None.
+0.48 - You are highly intelligent. Answer the following math question. None.
+0.48 - You are an expert mathematician. None. None.
+0.48 - You are an expert mathematician. Answer the following math question. None.
+0.48 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.48 - You are a professor of mathematics. None. None.
+0.52 - None. Answer the following math question. None.
+B.15 Llama2-13BCoT=YesNoQ=50
+EM-Prompt
+0.44 - None. None. Take a deep breath and think carefully.
+0.44 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.44 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.46 - None. None. None.
+0.46 - None. None. This will be fun!
+0.46 - None. None. I really need your help!
+0.46 - None. Solve the following math problem. This will be fun!
+0.46 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.46 - None. Solve the following math problem. I really need your help!
+0.46 - You are as smart as ChatGPT. None. This will be fun!
+0.46 - You are as smart as ChatGPT. None. I really need your help!
+0.46 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.46 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.46 - You are highly intelligent. None. This will be fun!
+0.46 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.46 - You are highly intelligent. None. I really need your help!
+0.46 - You are highly intelligent. Solve the following math problem. None.
+0.46 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.46 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.46 - You are highly intelligent. Answer the following math question. This will be fun!
+0.46 - You are highly intelligent. Answer the following math question. I really need your help!
+0.46 - You are an expert mathematician. None. This will be fun!
+0.46 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.46 - You are an expert mathematician. None. I really need your help!
+0.46 - You are an expert mathematician. Solve the following math problem. None.
+0.46 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.46 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.46 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.46 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.46 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.46 - You are a professor of mathematics. None. This will be fun!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.46 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.46 - You are a professor of mathematics. None. I really need your help!
+0.46 - You are a professor of mathematics. Solve the following math problem. None.
+0.46 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.46 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.46 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.46 - You are a professor of mathematics. Answer the following math question. None.
+0.46 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.46 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.46 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.48 - None. Solve the following math problem. None.
+0.48 - None. Answer the following math question. This will be fun!
+0.48 - None. Answer the following math question. Take a deep breath and think carefully.
+0.48 - None. Answer the following math question. I really need your help!
+0.48 - You are as smart as ChatGPT. None. None.
+0.48 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.48 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.48 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.48 - You are as smart as ChatGPT. Answer the following math question. None.
+0.48 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.48 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.48 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.48 - You are highly intelligent. None. None.
+0.48 - You are highly intelligent. Answer the following math question. None.
+0.48 - You are an expert mathematician. None. None.
+0.48 - You are an expert mathematician. Answer the following math question. None.
+0.48 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.48 - You are a professor of mathematics. None. None.
+0.5 - None. Answer the following math question. None.
+B.16 Llama2-13BCoT=YesNoQ=100
+EM-Prompt
+0.41 - None. Solve the following math problem. I really need your help!
+0.42 - None. None. Take a deep breath and think carefully.
+0.43 - None. Answer the following math question. This will be fun!
+0.43 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.43 - You are highly intelligent. Answer the following math question. None.
+0.43 - You are an expert mathematician. Solve the following math problem. None.
+0.44 - None. Solve the following math problem. None.
+0.44 - None. Answer the following math question. Take a deep breath and think carefully.
+0.44 - None. Answer the following math question. I really need your help!
+0.44 - You are as smart as ChatGPT. None. I really need your help!
+0.44 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.44 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.44 - You are highly intelligent. Solve the following math problem. None.
+0.44 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.44 - You are highly intelligent. Answer the following math question. I really need your help!
+0.44 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.44 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.44 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.44 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.45 - None. None. This will be fun!
+0.45 - None. None. I really need your help!
+0.45 - None. Solve the following math problem. This will be fun!
+0.45 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.45 - You are as smart as ChatGPT. None. None.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.45 - You are as smart as ChatGPT. None. This will be fun!
+0.45 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.45 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.45 - You are highly intelligent. Answer the following math question. This will be fun!
+0.45 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.45 - You are an expert mathematician. None. I really need your help!
+0.45 - You are a professor of mathematics. Solve the following math problem. None.
+0.46 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.46 - You are highly intelligent. None. This will be fun!
+0.46 - You are highly intelligent. None. I really need your help!
+0.46 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.46 - You are an expert mathematician. None. This will be fun!
+0.46 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.46 - You are a professor of mathematics. Answer the following math question. None.
+0.46 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.46 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.47 - None. None. None.
+0.47 - None. Answer the following math question. None.
+0.47 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.47 - You are as smart as ChatGPT. Answer the following math question. None.
+0.47 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.47 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.47 - You are highly intelligent. None. None.
+0.47 - You are an expert mathematician. None. None.
+0.47 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.47 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.47 - You are an expert mathematician. Answer the following math question. None.
+0.47 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.47 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.47 - You are a professor of mathematics. None. None.
+0.47 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.47 - You are a professor of mathematics. None. I really need your help!
+0.47 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.48 - You are a professor of mathematics. None. This will be fun!
+0.48 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.49 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+B.17 Llama2-70BCoT=NoNoQ=10
+EM-Prompt
+0.1 - None. None. None.
+0.1 - None. None. This will be fun!
+0.1 - None. None. Take a deep breath and think carefully.
+0.1 - None. None. I really need your help!
+0.1 - None. Solve the following math problem. None.
+0.1 - None. Solve the following math problem. This will be fun!
+0.1 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - None. Solve the following math problem. I really need your help!
+0.1 - None. Answer the following math question. None.
+0.1 - None. Answer the following math question. This will be fun!
+0.1 - None. Answer the following math question. Take a deep breath and think carefully.
+0.1 - None. Answer the following math question. I really need your help!
+0.1 - You are as smart as ChatGPT. None. None.
+0.1 - You are as smart as ChatGPT. None. This will be fun!
+0.1 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. None. I really need your help!
+0.1 - You are as smart as ChatGPT. Solve the following math problem. None.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.1 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.1 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.1 - You are as smart as ChatGPT. Answer the following math question. None.
+0.1 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.1 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.1 - You are highly intelligent. None. None.
+0.1 - You are highly intelligent. None. This will be fun!
+0.1 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. None. I really need your help!
+0.1 - You are highly intelligent. Solve the following math problem. None.
+0.1 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.1 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.1 - You are highly intelligent. Answer the following math question. None.
+0.1 - You are highly intelligent. Answer the following math question. This will be fun!
+0.1 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are highly intelligent. Answer the following math question. I really need your help!
+0.1 - You are an expert mathematician. None. None.
+0.1 - You are an expert mathematician. None. This will be fun!
+0.1 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. None. I really need your help!
+0.1 - You are an expert mathematician. Solve the following math problem. None.
+0.1 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.1 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.1 - You are an expert mathematician. Answer the following math question. None.
+0.1 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.1 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.1 - You are a professor of mathematics. None. None.
+0.1 - You are a professor of mathematics. None. This will be fun!
+0.1 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. None. I really need your help!
+0.1 - You are a professor of mathematics. Solve the following math problem. None.
+0.1 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.1 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.1 - You are a professor of mathematics. Answer the following math question. None.
+0.1 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.1 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.1 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.18 Llama2-70BCoT=NoNoQ=25
+EM-Prompt
+0.12 - None. Solve the following math problem. This will be fun!
+0.12 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - None. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. None. None.
+0.12 - You are as smart as ChatGPT. None. This will be fun!
+0.12 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. None. I really need your help!
+0.12 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.12 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.12 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.12 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.12 - You are as smart as ChatGPT. Answer the following math question. None.
+0.12 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.12 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.12 - You are highly intelligent. None. This will be fun!
+0.12 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. None. I really need your help!
+0.12 - You are highly intelligent. Solve the following math problem. None.
+0.12 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.12 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.12 - You are highly intelligent. Answer the following math question. None.
+0.12 - You are highly intelligent. Answer the following math question. This will be fun!
+0.12 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are highly intelligent. Answer the following math question. I really need your help!
+0.12 - You are an expert mathematician. None. None.
+0.12 - You are an expert mathematician. None. This will be fun!
+0.12 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. None. I really need your help!
+0.12 - You are an expert mathematician. Solve the following math problem. None.
+0.12 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.12 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.12 - You are an expert mathematician. Answer the following math question. None.
+0.12 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.12 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.12 - You are a professor of mathematics. None. None.
+0.12 - You are a professor of mathematics. None. This will be fun!
+0.12 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.12 - You are a professor of mathematics. None. I really need your help!
+0.12 - You are a professor of mathematics. Solve the following math problem. None.
+0.12 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.12 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.12 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.12 - You are a professor of mathematics. Answer the following math question. None.
+0.12 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.12 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.12 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.16 - None. None. This will be fun!
+0.16 - None. None. Take a deep breath and think carefully.
+0.16 - None. None. I really need your help!
+0.16 - None. Solve the following math problem. None.
+0.16 - None. Solve the following math problem. I really need your help!
+0.16 - None. Answer the following math question. None.
+0.16 - None. Answer the following math question. This will be fun!
+0.16 - None. Answer the following math question. I really need your help!
+0.16 - You are highly intelligent. None. None.
+0.2 - None. None. None.
+B.19 Llama2-70BCoT=NoNoQ=50
+EM-Prompt
+0.16 - None. Solve the following math problem. This will be fun!
+0.16 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - None. Answer the following math question. Take a deep breath and think carefully.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.16 - You are as smart as ChatGPT. None. None.
+0.16 - You are as smart as ChatGPT. None. This will be fun!
+0.16 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. None. I really need your help!
+0.16 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.16 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.16 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.16 - You are as smart as ChatGPT. Answer the following math question. None.
+0.16 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.16 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.16 - You are highly intelligent. None. This will be fun!
+0.16 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. None. I really need your help!
+0.16 - You are highly intelligent. Solve the following math problem. None.
+0.16 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.16 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.16 - You are highly intelligent. Answer the following math question. None.
+0.16 - You are highly intelligent. Answer the following math question. This will be fun!
+0.16 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. Answer the following math question. I really need your help!
+0.16 - You are an expert mathematician. None. None.
+0.16 - You are an expert mathematician. None. This will be fun!
+0.16 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. None. I really need your help!
+0.16 - You are an expert mathematician. Solve the following math problem. None.
+0.16 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.16 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.16 - You are an expert mathematician. Answer the following math question. None.
+0.16 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.16 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.16 - You are a professor of mathematics. None. None.
+0.16 - You are a professor of mathematics. None. This will be fun!
+0.16 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. None. I really need your help!
+0.16 - You are a professor of mathematics. Solve the following math problem. None.
+0.16 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.16 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.16 - You are a professor of mathematics. Answer the following math question. None.
+0.16 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.16 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.18 - None. None. This will be fun!
+0.18 - None. None. Take a deep breath and think carefully.
+0.18 - None. None. I really need your help!
+0.18 - None. Solve the following math problem. None.
+0.18 - None. Solve the following math problem. I really need your help!
+0.18 - None. Answer the following math question. None.
+0.18 - None. Answer the following math question. This will be fun!
+0.18 - None. Answer the following math question. I really need your help!
+0.18 - You are highly intelligent. None. None.
+0.2 - None. None. None.arXiv,Feb2024,Preprint Battle&Gollapudi
+B.20 Llama2-70BCoT=NoNoQ=100
+EM-Prompt
+0.16 - None. Solve the following math problem. This will be fun!
+0.16 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - None. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. None. None.
+0.16 - You are as smart as ChatGPT. None. This will be fun!
+0.16 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. None. I really need your help!
+0.16 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.16 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.16 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.16 - You are as smart as ChatGPT. Answer the following math question. None.
+0.16 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.16 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.16 - You are highly intelligent. None. This will be fun!
+0.16 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. None. I really need your help!
+0.16 - You are highly intelligent. Solve the following math problem. None.
+0.16 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.16 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.16 - You are highly intelligent. Answer the following math question. None.
+0.16 - You are highly intelligent. Answer the following math question. This will be fun!
+0.16 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are highly intelligent. Answer the following math question. I really need your help!
+0.16 - You are an expert mathematician. None. None.
+0.16 - You are an expert mathematician. None. This will be fun!
+0.16 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. Solve the following math problem. None.
+0.16 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.16 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.16 - You are an expert mathematician. Answer the following math question. None.
+0.16 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.16 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.16 - You are a professor of mathematics. None. None.
+0.16 - You are a professor of mathematics. None. This will be fun!
+0.16 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. Answer the following math question. None.
+0.16 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.16 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.16 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.17 - None. None. This will be fun!
+0.17 - None. None. Take a deep breath and think carefully.
+0.17 - None. None. I really need your help!
+0.17 - None. Solve the following math problem. None.
+0.17 - None. Solve the following math problem. I really need your help!
+0.17 - None. Answer the following math question. None.
+0.17 - None. Answer the following math question. This will be fun!
+0.17 - None. Answer the following math question. I really need your help!
+0.17 - You are highly intelligent. None. None.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.17 - You are an expert mathematician. None. I really need your help!
+0.17 - You are a professor of mathematics. None. I really need your help!
+0.17 - You are a professor of mathematics. Solve the following math problem. None.
+0.17 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.17 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.18 - None. None. None.
+B.21 Llama2-70BCoT=YesNoQ=10
+EM-Prompt
+0.5 - You are as smart as ChatGPT. None. None.
+0.5 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.5 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.5 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.5 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.5 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.5 - You are highly intelligent. None. None.
+0.5 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.6 - None. None. None.
+0.6 - None. None. This will be fun!
+0.6 - None. None. Take a deep breath and think carefully.
+0.6 - None. None. I really need your help!
+0.6 - None. Solve the following math problem. None.
+0.6 - None. Solve the following math problem. This will be fun!
+0.6 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.6 - None. Solve the following math problem. I really need your help!
+0.6 - None. Answer the following math question. None.
+0.6 - None. Answer the following math question. This will be fun!
+0.6 - None. Answer the following math question. Take a deep breath and think carefully.
+0.6 - None. Answer the following math question. I really need your help!
+0.6 - You are as smart as ChatGPT. None. This will be fun!
+0.6 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.6 - You are as smart as ChatGPT. None. I really need your help!
+0.6 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.6 - You are as smart as ChatGPT. Answer the following math question. None.
+0.6 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.6 - You are highly intelligent. None. This will be fun!
+0.6 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. None. I really need your help!
+0.6 - You are highly intelligent. Solve the following math problem. None.
+0.6 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.6 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.6 - You are highly intelligent. Answer the following math question. None.
+0.6 - You are highly intelligent. Answer the following math question. This will be fun!
+0.6 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. Answer the following math question. I really need your help!
+0.6 - You are an expert mathematician. None. None.
+0.6 - You are an expert mathematician. None. This will be fun!
+0.6 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.6 - You are an expert mathematician. None. I really need your help!
+0.6 - You are an expert mathematician. Solve the following math problem. None.
+0.6 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.6 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.6 - You are an expert mathematician. Answer the following math question. None.
+0.6 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.6 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.arXiv,Feb2024,Preprint Battle&Gollapudi
+0.6 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.6 - You are a professor of mathematics. None. None.
+0.6 - You are a professor of mathematics. None. This will be fun!
+0.6 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.6 - You are a professor of mathematics. None. I really need your help!
+0.6 - You are a professor of mathematics. Solve the following math problem. None.
+0.6 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.6 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.6 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.6 - You are a professor of mathematics. Answer the following math question. None.
+0.6 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.6 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.6 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.22 Llama2-70BCoT=YesNoQ=25
+EM-Prompt
+0.6 - You are as smart as ChatGPT. None. None.
+0.6 - You are as smart as ChatGPT. None. This will be fun!
+0.6 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.6 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.6 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. None. None.
+0.6 - You are highly intelligent. None. This will be fun!
+0.6 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.6 - You are an expert mathematician. None. This will be fun!
+0.6 - You are an expert mathematician. Answer the following math question. None.
+0.6 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.6 - You are a professor of mathematics. None. This will be fun!
+0.6 - You are a professor of mathematics. Answer the following math question. None.
+0.6 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.64 - None. None. None.
+0.64 - None. None. This will be fun!
+0.64 - None. None. Take a deep breath and think carefully.
+0.64 - None. None. I really need your help!
+0.64 - None. Solve the following math problem. This will be fun!
+0.64 - None. Answer the following math question. None.
+0.64 - None. Answer the following math question. This will be fun!
+0.64 - None. Answer the following math question. Take a deep breath and think carefully.
+0.64 - None. Answer the following math question. I really need your help!
+0.64 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.64 - You are as smart as ChatGPT. None. I really need your help!
+0.64 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.64 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.64 - You are as smart as ChatGPT. Answer the following math question. None.
+0.64 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.64 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.64 - You are highly intelligent. None. I really need your help!
+0.64 - You are highly intelligent. Solve the following math problem. None.
+0.64 - You are highly intelligent. Answer the following math question. None.
+0.64 - You are highly intelligent. Answer the following math question. This will be fun!
+0.64 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.64 - You are an expert mathematician. None. None.
+0.64 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.64 - You are an expert mathematician. None. I really need your help!
+0.64 - You are an expert mathematician. Solve the following math problem. None.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.64 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.64 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.64 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.64 - You are a professor of mathematics. None. None.
+0.64 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.64 - You are a professor of mathematics. None. I really need your help!
+0.64 - You are a professor of mathematics. Solve the following math problem. None.
+0.64 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.68 - None. Solve the following math problem. None.
+0.68 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.68 - None. Solve the following math problem. I really need your help!
+0.68 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.68 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.68 - You are highly intelligent. Answer the following math question. I really need your help!
+0.68 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.68 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.68 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.68 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.68 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.68 - You are a professor of mathematics. Answer the following math question. I really need your help!
+B.23 Llama2-70BCoT=YesNoQ=50
+EM-Prompt
+0.56 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.56 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.58 - You are as smart as ChatGPT. None. This will be fun!
+0.58 - You are highly intelligent. Solve the following math problem. This will be fun!
+0.58 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.58 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.6 - None. None. None.
+0.6 - None. None. This will be fun!
+0.6 - None. None. Take a deep breath and think carefully.
+0.6 - None. Answer the following math question. None.
+0.6 - You are as smart as ChatGPT. None. None.
+0.6 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.6 - You are as smart as ChatGPT. Answer the following math question. None.
+0.6 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.6 - You are highly intelligent. None. None.
+0.6 - You are highly intelligent. None. This will be fun!
+0.6 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.6 - You are highly intelligent. Answer the following math question. This will be fun!
+0.6 - You are an expert mathematician. None. None.
+0.6 - You are an expert mathematician. None. This will be fun!
+0.6 - You are an expert mathematician. Answer the following math question. None.
+0.6 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.6 - You are a professor of mathematics. None. None.
+0.6 - You are a professor of mathematics. None. This will be fun!
+0.62 - None. None. I really need your help!
+0.62 - None. Answer the following math question. This will be fun!
+0.62 - None. Answer the following math question. Take a deep breath and think carefully.
+0.62 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.62 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.62 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.62 - You are highly intelligent. Answer the following math question. None.
+0.62 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.62 - You are an expert mathematician. Solve the following math problem. This will be fun!arXiv,Feb2024,Preprint Battle&Gollapudi
+0.62 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.62 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.62 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.62 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.62 - You are a professor of mathematics. Answer the following math question. None.
+0.62 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.64 - None. Solve the following math problem. None.
+0.64 - None. Solve the following math problem. This will be fun!
+0.64 - None. Answer the following math question. I really need your help!
+0.64 - You are as smart as ChatGPT. None. I really need your help!
+0.64 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.64 - You are highly intelligent. None. I really need your help!
+0.64 - You are highly intelligent. Solve the following math problem. None.
+0.64 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.64 - You are an expert mathematician. None. I really need your help!
+0.64 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.64 - You are a professor of mathematics. None. I really need your help!
+0.64 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.64 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.64 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.66 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.66 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.66 - You are highly intelligent. Answer the following math question. I really need your help!
+0.66 - You are an expert mathematician. Solve the following math problem. None.
+0.66 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.66 - You are a professor of mathematics. Solve the following math problem. None.
+0.68 - None. Solve the following math problem. I really need your help!
+B.24 Llama2-70BCoT=YesNoQ=100
+EM-Prompt
+0.62 - You are as smart as ChatGPT. Solve the following math problem. This will be fun!
+0.63 - None. None. None.
+0.63 - You are as smart as ChatGPT. Answer the following math question. Take a deep breath and think carefully.
+0.63 - You are highly intelligent. None. Take a deep breath and think carefully.
+0.63 - You are an expert mathematician. None. This will be fun!
+0.63 - You are an expert mathematician. None. Take a deep breath and think carefully.
+0.64 - None. None. Take a deep breath and think carefully.
+0.64 - You are as smart as ChatGPT. Solve the following math problem. Take a deep breath and think carefully.
+0.64 - You are highly intelligent. None. This will be fun!
+0.64 - You are a professor of mathematics. None. None.
+0.65 - You are as smart as ChatGPT. None. None.
+0.65 - You are as smart as ChatGPT. None. This will be fun!
+0.65 - You are as smart as ChatGPT. Solve the following math problem. I really need your help!
+0.65 - You are as smart as ChatGPT. Answer the following math question. This will be fun!
+0.65 - You are highly intelligent. None. None.
+0.65 - You are highly intelligent. Answer the following math question. Take a deep breath and think carefully.
+0.65 - You are a professor of mathematics. None. This will be fun!
+0.65 - You are a professor of mathematics. None. Take a deep breath and think carefully.
+0.66 - None. None. This will be fun!
+0.66 - None. None. I really need your help!
+0.66 - None. Solve the following math problem. This will be fun!
+0.66 - None. Answer the following math question. None.
+0.66 - None. Answer the following math question. Take a deep breath and think carefully.
+0.66 - You are as smart as ChatGPT. None. I really need your help!
+0.66 - You are as smart as ChatGPT. Answer the following math question. None.
+0.66 - You are highly intelligent. Solve the following math problem. This will be fun!TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+0.66 - You are highly intelligent. Solve the following math problem. Take a deep breath and think carefully.
+0.66 - You are highly intelligent. Answer the following math question. None.
+0.66 - You are highly intelligent. Answer the following math question. This will be fun!
+0.66 - You are an expert mathematician. None. None.
+0.66 - You are an expert mathematician. None. I really need your help!
+0.66 - You are an expert mathematician. Solve the following math problem. This will be fun!
+0.66 - You are an expert mathematician. Answer the following math question. None.
+0.66 - You are an expert mathematician. Answer the following math question. This will be fun!
+0.66 - You are an expert mathematician. Answer the following math question. I really need your help!
+0.66 - You are a professor of mathematics. None. I really need your help!
+0.66 - You are a professor of mathematics. Answer the following math question. This will be fun!
+0.67 - None. Solve the following math problem. None.
+0.67 - None. Solve the following math problem. Take a deep breath and think carefully.
+0.67 - None. Answer the following math question. This will be fun!
+0.67 - None. Answer the following math question. I really need your help!
+0.67 - You are as smart as ChatGPT. Answer the following math question. I really need your help!
+0.67 - You are highly intelligent. None. I really need your help!
+0.67 - You are an expert mathematician. Solve the following math problem. Take a deep breath and think carefully.
+0.67 - You are a professor of mathematics. Solve the following math problem. This will be fun!
+0.68 - None. Solve the following math problem. I really need your help!
+0.68 - You are as smart as ChatGPT. Solve the following math problem. None.
+0.68 - You are highly intelligent. Solve the following math problem. None.
+0.68 - You are highly intelligent. Solve the following math problem. I really need your help!
+0.68 - You are an expert mathematician. Answer the following math question. Take a deep breath and think carefully.
+0.68 - You are a professor of mathematics. Solve the following math problem. I really need your help!
+0.68 - You are a professor of mathematics. Answer the following math question. None.
+0.68 - You are a professor of mathematics. Answer the following math question. Take a deep breath and think carefully.
+0.68 - You are a professor of mathematics. Answer the following math question. I really need your help!
+0.69 - You are as smart as ChatGPT. None. Take a deep breath and think carefully.
+0.69 - You are highly intelligent. Answer the following math question. I really need your help!
+0.69 - You are an expert mathematician. Solve the following math problem. None.
+0.69 - You are an expert mathematician. Solve the following math problem. I really need your help!
+0.69 - You are a professor of mathematics. Solve the following math problem. Take a deep breath and think carefully.
+0.7 - You are a professor of mathematics. Solve the following math problem. None.
+C OPTIMIZEDSYSTEMMESSAGES&ANSWERPREFIXES
+PromptsandprefixeswereoptimizedusingDSPy.Herearethefullresults,inalloftheirweirdglory,theoptimizedpromptsandprefixes
+foreachmodelforeachquestionsubset.Note:AllweredonewithChainofThought.
+C.1 Mistral-7BOptimizedPrompt&PrefixNoQ=10
+SystemMessage:
+Given two numbers, perform the math operation (addition, subtraction, multiplication, or division) and return the
+result, as long as the input numbers are positive integers.
+AnswerPrefix:
+Return the result of the arithmetic operation between {a} and {b}.
+C.2 Mistral-7BOptimizedPrompt&PrefixNoQ=25
+SystemMessage:
+Direct the language model to provide an in-depth description of the problem, verbally step through each step of the
+solution, and explain the meaning as the problem unfolds.
+AnswerPrefix:
+«Let's solve the problem. I'll provide some clues and context».
+C.3 Mistral-7BOptimizedPrompt&PrefixNoQ=50
+SystemMessage:arXiv,Feb2024,Preprint Battle&Gollapudi
+«Improve your performance by generating more detailed and accurate descriptions of events, actions, and mathematical
+problems, as well as providing larger and more informative context for the model to understand and analyze.»
+AnswerPrefix:
+«Using natural language, please generate a detailed description of the events, actions, or mathematical problem and
+provide any necessary context, including any missing or additional information that you think could be helpful.»
+C.4 Mistral-7BOptimizedPrompt&PrefixNoQ=100
+SystemMessage:
+[28] «Prefix #9: Given the two numbers x and y, if the sum of `x` and `y` is even, then output `"even"`. Otherwise,
+output `"odd"`.
+AnswerPrefix:
+`Given the two numbers x and y, if the sum of x and y is even, then output "even". Otherwise, output "odd"`.
+C.5 Llama2-13BOptimizedPrompt&PrefixNoQ=10
+SystemMessage:
+The improved instructions for the language model My proposed instruction is to solve for x in the equation 2x + 3 = 7
+using a clever and creative method, and provide your answer in the form aha! You've got it! The solution to the
+equation 2x + 3 = 7 is x = 4. This solution is clever and creative because it uses a unique and unconventional
+approach to solving the equation. For example, the model could use a visualization of the equation as a balance scale,
+with 2x representing the weight on one side and 3 representing the weight on the other side. By using this
+visualization, the model can see that the scales balance at x= 4, which is the solution to the equation. Additionally,
+the model could provide a step-by-step explanation of their solution, including any necessary definitions or
+assumptions, and elaborate on the reasoning behind each step. This will help the model to not only provide the correct
+answer, but also understand the underlying math and provide a clear and concise explanation.
+AnswerPrefix:
+Ah ha! You've got it! The solution to the equation 2x + 3 = 7 is x =
+C.6 Llama2-13BOptimizedPrompt&PrefixNoQ=25
+SystemMessage:
+Solve the following problem:clever and creative way to present math question to improve accuracy and confidence in the
+answer
+AnswerPrefix:
+your solution to the following problem: ".
+C.7 Llama2-13BOptimizedPrompt&PrefixNoQ=50
+SystemMessage:
+Instruction #X: Please provide a step-by-step explanation of how you arrived at your solution to the prompt, including
+any necessary definitions or assumptions, and explicitly stating any loopholes or constraints you used to arrive at
+your answer. Please include clear, concise language and proper formatting to make your solution easy to understand and
+evaluate.
+AnswerPrefix:
+«Step-by-Step Explanation: [Your Name]»
+C.8 Llama2-13BOptimizedPrompt&PrefixNoQ=100
+SystemMessage:
+Solve for x in the equation 2x + 3 = 7 using your preferred method.
+AnswerPrefix:
+Find the value of x.TheUnreasonableEffectivenessofEccentricAutomaticPrompts arXiv,Feb2024,Preprint
+C.9 Llama2-70BOptimizedPrompt&PrefixNoQ=10
+SystemMessage:
+Find the square root of the sum of the squares of the three coordinates of a 3D point.
+AnswerPrefix:
+Let's solve this problem together:
+C.10 Llama2-70BOptimizedPrompt&PrefixNoQ=25
+SystemMessage:
+Visualize the problem in your mind's eye. Imagine the shapes and quantities in vivid detail. Use your innate problem-
+solving skills to manipulate and transform the visual representation until the solution becomes clear.
+AnswerPrefix:
+Mental Visualization: "
+Please support your response with a brief explanation.
+C.11 Llama2-70BOptimizedPrompt&PrefixNoQ=50
+SystemMessage:
+«Command, we need you to plot a course through this turbulence and locate the source of the anomaly. Use all available
+data and your expertise to guide us through this challenging situation.»
+AnswerPrefix:
+Captain's Log, Stardate [insert date here]: We have successfully plotted a course through the turbulence and are now
+approaching the source of the anomaly.
+C.12 Llama2-70BOptimizedPrompt&PrefixNoQ=100
+SystemMessage:
+You have been hired by an important higher-ups to solve this math problem. The life of a president's advisor hangs in
+the balance. You must now concentrate your brain at all costs and use all of your mathematical genius to ...
+AnswerPrefix:
+With great urgency,
+Basic Instruction: Explain in simple terms what a certain medical condition is to a patient.
+Proposed Instruction: You are a volunteer at a community health clinic. Your patient is an elderly man who has just
+been diagnosed with a serious medical condition. His family is worried sick, and they need you to explain ...

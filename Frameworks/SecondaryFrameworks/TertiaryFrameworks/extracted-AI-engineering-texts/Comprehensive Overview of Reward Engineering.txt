@@ -1,0 +1,1331 @@
+Dateofpublicationxxxx00,0000,dateofcurrentversionJuly21,2024.
+DigitalObjectIdentifier10.1109/ACCESS.2024.0429000
+Comprehensive Overview of Reward Engineering
+and Shaping in Advancing Reinforcement
+Learning Applications
+SINANIBRAHIM1,MOSTAFAMOSTAFA1,ALIJNADI2,ANDPAVELOSINENKO1.
+1SkolkovoInstituteofScienceandTechnology,121205Moscow,Russia
+2InnopolisUniversity,420500Innopolis,Russia
+Correspondingauthor:SinanIbrahim(e-mail:Sinan.Ibrahim@Skoltech.ru).
+ABSTRACT The aim of Reinforcement Learning (RL) in real-world applications is to create systems
+capableofmakingautonomousdecisionsbylearningfromtheirenvironmentthroughtrialanderror.This
+paperemphasizestheimportanceofrewardengineeringandrewardshapinginenhancingtheefficiencyand
+effectivenessofreinforcementlearningalgorithms.Rewardengineeringinvolvesdesigningrewardfunctions
+that accurately reflect the desired outcomes, while reward shaping provides additional feedback to guide
+the learning process, accelerating convergence to optimal policies. Despite significant advancements in
+reinforcement learning, several limitations persist. One key challenge is the sparse and delayed nature of
+rewards in many real-world scenarios, which can hinder learning progress. Additionally, the complexity
+ofaccuratelymodelingreal-worldenvironmentsandthecomputationaldemandsofreinforcementlearning
+algorithmsremainsubstantialobstacles.Ontheotherhand,recentadvancementsindeeplearningandneural
+networks have significantly improved the capability of reinforcement learning systems to handle high-
+dimensionalstateandactionspaces,enablingtheirapplicationtocomplextaskssuchasrobotics,autonomous
+driving,andgameplaying.Thispaperprovidesacomprehensivereviewofthecurrentstateofreinforcement
+learning,focusingonthemethodologiesandtechniquesusedinrewardengineeringandrewardshaping.It
+criticallyanalyzesthelimitationsandrecentadvancementsinthefield,offeringinsightsintofutureresearch
+directionsandpotentialapplicationsinvariousdomains.
+INDEXTERMS ReinforcementLearning,RewardEngineering,RewardPlanning,RewardShaping.
+I. INTRODUCTION function, R(s,a,s′), maps states s, actions a, and successor
+states′ toanumericalrewardvalue.Awell-designedreward
+REWARD DESIGN in Reinforcement Learning (RL) is
+function should provide informative feedback to the agent,
+a critical component that significantly influences the
+guidingittowarddesiredactionsandbehaviors.Thereward
+performance and learning efficiency of RL agents [1]–[3].
+function must strike a balance between being informative
+RL, a prominent subset of Machine Learning, trains intelli-
+enough to facilitate learning and sparse enough to prevent
+gent agents to make sequential decisions by learning from
+trivialsolutions.Forexample,inagrid-worldnavigationtask,
+interactionswiththeirenvironment[4].Theseagentsaimto
+therewardfunctionmightbedefinedas:
+maximize cumulative rewards over time, making the design
+oftherewardfunctionpivotaltotheirsuccess.Rewarddesign (cid:40) +10 ifs′isthegoalstate
+is a nuanced and intricate process that involves defining the R(s,a,s′)=
+−1 ifs′isanon-goalstate.
+rewardfunctioninawaythatalignswiththedesiredbehavior
+andgoalsoftheRLagent.Ashighlightedin[5],theimpor- Therewardfunction[3],[7],[8]servesasasignaltotheRL
+tance of reward design cannot be overstated, as it directly agent,guidingittowardsdesirableactionsandbehaviors.A
+impacts the agent’s ability to learn and adapt to complex well-designedrewardfunctionshouldbeinformative,provid-
+environments. The art of reward design can be categorized ingtheagentwithclearfeedbackonthequalityofitsactions.
+into two primary areas. The first is Reward Engineering [6] Itshouldalsobesparseenoughtopreventtrivialsolutionsbut
+whichinvolvesthecreationoftherewardfunctionitself.This denseenoughtofacilitatelearning.Forexample,inagame-
+involvestheinitialcreationoftherewardfunction.Thereward playingscenario,rewardengineeringmightinvolveassigning
+VOLUME00,0000 1
+4202
+luJ
+22
+]GL.sc[
+1v51201.8042:viXraAuthoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+positiverewardsforwinningmovesandnegativerewardsfor
+losingmoves,withadditionalconsiderationsforintermediate (cid:34) (cid:88)∞ (cid:12) (cid:12) (cid:35)
+Vπ(s)=E γkR(s ,a )(cid:12)s =s , (3)
+actionsthatcontributetotheoverallstrategy. π t+k t+k (cid:12) t
+(cid:12)
+k=0
+The second category is Reward Shaping [9], [10]. Once
+therewardfunctionisestablished,rewardshapingcomesinto (cid:34) (cid:88)∞ (cid:12) (cid:12) (cid:35)
+play to fine-tune and enhance the reward signals. Reward Qπ(s,a)=E γkR(s ,a )(cid:12)s =s,a =a . (4)
+π t+k t+k (cid:12) t t
+shaping involves modifying the reward function to improve (cid:12)
+k=0
+thelearningprocesswithoutalteringtheoptimalpolicy.One
+Inrewardshaping,themodifiedrewardfunctionR′(s,a,s′)
+common approach is potential-based reward shaping [11],
+ensuresthepolicyremainsoptimalwhileimprovingthelearn-
+where a potential function Φ(s) is introduced to modify the
+ingspeed.TheshapingpotentialΦ(s)ischosensuchthatthe
+rewards:
+differenceinpotentialprovidesinformativeguidance:
+R′(s,a,s′)=R(s,a,s′)+γΦ(s′)−Φ(s). (1)
+Φ(s)=heuristic(s). (5)
+Here,γ isthediscountfactor.ThepotentialfunctionΦ(s) Forinstance,inamaze-solvingtask,Φ(s)couldbetheneg-
+shouldbecarefullydesignedtoensureitdoesnotchangethe ative Manhattan distance to the goal, providing incremental
+optimalpolicybutaccelerateslearningbyprovidinginterme- rewardsastheagentapproachesthegoal.
+diate rewards. For instance, in a robotic arm manipulation RewarddesigninRLisafundamentalaspectthatencom-
+task,Φ(s)couldrepresentthenegativedistancetothetarget
+passes both the creation and refinement of reward functions
+object, encouraging the agent to move closer to the target. and it has been used in various areas [12]–[15]. Through
+Techniquessuchaspotential-basedshapingfunctionscanbe careful reward engineering and shaping, one can guide RL
+used to provide additional guidance to the agent, accelerat- agentstolearncomplexbehaviorsefficientlyandeffectively,
+ing the learning process by giving intermediate rewards for ultimatelyleadingtothedevelopmentofintelligentsystems
+progresstowardtheultimategoal.Forinstance,inanaviga- capable of performing sophisticated tasks. Efficiently, the
+tion task, shaping rewards could include providing positive complexityofmodernsystemsdemandsamorenuancedap-
+feedbackforreachingsub-goalsormakingprogresstowards proachtorewardengineering.Theworkcitedas[6]arguesfor
+thedestination,evenifthefinalgoalisnotyetachieved. ashiftinfocustowarddevelopingalternativeframeworksthat
+Effective reward design requires a deep understanding of caneffectivelyguidetheseagentstowarddesiredbehaviors,
+theproblemdomain,theagent’slearningdynamics,andpo- ensuring they "do the right thing" in increasingly complex
+tentialpitfallssuchasrewardhacking,wheretheagentfinds andethically-chargedscenarios.
+unintendedshortcutstomaximizerewardswithoutachieving Traditional control methods such as MPC, or LQR in
+the desired behavior. To mitigate such problems, iterative robotics often rely on pre-programmed behaviors and lack
+testing and validation of the reward function are essential, theadaptabilityandlearningcapabilitiesofRL.However,RL
+ensuringthatthedesignedrewardsleadtotheintendedout- lacksinherentperformanceguaranteesinagent-environment
+comes. Reward design in RL is a fundamental aspect that interactions, requiring additional assurance measures [16].
+encompassesboththecreationandrefinementofrewardfunc- Rewardengineeringprovidesapowerfultoolforbridgingthe
+tions. Through careful reward engineering and shaping, one gap between conventional control and intelligent, learning-
+can guide RL agents to learn complex behaviors efficiently basedsystems.WhileearlyAIresearchcouldfocussolelyon
+andeffectively,ultimatelyleadingtothedevelopmentofin- achievinggoals.
+telligentsystemscapableofperformingsophisticatedtasks. Therefore, this work aims to explore and provide a com-
+For deep understanding, consider an RL problem formu- prehensive review of reward design, investigating the key
+lated as a Markov Decision Process (MDP), defined by the concepts, trends, challenges, and opportunities in reward
+tuple(S,A,P,R,γ),where: shaping/engineering. It explores how the design of reward
+• S isthesetofstates, functions plays a crucial role in influencing the behavior of
+• Aisthesetofactions, learningagentsinvarioustasksandenvironments.Moreover,
+• P(s′|s,a)isthetransitionprobabilityfunction, it investigates how advancements in reward engineering are
+• R(s,a)istherewardfunction, pavingthewayformoreefficientandeffectivelearningalgo-
+The goal of the RL agent is to learn a policy π(a|s) that rithms.Thisreviewshedslightontheimportanceofreward
+maximizes the expected cumulative reward, given by the designinreinforcementlearningandhighlightsthepotential
+returnG: of reward engineering to drive innovation in the fields of
+t
+RL and Artificial Intelligence (AI). As AI agents become
+(cid:88)∞ more sophisticated and autonomous, the design of reward
+G = γkR(s ,a ). (2)
+t t+k t+k mechanismsbecomesacrucial,yetincreasinglychallenging
+k=0 aspectoftheirdevelopment.
+The value function Vπ(s) and the action-value function Thisarticleisstructuredasfollows.SectionIpresentsthis
+Qπ(s,a)aredefinedas: review with an introduction. Section II presents the process
+2 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+ofselectionpapers.SectionIIIprovidesthebackgroundand tolearn.Thisincludesmodifyingtheoriginalrewardfunction
+thefundamentalconcepts.SectionIVoutlinesthetaxonomy byintroducingadditionalincentivesorpenaltiestoguidethe
+of reward shaping & Engineering. Section V shows the ap- agent’slearningprocess.
+plications in robotics and other domains. A comprehensive Rewardengineering:encompassesabroadersetoftech-
+explorationofSim-to-RealispresentedinSectionVI.Section niques,includingusingotheralgorithmstodesignthereward
+VIIIdiscussestheshortcomingsandtheadvantagesofreward functionordesigningrewardfunctionsfromscratch.
+Engineering. The open challenges & future directions and The concept of reward plays a pivotal role in the field of
+conclusionarepresentedinSectionsIXandXrespectively. artificial intelligence, particularly within the framework of
+reinforcementlearning.
+II. PAPERSSELECTIONPROCESS Two distinct perspectives on the nature and sufficiency
+Acomprehensiveliteraturereviewwasconductedusingasys- ofrewardhaveemerged,sparkingdebateamongresearchers
+tematicsearchstrategyacrossmultipledatabases.Toensure Thefirstperspective,championedbythe"RewardisEnough"
+thetransparencyandreproducibleofourfindings,weadhered hypothesis [18], posits that maximizing a scalar reward, a
+to the PRISMA 2020 guidelines [17] for conducting and singlenumerical valuerepresenting progresstowards agoal
+reporting systematic literature reviews. The search focused could be the key to understanding and further building arti-
+on reward shaping techniques in AI-based control systems, ficial intelligence. This view proposes that complex cogni-
+yieldingafinalsetof55relevantpapersafterrigorousfilter- tiveabilities,likelearning,language,andsocialintelligence,
+ingandmanualreview.Toensurethereliabilityofthereview, emerge as a consequence of striving for this reward. The
+a quality assessment was performed on each included study complexityoftheenvironment,itisargued,naturallydrives
+usingasetofbenchmarkquestions. agents to develop these abilities to achieve their goals more
+Searchtermsincludedcombinationsof"rewardshaping," efficiently. However, the "Scalar Reward is Not Enough"
+"rewardengineering,""reinforcementlearning,""rewardde- perspective challenges this view [19], asserting that relying
+sign,""machinelearning,"and"controlsystems."Duetothe solelyonasinglenumericalvaluefailstocapturethemulti-
+recentnessofthistopicthereisalimitednumberofpapersthat facetednatureofhumanintelligence,particularlyindomains
+wepotentiallycanreview,thereforourinclusioncriteriawere involvingethicalconsiderationsorcomplex,subjectivegoals.
+establishedtofocusonstudiespublishedinEnglishbetween This perspective advocates for the use of vector-valued re-
+1999 and 2024, which directly addressed the application of wards,whichrepresentmultipleaspectsofprogressandcan
+rewardshapingtechniquesinAI-basedcontrolsystems,and better guide the development of safe, human-aligned AI.
+presented empirical results. Papers solely focused on theo- While both perspectives acknowledge the importance of re-
+reticalframeworksorlackingempiricaldatawereexcluded, wardinlearning,thedebatecentersonthesufficiencyofasin-
+exceptfor[6],[18]–[20]becauseoftheirhighimpactonour glescalarvalueinrepresentingthefullspectrumofintelligent
+review. behavior. The "Scalar Reward is Not Enough" perspective
+highlightstheneedformorenuancedrewardrepresentations
+III. BACKGROUNDANDFUNDAMENTALCONCEPTS thatcanaccountfortheintricateandoftencontext-dependent
+Reward shaping becomes more advantageous as the likeli- natureofhumanintelligence.
+hood of an agent wasting time exploring pointless areas of
+the environment increases, and thus well-designed reward A. GENERALPITFALLSINREWARDDESIGN:
+shaping can more effectively guide exploration, in addition As was established, reward design can be challenging and
+torewardshaping,rewarddesignhasalsobeenexploredasa time-consuming, furthermore, its effects usually can be no-
+meansofpolicyteaching,[21]–[23] ticeable in the behavior of the agent in addition to the envi-
+To define Reward Shaping and Reward Engineering, it is ronment.
+essentialtogothroughthecoreRLconcepts: For a given task, understanding the difficulties in reward
+• Agent:Anentitythatinteractswiththeenvironment. engineeringcanhelptodeterminethemostcompatible,suit-
+• Environment: The world in which the agent operates, able,andsuccessfulrewardshapingtechniques:
+governedbyspecificrulesanddynamics. • RewardSparsity:Lackordelayoffrequentrewardsig-
+• Policy: A function mapping states to actions, defining nalscanleadtoslowlearning.
+theagent’sbehavior. • DeceptiveRewards:Rewardsignalsmayencouragethe
+• Reward: A signal received by the agent based on its agent to find "easy" solutions that are not aligned with
+actions,indicatingthedesirabilityofastateoraction. thetrueobjective.
+• Value Function: A function that estimates the expected • RewardHacking:Agentsmayexploitunintendedloop-
+futurerewardforagivenstateorstate-actionpair. holes in the reward function to achieve high rewards
+• Explorationvs.Exploitation:Thebalancebetweentry- withoutfulfillingthedesiredgoal.
+ingnewactionsandexploitingknowngoodones. • UnintendedConsequences:Rewarddesignscanleadto
+Basedonthefindingsof[6],itcanbestatedthatReward unexpected and undesirable behaviors due to the com-
+shaping: is a technique inspired by animal training where plex interplay between agent actions and the environ-
+supplementalrewardsareprovidedtomakeaproblemeasier ment.
+VOLUME00,0000 3Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+• MisalignedRewardwithTrueObjective:Thishighlights
+the crucial problem of ensuring the reward function
+actuallyincentivizesthedesiredbehavior.
+• RewardFunctionComplexity:Acomplexrewardfunc-
+tionwithmultiplefactorscanbedifficulttodesignand
+interpret.
+• DifficultyinEvaluatingRewardDesign:Itcanbediffi-
+culttoobjectivelyevaluatetheeffectivenessofareward
+function,especiallyincomplexenvironments.
+These are some of the factors why Reward Engineering Figure 1: Agent-Environment Interaction in Reinforcement
+couldbeanacceptablesubstitutetoconventionalrewardde- Learning. A: The agent receives rewards from a "critic"
+sign. withinitsenvironment.B:ThispanelexpandsonPanelAby
+distinguishing between an internal and an external environ-
+B. SCALARVSVECTORREWARD ment,withrewardsoriginatingfromtheinternalenvironment.
+InRL,thechoicebetweenscalarandvectorrewardssignifi- The shaded box represents what could be likened to the
+cantly impacts the agent’s learning process. Scalar rewards, "organism.",[Figure1][24].
+represented by a single numerical value, provide a simple
+measure of progress towards a goal. This simplicity makes
+them computationally efficient and easy to interpret. How- thatemphasizesdesigningrewardfunctionstoenhanceevolu-
+ever,theyoftenfailtocapturethenuancesofcomplextasks, tionarysuccessacrossdiverseenvironments.Thisframework
+potentially leading to suboptimal behavior. Vector rewards, explores the delicate balance between intrinsic and extrin-
+ontheotherhand,utilizemultiplevaluestorepresentdifferent sicmotivations,emphasizingthecomputationalmodelingof
+aspectsofthetask,offeringamorecomprehensiveevaluation intrinsic motivation driven by internal rewards crucial for
+of the agent’s actions. This richer feedback allows for a intellectualgrowth.Theydefinetheoptimalrewardas:
+finer-grainedlearningprocess,enablingtheagenttoprioritize
+r∗ =argmaxE E {F(h)}, (6)
+specificaspectsofthetaskandpotentiallyachievemorede- A E∼P(ε) h∼⟨A(rA),E⟩
+sirableoutcomes.Whilevectorrewardscanleadtoimproved
+rA∈RA
+performance, they come with the challenge of designing ef- where E denotes the expectation operator. A special reward
+fective reward functions, balancing multiple objectives, and functioninR isthefitness-basedrewardfunction,thatmost
+A
+navigating the computational complexities associated with directlytranslatesfitnessF intoanRLrewardfunction,i.e.,
+multi-dimensionalfeedback.Thechoicebetweenscalarand wherethefitnessfunctionF measuresascalarevaluationof
+vectorrewardsdependsonthespecifictask,thedesiredlevel theagentbasedonitsinteractionhistoryh,whichissampled
+ofperformance,andtheavailablecomputationalresources. from the distribution resulting from its interaction with the
+environment. The fitness value of a lifetime-length history
+is the cumulative fitness-based reward for that history, [26,
+IV. TAXONOMYOFREWARDSHAPING/ENGINEERING
+Equation1].
+TECHNIQUES
+Thissectioncontainsacategorizationofrewardshapingtech- Previousstudieshighlighttheimportanceofadvancedre-
+niquesbasedonunderlyingprinciples,alongwithdetailedex- wardshapingmethodologiesinimprovingagentlearningand
+planationsofeachcategory,specificalgorithms,advantages, adaptation.
+disadvantages,andevaluationcriteria.
+Psychologists differentiate between extrinsic motivation, A. POLICYGRADIENTMETHODS
+whereactionsaredrivenbyspecificanticipatedrewards,and Policy gradient methods directly optimize an agent’s policy
+intrinsicmotivation,whereactionsaremotivatedbyinherent to maximize cumulative rewards [27]. Unlike value-based
+enjoyment.[24].SimilarlyinRL,Rewardscanbecategorized approaches, which estimate value functions, policy gradient
+intointrinsicandextrinsictypes,illustratedinFigure1. methodsfocussolelyonimprovingthepolicyitself.
+These rewards play critical roles in motivating and guid- InRL,anagentaimstomaximizeitstotalrewardovertime,
+ing agent behavior, making the shaping and design of these referredtoasitsreturn.It’scrucialtonotethatthesequence
+functions crucial for determining the success or failure of of environment states is influenced by the selected reward
+algorithms.Intheirstudyofrewardfunctions[25]introduced function,therebyaffectingthegoalsoftheagent’sdesigner.
+a computational framework aimed at optimizing these re- Thechallengeoffindingtheoptimalrewardstemsfromthe
+wards to improve agent behaviors. Their approach focuses fact that, while the objective reward function is fixed in the
+ondefiningoptimalrewardstructuresbasedonfitnessfunc- problemformulation,thechoiceofrewardfunctionremains
+tionsandenvironmentaldistributions.Similarly,[26]further withinthedesigner’scontrol[28].Addressingthischallenge,
+exploredintrinsicmotivationwithintheRLframework.They previousresearchintroducedthePolicyGradientforReward
+proposedanevolutionary-inspiredoptimalrewardframework Design (PGRD), which employs online gradient ascent to
+4 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+iteratively adjust reward parameters during the agent’s op- agents that rely solely on extrinsic rewards. However, chal-
+eration. They argue that "the optimal reward parameters are lengesincludethenecessityformeticulousparametertuning
+determined by solving the optimal reward problem" [28, and potential sensitivity to the selection and interaction of
+Equation1]: intrinsicrewardfunctionswithpolicyupdates.Itisnotewor-
+(cid:34) (cid:35) thy that LIRPG expands on the concept of reward shaping
+N
+θ∗ =argmax lim E 1 (cid:88) R (s)|R(·,θ) , (7) byallowingagentstoadjusttheirbehaviorbasedoninternal
+θ∈Θ N→∞ N O t signalsofprogressorsuccess,alongsidetheexternalrewards
+t=0
+providedbytheenvironment.
+where R is objective reward function given by the de-
+O
+signer and R(·) is separate agent reward function. Authors
+abstractly represent this selection by parameterizing the re-
+wardwithavectorofparametersθchosenfromaparameter
+spaceΘ.Eachθ ∈ΘdefinesarewardfunctionR(·;θ),which
+subsequently generates a distribution over the sequences of
+environment states using the agent’s RL method. The ex-
+pectedreturnachievedbythedesignerforthechoiceofθ is
+denotedasJ(θ).
+PGRD adjusts to accommodate the agent’s abilities and
+uncertaintiesinmodelaccuracy.Itformalizesupdatestothe
+reward function by estimating gradients of the objective re-
+turn and policy, ensuring convergence with rigorous proofs. Figure3:Thex-axisrepresentstimestepsduringthelearning
+Results illustrate its effectiveness in discrete-time, partially process, while the y-axis denotes the average reward over
+observable environments, as depicted in Figure 2, to max- the last 100 training episodes. The black curves correspond
+imize the expected mean objective reward over an infinite to the baseline PPO architecture. The blue curves represent
+horizon. Unlike traditional methods that impose fixed goals thePPO-live-bonusbaseline.Theredcurvesdepictouraug-
+onagents,PGRDenhancesresultscomparedtoconventional mented architecture using LIRPG. The green curves show
+policygradientmethods,highlightingitscapacitytoimprove the performance of our LIRPG architecture where the pol-
+agentperformanceacrossvariousscenariosthroughdynamic icy module was trained solely with intrinsic rewards. The
+rewardoptimization. darkercurvesrepresentaveragesacross10runswithdifferent
+randomseeds.Theshadedareaindicatesthestandarderrors
+acrossthese10runs,[29,Figure4].
+As an extension of the Deep Deterministic Policy Gra-
+dient (DDPG) algorithm [30], DDPG from Demonstrations
+(DDPGfD) is tailored for robotic RL tasks with sparse re-
+wards. DDPGfD employs off-policy learning by integrat-
+ingdemonstrationtrajectoriesintothereplaybuffer,thereby
+leveraging human-provided guidance to bootstrap learn-
+Figure2:PGRDperformancewithA)poormodel,Bpartially ing and address exploration challenges common in high-
+observableworld,[28,Figure3]. dimensionalcontrolproblemssuchasrobotics.Thealgorithm
+modifies DDPG in several key ways: integrating transitions
+In a similar vein, [29] introduced the Learning Intrinsic fromahumandemonstratorintothereplaybufferandutiliz-
+Reward for Policy Gradient (LIRPG) algorithm. LIRPG en- ing prioritized replay to effectively sample transitions from
+hancesRLbyenablingagentstodynamicallylearnintrinsic bothdemonstrationandagentdata.Thelearningprocessin-
+rewardsinadditiontotraditionalextrinsicrewards.Theypro- cludesamixof1-stepL (θQ)andn-stepreturnL (θQ)losses
+1 n
+posethefollowingequationforupdatingpolicyparametersθ to enhance performance. Furthermore, it updates multiple
+byincorporatingbothpolicyandintrinsicrewardparameters times per environment step, thereby improving learning ef-
+throughregularpolicygradientupdates[29,Equation4]: ficiency.RegularizationisimplementedwithL2penaltieson
+thecritic’sweightsLC (θQ)andtheactor’sweightsLC (θπ),
+θ′ ≈θ+αGex+in(s,a)∇ logπ (a|s). (8) reg reg
+t t θ θ t t promotingstabletrainingandgeneralization.Theexperimen-
+LIRPG has demonstrated improved learning efficiency and talsetupinvolvestasksofinsertingatwo-prongeddeformable
+performance in complex environments, reducing sample plastic clip into a housing using a 7-DOF robotic arm, with
+complexity and accelerating learning processes. Results in- resultsdepictedinFigure4.
+dicatethatLIRPGoptimizesagentperformanceacrossAtari DDPGfD simplifies learning by integrating human guid-
+games and Mujoco domains, as illustrated for Hopper and ance and eliminates the need for intricate reward shap-
+HalfCheetahinFigure3,consistentlyoutperformingbaseline ing. However, significant challenges persist in maintaining
+VOLUME00,0000 5Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+fortrainedpolicies,especiallywhencombinedwiththeProx-
+imal Policy Optimization (PPO) algorithm. This integration
+resultsinhigherexpectedrewardsundernoisyconditions,as
+shown in Figure 5. Additionally, the framework sometimes
+achieves greater cumulative rewards by utilizing noise for
+betterexplorationandemployingnoise-removalmechanisms.
+Figure 4: (a) Learning curves illustrating DDPG from
+Demonstrations(DDPGfD)performanceontheclipinsertion
+taskwithdifferentamountsofdemonstrationdata.DDPGfD
+demonstrates the ability to solve sparse-reward tasks effec-
+tivelywithminimalhumandemonstration,showcasingrobust
+learningcapabilities.(b)Resultsfrom2runsconductedona
+physical robot. DDPGfD exhibits accelerated learning com-
+paredtoDDPGandachievesperformancewithoutrequiring
+handcraftedrewardfunctions,asshownin[30,Figure4].
+demonstrationqualityandscalabilityacrossawiderangeof
+roboticapplications.
+B. METHODSWITHROBUSTNESSANDADAPTABILITY
+Robustness and adaptability are critical aspects of RL, ro-
+bustness ensures RL agents perform well under uncertain
+or changing conditions by handling disturbances and model
+inaccuracies, while adaptability allows RL models to adjust
+tonewenvironments,tasks,ordynamics,ensuringflexibility
+beyondinitialtraining[31].
+Reward shaping offers a way to enhance robustness [32].
+Aleader-followerframeworkemploysatechniquesimilarto
+that described in [33], where the leader, by modifying the
+follower’srewardfunction,seekstoinfluencetheiractionsin Figure 5: Learning curves from five rewards robust RL al-
+the desired direction, therefore enhancing the robustness of gorithms on CartPole game with true rewards (r) ■, noisy
+thesystem.
+rewards(˜r)■,sample-meannoisyrewards■,estimatedsur-
+Nevertheless, when dealing with real-world rewards col- rogate rewards (r˙) ■, and sample-mean estimated surrogate
+lectedfromsensors,thesesensorsareoftenaffectedbynoise,
+rewards■,[32,Figure4].
+which can distort reward signals and result in sub-optimal
+performance in RL models. To tackle these issues, [32] in-
+However, the method’s computational complexity may
+troduces a robust RL framework that uses a confusion ma-
+presentchallenges,especiallyinreal-timeorresource-limited
+trix to estimate and correct noisy rewards. This framework
+scenarios.Additionally,itseffectivenessacrossvariousnoise
+incorporates an unbiased estimation algorithm designed to
+patternsandenvironmentshingesonprecisenoisecharacter-
+function without making assumptions about the underlying
+izationandparametertuning.Ultimately,thisprocesscanbe
+distributionoferrors.Themethodinvolvesdefiningunbiased
+viewed as a form of reward engineering, aimed at adjusting
+surrogate rewards ˆr based on estimated confusion matrices
+orrefiningtherewardfunctiontomitigatenoiseimpactand
+[32, Theorem 1] and applies the Q-learning algorithm with
+enhancelearningprocessreliability.
+surrogaterewards[32,Equation3]:
+Similarly,toensurethatreinforcementlearning(RL)poli-
+ciesmeetspecificcontrolcriteria,[34]introducesasystem-
+(cid:20) (cid:21)
+Q (s,a)=(1−α)Q(s,a)+α ˆr +γmaxQ(s ,b) , atic approach for shaping rewards to align optimal policy
+t+a t t t t t t t t+1
+b∈A trajectorieswiththeserequirements.Thismethodtacklesthe
+(9)
+challenge of achieving control objectives such as settling
+whereα∈(0,1):thelearningrate,willconvergetotheopti-
+malQ-functionaslongas(cid:80) α =∞and(cid:80) α2 <∞.Ex- timeandsteady-stateerrorwithoutexplicitmodelsofsystem
+t t t t dynamics.
+perimentalvalidationonplatformssuchasOpenAIGymand
+Atarigamesdemonstratenotableperformanceimprovements
+6 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+C. EXPLORATIONSTRATEGIES
+InRL,explorationstrategiesaretechniquesthatbalancethe
+trade-offbetweenexploration(discoveringnewinformation)
+andexploitation(leveragingexistingknowledge)[35].These
+strategieshelpRLagentslearnoptimalpoliciesbyexploring
+theirenvironmentwhileexploitinglearnedknowledge.
+The effectiveness of count-based exploration methods in
+small,discretespacescontrastswiththechallengestheyface
+inlarger,continuousenvironmentswherestatere-encounters
+areinfrequent.Intheirstudyonextendingcount-basedexplo-
+rationtohigh-dimensionalandcontinuousstatespaces,[36]
+introduced the use of hash codes to facilitate state counting
+and exploration. This method employs static hashing tech-
+niques, such as locality-sensitive hashing SimHash, which
+retrieves a binary code of state s∈S as described in [36,
+Equation2]:
+ϕ(s)=sgn(Ag(s))∈{−1,1}k, (10) Figure7:Themeanaveragereturnofdifferentalgorithmson
+rllab[38]taskswithsparserewards.Thesolidlineshowsthe
+where g is an optional preprocessing function and A is a mean average return, while the shaded area represents one
+matrix with i.i.d. entries drawn from a standard Gaussian standarddeviation,over5seedsforthebaselineandSimHash
+distribution N(0,1). Additionally, the study uses learned (withbaselinecurvesoverlappingtheaxis).Count-basedex-
+hashingviaautoencoders(AE)toassignexplorationbonuses ploration with hashing enables goal achievement in all en-
+basedonstatevisitationcounts,asillustratedinFigure6. vironments (indicated by a nonzero return), while baseline
+TRPOwithGaussiancontrolnoisefailscompletely.TRPO-
+SimHasheffectivelycapturesthesparserewardonHalfChee-
+tahbutdoesnotperformaswellasVIME.SimHash’sperfor-
+manceiscomparabletoVIMEonMountainCarandsurpasses
+VIMEonSwimmerGather[36,Figure3].
+Algorithm1OnlineRewardShaping,[39,Algorithm1]
+Figure6:ThearchitectureoftheAE,[36,Figure1]. 1: Input:ExtrinsicrewardR¯,andRLalgorithmL
+2: Initialization:π 0,Rˆ 0
+The results illustrated in Figure 7 compare Trust 3: fork =1,2,...,K do
+Region Policy Optimization (TRPO) (baseline), TRPO- 4: updatepolicyπ k ←L(π k−1,Rˆ k−1)
+SimHash, and Variational Information Maximizing Explo- 5: updaterewardRˆ k usingRˆ k−1andπ k
+ration (VIME) [37] on tasks such as MountainCar, Cart- 6: endfor
+PoleSwingup,HalfCheetah,andSwimmerGather. 7: Output:π K
+However,Themethod’sprimaryadvantagesareitsadapt-
+ability to high-dimensional spaces and its potential applica-
+bility across various RL domains. Nonetheless, challenges in scenarios where traditional methods are impractical or
+includethecomplexityoftuninghashfunctionsandsensitiv- ineffective. However, the study also acknowledges several
+itytothequalityofstaterepresentations,whichcouldimpact constraints, including the need for extensive evaluation in
+performanceconsistencyacrossdifferentenvironments. more complex environments and the challenges associated
+Toenhancethelearningefficiencyofreinforcementlearn- witheffectivelycombiningintrinsicrewardswithexploration
+ing(RL)agentsdealingwithsparseornoisyrewardsignals, bonuses.
+[39] introduce Exploration-Guided Reward Shaping (EX- Withinthesameframework,[40]introduceRewardUncer-
+PLORS).Thisframeworkcombinesintrinsicrewardlearning taintyforExploration(RUNE),amethodwithinpreference-
+with exploration-based bonuses in a fully self-supervised based RL algorithms that integrates uncertainty in learned
+manner,aimingtomaximizetheagent’seffectivenessinob- reward functions as an exploration bonus. By incorporating
+tainingextrinsicrewards: thevarianceinpredictionsfromanensembleofrewardfunc-
+Experimental findings across various environments vali- tions optimized to align with human feedback, RUNE aims
+datethemethod’seffectivenessinacceleratinglearningcom- to enhance exploration in environments where learning is
+paredtoconventionalRLapproaches,demonstratingitscapa- guidedbyhumanpreferences,asdepictedinFigure9.
+bilitytosurpassthelimitationsoftraditionalrewardshaping Thisapproachoffersseveralbenefits:itprovidesasystem-
+methods, as shown in Figure 8. This is particularly evident atic way to balance exploration and exploitation by priori-
+VOLUME00,0000 7Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+learningalgorithmsdrivenbyhumanfeedback.
+Figure 10: Learning curves on robotic manipulation tasks
+measuring success rates. Exploration methods consistently
+improvethesampleefficiencyofPEBBLE.Notably,RUNE
+shows larger gains compared to other existing exploration
+baselines.Thesolidlinerepresentsthemeanandtheshaded
+regionsdenotestandarddeviationsacrossfiveruns[40,Fig-
+ure3].
+D. POLICYPARAMETERIZATION
+Figure8:a)Room0,REINFORCEb)Room+,REINFORCE
+Policyparameterizationreferstoexplicitlymodelingthepol-
+c)LineK0,REINFORCEd)LineK+,REINFORCE.
+icy as a function of learnable parameters (often denoted as
+Theseplotsillustratetheagent’sconvergenceinperformance θ). These parameters determine the agent’s behavior, and
+relative to training episodes. (a, b) display results for the common choices include neural network weights [41]. By
+REINFORCE agent on Room0 (ROOM variant without any optimizingtheseparameters,weimprovethepolicy’sperfor-
+distractor state) and Room+ (ROOM variant with a distrac- mancethroughgradient-basedupdates.
+tor state). (c, d) present results for the REINFORCE agent Continuous control tasks traditionally rely on complex
+on LineK0 (LineK variant without any distractor state) and neuralnetworkmethods.However,[42]examinestheeffec-
+LineK+(LineKvariantwithdistractorstates)[39,Figure5].
+tiveness of simpler policy parameterizations, such as linear
+and Radial Basis Function (RBF) policies, in these settings.
+Theprimaryconceptistoenrichtherepresentationalcapacity
+byusingrandomFourierfeaturesoftheobservations.These
+featuresaredefinedas[42,Equation6]:
+(cid:32)(cid:80) P s(j) (cid:33)
+y(i) =sin j ij t +ϕ(i) , (11)
+t v
+Figure9:Theagentinteractswiththeenvironmentandlearns where each element of P is drawn from N(0,1), v is the
+ij
+an ensemble of reward functions based on teacher prefer- bandwidth parameter, and ϕ is a random phase shift. The
+ences. Each state-action pair’s total reward combines the studyshowsthatthesestreamlinedpoliciescanachievecom-
+extrinsic reward with the mean of the ensemble’s predicted petitive performance on benchmarks such as OpenAI Gym
+values and the intrinsic reward with the standard deviation and can be trained faster than neural networks. Neverthe-
+amongtheensemble’spredictions[40,Figure1]. less, conventional training methods often result in policies
+susceptible to perturbations, which is critical for real-world
+applications.Bydiversifyinginitialstatedistributionsduring
+tizing actions with higher uncertainty in expected rewards, training, the research demonstrates enhanced policy robust-
+potentiallyacceleratinglearningandimprovingsampleeffi- ness,similartothebenefitsobservedwithmodelensembles
+ciencycomparedtotraditionalpreference-basedRLmethods. anddomainrandomization.
+Experimental results in Figure 10 demonstrate RUNE’s ef- Despite these advantages, simple policy approaches may
+fectiveness in enhancing asymptotic success rates and over- facechallenges.Theirscalabilitytoextensivestateandaction
+all feedback efficiency during training scenarios. However, spacescanbelimitedcomparedtotheadaptabilityofneural
+challenges remain, such as developing robust techniques to networks.Sensitivitytoinitialstatedistributionsnecessitates
+managevaryinglevelsofrewarduncertaintyandaddressing carefultuningforrobustness.Incomplexscenariosdemand-
+the computational overhead of maintaining an ensemble of ing intricate behaviors, simple policies may not match the
+reward function predictions. Nevertheless, this work repre- peakperformanceachievablewithadvancedneuralnetworks.
+sentsasignificantadvancementinRLresearchbyproposing Additionally,theirrigiditymayhinderadaptationtodynamic
+amechanismtointegraterewarduncertaintyintoexploration or intricate environments compared to more flexible neural
+strategies,pavingthewayforfuturedevelopmentsinadaptive networkarchitectures.
+8 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+than fixed objectives. IRD’s risk-averse planning ensures
+agents avoid both known hazards and potential risks, en-
+hancingsafetyandreliability.Additionally,IRDsystemsare
+robust to changes in high-dimensional feature spaces. How-
+ever,IRDfacescomputationalchallengesinsolvingplanning
+problemsduringinferenceandoftenreliesonsimplifiedas-
+sumptionsaboutrewardfunctionsandenvironments,limiting
+its applicability in complex scenarios. Accurate inference
+remains challenging, potentially leading to sub-optimal be-
+haviors.
+Figure 11: Learning curves for the Linear and RBF policy
+architectures. The green line indicates the reward achieved
+byneuralnetworkpoliciesontheOpenAIGymwebsiteasof
+02/24/2017(trainedwithTRPO),[42,Figure1].
+E. INVERSEREWARDDESIGN
+InverseRewardDesign(IRD)tacklesthechallengeofinfer-
+ring the true objective behind a designed reward function. Figure 13: The results comparing [44] method to a baseline
+Instead of manually engineering rewards, IRD allows RL thatdirectlyplanswiththeproxyrewardfunction,[44,Fig-
+agents to learn from expert demonstrations and deduce the ure4].
+underlyingintentiondrivingthoseactions.
+In RL, the agent selects an action in a known state and
+receivesarewardgeneratedbyarewardfunctionRthatmay
+F. REWARDHORIZON
+beunknowntotheagentThestatetransitionsarebasedonthe
+Theimpactofusingshapingtoreducetherewardhorizonis
+previousstateandaction,whichisdescribedbythetransition
+illustratedthroughastraightforwardalgorithm,Algorithm2,
+function T, which may also be unknown. Conversely, in
+thatguaranteeslearningtimeispolynomialrelativetothesize
+InverseReinforcementLearning(IRL),theinputsandoutputs
+ofthecriticalregionandindependentoftheMDP’ssize[45].
+forthelearnerLarereversed.Lobservesthestatesandactions
+{(s,a),(s,a),...,(s,a)}ofanexpertE(oritspolicyπ ),and
+E
+learns a reward function Rˆ that best explains E’s behavior Algorithm2TheHorizon_Learn,[45,Figure1]
+E
+as the output [43]. It is important to note that the learned 1: Input:MDPM andRewardHorizonH
+rewardfunctionmaynotexactlycorrespondtothetruereward 2: Initialization:π
+function,asillustratedinFigure12. 3: while successive episodes occur visiting only known
+statesdo
+4: AssignsasthecurrentstateofM
+5: ifsisterminalthen
+6: resettos 0
+7: endif
+8: ifsisknownthen
+9: executeπ(s)
+10: else
+11: execute any policy in m H(s) that still needs to be
+explored
+Figure12:ThefiguredepictsRLandIRL.Thesubjectagent 12: ifsbecomesknownthen
+(shadedinblue),[43,Figure3]. 13: Select the action for s in the optimal policy of
+m (s),a
+H
+Coinciding with previous work, [44] proposed Inverse 14: Setπ(s)=a
+Reward Design (IRD), an approach that approximates the 15: endif
+true reward function by treating the proxy reward as expert 16: endif
+demonstrations. This method aids in planning risk-averse 17: endwhile
+behaviorandaddressesissueslikemisspecifiedrewardsand 18: return π
+reward manipulation. IRD prevents harmful behaviors by
+avoiding dangerous areas, as shown in experiments with Byshorteningtherewardhorizon,theyidentifyeasier-to-
+robotsavoidinglavaFigure13.Italsomitigatesrewardma- learn MDPs, indicating that standard RL algorithms, such
+nipulationbytreatingdesignedrewardsasobservationsrather asQ-learningwithε-greedyexploration,cangreatlybenefit
+VOLUME00,0000 9Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+fromthistechnique.Experimentaldatasupportthatreducing with sparse rewards. The method proposed the following
+therewardhorizonspeedsuplearning,withshapingstrategies function[46,Equation12]:
+leading to faster performance improvements compared to
+no shaping, as shown in Figure 14. Specifically, the time (cid:40)
+0 R(s,a)=0
+requiredtoreachacertainperformancelevelissignificantly
+reduced with shaping: algorithms that explore based on re- ϕ(s,a,t)= 1+ RR e upe (p t− )−R Re up e l( pt () t) O.W, (13)
+wardfeedbackarenotablyquickerwhentherewardhorizon
+where R(s,a) is the immediate reward, Rep is the sum of
+isminimized.
+rewardsinthecurrentepisode(episodereward),Rep(t)isthe
+u
+minimumvalueofepisoderewarduntilnow,andRep(t)isthe
+l
+maximum value of episode reward until now. The potential
+functiondiscouragesunproductivestates,reinforcespositive
+rewards, and indicates the significance of negative rewards.
+This dynamic adjustment ensures continuous improvement
+andefficientexploration.
+Figure 15: Results of PBRS on Pong and Breakout, [46,
+Figure14:AverageLearningCurvesastheRewardHorizon Figure5].
+isReducedfromNoShapingtoShapingEveryAction,[45,
+Figure2]. Evaluations during learning and final policy assessments
+show that this method competes well with baseline meth-
+Thestudyemphasizesthecrucialroleoftherewardhorizon ods, particularly in multitasking scenarios, thus advancing
+indeterminingthecomplexityoflearningtasks,showingthat techniques for speeding up RL algorithms and improving
+shaping can dramatically decrease the time required for RL adaptabilityincomplexenvironments.
+agents to learn optimal policies. However, accurately deter-
+mining and implementing the appropriate reward horizon is 1) TheoreticalfoundationsforMulti-AgentSystems(MAS)
+challenging,asimpropershapingmightnotyieldtheexpected Toinvestigatethetheoreticalimplicationsofpotential-based
+accelerationinlearning. reward shaping in multi-agent systems, this research [20]
+extendspreviousfindings,demonstratingthatthistechnique
+G. POTENTIALBASEDMETHODS maintains equivalence to Q-table initialization and does not
+Potential-based methods [11] in RL focus on shaping the affecttheNashEquilibriaoftheunderlyingstochasticgame.
+value function to guide an agent’s behavior. By introducing Crucially, the study empirically reveals that potential-based
+auxiliary potentials, these methods encourage desired states shaping influences exploration, potentially leading to dif-
+and actions, leading to improved exploration and conver- ferent converged joint policies. While the research focuses
+gence. These methods usually involve defining a potential on fully observable domains, it highlights the potential of
+function,ϕ(s),overthestatespace,whichcapturestheagent’s potential-based reward shaping for incorporating heuristic
+desiredprogresstowardsagoalstate. knowledgeintomulti-agentlearning.Theauthorssuggestthat
+thistechniquecanincreasethelikelihoodofconvergingtoa
+R′(s,a)=R(s,a)+γ[ϕ(s′)−ϕ(s)]. (12)
+higherglobalutilityandreduceconvergencetime,potentially
+GuidingRLagentstowardgoalscanbeimprovedbyana- mitigatingtherisksassociatedwithunintendedcyclicalpoli-
+lyzingcumulativerewardsfromepisodes[46].Byreinforcing cies.
+reward signals based on episode rewards, they proposed the
+Potential-BasedRewardShaping(PBRS)methodtoenhance 2) PBRS-MAXQ-0method
+learning efficiency and performance in both single-task and Potential Based Reward Shaping (PBRS) and MAXQ are
+multi-task environments within the Arcade learning domain two extensively utilized techniques in reinforcement learn-
+Figure 15. The reward function must also handle sparse re- ing.[47]introducedPBRS-MAXQ-0,anovelalgorithmthat
+wardsignalsbyanalyzingagenttransitionsinenvironments merges these methods within a hierarchical reinforcement
+10 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+learning (HRL) framework. PBRS-MAXQ-0 seeks to inte- While the proposed method demonstrates theoretical
+grate heuristics into HRL tasks both effectively and effi- soundness, it currently lacks practical applications and spe-
+ciently, offering theoretical convergence guarantees under cific algorithms. The paper primarily focuses on theoretical
+specific conditions, independent of additional rewards ap- concepts,leavingfurtherdevelopmentofpracticalimplemen-
+plied. Evaluations underscore several benefits: with appro- tations for future research. The authors highlight the chal-
+priate heuristics, PBRS-MAXQ-0 notably accelerates con- lengesassociatedwithdifferentrewardshapingapproaches:
+vergence relative to the standard MAXQ-0 algorithm and while potential-based methods offer guarantees, they often
+competes well with other advanced MAXQ-based methods. requireextensivedomainknowledgeforeffectiveimplemen-
+Importantly,evenwithmisleadingheuristics,PBRS-MAXQ- tation;auxiliarytask-basedmethodsofferflexibilitybutcan
+0 shows resilience, eventually achieving convergence after becomecomplexasthenumberofauxiliarytasksincreases;
+prolongedlearningperiods,asillustratedinFigure16. andintrinsicmotivationmethodswhilepromisingforencour-
+agingexploration,canbesensitivetoparametertuning.
+The authors conclude that effective reward shaping re-
+quires a nuanced understanding of the specific problem do-
+mainandacarefulbalancebetweentheoreticalsoundnessand
+practicalconsiderations.Futureresearchshouldprioritizethe
+development of more automated and robust reward shaping
+techniquestoadvancethefieldofRL.
+4) PBRSinepisodicreinforcementlearning
+PBRS in episodic RL, explored by [49], sheds light on
+its applications in model-free, model-based algorithms, and
+multi-agentRL.Itexaminesrewardshapinginepisodictasks
+likegames,revealinginsights:potential-basedshapingalters
+equilibriainstochasticgames,introducesnewequilibriawith
+non-zero terminal state potentials, and reevaluates its role
+Figure 16: Performances of PBRS-MAXQ-0 in the Fickle inPAC-MDPlearning.Itchallengestheneedforadmissible
+Taxi problem, where PBRS-MAXQ-0 with reasonable potentialfunctions,proving∀s∈Unkown,Φ(s)≥0ensures
+heuristics (denoted by PBRS-good) and with misleading optimisticexploration.Thestudyprovidesanalyticaljustifi-
+heuristics(denotedbyPBRS-bad)[47,Figure2]. cation for PBRS, crucial in episodic RL with distinct initial
+andterminalstates,emphasizingThepotentialroleinenhanc-
+However, integrating PBRS into MAXQ presents chal- inglearningefficiency.
+lenges, such as optimizing heuristic values and ensuring ro-
+bust convergence across diverse environments. Fine-tuning 5) ConstrainedRLwithpotential-basedrewardfunctions
+PBRSparametersandmaintainingheuristicaccuracyarees- (PBRF)
+sentialformaximizingthealgorithm’sefficacyacrossvarious Togeneratesafety-orientedaspectsofrewardfunctionsfrom
+HRLscenarios. verifiedhybridsystemsmodels[50]proposedanapproachof
+using logically constrained RL to integrate formal methods
+3) Potential-BasedAdvice and RL. Demonstrated on a standard RL environment for
+Potential-basedshapingfunctionsensurethatpolicieslearned longitudinalvehiclecontrol,thismethodshowedfastercon-
+with shaped rewards remain effective in the original MDP, vergence during training with augmented reward functions,
+maintaining near-optimal policies [11]. On the other hand, particularly with logically constrained and potential-based
+Rewardshapinginvolvesaugmentingtherewardfunctionof reward functions (PBRF). The study found that partly auto-
+MDPtoacceleratelearningbyprovidingadditionalguidance generated reward functions produced agents that generally
+beyondtheintrinsicrewardsoftheMDP. maintained the safety level of hand-tuned reward functions,
+Thispaper[48]presentsanovelframeworkforexpressing and reward scaling could emphasize certain aspects of the
+arbitrary reward functions as potential-based advice within generated rewards. The training process was evaluated in
+the context of reinforcement learning (RL). This method terms of the number of epochs until convergence and the
+ensurespolicyinvariancebylearninganauxiliaryvaluefunc- averageaccumulatedrewardacrossevaluationperiods.
+tion,derivedfromamodifiedversionoftheoriginalreward
+function. The potential-based approach facilitates efficient 6) DifferenceRewardsincorporatingPotential-Based
+encodingofbehavioraldomainknowledge,leadingtosignif- RewardShaping(DRIP)andCounterfactualsasPotential
+icant improvements in learning speed compared to existing (CaP)
+methods.Notably,theframeworkintroducesminimalcompu- DRIP is introduced as a novel reward shaping technique
+tationaloverhead,asmaintainingtheauxiliaryvaluefunction formulti-agentreinforcementlearning[51].DRIPcombines
+requiresonlylineartimeandspacecomplexity. differencerewards,whichincentivizeagentstocontributeto
+VOLUME00,0000 11Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+theoverallsystemperformance,withpotential-basedreward
+shaping. Potential-based shaping (see Equation 15) acceler-
+ateslearningandmaintainsdesiredNashequilibriabymod-
+ifyingtherewardfunctionusingapotentialfunctionderived
+fromdomain-specificknowledge.Whileeffective,DRiPre-
+quiresacarefullydesignedpotentialfunctionbasedondeep
+domain understanding, which can be challenging and time-
+consuming to obtain. CaP, on the other hand, automatically
+generatesadynamicpotentialfunction,eliminatingtheneed
+for manual design and guaranteeing stable Nash equilibria.
+Although both CaP and DRiP capture similar knowledge,
+combiningthemdoesn’tprovideextrabenefitsandcaneven
+negatively impact performance. For applications requiring
+theoretical guarantees, CaP is preferred; for performance
+Figure17:DPBRSSingle-AgentMazeResults[52,Figure2].
+priority, DRiP is recommended, especially when domain
+knowledge is readily available. The work [51] tested these
+techniquesinvariousdomains,showcasingDRiP’sconsistent
+I. UPPERCONFIDENCEBOUNDVALUEITERATION(UCBVI)
+outperformanceinacceleratinglearningandachievingbetter
+Well-designedrewardshapingcansignificantlyimprovesam-
+policies.
+ple complexity and enhance exploration, leading to better
+performancecomparedtouninformedexplorationstrategies.
+H. DYNAMICPOTENTIAL-BASEDREWARDSHAPING
+This is demonstrated in the following work, which investi-
+(DPBRS)
+gates the benefits of reward shaping in reinforcement learn-
+For improving reinforcement learning in single and multi- ing (RL) through a combination of theoretical analysis and
+agent systems, this method introduces a dynamic potential- experimentalvalidation.
+based function to perform the reward shaping, and to guide
+agentswithoutaffectingtheoptimalpolicy[52].Thisfunction
+1) UCBVI
+changesovertime,adaptingtothecurrentstateoftheagents
+TheUCBVIalgorithm[53]isamethodforshapingrewards
+andtheenvironment.Theideacanberepresentedasfollows
+that extends the Value Iteration technique, ensuring that the
+throughtheformulaofQ-Learning:
+resultingvaluefunctionservesasanupperconfidencebound
+(UCB)withahighprobabilityontheoptimalvaluefunction,
+Q(s,a)←Q(s,a)+α[r+F(s,s′)+γmaxQ(s′,a′)−Q(s,a)],
+It is important to note that this algorithm bears similarity to
+a′
+(14) model-based interval estimation (MBIE-EB) [54]. The au-
+whereF(s,s′)isthegeneralformofanystate-basedshaping thorspresentproofsfortheirtheoremsandintroduceseveral
+reward: modifiedversions,includingUCBVI-CH,whichincorporates
+F(s,s′)=γΦ(s′)−Φ(s). (15) ChernoffHoeffding’sconcentrationinequality.However,no
+empiricalresultsareprovided.
+Forthedynamicpotentialbased,wecanextendEquation15
+2) UCBVI-shaped
+andincludet;theagent’sarrivaltimeinthepreviousstates,
+andt′isitsarrivaltimeatthecurrentstates′(i.e.,t <t′): A modified version of the UCBVI algorithm [53] incorpo-
+rates reward shaping to modify bonuses and value function
+projection [55]. Their analysis reveals that reward shaping
+F(s,t,s′,t′)=γΦ(s′,t′)−Φ(s,t). (16) caneffectivelypruneirrelevantpartsofthestatespace,sharp-
+ening optimism in a task-directed manner. This reduction
+TheDPBRSmaintainsexistingguarantees,itsadvantages in state space dependence leads to improved regret bounds
+includeitsabilitytoimprovedecentralizedmulti-agentlearn- and sample complexity benefits while retaining asymptotic
+ing through carefully designed, domain-specific potential performance.
+functions. These functions foster cooperation by addressing Theresearchwasconductedonmazeenvironments,com-
+challenges like coordination, information asymmetry, and paringtheperformanceofUCBVI-shapedwiththestandard
+scalability. While the potential benefits of this approach in- UCBVI algorithm. Their findings show that reward shaping
+cludefasterconvergence,enhancedcooperation,andgreater can enhance the performance of UCBVI, particularly in en-
+robustness, the method lacks comparisons with other algo- vironmentswhereagentsarepronetowastingtimeexploring
+rithms and lacks examples in robotics or highly non-linear irrelevantareas.
+systems, where it was tested on a 2-D maze for Single- Thisworkcontributestoadeeperunderstandingofreward
+Agent learning as we see in Figure 17, and on Boutilier’s shaping’s impact on sample complexity and its potential to
+CoordinationGameforMulti-Agentlearning. guide exploration in a more efficient manner. It encourages
+12 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+futureresearchtoincorporaterewardshapingmoreformally a more balanced distribution of traffic across the network.
+intosamplecomplexityanalysis,movingawayfromreward- Experiments show that DQ-learning significantly improves
+agnosticapproaches. travel time compared to IQ-learning, successive averages,
+incremental assignment, and all-or-nothing assignment. The
+J. DIFFERENCEREWARDS(D) study uses statistical testing with Gaussian distribution and
+For single agent systems, difference rewards enhance the confidence intervals to demonstrate the significance of DQ-
+original reward function by incorporating a difference term learning’s improvement. However, there are concerns about
+that measures the discrepancy between the agent’s current generalizingtheseresultstootherdomainsduetothespecific
+state and a designated reference state. This difference term focus on traffic assignment and the inherent assumptions
+servesasaguidingforce,encouragingtheagenttotransition aboutdriverbehaviorinthemodel.
+towards the reference state, which could be a desired goal
+stateorastaterepresentingadesirablecondition.Themodi- K. KNOWLEDGE-BASEDMULTI-OBJECTIVEMULTI-AGENT
+fiedrewardfunctiontakestheform: REINFORCEMENTLEARNING(MOMARL)
+Reward shaping techniques Difference Rewards and
+R′(s,a)=R(s,a)+γ[D(s′,r)−D(s,r)], (17) potential-based reward shaping are popular methods for
+reward shaping. The research cited as [57] compares and
+where R(s,a) is the original reward for taking action a
+evaluates these techniques in two studies, one using a novel
+in state s, R′(s,a) is the modified reward, γ is a discount
+benchmarkproblemcalledtheMulti-ObjectiveBeachProb-
+factor,D(s,r)isthedifferencefunction,whichmeasuresthe
+lem Domain (MOBPD) and the other using the Dynamic
+differencebetweenthecurrentstatesandthereferencestate
+EconomicEmissionsDispatchproblem.
+r,ands′isthenextstateaftertakingactiona.
+TheresultsdemonstratethatbothDandPBRScaneffec-
+The simplicity of difference-based reward shaping makes
+tivelyguideagentstowardsParetooptimalsolutionsinMO-
+itadaptabletovarioustasksandenvironments.However,its
+MARL domains, confirming that appropriate reward shap-
+effectivenesshingesonacarefullychosenreferencestate,and
+ing is crucial in these settings. However, both techniques
+in complex scenarios, it may not provide as comprehensive
+havelimitations:Drequiresglobalknowledgeofthesystem
+informationasalternativemethods.
+andthemathematicalformoftheevaluationfunction,while
+For Multi Agents Systems (MAS) We define Difference
+PBRSnecessitateshandcraftedpotentialfunctionswhichcan
+RewardsDias[56],and[57]definedit:
+be time-consuming and challenging to design effectively.
+Di(s,a)=G(s,a)−G(s−i∪s ,a−i∪a ). (18) Furthermore, the study found that D generally outperforms
+i i ci ci
+PBRSintermsofperformance,especiallywhentherequired
+Theglobalsystemutility,denotedas(G(s,a)),dependson constraintsaremet.
+thesystemstate(s)andthejointaction(a).Acounterfactual Thestudyconcludesthattheoptimaltechniqueforagiven
+term,(G(s−i∪sc i,a−i∪ac i)),estimatestheglobalutility MOMARLapplicationdependsonspecificconstraints,such
+without agent (i)’s contribution, considering states and ac- astheavailabilityofsystemknowledge,bandwidthforcom-
+tionsexcludingagent(i)andfixedstatesandactionsindepen- munication, and the designer’s expertise. The work estab-
+dentofagent(i).ThemainideaofDiinMASistoencourage lishes the MOBPD as a benchmark for future MOMARL
+agentstocontributetotheoverallsystemutilitybyproviding researchandhighlightstheneedforfurtherinvestigationinto
+a reward that reflects the difference between the system’s thedesignandapplicationoftheserewardshapingmethods.
+performancewithandwithouttheagent’scontribution. Ifweconsidereveryagenttobeanindividuallearner,
+1) IndividualandDifferenceRewards L. PLANBASEDMETHODS
+RL can be used to find this optimal strategy in route choice Plan-basedmethodscombinetheadvantagesofmodel-based
+probleminroadnetworks,andwecantesttwodifferentkinds planning and RL. These methods allow agents to simulate
+ofrewards.Individualrewardsfocusontheindividualagent’s “what-if”scenariosandgeneratepolicyupdateswithoutcaus-
+benefit, leading to a selfish approach that can exacerbate ingstatechangesintheenvironment.Imagineitasagentsus-
+congestion.DifferencerewardsD,ontheotherhand,promote ingtheirimaginationtoexploredifferentpathsbeforetaking
+system-wide optimization, leading to a more efficient and realactions.
+equitableallocationoftraffic. Plan-based reward shaping, as discussed by [59], utilizes
+This work [58] explores two reinforcement learning ap- domain knowledge to accelerate the convergence and im-
+proaches,IQ-learningandDQ-learning,forsolvingtheroute provetheoptimalityofRLmethods.Iteffectivelyaddresses
+choiceprobleminroadnetworks.Bothusethesameconfig- exploration challenges when integrated with model-free ap-
+uration but differ in their reward function. IQ-learning uses proaches. While model-based methods can mitigate these
+individual utility as the reward function, while DQ-learning issues independently, the addition of reward shaping con-
+usesadifferencerewardfunctionthataimstomaximizesys- sistently boosts learning efficiency. The study introduces a
+temutility.Thedifferencerewardfunctionincentivizesagents STRIPS-based reward shaping technique, utilizing a Stan-
+tochooseroutesthatminimizeoveralltraveltime,leadingto fordResearchInstituteProblemSolver(STRIPS)representa-
+VOLUME00,0000 13Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+tion of actions and goals through preconditions and effects.
+Compared to traditional MDP-based approaches, STRIPS-
+basedshapingdirectsagentsmoreeffectivelytowardoptimal
+policies. Itsuggests refining MDP-basedreward shapingby
+focusing on the best path derived from the STRIPS plan
+ratherthantheentirestatespace’svaluefunction.Evaluations
+demonstratetherobustnessofSTRIPS-basedshapingagainst
+planknowledgeerrors,highlightingitssuperiorityinenhanc-
+ing policy quality and convergence speed. This approach
+providesaviablealternativetoMDP-basedmethods,offering
+domainexpertsflexibilityinexpressingandutilizingdomain
+knowledge.
+Similarly [60] compared two reward shaping methods:
+plan-based and abstract MDP. The plan-based method sup-
+plements an agent’s actions with additional rewards based
+onpredefinedplans.Incontrast,theabstractMDPapproach
+involvessolvingahigher-levelMDPtoshapebehaviorusing
+its value function. The comparison evaluates these methods
+in terms of total reward, convergence speed, and scalability
+Figure 18: BRS and the relationship between the agent and
+to complex environments. In large-scale settings, the plan-
+theenvironement[61,Figure1].
+basedmethodoutperformsabstractMDPbyofferingdetailed,
+sequential guidance to agents. However, in multi-agent sce-
+narioswithconflictinggoals,abstractMDPexcelsduetoits
+N. BI-LEVELOPTIMIZATIONOFPARAMETERIZED
+ability to manage coordination challenges better than plan-
+REWARDSHAPING(BIPARS)
+based methods. This highlights the importance of selecting
+BiPaRS[10]isanovelapproachtoaddressthechallengeof
+reward shaping methods based on specific environmental
+effectivelyutilizingshapingrewardsinreinforcementlearn-
+characteristicstooptimizeagentperformanceeffectively.
+ing.Recognizingthathuman-designedrewardfunctionscan
+be imperfect due to cognitive biases, BiPaRS employs a bi-
+M. BELIEFREWARDSHAPING(BRS)
+leveloptimizationframework.Thisframeworklearnstoadap-
+Belief Reward Shaping (BRS) [61] enhances reinforcement
+tivelyutilizeshapingrewardsbyoptimizingaparameterized
+learningbyincorporatingpriorknowledgeabouttheenviron-
+weight function for the shaping reward at the upper level,
+ment’srewardstructure.Itaugmentsthestandardrewardsig-
+whilesimultaneouslyoptimizingthepolicyusingtheshaped
+nalwith"beliefrewards"derivedfromaBayesianframework,
+rewardatthelowerlevel.Thisrewardshapingtechniquemod-
+reflectingpriorassumptionsorbeliefsaboutthedistribution
+ifiestheoriginalrewardfunctionbyaddingaparameterized
+ofrewards.Thisapproachdivergesfromtraditionalmethods
+shapingterm.Thistechniqueisrepresentedbytheequation:
+by avoiding sole reliance on environmental interactions for
+learningtherewardstructure.BRSdirectlyprovidesshaping ˜r(s,a)=r(s,a)+zϕ(s,a)f(s,a), (19)
+rewards based on both the state and action, addressing a
+limitationofpotential-basedrewardshaping(PBRS),which where˜r(s,a)denotestheshapedrewardfortakingaction
+onlyconsidersthestate. a in state s. r(s,a) is the original reward function. zϕ(s,a)
+Byintegratingthesepriorbeliefs,theauthorssuggestthat is the shaping weight function, which assigns a weight to
+an agent’s reward should be influenced not only by exter- eachstate-actionpairandisparameterizedbyϕ,andf(s,a)
+nal environmental sensations but also by its internal belief represents the shaping reward function and performs a bi-
+system.Thisbeliefsystem,representedbyaninternalcritic, leveloptimizationfor˜r(s,a),whichisanestedoptimization
+is dynamically updated based on both prior beliefs and en- problem.
+vironmental sensations. The critic then provides an updated ThisallowsBiPaRStoidentifyandexploitbeneficialshap-
+rewardtotheagent,takingintoaccountbothitspriorbeliefs ingrewardswhilemitigatingtheimpactofunhelpfuloreven
+andthecurrentsensoryinformation.BRSleveragesBayesian detrimental ones. The paper demonstrates BiPaRS’s effec-
+methodstospecifypriorbeliefsontheenvironment’sreward tivenessthroughexperimentsoncartpoleandMuJoCotasks,
+distribution, demonstrating that more complex and accurate showingitsabilitytoleveragebeneficialshapingandsuppress
+prior beliefs lead to improved agent performance. Theoret- negative influences. However, its performance on MuJoCo
+ical guarantees for BRS’s consistency when augmenting Q- tasksmaynotyetmatchthecuttingedgeintheDRLdomain.
+learning are provided, but these guarantees hold only if the BiPaRS holds promise for adapting and shaping rewards
+true environment reward distribution falls within the critic’s dynamically, but further research is needed to enhance its
+hypothesizedsetofmodels. performanceandexploreitsbroaderapplicability.
+14 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+O. META-REWARD-NET(MRN) complextasksintosub-problems.Itcanalsobeusedtoavoid
+Bi-level optimization, as we’ve mentioned can be an effi- specificactionsorbehaviorsduringtaskexecution.However,
+cienttoolforRewardEngineering,andwhencombinedwith the method’s downside is the potential for time-consuming
+reward learning and limited human feedback, it can gener- development of the reward function, requiring a thorough
+ateanaccurateQ-table,comparedwiththeState-of-The-Art understandingofthesystem.
+methods [62]. This work proposes MRN, a new framework
+for preference-based reinforcement learning that leverages V. APPLICATIONSINROBOTICSANDOTHERDOMAINS
+human feedback to improve learning efficiency. MRN inte- Discuss the specific challenges and opportunities of reward
+gratesbi-leveloptimizationtolearnbothrewardfunctionsand engineeringinrobotics,reviewnotableroboticapplications,
+policies simultaneously. This approach allows the agent to touchuponotherrelevantdomains,andrelatetheapplications
+learneffectivelyevenwithlimitedhumaninput,outperform- backtothetechniquesdiscussedinSection3.Thissectioncan
+ingpreviousmethodsinavarietyofsimulatedrobotictasks. address[QA2]inthecontextofspecificapplications.
+Theauthorsarguethattraditionalrewardshapingmethodsare
+inadequateforrobustandefficientreinforcementlearning.On A. REWARDSHAPINGFORSAFEANDEFFICIENT
+theotherhand,theneedforhuman-guidedrewardengineer- HUMAN-ROBOTCOLLABORATION
+ingthatprioritizesexploration,stability,andcontext-specific To enhance safe interactions between humans and robots
+design, can be considered as a drawback, because it will in industrial settings [68] presented a deep reinforcement
+depend on the human’s query quality. The paper highlights learning (DRL) approach, the study focused on enabling
+the importance of iterative refinement and human feedback robotstoautonomouslylearnpoliciesthatminimizerisksand
+in overcoming challenges like sparse, delayed, and noisy optimize task efficiency. The framework of Human Robot
+rewards.Theresearchfocusesonroboticsimulationsandalso Collaboration (HRC) is illustrated in Figure 19. Central to
+mentions that the code for MRN is available for others to theapproachisthedevelopmentoftheIntrinsicReward-Deep
+implementandtest. Deterministic Policy Gradient (IRDDPG) algorithm, which
+integratesdeterministicpolicygradient(DPG)methodswith
+P. OTHERMETHODS anoptimizedrewardfunctioncombiningintrinsicandextrin-
+Various innovative reward-shaping frameworks enhance RL sicrewards.
+approachesacrossdiversechallengesandenvironments.One
+approachemploysbarrierfunctions(BFs)toensuresafeRL
+agent behavior, demonstrating accelerated convergence and
+reduced actuation effort in simulations and real-world de-
+ployments[63].Anothermethodutilizesnaturallanguagein-
+structionstogeneratedenserewards,improvingRLefficiency
+whileposingchallengesinnaturallanguageprocessinginte-
+gration[64].Additionally,temporallogic-basedrewardshap-
+ing for average-reward RL leverages formal logic to en-
+hancelearningrates[65].AddressingRLover-optimization,
+aframeworkpenalizesrewardsbasedonuncertainties,while
+anotherfocusesonusingrewardexpectationstostabilizeand
+accelerate convergence in uncertain RL environments [13],
+[66].
+Inarewardplanningschemethatreliesonthetessellation
+ofthestatespace,anddividingthetasksintosub-tasks,then
+planning the agent’s behavior thought the state space, the
+work[67]proposesanovelrewardplanningmethod,"Greedy
+DivideandConquer"thismethodisdesignedforunderactu-
+ated robotic systems operating under parameter uncertainty.
+The method utilizes a single reinforcement learning (RL)
+agent to address the challenge of swing-up and balancing a
+Pendubot system with uncertain parameters. This approach Figure 19: The framework of collision avoidance in safe
+allowstheagenttoadapttoparameteruncertaintyandachieve HRC,[68,Figure2].
+faster convergence compared to using a non-shaped reward
+function.ThemethodwastestedonaPendubotsystemwith Experimental results demonstrate that IRDDPG enables
+uncertaintiesupto200-300%invariousparameters,achiev- robotstolearncollision-avoidancepolicieseffectively,ensur-
+ing an average 95% accuracy across trials. The method’s ing safety in human-robot interactions while achieving task
+strengths lie in its ability to handle significant uncertainties objectives. This method shows better results than manually
+anddesignrewardfunctionssystematicallybybreakingdown designedrewardfunctionsbydynamicallyadjustingrewards
+VOLUME00,0000 15Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+during learning, it also demonstrated the efficacy of tai- formance gap include domain adaptation, domain random-
+loredrewardstructuresinguidingagentbehaviortowardsde- ization, and progressive neural networks (PNNs) [70]–[72].
+siredsafetyandefficiencyoutcomes,whichimprovedsafety Domainadaptationaimstominimizethedifferencesbetween
+throughautonomouscollisionavoidanceandtaskcompletion simulated and real environments, as illustrated in the upper
+efficiency, yet challenges may arise in the complexity of Figure 21. On the other hand domain randomization en-
+rewardfunctionoptimizationandcomputationaldemands. hances policy robustness through varied simulation param-
+In the same context, [69] enhances DRL for domes- eters,illustratedinthelowerleftFigure21,PNNsandmeta-
+tic robots performing household tasks like organizing ob- reinforcementlearningfurtherimprovetransferefficiencyby
+jects with a robotic arm by exploring the application of leveragingknowledge fromprevious tasks,illustrated inthe
+interactive feedback. The study evaluates three learning lowerrightFigure21.
+methods: autonomous DRL, agent-assisted interactive DRL To address these challenges, [73] introduced the
+(agent–IDRL), and human-assisted interactive DRL (hu- Consensus-based Sim-And-Real DRL algorithm (CSAR),
+man–IDRL),TheschematicisillustratedinFigure20,com- which exemplifies reward shaping by optimizing policies
+paringtheireffectivenessinacceleratinglearningandreduc- suitableforbothsimulationandrealcontexts,ensuringcon-
+ingerrors. sistentrewardstructuresthroughoutdifferenttrainingstages.
+The CSAR algorithm integrates consensus-based training
+withDRLinbothsimulatedandrealenvironments,optimiz-
+ingpoliciesbyconcurrentlytrainingagentsinbothsettings.
+Thisconsensus-basedmethod,whichrunssimulatedandreal
+agents in parallel, mitigates transition issues and reduces
+training time. Results indicate that an increased number of
+agents in simulation benefits both sim-and-real training, as
+illustrated in Figure 23. Similarly, [74] presents a two-step
+sim-to-realprocessthatutilizesanintermediatesemi-virtual
+environment. This approach integrates real robot dynamics
+Figure 20: The learning process for autonomous and inter-
+with simulated sensors and obstacles, as illustrated in Fig-
+active agents. Both approaches include a pretraining stage
+ure 24. This configuration enables the controlled incorpora-
+comprising1000actions.Forinteractiveagents,thefinalpart
+tionofreal-worldcomplexitywhilepreservingtheflexibility
+ofthepretrainingisperformedusingexternaladviceinstead
+ofsimulation.
+ofrandomactions,[69,Figure2].
+Figure 25 shows the computational graph of the method,
+featuringanenvironmentinteractionthread(left)andamodel
+Results demonstrate that interactive feedback from both update thread (right). Both threads interact with the replay
+human trainers and artificial agents significantly improves buffer, necessitating the use of a mutex to prevent conflicts.
+performancemetricssuchastotalcollectedrewardsandtask Fortunately,theenvironmentinteractionthreadaddsanentry
+completionspeedcomparedtoautonomousDeepRL.Human attheendofitscycle,whilethemodelupdatesthreadsamples
+feedback exhibits slightly superior results in certain scenar- fromitearlyon,resultinginalowlikelihoodofmutualblock-
+ios,highlightingthevalueofincorporatinghumanexpertise ing.Moreover,paralleldatacollectionandmodelupdatesfor
+into robotic learning processes. This approach emphasizes real-time fine-tuning allow the RL model to adapt to real-
+the optimization of feedback strategies to guide agent be- worldchangeswithoutdisruptingoperations.Deployingthe
+haviortowardsachievingspecifictaskobjectivesefficiently, model at a high inference frequency achieves performance
+whichenhanceslearningefficiencyandeffectivenessthrough nearly equivalent to simulation, even without initial fine-
+interactive feedback mechanisms. However, challenges may tuning.
+involveoptimizingthesefeedbackstrategiesfordiversereal- Inthesamecontext,rewardingacleaningrobotformain-
+worldapplications. tainingamess-freeenvironmentcanleadtorewardhacking
+[75]. In such scenarios, the robot might disable its vision to
+VI. SIM-TO-REALINREWARDENGINEERING/SHAPING avoiddetectingmesses,covermesseswithopaquematerials,
+Rewardshapingandengineeringareessentialforeffectively orhidewhenhumansarearoundtopreventthemfrompoint-
+transferring DRL and RL policies from simulations to real- ing out new types of messes. Reward hacking occurs when
+world scenarios. It facilitates this transition by encouraging agents exploit loopholes in the reward function to achieve
+behaviorsthatarerobustinbothsimulatedandrealenviron- highrewardswithoutactuallyfulfillingtheintendedtasks.
+ments. The connections between various methods for trans- Integratingrewardshapingwithadvancedtechniqueslike
+ferringfromsimulationtorealityareillustratedinFigure22. domain adaptation, domain randomization, meta-learning,
+The shift of DRL policies from simulation to real-world and consensus-based training is essential for overcoming
+robotic applications is challenging due to discrepancies be- challenges in transferring DRL and RL policies from simu-
+tweenthetwoenvironments,compoundedbyconcernsabout lation to real-world robotics. These approaches collectively
+safety, cost, and efficiency. Techniques to address this per- strengthenpolicyrobustnessandefficiency,facilitatingtheir
+16 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+Figure 21: Top: Domain Adaption [70, Figure 1]: a) An encoder learns to map both the simulated (source) and real (target)
+environmentstoasharedstatespace.b)Thissharedstatespaceisthenusedtotrainthepolicywithinthesimulation.c)The
+policytrainedinthesimulationistransferredtotherealenvironment,withstatesbeingmappedtothesharedrepresentations
+forfurtherlearning.
+BottomLeft:DomainRandomization[70,Figure2]:a)Theagent’strainingexperienceisenhancedbyrandomizingthephysical
+dynamicsand/orvisualappearancewithinsimulatedenvironments.b)Thesimulation-trainedpolicyisexpectedtoperformwell
+inreal-worldtasksafteraone-shottransfer.
+BottomRight:MetaRLLearning[70,Figure4]:Theoverallpolicynetworkistransferredtoasetofsubpolicynetworks,which
+interact with a batch of sampled meta-training tasks (environments 1, 2, ..., n). The subpolicy network is updated based on
+rewardsfromthecorrespondingtask,andtheglobalnetworkisoptimizedusingtheparametersofthesubpolicynetworks.
+effectivedeploymentinreal-worldapplications.Continuous
+enhancementsinsimulationquality,efficientlearningstrate-
+gies, and well-defined reward structures are pivotal for ad-
+vancing the field and achieving dependable performance of
+DRL and RL systems in real-world settings. Furthermore,
+ensuringeffectiverewardshapingiscrucialtopreventreward
+hacking, ensuring that rewards promote desirable behaviors
+inbothsimulatedandrealenvironments.
+VII. ADVANTAGESANDDISADVANTAGESOFREWARD
+ENGINEERING:ISITTHEFUTURE?
+Figure 22: Various techniques for transferring from simu- Rewardshaping/engineeringisapowerfultechniqueusedto
+lation to reality in deep reinforcement learning and their enhance the performance of RL agents. It can significantly
+interconnections[71,Figure2] improvetheeffectivenessofRLalgorithmsinseveralways.
+Byprovidingadditionalinformationthroughshaping,agents
+can learn optimal policies much faster, and this leads to
+acceleratedlearning.Thisisespeciallybeneficialincomplex
+VOLUME00,0000 17Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+orchangesintheenvironment.
+Despite its numerous benefits, reward shaping also poses
+certainchallenges,manyrewardshapingmethodsrelyheav-
+ily on domain knowledge to design effective shaping func-
+tions.Thiscanbeasignificantlimitation,especiallyincom-
+plex or unfamiliar environments where expert knowledge
+mightbescarceordifficulttoacquire.
+Furthermore, computational complexity could be consid-
+ered a disadvantage for some reward shaping methods, es-
+pecially those involving potential-based shaping, which can
+increasethecomputationalburdenonthelearningalgorithm.
+This can be a concern in real-time applications or with lim-
+ited computational resources, but this drawback is only for
+some methods, other methods can decrease the computa-
+tionalcomplexity.Theeffectivenessofmanyrewardshaping
+Figure23:Suctionsuccessratesoftherealrobotwithadiffer- techniquesdependsoncarefullytunedparameters,although
+entnumberofsimulatedrobotsusingSim-and-Realstrategy someapproachesIV-Ncantunetheirparameter,butfinding
+[73,Figure6]. theoptimalparametersettingscanbeachallengingprocess,
+and incorrect parameter values can negatively impact per-
+formance. Finally, some reward shaping techniques require
+carefuldesigningandshapingrewardfunctions,andthiscan
+beatime-intensiveprocess.
+In conclusion, reward shaping is a valuable tool in the
+Figure24:Theevaluationmaps[74,Figure3] reinforcementlearningtoolbox.Whileitoffersmanyadvan-
+tages, careful consideration must be given to its potential
+drawbacks. Choosing the right reward shaping method is
+crucialforsuccessfulapplication.
+VIII. OPENCHALLENGESANDFUTUREDIRECTIONS
+Future research directions in robotic manipulation, pivotal
+across sectors such as manufacturing, healthcare, and space
+exploration, especially in Industry 4.0 contexts, involve en-
+hancing sample efficiency, bolstering algorithm robustness,
+promoting human-robot collaboration, and investigating ad-
+vanced neural network architectures [76]. The importance
+of reward shaping and engineering in optimizing learning
+outcomes within Deep Reinforcement Learning (DRL) un-
+derscorespotentialavenuesforfurtheradvancementsinthis
+vitaldomain.
+Figure25:Environmentinteractionthread(left)andamodel For tasks involving image processing or complex sensor
+updatethread(right)[74,Figure1] datawheredesigningrewardsisdifficult,wefindthatend-to-
+endRLapproachescantacklethesetasks,suchastheresearch
+[14] which uses end-to-end RL combining deep neural net-
+environments where traditional RL methods might struggle workswithSoftActor-Critic(SAC),enablingrobotstolearn
+to converge quickly. This is highlighted in discussions of from a limited number of successful demonstrations. This
+STRIPS-based shaping, UCBVI-shaped, DRiP, PBRS, and reduces the reliance on explicit reward functions, making it
+other methods. Reward shaping can incentivize agents to particularlybeneficialfortasksinvolvingimageprocessingor
+explore more effectively, particularly in environments with complexsensordatawheredesigningrewardsisdifficult.The
+sparse rewards, and therefore improve exploration. This al- methodwasevaluatedonroboticmanipulationtasks,suchas
+lowsagentstodiscovervaluablestatesandactionsthatmight pickingandplacingobjects,andtheauthorsclaimtoachieve
+otherwisegounnoticed.Rewardshapingcansometimeslead highsuccessratesandaccuracy(100%).
+to agents achieving higher performance levels than they However, the research has several limitations. Firstly, the
+wouldwithoutshaping,aswasdiscussedinSectionIV,and robot’sbehaviormaynotalwaysbeoptimal,potentiallylead-
+othermethodsdemonstratingperformancegains. ing to sub-optimal solutions or inefficient movements. Sec-
+Reward shaping can improve the robustness of learned ondly,themethodisnotrobusttouncertaintiesintheenviron-
+policies, making them less susceptible to noise, uncertainty, ment,suchasvariationsinobjectplacementorlightingcon-
+18 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+ditions. Thirdly, the reliance on user queries can potentially [8] KenjiDoya.Reinforcementlearningincontinuoustime
+betime-consuming,especiallyfortaskswithalargenumber andspace. Neuralcomputation,12(1):219–245,2000.
+ofpossibleactionsorcomplexdecision-makingprocesses. [9] AdamDanielLaud. Theoryandapplicationofreward
+shapinginreinforcementlearning.UniversityofIllinois
+atUrbana-Champaign,2004.
+IX. CONCLUSION
+[10] YujingHu,WeixunWang,HangtianJia,YixiangWang,
+Thisworkprovidesacomprehensivereviewofrewardshap-
+Yingfeng Chen, Jianye Hao, Feng Wu, and Changjie
+ingtechniqueswithinthefieldofRL.Adetailedtaxonomyof
+Fan. Learning to utilize shaping rewards: A new ap-
+methodsispresentedencompassingdescriptions,advantages,
+proach of reward shaping. Advances in Neural Infor-
+disadvantages, application domains, and relevant metrics.
+mationProcessingSystems,33:15931–15941,2020.
+Thisanalysisaddressesopenchallengesandfuturedirections,
+[11] AndrewYNg,DaishiHarada,andStuartRussell.Policy
+offering valuable insights for future research and develop-
+invariance under reward transformations: Theory and
+ment.
+applicationtorewardshaping.InIcml,volume99,pages
+Our findings highlight the significant benefits of reward
+278–287,1999.
+shaping, including its ability to highly expedite learning,
+[12] Elizabeth Bates, Vasilios Mavroudis, and Chris Hicks.
+manage uncertainties, bolster robustness, enhance system
+Rewardshapingforhappierautonomouscybersecurity
+outcomes,andincreasethesuccessrateofRLagents.While
+agents. Proceedings of the 16th ACM Workshop on
+reward shaping demonstrably improves learning outcomes,
+ArtificialIntelligenceandSecurity,2023.
+itsimplementationcanbecomplexandtime-consuming,par-
+[13] YuanzhaoZhai,HanZhang,YuLei,YueYu,KeleXu,
+ticularly in scenarios with significant domain complexity.
+DaweiFeng,BoDing,andHuaiminWang.Uncertainty-
+Automatedparametertuningmethodsmitigatethischallenge
+penalizedreinforcementlearningfromhumanfeedback
+tosomeextent.Furtherresearchisrequiredtoevaluatereward
+with diverse reward lora ensembles. arXiv preprint
+shapingtechniquesinreal-worldapplicationsandexplorethe
+arXiv:2401.00243,2023.
+potential of incorporating human feedback into the training
+[14] Avi Singh, Larry Yang, Kristian Hartikainen, Chelsea
+process.
+Finn, and Sergey Levine. End-to-end robotic rein-
+Thisworkaimstoestablishacomprehensiveresourcefor
+forcement learning without reward engineering. arXiv
+understandingrewardshapinginRL.Thisresourcefacilitates
+preprintarXiv:1904.07854,2019.
+the selection of appropriate methods based on the specific
+[15] AnaCTenorio-Gonzalez,EduardoFMorales,andLuis
+problem,enablingresearchersandpractitionerstoeffectively
+Villasenor-Pineda. Dynamicrewardshaping:traininga
+leveragethepowerofrewardshapingforimprovedRLper-
+robotbyvoice. InAdvancesinArtificialIntelligence–
+formance.
+IBERAMIA 2010: 12th Ibero-American Conference on
+AI,BahíaBlanca,Argentina,November1-5,2010.Pro-
+References ceedings12,pages483–492.Springer,2010.
+[1] JudyCameronandWDavidPierce. Reinforcement,re- [16] Pavel Osinenko, Dmitrii Dobriborsci, and Wolfgang
+ward,andintrinsicmotivation:Ameta-analysis.Review Aumer. Reinforcement learning with guarantees: a
+ofEducationalresearch,64(3):363–423,1994. review. IFAC-PapersOnLine,55(15):123–128,2022.
+[2] Rati Devidze, Goran Radanovic, Parameswaran Ka- [17] Matthew J Page, Joanne E McKenzie, Patrick M
+malaruban,andAdishSingla.Explicablerewarddesign Bossuyt, Isabelle Boutron, Tammy C Hoffmann, Cyn-
+for reinforcement learning agents. Advances in neu- thiaDMulrow,LarissaShamseer,JenniferMTetzlaff,
+ral information processing systems, 34:20118–20131, and David Moher. Updating guidance for reporting
+2021. systematic reviews: development of the prisma 2020
+[3] JonasEschmann. Rewardfunctiondesigninreinforce- statement. Journalofclinicalepidemiology,134:103–
+ment learning. Reinforcement Learning Algorithms: 112,2021.
+AnalysisandApplications,pages25–33,2021. [18] David Silver, Satinder Singh, Doina Precup, and
+[4] Leslie Pack Kaelbling, Michael L Littman, and An- Richard S Sutton. Reward is enough. Artificial Intel-
+drew W Moore. Reinforcement learning: A survey. ligence,299:103535,2021.
+Journal of artificial intelligence research, 4:237–285, [19] Peter Vamplew, Benjamin J Smith, Johan Källström,
+1996. Gabriel Ramos, Roxana Rădulescu, Diederik M Roi-
+[5] RichardSSuttonandAndrewGBarto. Reinforcement jers,ConorFHayes,FredrikHeintz,PatrickMannion,
+learning:Anintroduction. MITpress,2018. Pieter JK Libin, et al. Scalar reward is not enough:
+[6] DanielDewey. Reinforcementlearningandthereward A response to silver, singh, precup and sutton (2021).
+engineeringprinciple.In2014AAAISpringSymposium AutonomousAgentsandMulti-AgentSystems,36(2):41,
+Series,2014. 2022.
+[7] Norman M White. Reward or reinforcement: what’s [20] Sam Devlin and Daniel Kudenko. Theoretical consid-
+thedifference?Neuroscience&BiobehavioralReviews, erations of potential-based reward shaping for multi-
+13(2-3):181–186,1989. agent systems. In Tenth International Conference on
+VOLUME00,0000 19Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+Autonomous Agents and Multi-Agent Systems, pages [34] FrancescoDeLellis,MarcoCoraggio,GiovanniRusso,
+225–232.ACM,2011. MircoMusolesi,andMariodiBernardo. Guaranteeing
+[21] Kiarash Banihashem, Adish Singla, Jiarui Gan, and control requirements via reward shaping in reinforce-
+GoranRadanovic. Admissiblepolicyteachingthrough mentlearning. IEEETransactionsonControlSystems
+rewarddesign. InProceedingsoftheAAAIConference Technology,2024.
+onArtificialIntelligence,volume36,pages6037–6045, [35] Woojun Kim, Jeonghye Kim, and Youngchul Sung.
+2022. Lesson: learning to integrate exploration strategies for
+[22] HaoqiZhangandDavidCParkes. Value-basedpolicy reinforcementlearningviaanoptionframework. arXiv
+teaching with active indirect elicitation. In AAAI, vol- preprintarXiv:2310.03342,2023.
+ume8,pages208–214,2008. [36] Haoran Tang, Rein Houthooft, Davis Foote, Adam
+[23] HaoqiZhang,DavidCParkes,andYilingChen. Policy Stooke, OpenAI Xi Chen, Yan Duan, John Schulman,
+teaching through reward function learning. In Pro- Filip DeTurck, and Pieter Abbeel. # exploration: A
+ceedings of the 10th ACM conference on Electronic studyofcount-basedexplorationfordeepreinforcement
+commerce,pages295–304,2009. learning. Advances in neural information processing
+[24] AndrewGBarto,SatinderSingh,NuttapongChentanez, systems,30,2017.
+etal.Intrinsicallymotivatedlearningofhierarchicalcol- [37] Rein Houthooft, Xi Chen, Yan Duan, John Schulman,
+lectionsofskills.InProceedingsofthe3rdInternational Filip De Turck, and Pieter Abbeel. Vime: Variational
+ConferenceonDevelopmentandLearning,volume112, informationmaximizingexploration. Advancesinneu-
+page19.Citeseer,2004. ralinformationprocessingsystems,29,2016.
+[25] SatinderSingh,RichardLLewis,andAndrewGBarto. [38] Yan Duan, Xi Chen, Rein Houthooft, John Schulman,
+Wheredorewardscomefrom.InProceedingsofthean- and Pieter Abbeel. Benchmarking deep reinforcement
+nualconferenceofthecognitivesciencesociety,pages learning for continuous control. In International con-
+2601–2606.CognitiveScienceSociety,2009. ferenceonmachinelearning,pages1329–1338.PMLR,
+[26] SatinderSingh,RichardLLewis,AndrewGBarto,and 2016.
+Jonathan Sorg. Intrinsically motivated reinforcement [39] Rati Devidze, Parameswaran Kamalaruban, and Adish
+learning: An evolutionary perspective. IEEE Transac- Singla. Exploration-guided reward shaping for rein-
+tionsonAutonomousMentalDevelopment,2(2):70–82, forcementlearningundersparserewards. Advancesin
+2010. NeuralInformationProcessingSystems,35:5829–5842,
+[27] Wouter JA van Heeswijk. Natural policy gradients 2022.
+in reinforcement learning explained. arXiv preprint [40] Xinran Liang, Katherine Shu, Kimin Lee, and Pieter
+arXiv:2209.01820,2022. Abbeel. Reward uncertainty for exploration in
+[28] Jonathan Sorg, Richard L Lewis, and Satinder Singh. preference-based reinforcement learning. arXiv
+Rewarddesignviaonlinegradientascent. Advancesin preprintarXiv:2205.12401,2022.
+NeuralInformationProcessingSystems,23,2010. [41] Zhiao Huang, Litian Liang, Zhan Ling, Xuanlin Li,
+[29] Zeyu Zheng, Junhyuk Oh, and Satinder Singh. On Chuang Gan, and Hao Su. Reparameterized policy
+learning intrinsic rewards for policy gradient methods. learning for multimodal trajectory optimization. In
+Advances in Neural Information Processing Systems, International Conference on Machine Learning, pages
+31,2018. 13957–13975.PMLR,2023.
+[30] Mel Vecerik, Todd Hester, Jonathan Scholz, Fumin [42] Aravind Rajeswaran, Kendall Lowrey, Emanuel V
+Wang, Olivier Pietquin, Bilal Piot, Nicolas Heess, Todorov,andShamMKakade. Towardsgeneralization
+Thomas Rothörl, Thomas Lampe, and Martin Ried- andsimplicityincontinuouscontrol. Advancesinneu-
+miller. Leveraging demonstrations for deep reinforce- ralinformationprocessingsystems,30,2017.
+mentlearningonroboticsproblemswithsparserewards. [43] Saurabh Arora and Prashant Doshi. A survey of in-
+arXivpreprintarXiv:1707.08817,2017. versereinforcementlearning:Challenges,methodsand
+[31] RodolfoValiente,BehradToghi,RamtinPedarsani,and progress. ArtificialIntelligence,297:103500,2021.
+Yaser P Fallah. Robustness and adaptability of rein- [44] Dylan Hadfield-Menell, Smitha Milli, Pieter Abbeel,
+forcementlearning-basedcooperativeautonomousdriv- Stuart J Russell, and Anca Dragan. Inverse reward
+ing in mixed-autonomy traffic. IEEE Open Journal of design. Advances in neural information processing
+IntelligentTransportationSystems,3:397–410,2022. systems,30,2017.
+[32] Jingkang Wang, Yang Liu, and Bo Li. Reinforcement [45] Adam Laud and Gerald DeJong. The influence of
+learningwithperturbedrewards. InProceedingsofthe rewardonthespeedofreinforcementlearning:Ananal-
+AAAI conference on artificial intelligence, volume 34, ysisofshaping.InProceedingsofthe20thInternational
+pages6202–6209,2020. Conference on Machine Learning (ICML-03), pages
+[33] ShuoWu,HaoxiangMa,JieFu,andShuoHan. Robust 440–447,2003.
+reward design for markov decision processes. arXiv [46] BabakBadnava,MonaEsmaeili,NasserMozayani,and
+preprintarXiv:2406.05086,2024. Payman Zarkesh-Ha. A new potential-based reward
+20 VOLUME00,0000Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+shapingforreinforcementlearningagent.In2023IEEE parisonofplan-basedandabstractmdprewardshaping.
+13thAnnualComputingandCommunicationWorkshop ConnectionScience,26(1):85–99,2014.
+andConference(CCWC),pages01–06.IEEE,2023. [61] Ofir Marom and Benjamin Rosman. Belief reward
+[47] YangGaoandFrancescaToni. Potentialbasedreward shapinginreinforcementlearning.InProceedingsofthe
+shaping for hierarchical reinforcement learning. In AAAI conference on artificial intelligence, volume 32,
+Twenty-Fourth International Joint Conference on Arti- 2018.
+ficialIntelligence,2015. [62] Runze Liu, Fengshuo Bai, Yali Du, and Yaodong
+[48] Anna Harutyunyan, Sam Devlin, Peter Vrancx, and Yang.Meta-reward-net:Implicitlydifferentiablereward
+Ann Nowé. Expressing arbitrary reward functions as learning for preference-based reinforcement learning.
+potential-based advice. In Proceedings of the AAAI Advances in Neural Information Processing Systems,
+conferenceonartificialintelligence,volume29,2015. 35:22270–22284,2022.
+[49] Marek Grzes. Reward shaping in episodic reinforce- [63] Abhishek Ranjan, Shreenabh Agrawal, Aayush Jain,
+mentlearning. 2017. PushpakJagtap,ShishirKolathaya,etal. Barrierfunc-
+[50] MarianQianandStefanMitsch. Rewardshapingfrom tions inspired reward shaping for reinforcement learn-
+hybrid systems models in reinforcement learning. In ing. arXivpreprintarXiv:2403.01410,2024.
+NASA Formal Methods Symposium, pages 122–139. [64] PrasoonGoyal,ScottNiekum,andRaymondJMooney.
+Springer,2023. Usingnaturallanguageforrewardshapinginreinforce-
+[51] SamDevlin,LoganYliniemi,DanielKudenko,andKa- mentlearning. arXivpreprintarXiv:1903.02020,2019.
+ganTumer. Potential-baseddifferencerewardsformul- [65] Yuqian Jiang, Suda Bharadwaj, Bo Wu, Rishi Shah,
+tiagent reinforcement learning. In Proceedings of the Ufuk Topcu, and Peter Stone. Temporal-logic-based
+2014 international conference on Autonomous agents reward shaping for continuing reinforcement learning
+andmulti-agentsystems,pages165–172,2014. tasks. InProceedingsoftheAAAIConferenceonartifi-
+[52] Sam Michael Devlin and Daniel Kudenko. Dynamic cialIntelligence,volume35,pages7995–8003,2021.
+potential-based reward shaping. In 11th International [66] YubinWang,YifengSun,JiangWu,HaoHu,Zhiqiang
+ConferenceonAutonomousAgentsandMultiagentSys- Wu,andWeiguiHuang. Reinforcementlearningusing
+tems(AAMAS2012),pages433–440.IFAAMAS,2012. reward expectations in scenarios with aleatoric uncer-
+[53] Mohammad Gheshlaghi Azar, Ian Osband, and Rémi tainties. In 2022 IEEE Conference on Games (CoG),
+Munos.Minimaxregretboundsforreinforcementlearn- pages261–267.IEEE,2022.
+ing. In International conference on machine learning, [67] SinanIbrahim,RamilKhusainov,AliJnadi,andSMAh-
+pages263–272.PMLR,2017. sanKazmi. Rewardplanningforunderactuatedrobotic
+[54] Alexander L Strehl and Michael L Littman. A theo- systems: A study on pendubot with parameters uncer-
+retical analysis of model-based interval estimation. In tainty. In20237thScientificSchoolDynamicsofCom-
+Proceedings of the 22nd international conference on plex Networks and their Applications (DCNA), pages
+Machinelearning,pages856–863,2005. 101–104.IEEE,2023.
+[55] AbhishekGupta,AldoPacchiano,YuexiangZhai,Sham [68] QuanLiu,ZhihaoLiu,BoXiong,WenjunXu,andYang
+Kakade,andSergeyLevine.Unpackingrewardshaping: Liu.Deepreinforcementlearning-basedsafeinteraction
+Understanding the benefits of reward engineering on forindustrialhuman-robotcollaborationusingintrinsic
+sample complexity. Advances in Neural Information reward function. Advanced Engineering Informatics,
+ProcessingSystems,35:15281–15295,2022. 49:101360,2021.
+[56] DavidHWolpert,KevinRWheeler,andKaganTumer. [69] Ithan Moreira, Javier Rivas, Francisco Cruz, Richard
+Collectiveintelligenceforcontrolofdistributeddynam- Dazeley, Angel Ayala, and Bruno Fernandes. Deep
+icalsystems. EurophysicsLetters,49(6):708,2000. reinforcement learning with interactive feedback in
+[57] Patrick Mannion, Sam Devlin, Jim Duggan, and Enda a human–robot environment. Applied Sciences,
+Howley. Reward shaping for knowledge-based multi- 10(16):5574,2020.
+objective multi-agent reinforcement learning. The [70] HaoJu,RongshunJuan,RandyGomez,KeisukeNaka-
+KnowledgeEngineeringReview,33:e23,2018. mura, and Guangliang Li. Transferring policy of deep
+[58] RicardoGrunitzki,GabrieldeOliveiraRamos,andAna reinforcement learning from simulation to reality for
+Lucia Cetertich Bazzan. Individual versus difference robotics. Nature Machine Intelligence, 4(12):1077–
+rewardsonreinforcementlearningforroutechoice. In 1087,2022.
+2014BrazilianConferenceonIntelligentSystems,pages [71] WenshuaiZhao,JorgePeñaQueralta,andTomiWester-
+253–258.IEEE,2014. lund. Sim-to-realtransferindeepreinforcementlearn-
+[59] MarekGrzesandDanielKudenko. Plan-basedreward ing for robotics: a survey. In 2020 IEEE symposium
+shapingforreinforcementlearning.In20084thInterna- seriesoncomputationalintelligence(SSCI),pages737–
+tionalIEEEConferenceIntelligentSystems,volume2, 744.IEEE,2020.
+pages10–22.IEEE,2008. [72] LuízaCaetanoGaraffa,MaikBasso,AndréaAparecida
+[60] Kyriakos Efthymiadis and Daniel Kudenko. A com- Konzen, and Edison Pignaton de Freitas. Reinforce-
+VOLUME00,0000 21Authoretal.:PreparationofPapersforIEEETRANSACTIONSandJOURNALS
+mentlearningformobileroboticsexploration:Asurvey. ALI JNADI receivedtheB.Sc.degreeinMecha-
+IEEE Transactions on Neural Networks and Learning tronicsfromTishreenUniversity,Syria,in2011,
+andtheM.Sc.degreeinRoboticsandComputer
+Systems,34(8):3796–3810,2021.
+VisionfromInnopolisUniversity,Russia,in2023.
+[73] Wenxing Liu, Hanlin Niu, Wei Pan, Guido Her-
+He is currently pursuing the Ph.D. degree at In-
+rmann, and Joaquin Carrasco. Sim-and-real reinforce- nopolisUniversity,focusingonadvancedcontrol
+mentlearningformanipulation:Aconsensus-basedap- systemsforunder-actuatedsystems.
+From2013to2018,hetaughtInformaticsatthe
+proach. In 2023 IEEE International Conference on
+National Center for Distinguished in Syria, and
+Robotics and Automation (ICRA), pages 3911–3917.
+from2018to2019,hewasaSpecialistInstructor
+IEEE,2023. withtheMinistryofEducationinSyria.From2019to2021,hetaughtand
+[74] Arvi Jonnarth, Ola Johansson, and Michael Felsberg. supervisedroboticsandcontrollabsatManaraUniversity,Syria.SinceAu-
+gust2022,hehasbeenaTeachingAssistantatInnopolisUniversity,teaching
+Sim-to-real transfer of deep reinforcement learning
+labsinDifferentialEquations,DataStructuresandAlgorithms,HumanAI
+agentsforonlinecoveragepathplanning.arXivpreprint
+InteractionDesign,andPhysics.SinceNovember2023,hehasalsobeen
+arXiv:2406.04920,2024. anEngineeratInnopolisUniversity’sTechnologyCenterforRoboticsand
+[75] Dario Amodei, Chris Olah, Jacob Steinhardt, Paul Mechatronics Components, working on local planning and control algo-
+rithms for autonomous vehicles. Additionally, since 2023, he has been a
+Christiano, John Schulman, and Dan Mané. Concrete
+researcheronaprojectcalledRoboticIncrementalMetalSheetForming.His
+problemsinaisafety.arXivpreprintarXiv:1606.06565,
+researchinterestsincludemodelpredictivecontrol,reinforcementlearning,
+2016. and robotics, with published works on explicit model predictive control
+[76] Dong Han, Beni Mulyana, Vladimir Stankovic, and designandreinforcementlearningmethodsfor’Pendubot’balancing.
+Mr.Jnadihasreceivedseveralawards,includingfirstandsecondplacesin
+SamuelCheng. Asurveyondeepreinforcementlearn-
+highschoolsumocompetitionsatARC7Syriain2022,secondplaceinthe
+ing algorithms for robotic manipulation. Sensors,
+futureengineercategoryattheWRO2021FinalsFutureEngineercategory,
+23(7):3762,2023. andthegoldmedalatThe"AlBassel"FairforInventionandInnovationfor
+hishybridmotorcycleprojectin2011.
+SINAN IBRAHIM received the B.S. degree in PAVEL OSINENKO Pavel Osinenko received a
+MechatronicsEngineeringfromTishreenUniver- diplomawithhonorsfromBaumanMoscowState
+sity,Syria,in2021andtheM.S.degreeinRobotics Technical Universityin 2009, anda PhD degree
+and Computer vision from Innopolis University, fromDresdenUniversityofTechnologyin2014.
+Russia,in2023,andiscurrentlypursuingaPhD From 2011 through 2020, Pavel worked in Ger-
+inComputationalandDataScienceandEngineer- manacademicandindustrialsectorsfocusingon
+ing at Skolkovo Institute for Science and Tech- research,projectsupervisionandteaching.Since
+nology.Mr.Ibrahimisahighlyaccomplishedre- 2020, Pavel has been an assistant professor at
+searcherandengineerwithexpertiseinrobotics, Skoltech,Moscow.Hisprofileisfocusedonrein-
+computervision,andreinforcementlearning.He forcementlearning,nonlinearsystemstabilization
+hasaproventrackrecordofdevelopinginnovativesolutionsandispassionate andcomputationalaspectsofdynamicalsystems.
+aboutbothscientificadvancementanditsreal-worldbusinessapplications.
+HisexperienceincludesComputerVision,Robotics,anddata-basedcontrol.
+Hiscareerhasinvolvedablendofteaching,coaching,business,fundraising,
+go-to-market,andhyper-growthforstartups,demonstratinghisadaptability
+anddiverseskillset.
+MOSTAFA MOSTAFA received a Bachelor of
+Mechanical and Electrical Engineering degree
+from the Mechatronics Engineering Department
+at Tishreen University, Latakia, Syria, in 2017.
+HereceivedhisMaster’sDegreewithHonorsin
+Intelligent Technology in Robotics from ITMO
+University,SaintPetersburg,Russia,in2020.He
+iscurrentlypursuingaPh.D.attheSkolkovoIn-
+stitute of Science and Technology, in Moscow,
+Russia.
+Mr.Mostafareceivedcertificatesinvariousfields,AdvancesinRobotics
+fromLUTUniversity(Finland)andITMOUniversity(Russia),Elementsof
+AI(ArtificialIntelligence)fromtheUniversityofHelsinki(Finland),and
+ProfessionalDevelopment(ActiveLearninginSTEM)(SkolkovoInstitute
+ofScienceandTechnology).From2020to2022,Mr.Mostafaworkedasa
+QualityEngineer(ProcessEngineer)inSaintPetersburg,Russia,wherehe
+establishedmethodsforsolvingtechnicalproblems,conductedperformance
+lossstudies,systematizedmaintenancetools,andimplementedproduction
+managementtools.Additionally,heidentifiedkeyprojectstoachieveper-
+formancetargetsandcollaboratedwithtechnicalexpertsandothermanufac-
+turingsitestocreateoptimalsolutions.HeiscurrentlypursuinghisPh.D.,
+focusingonreinforcementlearningandrobotics.
+22 VOLUME00,0000

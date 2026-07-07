@@ -1,0 +1,669 @@
+Learning How to Ask: Querying LMs with Mixtures of Soft Prompts
+GuanghuiQin and JasonEisner
+DepartmentofComputerScience,JohnsHopkinsUniversity
+gqin2@jhu.edu jason@cs.jhu.edu
+Abstract andparaphrasingbasedmethodstoautomatically
+augmentthepromptsets.
+Natural-language prompts have recently been Findingoutwhatyoungchildrenknowisdiffi-
+used to coax pretrained language models into
+cultbecausetheycanbeverysensitivetotheform
+performing other AI tasks, using a fill-in-the-
+ofthequestion(Donaldson,1978). Opinionpolling
+blank paradigm (Petroni et al., 2019) or a
+is also sensitive to question design (Broughton,
+few-shotextrapolationparadigm(Brownetal.,
+1995). We observe that when we are querying
+2020). For example, language models retain
+factualknowledgefromtheirtrainingcorpora anLMratherthanahuman,wehavetheopportu-
+that can be extracted by asking them to “fill nityto tunepromptsusing gradientdescent—the
+intheblank”inasententialprompt. However, workhorse of modern NLP—so that they better
+where does this prompt come from? We ex-
+elicitthedesiredtypeofknowledge.
+plore the idea of learning prompts by gradi-
+AneuralLMseesthepromptasasequenceof
+entdescent—eitherfine-tuningpromptstaken
+continuouswordvectors(Baronietal.,2014). We
+from previous work, or starting from random
+tune in this continuous space, relaxing the con-
+initialization. Our prompts consist of “soft
+words,” i.e., continuous vectors that are not straintthatthevectorsbetheembeddingsofactual
+necessarily word type embeddings from the Englishwords. Allowing“softprompts”consisting
+language model. Furthermore, for each task, of“softwords”isnotonlyconvenientforoptimiza-
+we optimize a mixture of prompts, learning tion,butisalsomoreexpressive. Softpromptscan
+which prompts are most effective and how to
+emphasizeparticularwords(bylengtheningtheir
+ensemblethem. AcrossmultipleEnglishLMs
+vectors) or particular dimensions of those words.
+and tasks, our approach hugely outperforms
+Theycanalsoadjustwordsthataremisleading,am-
+previous methods, showing that the implicit
+biguous,oroverlyspecific. Considerthefollowing
+factualknowledgeinlanguagemodelswaspre-
+viouslyunderestimated. Moreover,thisknowl- promptfortherelationdate-of-death:
+edgeischeaptoelicit: randominitializationis
+nearlyasgoodasinformedinitialization. x performeduntilhisdeathin y.
+This prompt may work for the male singer Cab
+1 Introduction
+Calloway, but if we want it to also work for the
+Pretrained language models, such as ELMo (Pe- femalepainterMaryCassatt,itmighthelptosoften
+tersetal.,2018),BERT(Devlinetal.,2019),and “performed”and“his”sothattheydonotinsiston
+BART (Lewis et al., 2020a), have proved to pro- thewrongoccupationandgender,andperhapsto
+videusefulrepresentationsforotherNLPtasks. Re- soften“until”intoaweakerconnective(asCassatt
+cently,Petronietal.(2019)andJiangetal.(2020) wasinfacttooblindtopaintinherfinalyears).
+demonstratedthatlanguagemodels(LMs)alsocon- Anotherwaytobridgebetweenthesecasesisto
+tainfactualandcommonsenseknowledgethatcan have one prompt using “performed” and another
+be elicited with a prompt. For example, to query using“painted.” Ingeneral,theremaybemanyvar-
+thedate-of-birthofMozart,wecanusethe iedlexicalpatternsthatsignalaparticularrelation,
+prompt“MMMMMMMMMMMMMMMMMooooooooooooooooozzzzzzzzzzzzzzzzzaaaaaaaaaaaaaaaaarrrrrrrrrrrrrrrrrtttttttttttttttttwasbornin ,”wherewehave andhavingmorepatternswillgetbettercoverage
+filledthefirstblankwith“Mozart,”andaskacloze (Hearst,1992;RiloffandJones,1999). Wethere-
+language model to fill in the second blank. The foreproposetolearnamixtureofsoftprompts.
+prompts used by Petroni et al. (2019) are manu- Wetesttheideaonseveralclozelanguagemod-
+allycreated,whileJiangetal.(2020)usemining els,trainingpromptstocompletefactualandcom-monsenserelationsfrom3datasets. Comparingon prompts from a corpus, then fine-tune the whole
+held-out examples, our method dramatically out- language model so that it more accurately com-
+performspreviouswork,evenwheninitializedran- pletestheprompts. SchickandSchütze(2020a,b)
+domly. Sowhenregardedasapproximateknowl- aresimilarbutfine-tunethelanguagemodeldiffer-
+edgebases,languagemodelsknowmorethanwe entlyforeachprompt. Ourmethodcomplements
+realized. Wejusthadtofindtherightwaystoask. thesebytuningthepromptsthemselves.
+“Probing”systemsthataskwhatlanguagemod-
+2 RelatedWork els know about particular sentences (e.g., Eich-
+ler et al., 2019) usually use feedforward net-
+Factualknowledgeistraditionallyextractedfrom
+worksratherthanfurthernatural-languageprompts.
+large corpora using a pipeline of NLP tools
+Yet Shin et al. (2020) show how to use natural-
+(Surdeanu and Ji, 2014), including entity extrac-
+languagepromptstoaskaboutparticularsentences.
+tion (Lample et al., 2016), entity linking (Rao
+Ourmethodcouldpotentiallybeappliedtothose
+et al., 2013) and relation extraction (Sorokin and
+prompts,orto“few-shotlearning”promptsthatin-
+Gurevych,2017).
+cludeinput-outputexamples(Brownetal.,2020).
+However, recent work has shown that simply
+trainingasystemtocompletesentences—language
+3 Method
+modeling—causes it to implicitly acquire non-
+linguisticabilitiesfromitstrainingcorpora(Rogers Ourexperimentswillspecificallyaimatextracting
+etal.,2020),includingfactualknowledge(Petroni relational knowledge from language models. We
+et al., 2019; Jiang et al., 2020), common sense aregivenafixedpretrainedLM,aspecificbinary
+(Bisketal.,2019),reasoning(Talmoretal.,2020; relationr suchasdate-of-death,andatrain-
+Brownetal.,2020),summarization(Radfordetal., ingdatasetE consistingofknown(x,y)pairsin
+r
+2019),andevenarithmetic(Bouraouietal.,2020). r,suchas(MaryCassatt,1926). Wewillthentrain
+Most of the previous work manually creates a system to predict y from x, and evaluate it on
+prompts to extract answers from the trained lan- held-out(x,y)pairsofthesamerelation.
+guagemodel. WeuseLAMA(Petronietal.,2019) Aprompttisasentenceorphrasethatincludes
+asabaseline. BuildingonLAMA,theLMPrompt twoblanks,asillustratedin§1. Toposethequery,
+AndQueryArchive(LPAQA)method(Jiangetal., wefillthe blankwithx:
+x
+2020) searches for new prompts by either min-
+ing a corpus or paraphrasing existing prompts. MMMMMMMMMMMMMMMMMaaaaaaaaaaaaaaaaarrrrrrrrrrrrrrrrryyyyyyyyyyyyyyyyyCCCCCCCCCCCCCCCCCaaaaaaaaaaaaaaaaassssssssssssssssssssssssssssssssssaaaaaaaaaaaaaaaaattttttttttttttttttttttttttttttttttperformed until his death
+AutoPrompt (Shin et al., 2020) searches for im- in .
+y
+provedpromptsusingagradientsignal,althoughits
+promptsarelimitedtosequencesofactual(“hard”) WecanasktheLMforitsprobabilitydistribution
+English words, unlike our method. We compare p (y | t,x) over single words that can now fill
+LM
+ournovelsoftpromptsagainstallofthesesystems. y. Thecorrectanswerwouldbe1926.
+AfterwesubmittedthepresentpaperinNovem-
+3.1 SoftPrompts
+ber 2020, two still unpublished manuscripts ap-
+pearedonarXivthatalsoinvestigatedsoftprompts. Suppose the LM identifies the word types with
+LiandLiang(2021)consideredthesettingofgener- vectorsinRd. Wealsoallowttobeasoftprompt,
+atingtextfromapretrainedlanguagemodel(GPT- inwhichthetokenscanbearbitraryvectorsinRd:
+2 or BART) conditioned on a textual prompt. To
+improve the results, they prepended a few task- v v v v v v
+x 1 2 3 4 5 y 6
+specific“softtokens”tothepromptandtunedthe
+embeddingsofonlythesetokens(atallembedding Wecaninitializethesevectorstomatchthoseofa
+layers). Liuetal.(2021)adoptedastrategysimilar givenhardprompt. (Eachtokenofahardprompt
+tooursbytuningfill-in-the-blankpromptsinacon- may be a word, subword, or punctuation mark,
+tinuousspace,testingonGPT-2andBERTmodels, according to the tokenization procedure used by
+although they did not use the enhancements we the LM.) However, we can then tune the vectors
+proposedin§§3.2–3.4below. Likeourwork,both continuously. We do not change the number of
+thesepapersachievedstronggains. vectors or their positions. For the prompt shown
+In other work, Bouraoui et al. (2020) mine above,wehavea6d-dimensionalsearchspace.3.2 DeeplyPerturbedPrompts T tomodulatethestrengthoftheaboveintuition.1
+Here p(t | r) is still a learned distribution over
+For each token i of a prompt, the vector v en-
+i
+prompts,andweusethefixedlanguagemodelto
+tersintotheLM’scomputationsthatcompletethe
+(cid:80)
+estimate the second factor as p (x,y | t)
+prompt. Forexample,aTransformerarchitecture y LM
+(droppingthedependenceonr justaswedidfor
+computes successively deeper contextual embed-
+thesecondfactorof(1)). logT istunedalongwith
+((cid:96))
+dings of the token, v : 0 ≤ (cid:96) ≤ L. Here
+i allotherparameters.
+(0) ((cid:96))
+v = v andtheembeddingv atlayer(cid:96) > 0is
+i i i
+computed from all tokens’ embeddings v((cid:96)−1) at 3.5 TrainingObjective
+j
+thepreviouslayer,usingtheLM’sparameters.
+Given an initial set of prompts T , we jointly
+r
+Wecantunethepromptbyadditivelyperturbing optimizethesoftpromptst ∈ T andtheirmixture
+((cid:96)) ((cid:96))
+each v by a small vector ∆ before it is used weights p(t | r) (and logT in §3.4) to minimize
+i i
+infurthercomputations. The∆vectorsforagiven thelog-lossofthepredictivedistribution(1):
+hardpromptareinitializedto0andthentuned.
+(cid:88) (cid:88)
+Perturbing only layer 0 is equivalent to tuning −log p(y | t,x) (2)
+v i directly as in §3.1. However, if we are more (x,y)∈Er t∈Tr
+aggressiveandperturballlayers,wenowhave6d·
+(L+1)parameterstotunea6-tokenprompt. The This is a continuous and differentiable objec-
+perturbations(∆vectors)canbekeptsmallthrough tive whose gradient can be computed by back-
+earlystoppingorsomeotherformofregularization. propagation. Itcanbelocallyminimizedbygradi-
+Ourintuitionisthatsmallperturbationswillyield ent descent (using a softmax parameterization of
+more“familiar”activationpatternsthataresimilar themixtureweights). Equivalently,itcanbelocally
+tothosethattheLMwasoriginallytrainedon. (Li minimizedbytheEMalgorithm: theEstepfindsa
+andLiang(2021)triedaratherdifferentapproach posteriordistributionoverlatentpromptsforeach
+topreventingoverfittingwhentuningalllayers.) (x,y)example,andtheMstepperformsgradient
+descenttooptimizethepromptsinthatmixture.
+3.3 MixtureModeling
+4 Experiments
+Given a set T of soft prompts for relation r, we
+r
+candefinetheensemblepredictivedistribution 4.1 RelationalDatasets
+TherelationswelearntopredictareT-RExoriginal
+(cid:88)
+p(y | x,r) = p(t | r)·p (y | t,x) (1)
+LM (Elsaharetal.,2018),T-RExextended(Shinetal.,
+t∈Tr 2020), Google-RE (Orr, 2013), and ConceptNet
+(Speer et al., 2017)—or rather, the subsets that
+where the learned mixture weights p(t | r) form
+wereusedbytheLAMAandAutoPromptpapers.
+a distribution over the soft prompts t ∈ T . En-
+r SeeAppendixAforsomestatistics.
+semblingtechniquesotherthanmixture-of-experts
+could also be used, including product-of-experts 4.2 LanguageModels
+(Jiangetal.,2020).
+Following Petroni et al. (2019), we interrogate
+BERT (Devlin et al., 2019) and RoBERTa (Liu
+3.4 Data-DependentMixtureModeling
+et al., 2019). These are masked (cloze) language
+As an extension, we can replace the mixture
+models. For variety, we also interrogate BART
+weights p(t | r) with p(t | r,x), to allow the
+(Lewis et al., 2020a), which conditions on the
+modeltoselectpromptsthatareappropriateforthe
+prompt with empty and generates a copy
+y
+givenx. Forexample,apluralnounxmightprefer
+where hasbeenfilledin(byasingletoken).
+y
+promptstthatuseapluralverb.
+We constrain BART’s decoding to ensure that its
+Whilewecoulddirectlybuildaneuralsoftmax answer does take this form. Unlike BERT and
+model for p(t | r,x), it seems useful to capture RoBERTa,BARTcouldbeusedtofill with
+y
+the intuition that t may work better if x is plau-
+sible in its . Thus, we instead use Bayes’ 1RaisingthetemperatureT increasestheentropyofthe
+x
+mixture to get the benefits of ensembling; without T, the
+Theorem to write p(t | r,x) as proportional to
+stronglanguagemodelusuallyplacesalmostalltheweighton
+p(t | r)·p(x | t,r)1/T, where we have included asingleprompt.anarbitrarilylongphrase,butwedonotallowthis buty cannotbepredictedfrom(t ,x ). Thus,for
+j i j
+becausey inourdatasetsisalwaysasingletoken.2 eachrelationr,weuseonlythepromptsthatappear
+morethan10times,resultingin1–38prompts.
+4.3 DatasetSplits
+StatisticsaboutthepromptsareinAppendixB.
+ForthetwoT-RExdatasets,weinheritthetraining- Weusedonlyasinglecopyofeachprompt,but
+validation-testsplitfromShinetal.(2020). Forthe ageneralizationwouldbetoallowmultipleslightly
+otherdatasets,wesplitrandomlyintheratio80-10- perturbedcopiesofeachprompt,whichcoulddi-
+10.3 Sinceallpairs(x,y)aredistinct,thereareno vergeandspecializeduringtraining(Rose,1998).
+commontriplesamongthesethreesets. Common
+4.5 Training
+xvaluesarealsorarebecauseeachdatasethasat
+least174distinctxvalues. However,thenumber We optimize equation (2) with the method in-
+ofdistincty valuescanbeassmallas6. Thus,in troduced in §3.5. We use the Adam optimizer
+anothersetofexperiments(AppendixE),weuseda (Kingma and Ba, 2015) with its default configu-
+morechallengingsplitthatensuresthatthereareno ration. Forgradienttraining,wesetthebatchsize
+commonyvaluesamongthesethreesets. Thistests as 64, early-stop patience as 4, and test with the
+whetherourmodelgeneralizestounseenvalues. modelthatperformsbestonthedevsetamong16
+trainingepochs.
+4.4 Prompts
+Training is fast. Even for our largest model
+For the T-REx and Google-RE datasets, we have (BERT-large-cased)andlargestdataset(T-RExex-
+foursourcesofinitialprompts: tended),tuningasinglepromptcompleteswithina
+fewminutes. Withamixtureofprompts,training
+• (sin.) LAMAprovidesasinglemanuallycre- scalesroughlylinearlywiththenumberofprompts.
+atedhardpromptforeachrelationtyper.
+It is still presumably much cheaper in time and
+memorythanfine-tuningtheentireBERTmodel,
+• (par.) LPAQA(Jiangetal.,2020)providesa
+which must back-propagate a much larger set of
+setof13–30hardpromptsforeachr,which
+gradients.
+areparaphrasesoftheLAMAprompt.4
+4.6 MetricsandBaselines
+• (min.) LPAQA also provides a set of 6–29
+Our method outputs the most probable y given
+hardpromptsforeachr,basedontextmining.
+(r,x). Here and in the supplementary material,
+• (ran.) For each (min.) prompt, we replace we report its average performance on all test ex-
+eachwordwitharandomvector,drawnfrom amples, with precision-at-1 (P@1), precision-at-
+aGaussiandistributionfittoalloftheLM’s 10 (P@10) and mean reciprocal rank (MRR) as
+wordembeddings. Thenumberofwordsand metrics. We measure the improvement from tun-
+thepositionoftheblanksarepreserved. ing LAMA, LPAQA, and random prompts. We
+alsocomparewithAutoPrompt. Baselinenumbers
+For the ConceptNet dataset, LAMA uses the
+comefrompriorpapersorourreimplementations.
+goldOpenMindCommonSense(OMCS)dataset
+(Singhetal.,2002). Inthisdataset,eachexample 4.7 Results
+(x ,y )isequippedwithitsownpromptt . (Each
+i i i Table1showsresultsonT-RExdatasetsobtained
+example is really a sentence with two substrings
+byqueryingthreeBERT-stylemodels, withP@1
+markedasxandy,whichareremovedtoobtaint .)
+i as the metric. Additional metrics and language
+These prompts are often overly specific: often y
+i models are shown in Tables 2 and 3 as well as
+canbepredictedfrom(t ,x ),orjustfromt alone,
+i i i Tables5and6inthesupplementarymaterial.
+Weconsistentlygetlargeimprovementsbytun-
+2Amongotherfilters,theLAMAandAutoPromptpapers
+keep only the triples (r,x,y) such that y is a single token ing the initial prompts. Remarkably, our method
+according to the language models used by LAMA. When beatsallpriormethodsevenwhenthrowingaway
+workingwithBART,wefurtherrequireytobeasingletoken
+the words of their informed prompts in favor of
+accordingtoBART’stokenization;thus,theBARTresultsare
+notcomparablewiththeotherlanguagemodels. random initial vectors. It simply finds a prompt
+3TheLAMApaper(Petronietal.,2019)providednosplit
+thatworkswellonthe(x,y)trainingexamples.
+butusedeverythingastestdatafortheirzero-shotmethod.
+Weconductanablationstudywhereweadjust
+4The LPAQA system combines their predictions via a
+learnedweightedproductofexperts. onlythemixtureweights(whichareinitiallyuni-Model T-RExorig. T-RExext. Model P@1 P@10 MRR
+LAMA(BEb) 31.1 26.4 LAMA 9.7† 27.0† 15.6†
+LPAQA(BEb) 34.1 31.2 LPAQA 10.6† 23.7† 15.3†
+AutoPrompt 43.3 45.6 Soft(sin.) 11.2(+1.5)33.5(+ 6.5)18.9(+3.3)
+Soft(sin.,BEb) 47.7(+16.6?) 49.6(+23.2?) Soft(min.) 12.9(+2.3)34.7(+11.0) 20.3(+5.0)
+Soft(min.,BEb) 50.7? (+16.6?) 50.5? (+19.3?) Soft(par.) 11.5(+0.9)31.4(+ 7.7)18.3(+3.0)
+Soft(par.,BEb) 48.4(+12.8?) 49.7(+18.5?)
+Soft(ran.,BEb) 48.1(+47.4) 50.6(+49.8) Table 2: Results on Google-RE dataset obtained by
+LAMA(BEl) 28.9† 24.0† queryingtheBERT-large-casedmodel.
+LPAQA(BEl) 39.4† 37.8†
+Model P@1 P@10 MRR
+Soft(sin.,BEl) 51.1(+22.2) 51.4(+27.4)
+Soft(min.,BEl) 51.6(+12.2) 52.5(+14.7) LAMA(BEb) 0.1† 2.6† 1.5†
+Soft(par.,BEl) 51.1(+11.7) 51.7(+13.9) LAMA(BEl) 0.1† 5.0† 1.9†
+Soft(ran.,BEl) 51.9(+47.1) 51.9(+50.5) Soft(min.,BEb)11.3(+11.2)36.4(+33.8)19.3(+17.8)
+AutoPrompt 40.0 - Soft(ran.,BEb) 11.8(+11.8)34.8(+31.9)19.8(+19.6)
+Soft(min.,Rob) 40.6? (+39.4) - Soft(min.,BEl) 12.8(+12.7)37.0(+32.0)20.9(+19.0)
+Soft(ran.,BEl) 14.5(+14.5)38.6(+34.2)22.1(+21.9)
+Table 1: Results on T-REx datasets with P@1 as
+the metric. The “Soft” lines (our method) parentheti- Table3: ResultsonConceptNet(winner:randominit).
+callyshowtheimprovementovertheinitialparameters
+(boldfaced if significant). In each subcolumn of com- Model P@1 P@10 MRR
+parable results, we boldface the best result along with
+baseline 39.4 67.4 49.1
+allthatarenotsignificantlyworse(signtest,p<0.02).
+adjustmixtureweights 40.0 69.1 53.3
+(We marked a boldface number with "?" if we lacked
+adjusttokenvectors 50.7 80.7 61.1
+access to per-example output for one of the systems;
+differencesfromsuchsystemsweresimplyassumedto adjustboth 51.0 81.4 61.6
+besignificant.) † marksbaselineresultsobtainedfrom
+our reimplementations. In the Model column, BEb is Table 4: Ablation experiments, conducted with the
+BERT-base,BElisBERT-large,RobisRoBERTa-base. BERT-largemodelontheT-RExoriginaldataset.
+form) or only the word vectors in the prompts t. ture weights as in §3.4. This had little effect, be-
+As Table 4 shows, each helps, but the major ben- causetraininglearnedtodiscardthexinformation
+efit comes from tuning the word vectors to get bysettingthetemperatureparameterT high.
+softprompts. AppendixCvisualizesasetofsoft
+5 Conclusion
+prompts, and Appendix D analyzes the mixture
+weights. Wealsoexperimentonachallengingset- Well-craftednaturallanguagepromptsareapow-
+tingwherethey labelsaredistinctfortrainingand erful way to extract information from pretrained
+test(AppendixEinthesupplementarymaterials), languagemodels. Inthecaseofclozepromptsused
+andfindthatsoftpromptsstillyieldsomebenefits. toqueryBERTandBARTmodelsforsingle-word
+Theaboveresultsareforourbasicmethodthat answers, we have demonstrated startlingly large
+tunesonlythewordsoftheprompt(i.e., layer0). andconsistentimprovementsfromrapidlylearning
+When we tune all layers—the “deeply perturbed promptsthatwork—eventhoughtheresulting“soft
+prompts”of§3.2—wetypicallyobtainsmalladdi- prompts”arenolongernaturallanguage.
+tionalgains,acrossvariousmodelsandinitializa- Our code and data are available at https://
+tions,althoughtuningalllayersdoessubstantially github.com/hiaoxui/soft-prompts.
+hurtRoBERTa. TheseresultsareshowninTables5 Howaboutfew-shotpredictionwithpretrained
+and6inthesupplementarymaterial. generativeLMs? Here,Lewisetal.(2020b)show
+The tables show that the winning system— how to assemble a natural language prompt for
+for each combination of language model, T-REx input x from relevant input-output pairs (x ,y )
+i i
+dataset,andevaluationmetric—alwaysusesamix- selected by a trained retrieval model. Allowing
+tureofsoftpromptsinitializedtominedprompts. fine-tuned soft string pairs is an intriguing future
+Italwaystunesalllayers,exceptwithRoBERTa. possibility for improving such methods without
+Finally,wealsotriedusingdata-dependentmix- needingtofine-tunetheentirelanguagemodel.Acknowledgments M.C.Donaldson.1978. Children’sMinds. W.W.Nor-
+ton.
+We thank the anonymous reviewers for helpful
+comments. ThisworkwassupportedbyDARPA Max Eichler, Gözde Gül S¸ahin, and Iryna Gurevych.
+2019. LINSPECTOR WEB: A multilingual prob-
+KAIROSandbytheNationalScienceFoundation
+ingsuiteforwordrepresentations. InProceedingsof
+underGrantNo.1718846. TheU.S.Government
+the 2019 Conference on Empirical Methods in Nat-
+is authorized to reproduce and distribute reprints uralLanguageProcessingandthe9thInternational
+for governmental purposes. The views and Joint Conference on Natural Language Processing
+(EMNLP-IJCNLP): System Demonstrations, pages
+conclusionscontainedinthispublicationarethose
+127–132.
+of the authors, and should not be interpreted as
+representingofficialpoliciesnorendorsementby Hady Elsahar, Pavlos Vougiouklis, Arslen Remaci,
+the funding agencies or by Microsoft (where Dr. Christophe Gravier, Jonathon Hare, Elena Simperl,
+and Frederique Laforest. 2018. T-REx: A large
+Eisnerisalsoapaidemployee,inanarrangement
+scalealignmentofnaturallanguagewithknowledge
+thathasbeenreviewedandapprovedbytheJohns
+basetriples. InLanguageResourcesandEvaluation
+HopkinsUniversityinaccordancewithitsconflict Conference(LREC),page5.
+ofinterestpolicies).
+M. A. Hearst. 1992. Automatic acquisition of hy-
+ponyms from large text corpora. In International
+Conference on Computational Linguistics (COL-
+References
+ING).
+Marco Baroni, Georgiana Dinu, and Germán
+Kruszewski. 2014. Don’t count, predict! A ZhengbaoJiang, FrankF.Xu, JunAraki, andGraham
+systematic comparison of context-counting vs. Neubig. 2020. How can we know what language
+context-predicting semantic vectors. In Associa- models know? Transactions of the Association for
+tion for Computational Linguistics (ACL), pages ComputationalLinguistics(TACL).
+238–247.
+D. P. Kingma and J. L. Ba. 2015. Adam: A method
+YonatanBisk,RowanZellers,RonanLeBras,Jianfeng forstochasticoptimization. InInternationalConfer-
+Gao,andYejinChoi.2019. PIQA:Reasoningabout enceonLearningRepresentations(ICLR),pages1–
+physicalcommonsenseinnaturallanguage. InAsso- 15.
+ciationfortheAdvancementofArtificialIntelligence
+(AAAI). Guillaume Lample, Miguel Ballesteros, Sandeep Sub-
+ramanian, Kazuya Kawakami, and Chris Dyer.
+Zied Bouraoui, Jose Camacho-Collados, and Steven 2016. Neural architectures for named entity recog-
+Schockaert. 2020. Inducing relational knowledge nition. InNorthAmericanAssociationforComputa-
+from BERT. In Association for the Advancement tionalLinguisticsandHumanLanguageTechnology
+of Artificial Intelligence (AAAI), volume 34, pages (NAACL-HLT),pages260–270.
+7456–7463.
+Mike Lewis, Yinhan Liu, Naman Goyal, Mar-
+David Broughton. 1995. The assumptions and theory jan Ghazvininejad, Abdelrahman Mohamed, Omer
+ofpublicopinionpolling. InPublicOpinionPolling Levy, Ves Stoyanov, and Luke Zettlemoyer.
+andPoliticsinBritain,pages15–33.Springer. 2020a. BART:Denoisingsequence-to-sequencepre-
+trainingfornaturallanguagegeneration,translation,
+TomB.Brown,BenjaminMann,NickRyder,Melanie and comprehension. In Association for Computa-
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind tionalLinguistics(ACL).
+Neelakantan,PranavShyam,GirishSastry,Amanda
+Askell, Sandhini Agarwal, Ariel Herbert-Voss, Patrick Lewis, Ethan Perez, Aleksandara Piktus,
+Gretchen Krueger, Tom Henighan, Rewon Child, Fabio Petroni, Vladimir Karpukhin, Naman Goyal,
+Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu, Heinrich Küttler, Mike Lewis, Wen tau Yih,
+Clemens Winter, Christopher Hesse, Mark Chen, Tim Rocktäschel, Sebastian Riedel, and Douwe
+Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin Kiela. 2020b. Retrieval-augmented generation for
+Chess, Jack Clark, Christopher Berner, Sam Mc- knowledge-intensive NLP tasks. arXiv preprint
+Candlish, Alec Radford, Ilya Sutskever, and Dario arXiv:2005.11401.
+Amodei.2020. Languagemodelsarefew-shotlearn-
+ers. Xiang Lisa Li and Percy Liang. 2021. Prefix-
+tuning: Optimizing continuous prompts for genera-
+J. Devlin, M. Chang, K. Lee, and K. Toutanova. tion. arXivpreprintarXiv:2101.00190.
+2019. BERT: Pre-training of deep bidirectional
+transformers for language understanding. In North Xiao Liu, Yanan Zheng, Zhengxiao Du, Ming Ding,
+AmericanAssociationforComputationalLinguistics Yujie Qian, Zhilin Yang, and Jie Tang. 2021. GPT
+(NAACL). understands,too. arXivpreprintarXiv:2103.10385.Y. Liu, M. Ott, N. Goyal, J. Du, M. Joshi, D. Chen, general public. In On the Move to Meaningful In-
+O. Levy, M. Lewis, L. S. Zettlemoyer, and V. Stoy- ternet Systems 2002: CoopIS, DOA, and ODBASE,
+anov.2019. RoBERTa: ArobustlyoptimizedBERT volume2519,pages1223–1237.Springer.
+pretrainingapproach.
+Daniil Sorokin and Iryna Gurevych. 2017. Context-
+DaveOrr.2013. 50,000lessonsonhowtoread: Are- aware representations for knowledge base relation
+lation extraction corpus. https://github. extraction. In Empirical Methods in Natural Lan-
+com/google-research-datasets/ guageProcessing(EMNLP),pages1784–1789.
+relation-extraction-corpus.
+R. Speer, J. Chin, and C. Havasi. 2017. ConceptNet
+M. E. Peters, M. Neumann, M. Iyyer, M. Gardner, 5.5: An open multilingual graph of general knowl-
+C. Clark, K. Lee, and L. S. Zettlemoyer. 2018. edge. In Association for the Advancement of Artifi-
+Deepcontextualizedwordrepresentations. InNorth cialIntelligence(AAAI).
+AmericanAssociationforComputationalLinguistics
+Mihai Surdeanu and Heng Ji. 2014. Overview of the
+(NAACL).
+EnglishslotfillingtrackattheTAC2014knowledge
+F.Petroni,T.Rocktäschel,P.Lewis,A.Bakhtin,Y.Wu, base population evaluation. In Proceedings of the
+A. H. Miller, and S. Riedel. 2019. Language mod-
+TAC-KBP2014Workshop.
+els as knowledge bases? In Empirical Methods in
+Alon Talmor, Yanal Elazar, Yoav Goldberg, and
+NaturalLanguageProcessing(EMNLP).
+Jonathan Berant. 2020. oLMpics – On what lan-
+guage model pre-training captures. Transactions
+Alec Radford, Jeffrey Wu, Rewon Child, David Luan,
+of the Association for Computational Linguistics,
+DarioAmodei,andIlyaSutskever.2019. Language
+8:743–758.
+modelsareunsupervisedmultitasklearners.
+Delip Rao, Paul McNamee, and Mark Dredze. 2013.
+Entitylinking: Findingextractedentitiesinaknowl-
+edge base. In Multi-Source, Multilingual Informa-
+tion Extraction and Summarization, pages 93–115.
+Springer.
+E.RiloffandR.Jones.1999. Learningdictionariesfor
+informationextractionbymulti-levelbootstrapping.
+In Association for the Advancement of Artificial In-
+telligence(AAAI),pages474–479.
+Anna Rogers, Olga Kovaleva, and Anna Rumshisky.
+2020. A primer in BERTology: What we know
+abouthowBERTworks. TransactionsoftheAssoci-
+ationforComputationalLinguistics(TACL).
+KennethRose.1998. Deterministicannealingforclus-
+tering, compression, classification, regression, and
+related optimization problems. Proceedings of the
+IEEE,80:2210–2239.
+Timo Schick and Hinrich Schütze. 2020a. Exploit-
+ing cloze questions for few-shot text classification
+and natural language inference. arXiv preprint
+arXiv:2001.07676. AcceptedtoEACL2021.
+Timo Schick and Hinrich Schütze. 2020b. It’s
+not just size that matters: Small language mod-
+els are also few-shot learners. arXiv preprint
+arXiv:2009.07118.
+Taylor Shin, Yasaman Razeghi, Robert L. Logan IV,
+EricWallace,andSameerSingh.2020. AutoPrompt:
+Elicitingknowledgefromlanguagemodelswithau-
+tomatically generated prompts. In Empirical Meth-
+odsinNaturalLanguageProcessing(EMNLP).
+Push Singh, Thomas Lin, Erik T. Mueller, Grace Lim,
+TravellPerkins,andWanLiZhu.2002. OpenMind
+Common Sense: Knowledge acquisition from theA StatisticsofRelationalDatabases [0.152] songpopularizedradio loyalty
+on vocals and .
+[0.126] saxophonistaugmented Tor
+Thestatisticsofthevariousrelationaldatabasesare
+playing the .
+showninTable8. [0.126] rhythmsconcert Ezio
+also played .
+[0.122] songsinstrumentation Eric
+played the .
+B StatisticsoftheInitialPrompts [0.109] theaterabilities tell
+plays the .
+[0.084] guitar thriller
+Table 7 shows some statistics of the prompts we
+played .
+usetoinitializetheSoftPromptmodel. [0.080] singing Once
+playing .
+[0.075] singingsongs drawn
+to play .
+C VisualizationofSoftPrompts [0.046] performing Quick
+plays .
+[0.032] Wagner Tomb
+Figure 1 shows what a mixture of soft prompts studied .
+[0.025] collaborated Theater
+looks like when we tune only layer 0. The soft
+contributed .
+promptsarenottoointerpretable. Thewordsclos- [0.013] renditionProgram Patriot
+solo by .
+est to the tuned tokens (shown in blue) seem to [0.003] jazz Fighters
+player .
+be largely on the music topic. However, the soft [0.002] operatesIndianaOrgan Josef
+and orchestra by .
+templatesdonotseemtoformmeaningfulphrases, [0.001] playoff Sports
+competition .
+norisitobviouswhytheywouldprimefory tobe [0.001] concertoGoethe literature
+pieces by .
+aninstrumentwhenxisamusician. [0.001] Players into
+international .
+[0.000] grass guys
+D EntropyoftheMixtureModel legend .
+[0.000] pianistorchestra ”
+played by .
+Foranygivenrelationr,theentropyofthemixture [0.000] Auxiliaryclarinet And
+additional musicians .
+weightsis [0.000] instances? policies
+bar : .
+[0.000] classicalcollaborators Design
+(cid:88) additional personnel .
+H = p(t | r)·log 2p(t | r) (3) [0.000] research [CLS]
+production .
+t∈Tr [0.000] Sonatacafeteria Kendra
+works by .
+[0.000] 2[CLS][UNK]piano [SEP]
+We then take 2H ∈ [1,|T r|] as a measure of the mike mccready – guitars .
+[0.000] Lena teachers
+effectivenumberofpromptsthatwereretained. Ta-
+virtuoso .
+[0.000] RecordingsBrazilian Paris
+ble10showssomestatisticsoftheeffectivenum-
+works of .
+berofprompts. Insomecases,tuningthemixture [0.000] 1998 surprise
+maestro .
+weightsessentiallyselectedasingleprompt,buton [0.000] synthesizermper railroad
+sonatas of .
+average, it settled on a mixture of several variant
+prompts(asillustratedbyFigure1). Figure1: VisualizationoftheLPAQAminingprompts
+for relation P1303 Instrument (i.e., x plays in-
+E Challengingdatasetwithdistincty’s strument y) from T-REx extended. We show the ef-
+fect of tuning the layer-0 token embeddings (but not
+Asdescribedin§4.3,weconductedanadditional higher layers) on BERT-large-cased. The prompts are
+experimenttodeterminewhetherthepromptscould sorted in decreasing order by mixture weight. Each
+generalizetonovely values. Weconductanother prompt’sweightisshownatleft;notethatafterthefirst
+12prompts,theremainingoneshavenegligiblecontri-
+experimentandensurethattherearenocommon
+bution. We show each soft prompt in blue, followed
+y valuesamongthetrain/dev/testsets. Weuse
+bytheoriginal(mined)promptinred. Tovisualizethe
+T-RExasthebaserelationaldatabaseandsplitthe
+tuned vector v, we display the blue word w that max-
+datasetstomaketheratiocloseto80-10-10. The
+imizes p(w | v). The brightness of the blue word w
+experiment results are shown in Table 9. We can and the original red word w are respectively propor-
+0
+observethatourmethodagainimprovestheresults, tional to p(w | v) and p(w | v). The red word has
+0
+justasinTables5and6,whichshowsthegeneral- size 1, and the blue word has size ||v||/||v ||, where
+0
+izabilityofourmethod. v 0 is the original untuned vector (the embedding of
+w ). In this example, the blue probabilities p(w | v)
+0
+range from 6.5e-5 to 9.7e-5 (mean 8.6e-5 ± 8.1e-6),
+the red probabilities p(w | v) range from 7.7e-5 to
+0
+1.1e-4(mean9.5e-5±7.8e-6),andtherelativemagni-
+tudes||v||/||v ||varyfrom1.00to1.49(mean1.12±
+0
+0.13).Precision@1 Precision@10 MRR
+LM Method
+init → soft → deep init → soft → deep init → soft → deep
+LAMA 31.1 59.5 40.3
+LPAQA 34.1 62.0 43.6
+Soft(sin.) 31.1 +14.6? 45.7 +2.0 47.7 59.5 +16.3? 75.8 +3.2 79.0 40.3 +15.9? 56.2 +2.2 58.4
+BEb −−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(min.) 34.1 +14.7? 48.8 +1.9 50.7? 62.0 +15.6? 79.6 +1.1 80.7? 43.6 +15.8? 59.4 +1.7 61.1?
+−−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(par.) 34.1 +12.8? 46.9 +1.5 48.4 62.0 +16.8? 78.8 +0.8 79.6 43.6 +14.2? 57.8 +1.3 59.1
+−−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(ran.) 0.7 +46.6 47.3 +0.8 48.1 4.6 +74.0 79.1 +0.0 79.1 2.3 +56.1 58.4 +0.5 58.9
+−−−−−−→ −−−−−→ −−−−−−→ −−−−→ −−−−−−→ −−−−−→
+LAMA
+28.9† 57.7† 38.7†
+LPAQA
+39.4† 67.4† 49.1†
+Soft(sin.) 28.9 +16.9 45.8 +5.3 51.1 57.7 +19.0 76.7 +4.4 81.1 38.7 +17.8 56.5 +5.0 61.5
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+BEl
+Soft(min.) 39.4 +11.6 51.0 +0.6 51.6 67.4 +14.0 81.4 +0.5 81.9 49.1 +12.5 61.6 +0.5 62.1
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+Soft(par.) 39.4 +9.2 48.6 +2.5 51.1 67.4 +12.6 80.0 +1.7 81.7 49.1 +10.5 59.6 +2.1 61.7
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+Soft(ran.) 2.3 +47.1 49.4 +1.9 51.3 8.0 +73.0 81.0 +0.7 81.7 4.5 +55.9 60.4 +1.5 61.9
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+LPAQA
+1.2† 9.1† 4.2†
+Rob AutoPrompt 40.0 68.3 49.9
+Soft(min.) 1.2 +39.4 40.6 −7.3 33.2 9.1 +66.3 75.4 −22.3 53.0 4.2 +48.8 53.0 −12.1 40.8
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+LPAQA
+0.8† 5.7† 2.9†
+BAb
+Soft(min.) 0.8 +39.1 39.9 5.7 +69.7 75.4 2.9 +49.2 52.1
+−−−−−→ −−−−−→ −−−−−→
+LPAQA
+3.5† 5.6† 4.8†
+BAl
+Soft(min.) 3.5 +22.3 25.8 5.6 +62.4 68.0 4.8 +36.2 41.0
+−−−−−→ −−−−−→ −−−−−→
+Table 5: Experimental results on T-REx original datasets. In the LM column, BEb is BERT-base-cased, BEl
+is BERT-large-cased, BAb is BART-base-cased, BAl is BART-large-cased, Rob is RoBERTa-base, and Rol is
+RoBERTa-large. Intheresultsblock, “init”usestheinitialuntunedprompts; “soft”startsat“init”andtunesthe
+prompts (layer 0) and mixture weights; and “deep” starts at “init” and tunes all the layers. Numbers above the
+arrowsaretherelativechangeintheperformance. Withineachblock, weboldfacethebestsystemandallthose
+thatarenotsignificantlyworse(pairedpermutationtest,p<0.02). Wealsoboldfacetherelativechangesthatare
+significantlydifferentfrom0. OthersymbolsareasinTable1.
+Precision@1 Precision@10 MRR
+LM Method
+init → soft → deep init → soft → deep init → soft → deep
+LAMA 26.4 54.3 35.8
+LPAQA 31.2 57.3 39.9
+Soft(sin.) 26.4 +22.2? 48.6 +1.0 49.6 54.3 +23.3? 77.6 +0.3 77.9 35.8 +22.9? 58.7 +0.6 59.3
+BEb −−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(min.) 31.2 +19.0? 50.2 +0.3 50.5? 57.3 +21.9? 79.2 +0.5 79.7? 39.9 +20.2? 60.1 +0.4 60.5?
+−−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(par.) 31.2 +18.5? 49.7 +0.0 49.7 57.3 +21.3? 78.6 +0.6 79.2 39.9 +19.6? 59.5 +0.3 59.8
+−−−−−−→ −−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+Soft(ran.) 0.8 +46.3 47.1 +3.5 50.6 4.0 +70.4 74.4 +4.9 79.3 2.2 +54.3 56.5 +3.9 60.4
+−−−−−−→ −−−−−→ −−−−−−→ −−−−−→ −−−−−−→ −−−−−→
+LAMA
+24.0† 53.7† 34.1†
+LPAQA
+37.8† 64.4† 44.0†
+Soft(sin.) 24.0 +26.2 50.2 +1.2 51.4 53.7 +24.9 78.6 +0.9 79.5 34.1 +25.9 60.0 +1.2 61.2
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+BEl
+Soft(min.) 37.8 +13.4 51.2 +1.3 52.5 64.4 +15.1 79.5 +1.6 81.1 44.0 +17.0 61.0 +1.4 62.4
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+Soft(par.) 37.8 +12.5 50.3 +1.4 51.7 64.4 +14.3 78.7 +2.1 80.8 44.0 +16.1 60.1 +1.6 61.7
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+Soft(ran.) 1.4 +46.1 47.5 +4.4 51.9 5.4 +68.9 74.3 +6.3 80.6 5.7 +51.2 56.9 +5.0 61.9
+−−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→ −−−−−→
+Table6: ExperimentresultsonT-RExextendeddatasets.prompts T-REx-min. T-REx-par. Goog-sin. Goog-min. Goog-par. ConceptNet
+#relations 41 41 3 3 3 16
+avg. prompts 28.4 26.2 1 32.7 28.0 9.3
+min#prompts 6 13 1 29 24 1
+max#prompts 29 30 1 40 30 38
+avg. #tokens 5.1 4.5 4.7 5.3 4.2 7.1
+Table7: Statisticsofprompts. The“Goog”standsfor“Google-RE.”Wedonotlistthestatisticsofrandomized
+prompts,astheyshouldmatchthestatisticsoftheminedprompts(“min.”) fromwhichtheyarederived.
+database T-RExoriginal T-RExextended Google-RE ConceptNet
+#relations 41 41 3 16
+avg. #uniquex 1580 834 1837 511
+avg. #uniquey 217 151 372 507
+min#(x,y) 544 310 766 510
+max#(x,y) 1982 1000 2937 4000
+mean#(x,y) 1715 885 1843 1861
+Table8: Statisticsoftherelationaldatabases.
+Model P@1 P@10 MRR
+LPAQA(BEb) 18.9 40.4 26.6
+Soft(BEb) 23.0(+4.1)45.2(+4.8)30.5(+3.9)
+LPAQA(BEl) 23.8 47.7 32.2
+Soft(BEl) 27.0(+3.2)51.7(+4.0)35.4(+3.2)
+Table 9: Results with distinct y’s. We use the BERT-
+base-casedandBERT-large-casedLMsandtheLPAQA
+mining based prompts as initial prompts. The experi-
+mentsareconductedontheT-RExoriginaldataset.
+statistic mean std min max
+T-RExoriginal+min. 12.5 4.0 4.6 21.0
+T-RExextended+min. 12.5 4.0 4.6 20.3
+T-RExoriginal+par. 5.4 4.0 1.1 17.1
+T-RExextended+par. 5.4 3.9 1.2 18.4
+Table10: Statisticsofeffectivenumberofprompts.

@@ -1,0 +1,79 @@
+DIGEST 722652d059a4b0e97abd9b47830cfceb
+FLaterModality
+R141:151 ProofSystem <> <> lib
+R169:182 MetaAxiomMonad <> <> lib
+R200:212 SelfModKernel <> <> lib
+ind 428:432 <> Later
+constr 466:468 <> now
+constr 491:495 <> later
+binder 435:435 <> A:1
+R450:453 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R447:449 Coq.Init.Datatypes <> nat ind
+R473:476 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R472:472 LaterModality <> A:1 var
+R477:481 LaterModality <> Later:2 ind
+R483:483 LaterModality <> A:1 var
+binder 506:506 <> n:4
+R518:521 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R509:513 LaterModality <> Later:2 ind
+R517:517 LaterModality <> n:4 var
+R515:515 LaterModality <> A:1 var
+R522:526 LaterModality <> Later:2 ind
+R531:531 Coq.Init.Datatypes <> S constr
+R533:533 LaterModality <> n:4 var
+R528:528 LaterModality <> A:1 var
+scheme 428:432 <> Later_rect
+scheme 428:432 <> Later_ind
+scheme 428:432 <> Later_rec
+scheme 428:432 <> Later_sind
+ax 567:571 <> kappa
+R575:577 Coq.Init.Datatypes <> nat ind
+def 796:805 <> StableCore
+R812:822 ProofSystem <> ProofSystem rec
+binder 808:808 <> A:6
+R827:837 ProofSystem <> ProofSystem rec
+R847:852 ProofSystem <> axioms proj
+R847:852 ProofSystem <> axioms proj
+R847:852 ProofSystem <> axioms proj
+R872:876 ProofSystem <> rules proj
+R872:876 ProofSystem <> rules proj
+R895:903 ProofSystem <> derivable proj
+R895:903 ProofSystem <> derivable proj
+R926:935 ProofSystem <> refl_deriv proj
+R926:935 ProofSystem <> refl_deriv proj
+R959:969 ProofSystem <> trans_deriv proj
+R959:969 ProofSystem <> trans_deriv proj
+R994:1003 ProofSystem <> rule_deriv proj
+R994:1003 ProofSystem <> rule_deriv proj
+R857:862 ProofSystem <> axioms proj
+R864:864 LaterModality <> A:6 var
+R881:885 ProofSystem <> rules proj
+R887:887 LaterModality <> A:6 var
+R908:916 ProofSystem <> derivable proj
+R918:918 LaterModality <> A:6 var
+R940:949 ProofSystem <> refl_deriv proj
+R951:951 LaterModality <> A:6 var
+R974:984 ProofSystem <> trans_deriv proj
+R986:986 LaterModality <> A:6 var
+R1008:1017 ProofSystem <> rule_deriv proj
+R1019:1019 LaterModality <> A:6 var
+ax 1234:1249 <> guarded_fixpoint
+R1267:1277 ProofSystem <> ProofSystem rec
+binder 1263:1263 <> A:7
+R1285:1297 SelfModKernel <> SelfModKernel rec
+R1299:1299 LaterModality <> A:7 var
+binder 1281:1281 <> R:8
+R1305:1312 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R1338:1344 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R1317:1322 ProofSystem <> axioms proj
+R1325:1334 LaterModality <> StableCore def
+R1336:1336 LaterModality <> A:7 var
+binder 1313:1313 <> p:9
+R1345:1353 ProofSystem <> derivable proj
+R1356:1365 LaterModality <> StableCore def
+R1367:1367 LaterModality <> A:7 var
+R1370:1370 LaterModality <> p:9 var
+R1374:1379 SelfModKernel <> modify proj
+R1381:1381 LaterModality <> A:7 var
+R1383:1383 LaterModality <> R:8 var
+R1385:1385 LaterModality <> p:9 var

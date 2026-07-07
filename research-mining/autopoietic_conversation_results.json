@@ -1,0 +1,1841 @@
+{
+  "ecosystem_stats": {
+    "total_organisms": 80,
+    "active_organisms": 73,
+    "diversity_index": 2.9877451894683063,
+    "total_energy": 4289.404450681382,
+    "total_reproductions": 50
+  },
+  "organisms": [
+    {
+      "id": "org-632425bb",
+      "concept_id": "autopoiesis-38427d3b",
+      "energy": 44.93151990815141,
+      "genetic_code": "Autopoiesis-36-242",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-9dbb796f",
+        "org-2dddbf6d",
+        "org-34cada7b"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-a0a45343",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.85868977613049,
+      "genetic_code": "Recursion-88-955",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-4b5b2fd5",
+        "org-488c51de"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-a9fd13b1",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.87841997876579,
+      "genetic_code": "Recursion-47-993",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-5962f99b",
+        "org-2edb17e5"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-c52e2263",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.8549391791266,
+      "genetic_code": "Recursion-21-542",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-ad4257ff",
+        "org-0306ec14"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-9bbbfc5c",
+      "concept_id": "autopoiesis-0bd8b131",
+      "energy": 94.84669972758776,
+      "genetic_code": "Autopoiesis-29-964",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-2c5e94e7",
+        "org-522b1edc"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-df419bf2",
+      "concept_id": "recursion-6cc60991",
+      "energy": 132.33619156089256,
+      "genetic_code": "Recursion-199-569",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 1,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-026f7169"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-6d953349",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.85706415098788,
+      "genetic_code": "Recursion-34-943",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-7b6c415e",
+        "org-078f3407"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.767138"
+    },
+    {
+      "id": "org-b8ec7f67",
+      "concept_id": "recursion-6cc60991",
+      "energy": 82.382673499463,
+      "genetic_code": "Recursion-175-634",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-729fa814",
+        "org-9c7c5e08"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-93ac3dee",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.8759228572608,
+      "genetic_code": "Recursion-68-575",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-a3cff641",
+        "org-2edb17e5"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-20c8ba3e",
+      "concept_id": "recursion-6cc60991",
+      "energy": 69.88904812032928,
+      "genetic_code": "Recursion-57-88",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-1910b0bc",
+        "org-155219c3",
+        "org-f5105c48"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-e0ac98de",
+      "concept_id": "recursion-6cc60991",
+      "energy": 144.80583893111876,
+      "genetic_code": "Recursion-53-891",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 1,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-c31d7d3c"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-11d92112",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.85819047574492,
+      "genetic_code": "Recursion-175-634",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-8df74fe0",
+        "org-5520e98d"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-b7ef13a8",
+      "concept_id": "recursion-6cc60991",
+      "energy": 82.382673499463,
+      "genetic_code": "Recursion-68-575",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-99c0d865",
+        "org-dc9cf32d"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-6218f00c",
+      "concept_id": "recursion-6cc60991",
+      "energy": 82.39416097560468,
+      "genetic_code": "Recursion-57-88",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-5e1a5c4a",
+        "org-8aa73c25"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-d3388b7e",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.85406591823816,
+      "genetic_code": "Recursion-53-891",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-9dbb796f",
+        "org-4500d871"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-7c7c3c25",
+      "concept_id": "recursion-6cc60991",
+      "energy": 82.3786770631068,
+      "genetic_code": "Recursion-15-914",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-cba9d092",
+        "org-8c62b707"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-b4aa2507",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.83833050720744,
+      "genetic_code": "Recursion-52-794",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-c31d7d3c",
+        "org-5260b358"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-c81be6d1",
+      "concept_id": "recursion-6cc60991",
+      "energy": 82.38666876698885,
+      "genetic_code": "Recursion-200-211",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-6dd87486",
+        "org-10b1ee32"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-750fe12a",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.87891949895976,
+      "genetic_code": "Recursion-54-585",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-0c933e26",
+        "org-1910b0bc"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-3e841779",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.87067775653162,
+      "genetic_code": "Recursion-200-211",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-01f4540a",
+        "org-63faf3f6"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-b641e6db",
+      "concept_id": "recursion-6cc60991",
+      "energy": 57.373686692671576,
+      "genetic_code": "Recursion-54-585",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-e07b6a33",
+        "org-078f3407",
+        "org-534cbf14"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-3e080c0d",
+      "concept_id": "recursion-6cc60991",
+      "energy": 57.38042931185822,
+      "genetic_code": "Recursion-32-301",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-e07b6a33",
+        "org-155219c3",
+        "org-ae5c7baf"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-ac6262ee",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.86618198474632,
+      "genetic_code": "Recursion-50-920",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-75513743",
+        "org-2c5e94e7"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-8c403683",
+      "concept_id": "autopoiesis-0bd8b131",
+      "energy": 69.86394350541224,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-63faf3f6",
+        "org-f5105c48",
+        "org-0306ec14"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-c8a06626",
+      "concept_id": "recursion-6cc60991",
+      "energy": 57.39130050678368,
+      "genetic_code": "Recursion-50-920",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 3,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-95417ac9",
+        "org-488c51de",
+        "org-8043a1fc"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-7dedbb7a",
+      "concept_id": "autopoiesis-0bd8b131",
+      "energy": 82.37967646816553,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-0511329e",
+        "org-9ef18d7c"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-9eb8a420",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.85819047574492,
+      "genetic_code": "Recursion-50-920",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-8df74fe0",
+        "org-3caeaeff"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-3fc247e9",
+      "concept_id": "autopoiesis-0bd8b131",
+      "energy": 82.35719596583317,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-a263562c",
+        "org-bd6a9703"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-d09a1482",
+      "concept_id": "recursion-6cc60991",
+      "energy": 94.88079234008853,
+      "genetic_code": "Recursion-50-920",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-95417ac9",
+        "org-8f7a9111"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-09e075fe",
+      "concept_id": "autopoiesis-0bd8b131",
+      "energy": 82.36918601437588,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 0,
+      "age": 15.0,
+      "state": "ACTIVE",
+      "reproduction_count": 2,
+      "parent_ids": [],
+      "offspring_ids": [
+        "org-9e14b51b",
+        "org-2ba0c891"
+      ],
+      "birth_timestamp": "2025-09-15T04:27:16.770138"
+    },
+    {
+      "id": "org-5e1a5c4a",
+      "concept_id": "offspring-recursion-6cc60991-593fd5",
+      "energy": 8.03402717760122,
+      "genetic_code": "Recursion-57-88",
+      "generation": 1,
+      "age": 11.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-6218f00c"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.772139"
+    },
+    {
+      "id": "org-e07b6a33",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-a7c680",
+      "energy": 49.1955140347301,
+      "genetic_code": "Recursion-32-585",
+      "generation": 1,
+      "age": 14.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3e080c0d",
+        "org-b641e6db"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.772139"
+    },
+    {
+      "id": "org-6dd87486",
+      "concept_id": "offspring-recursion-6cc60991-03b651",
+      "energy": 8.03402717760122,
+      "genetic_code": "Recursion-200-211",
+      "generation": 1,
+      "age": 11.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-c81be6d1"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-95417ac9",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-d113ba",
+      "energy": 49.1955140347301,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 14.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-c8a06626",
+        "org-d09a1482"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-5962f99b",
+      "concept_id": "offspring-recursion-6cc60991-780b7f",
+      "energy": 8.03402717760122,
+      "genetic_code": "Recursion-47-993",
+      "generation": 1,
+      "age": 11.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-a9fd13b1"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-01f4540a",
+      "concept_id": "offspring-recursion-6cc60991-3467d9",
+      "energy": 8.161458886513733,
+      "genetic_code": "Recursion-200-211",
+      "generation": 1,
+      "age": 10.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3e841779"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-9dbb796f",
+      "concept_id": "hybrid-recursion-6cc60991-autopoiesis-38427d3b-fd8a8b",
+      "energy": 49.702472380863426,
+      "genetic_code": "Recursion-53-891",
+      "generation": 1,
+      "age": 13.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-d3388b7e",
+        "org-632425bb"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-0c933e26",
+      "concept_id": "offspring-recursion-6cc60991-4d4936",
+      "energy": 8.484289620655577,
+      "genetic_code": "Recursion-54-585",
+      "generation": 1,
+      "age": 11.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-750fe12a"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-026f7169",
+      "concept_id": "offspring-recursion-6cc60991-b95c23",
+      "energy": 8.484289620655577,
+      "genetic_code": "Recursion-199-569",
+      "generation": 1,
+      "age": 11.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-df419bf2"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-8f7a9111",
+      "concept_id": "offspring-recursion-6cc60991-04b810",
+      "energy": 8.210104118581064,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 13.0,
+      "state": "DEAD",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-d09a1482"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "id": "org-8aa73c25",
+      "concept_id": "offspring-recursion-6cc60991-2f0db6",
+      "energy": 12.194644112888117,
+      "genetic_code": "Recursion-57-88",
+      "generation": 1,
+      "age": 12.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-6218f00c"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-1910b0bc",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-33dcce",
+      "energy": 50.20899955080503,
+      "genetic_code": "Recursion-54-88",
+      "generation": 1,
+      "age": 12.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-20c8ba3e",
+        "org-750fe12a"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-75513743",
+      "concept_id": "offspring-recursion-6cc60991-3261a7",
+      "energy": 17.465754429455504,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 12.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-ac6262ee"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-a3cff641",
+      "concept_id": "offspring-recursion-6cc60991-779576",
+      "energy": 17.465754429455504,
+      "genetic_code": "Recursion-68-575",
+      "generation": 1,
+      "age": 12.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-93ac3dee"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-ad4257ff",
+      "concept_id": "offspring-recursion-6cc60991-070052",
+      "energy": 17.465754429455504,
+      "genetic_code": "Recursion-21-542",
+      "generation": 1,
+      "age": 12.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-c52e2263"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-2dddbf6d",
+      "concept_id": "offspring-autopoiesis-38427d3b-d87202",
+      "energy": 24.959983997927313,
+      "genetic_code": "Autopoiesis-36-242",
+      "generation": 1,
+      "age": 11.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-632425bb"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-34cada7b",
+      "concept_id": "offspring-autopoiesis-38427d3b-b3829e",
+      "energy": 24.959983997927313,
+      "genetic_code": "Autopoiesis-36-242",
+      "generation": 1,
+      "age": 11.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-632425bb"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-cba9d092",
+      "concept_id": "offspring-recursion-6cc60991-89a033",
+      "energy": 34.4758072334542,
+      "genetic_code": "Recursion-15-914",
+      "generation": 1,
+      "age": 11.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-7c7c3c25"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-7b6c415e",
+      "concept_id": "offspring-recursion-6cc60991-e87d2d",
+      "energy": 34.4758072334542,
+      "genetic_code": "Recursion-34-943",
+      "generation": 1,
+      "age": 11.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-6d953349"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-2edb17e5",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-ef7436",
+      "energy": 50.71508536104836,
+      "genetic_code": "Recursion-47-575",
+      "generation": 1,
+      "age": 11.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-93ac3dee",
+        "org-a9fd13b1"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-99c0d865",
+      "concept_id": "offspring-recursion-6cc60991-5aa65f",
+      "energy": 34.9796549955037,
+      "genetic_code": "Recursion-68-575",
+      "generation": 1,
+      "age": 10.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b7ef13a8"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-0511329e",
+      "concept_id": "offspring-autopoiesis-0bd8b131-78fda5",
+      "energy": 34.9796549955037,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 1,
+      "age": 10.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-7dedbb7a"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "id": "org-dc9cf32d",
+      "concept_id": "offspring-recursion-6cc60991-8f6dd0",
+      "energy": 34.9796549955037,
+      "genetic_code": "Recursion-68-575",
+      "generation": 1,
+      "age": 10.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b7ef13a8"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-729fa814",
+      "concept_id": "offspring-recursion-6cc60991-351a38",
+      "energy": 34.9796549955037,
+      "genetic_code": "Recursion-175-634",
+      "generation": 1,
+      "age": 10.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b8ec7f67"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-9c7c5e08",
+      "concept_id": "offspring-recursion-6cc60991-5a1047",
+      "energy": 34.9796549955037,
+      "genetic_code": "Recursion-175-634",
+      "generation": 1,
+      "age": 10.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b8ec7f67"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-4b5b2fd5",
+      "concept_id": "offspring-recursion-6cc60991-479498",
+      "energy": 35.48320331583528,
+      "genetic_code": "Recursion-88-955",
+      "generation": 1,
+      "age": 9.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-a0a45343"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-9ef18d7c",
+      "concept_id": "offspring-autopoiesis-0bd8b131-294940",
+      "energy": 35.48320331583528,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 1,
+      "age": 9.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-7dedbb7a"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-10b1ee32",
+      "concept_id": "offspring-recursion-6cc60991-a44753",
+      "energy": 35.48320331583528,
+      "genetic_code": "Recursion-200-211",
+      "generation": 1,
+      "age": 9.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-c81be6d1"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-9e14b51b",
+      "concept_id": "offspring-autopoiesis-0bd8b131-9ab4d0",
+      "energy": 35.48320331583528,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 1,
+      "age": 9.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-09e075fe"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-155219c3",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-2c81fe",
+      "energy": 51.72589222943173,
+      "genetic_code": "Recursion-57-301",
+      "generation": 1,
+      "age": 9.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-20c8ba3e",
+        "org-3e080c0d"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-8df74fe0",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-d4bc74",
+      "energy": 52.23059298280018,
+      "genetic_code": "Recursion-175-634",
+      "generation": 1,
+      "age": 8.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-9eb8a420",
+        "org-11d92112"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-3caeaeff",
+      "concept_id": "offspring-recursion-6cc60991-1337fa",
+      "energy": 35.986442095623886,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 8.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-9eb8a420"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-5520e98d",
+      "concept_id": "offspring-recursion-6cc60991-8cfee5",
+      "energy": 35.986442095623886,
+      "genetic_code": "Recursion-175-634",
+      "generation": 1,
+      "age": 8.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-11d92112"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-8c62b707",
+      "concept_id": "offspring-recursion-6cc60991-85e6ea",
+      "energy": 35.986442095623886,
+      "genetic_code": "Recursion-15-914",
+      "generation": 1,
+      "age": 8.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-7c7c3c25"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-63faf3f6",
+      "concept_id": "hybrid-recursion-6cc60991-autopoiesis-0bd8b131-2ef000",
+      "energy": 52.23059298280018,
+      "genetic_code": "Recursion-200-211",
+      "generation": 1,
+      "age": 8.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3e841779",
+        "org-8c403683"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-a263562c",
+      "concept_id": "offspring-autopoiesis-0bd8b131-220863",
+      "energy": 36.48936124452345,
+      "genetic_code": "Autopoiesis-23-63-mutated",
+      "generation": 1,
+      "age": 7.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3fc247e9"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-488c51de",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-c67ac8",
+      "energy": 52.734811767741604,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 7.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-a0a45343",
+        "org-c8a06626"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-2ba0c891",
+      "concept_id": "offspring-autopoiesis-0bd8b131-514496",
+      "energy": 36.48936124452345,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 1,
+      "age": 7.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-09e075fe"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-f5105c48",
+      "concept_id": "hybrid-autopoiesis-0bd8b131-recursion-6cc60991-fe4e69",
+      "energy": 52.734811767741604,
+      "genetic_code": "Recursion-57-88",
+      "generation": 1,
+      "age": 7.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-8c403683",
+        "org-20c8ba3e"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-2c5e94e7",
+      "concept_id": "hybrid-autopoiesis-0bd8b131-recursion-6cc60991-ea3dcb",
+      "energy": 52.734811767741604,
+      "genetic_code": "Autopoiesis-29-920",
+      "generation": 1,
+      "age": 7.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-9bbbfc5c",
+        "org-ac6262ee"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-8043a1fc",
+      "concept_id": "offspring-recursion-6cc60991-f0a2a2",
+      "energy": 36.991950681071124,
+      "genetic_code": "Recursion-50-920",
+      "generation": 1,
+      "age": 6.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-c8a06626"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "id": "org-522b1edc",
+      "concept_id": "offspring-autopoiesis-0bd8b131-1ff5e0",
+      "energy": 36.991950681071124,
+      "genetic_code": "Autopoiesis-29-964",
+      "generation": 1,
+      "age": 6.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-9bbbfc5c"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-bd6a9703",
+      "concept_id": "offspring-autopoiesis-0bd8b131-e46860",
+      "energy": 36.991950681071124,
+      "genetic_code": "Autopoiesis-23-63",
+      "generation": 1,
+      "age": 6.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3fc247e9"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-c31d7d3c",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-d920f6",
+      "energy": 53.23853846543418,
+      "genetic_code": "Recursion-52-794",
+      "generation": 1,
+      "age": 6.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b4aa2507",
+        "org-e0ac98de"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-078f3407",
+      "concept_id": "hybrid-recursion-6cc60991-recursion-6cc60991-055811",
+      "energy": 53.74176297121245,
+      "genetic_code": "Recursion-54-943",
+      "generation": 1,
+      "age": 5.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-6d953349",
+        "org-b641e6db"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-4500d871",
+      "concept_id": "offspring-recursion-6cc60991-a2d402",
+      "energy": 37.49420033309111,
+      "genetic_code": "Recursion-53-891",
+      "generation": 1,
+      "age": 5.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-d3388b7e"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-5260b358",
+      "concept_id": "offspring-recursion-6cc60991-9cda34",
+      "energy": 37.49420033309111,
+      "genetic_code": "Recursion-52-794",
+      "generation": 1,
+      "age": 5.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b4aa2507"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-0306ec14",
+      "concept_id": "hybrid-autopoiesis-0bd8b131-recursion-6cc60991-56a155",
+      "energy": 54.2444751949722,
+      "genetic_code": "Autopoiesis-21-542",
+      "generation": 1,
+      "age": 4.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-8c403683",
+        "org-c52e2263"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "id": "org-534cbf14",
+      "concept_id": "offspring-recursion-6cc60991-5ef20f",
+      "energy": 37.996100138098015,
+      "genetic_code": "Recursion-54-585",
+      "generation": 1,
+      "age": 4.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-b641e6db"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.777137"
+    },
+    {
+      "id": "org-ae5c7baf",
+      "concept_id": "offspring-recursion-6cc60991-63957f",
+      "energy": 38.49764004369976,
+      "genetic_code": "Recursion-32-301",
+      "generation": 1,
+      "age": 3.0,
+      "state": "ACTIVE",
+      "reproduction_count": 0,
+      "parent_ids": [
+        "org-3e080c0d"
+      ],
+      "offspring_ids": [],
+      "birth_timestamp": "2025-09-15T04:27:16.777137"
+    }
+  ],
+  "reproduction_log": [
+    {
+      "parent_ids": [
+        "org-6218f00c"
+      ],
+      "offspring_id": "org-5e1a5c4a",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.772139"
+    },
+    {
+      "parent_ids": [
+        "org-3e080c0d",
+        "org-b641e6db"
+      ],
+      "offspring_id": "org-e07b6a33",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-c81be6d1"
+      ],
+      "offspring_id": "org-6dd87486",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-c8a06626",
+        "org-d09a1482"
+      ],
+      "offspring_id": "org-95417ac9",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-a9fd13b1"
+      ],
+      "offspring_id": "org-5962f99b",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-3e841779"
+      ],
+      "offspring_id": "org-01f4540a",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-d3388b7e",
+        "org-632425bb"
+      ],
+      "offspring_id": "org-9dbb796f",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "891"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-750fe12a"
+      ],
+      "offspring_id": "org-0c933e26",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-df419bf2"
+      ],
+      "offspring_id": "org-026f7169",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-d09a1482"
+      ],
+      "offspring_id": "org-8f7a9111",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.773138"
+    },
+    {
+      "parent_ids": [
+        "org-6218f00c"
+      ],
+      "offspring_id": "org-8aa73c25",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-20c8ba3e",
+        "org-750fe12a"
+      ],
+      "offspring_id": "org-1910b0bc",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "88"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-ac6262ee"
+      ],
+      "offspring_id": "org-75513743",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-93ac3dee"
+      ],
+      "offspring_id": "org-a3cff641",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-c52e2263"
+      ],
+      "offspring_id": "org-ad4257ff",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-632425bb"
+      ],
+      "offspring_id": "org-2dddbf6d",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-632425bb"
+      ],
+      "offspring_id": "org-34cada7b",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-7c7c3c25"
+      ],
+      "offspring_id": "org-cba9d092",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-6d953349"
+      ],
+      "offspring_id": "org-7b6c415e",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-93ac3dee",
+        "org-a9fd13b1"
+      ],
+      "offspring_id": "org-2edb17e5",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "575"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-b7ef13a8"
+      ],
+      "offspring_id": "org-99c0d865",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.774137"
+    },
+    {
+      "parent_ids": [
+        "org-7dedbb7a"
+      ],
+      "offspring_id": "org-0511329e",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-b7ef13a8"
+      ],
+      "offspring_id": "org-dc9cf32d",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-b8ec7f67"
+      ],
+      "offspring_id": "org-729fa814",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-b8ec7f67"
+      ],
+      "offspring_id": "org-9c7c5e08",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-a0a45343"
+      ],
+      "offspring_id": "org-4b5b2fd5",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-7dedbb7a"
+      ],
+      "offspring_id": "org-9ef18d7c",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-c81be6d1"
+      ],
+      "offspring_id": "org-10b1ee32",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-09e075fe"
+      ],
+      "offspring_id": "org-9e14b51b",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-20c8ba3e",
+        "org-3e080c0d"
+      ],
+      "offspring_id": "org-155219c3",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-9eb8a420",
+        "org-11d92112"
+      ],
+      "offspring_id": "org-8df74fe0",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-9eb8a420"
+      ],
+      "offspring_id": "org-3caeaeff",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-11d92112"
+      ],
+      "offspring_id": "org-5520e98d",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-7c7c3c25"
+      ],
+      "offspring_id": "org-8c62b707",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-3e841779",
+        "org-8c403683"
+      ],
+      "offspring_id": "org-63faf3f6",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "211"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-3fc247e9"
+      ],
+      "offspring_id": "org-a263562c",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [
+        "mutated"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-a0a45343",
+        "org-c8a06626"
+      ],
+      "offspring_id": "org-488c51de",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-09e075fe"
+      ],
+      "offspring_id": "org-2ba0c891",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-8c403683",
+        "org-20c8ba3e"
+      ],
+      "offspring_id": "org-f5105c48",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "Recursion"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-9bbbfc5c",
+        "org-ac6262ee"
+      ],
+      "offspring_id": "org-2c5e94e7",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.775137"
+    },
+    {
+      "parent_ids": [
+        "org-c8a06626"
+      ],
+      "offspring_id": "org-8043a1fc",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-9bbbfc5c"
+      ],
+      "offspring_id": "org-522b1edc",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-3fc247e9"
+      ],
+      "offspring_id": "org-bd6a9703",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-b4aa2507",
+        "org-e0ac98de"
+      ],
+      "offspring_id": "org-c31d7d3c",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "794"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-6d953349",
+        "org-b641e6db"
+      ],
+      "offspring_id": "org-078f3407",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [
+        "943"
+      ],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-d3388b7e"
+      ],
+      "offspring_id": "org-4500d871",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-b4aa2507"
+      ],
+      "offspring_id": "org-5260b358",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.776138"
+    },
+    {
+      "parent_ids": [
+        "org-8c403683",
+        "org-c52e2263"
+      ],
+      "offspring_id": "org-0306ec14",
+      "reproduction_mode": "SEXUAL",
+      "energy_cost": 75.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.777137"
+    },
+    {
+      "parent_ids": [
+        "org-b641e6db"
+      ],
+      "offspring_id": "org-534cbf14",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.777137"
+    },
+    {
+      "parent_ids": [
+        "org-3e080c0d"
+      ],
+      "offspring_id": "org-ae5c7baf",
+      "reproduction_mode": "ASEXUAL",
+      "energy_cost": 50.0,
+      "genetic_mutations": [],
+      "success": true,
+      "timestamp": "2025-09-15T04:27:16.777137"
+    }
+  ]
+}

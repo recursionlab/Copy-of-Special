@@ -1,0 +1,904 @@
+UnderreviewasaconferencepaperatCOLM2024
+Efficient Prompting Methods for Large Language Models:
+A Survey
+KaiyanChang1,SongchengXu1,ChenglongWang1,YingfengLuo1,
+TongXiao1,2∗,JingboZhu1,2
+1SchoolofComputerScienceandEngineering,NortheasternUniversity,Shenyang,China
+2NiuTransResearch,Shenyang,China
+changkaiyan neu@outlook.com,winsome.xsc@gmail.com
+{xiaotong, zhujingbo}@mail.neu.edu.cn
+Abstract
+Promptinghasbecomeamainstreamparadigmforadaptinglargelanguagemodels
+(LLMs)tospecificnaturallanguageprocessingtasks. Whilethisapproachopens
+thedoortoin-contextlearningofLLMs, itbringstheadditionalcomputational
+burdenofmodelinferenceandhumaneffortofmanual-designedprompts,particu-
+larlywhenusinglengthyandcomplexpromptstoguideandcontrolthebehavior
+of LLMs. As a result, the LLM field has seen a remarkable surge in efficient
+promptingmethods. Inthispaper,wepresentacomprehensiveoverviewofthese
+methods. Atahighlevel,efficientpromptingmethodscanbroadlybecategorized
+intotwoapproaches: promptingwithefficientcomputationandpromptingwith
+efficientdesign. Theformerinvolvesvariouswaysofcompressingprompts,and
+thelatteremploystechniquesforautomaticpromptoptimization. Wepresentthe
+basic concepts of prompting, review the advances for efficient prompting, and
+highlightfutureresearchdirections.
+1 Introduction
+Large Language Models (LLMs) have significantly advanced state-of-the-art on various natural
+languageprocessing(NLP)tasks,suchasdialogue,machinetranslation,andsummarization(Brown
+et al., 2020; Touvron et al., 2023; Bubeck et al., 2023). Prompting is an important medium for
+human-computerinteractiontoexplicitlydelivercleartaskdescriptionstoLLMs,whichthengenerate
+user-desiredresponsesthroughanalogicallearning. Thecontentofapromptcanvaryacrossdifferent
+contexts,specificallycontaininginstructions,questions,multipledemonstrationswithspecificoutput
+formats,andadditionalrequirementslikecomplexreasoningprocessesandrole-playingcommands.
+Inthispaper,thetermpromptreferstotheuserinputtoLLMs.
+However, as the in-context learning (ICL) (Dong et al., 2022) ability of LLMs becomes more
+powerful,promptsdesignedfordifferentspecifictaskstendtobediverseanddetailed. Ultra-long
+naturallanguagepromptsgraduallyraisetwoissues: 1)forLLMitself,thecontextwindowislimited,
+affectingitspotentialtohandleexcessivelylengthycontexts; 2)forLLMusers,itrequireseither
+substantialcomputationalresourcestotrainopen-sourcemodelsorhighcoststocallclosed-source
+modelinterfaces. Fromthispointofview,thecostofLLMutilizationisquitehugeinbothacademic
+researchandcommercialdeploymentscenarios. It’sobviouslyashamethatLLMwithexcellent
+performancecannotbewidelyused. Whiletherearemanyrelevantimprovementsformodelstructure,
+such as efficient attention (see (Xiao & Zhu, 2023; Wan et al., 2023) for related work) that can
+effectivelymitigateinferencecosts,inthispaper,wefocusmoreonefficientpromptingmethodsto
+saveunnecessaryfinancialoverheads.
+Consideringfinancialandhumanresources,efficiencycanbeimprovedfromthreeperspectives: 1)
+inferenceacceleration,2)memoryconsumptiondecline,and3)automaticallywell-designedprompts.
+Thefirsttwoobjectivescanbeachievedbypromptcompression,whilethethirdobjectivecanbe
+attainedbyautomaticpromptoptimizationbasedonpromptengineeringratherthanmanualdesign.
+∗Correspondingauthor.
+1
+4202
+rpA
+1
+]LC.sc[
+1v77010.4042:viXraUnderreviewasaconferencepaperatCOLM2024
+Generative Application Downstream
+Models Paradigms Tasks
+Supervised
+Single Learning
+NL
+Fine-tune
+Pre-train NLU/NLG
+input … label
+input label NL
+Prompt
+Large NLU+NLG
+NL … NL
+Figure1: NLPparadigmshift
+…
+Natural Learnable
+Language Vectors
+Compressor
+LM
+Figure2: Hard&softprompts
+To the best of our knowledge, there is a notable gap in the literature regarding a comprehensive
+consolidationofefficientpromptingmethods.
+In this survey, we commence with an introduction to the background of prompting in Section 2.
+Subsequently,weexamineexistingefficientpromptingmethodsinaspectsofComputation(Sec.3)
+andDesign(Sec.4). Theformerorganizespromptcompressionintothreecategories: knowledge
+distillation(Sec.3.1),encoding(Sec.3.2),andfiltering(Sec.3.3). Thelatterexploresautomaticprompt
+optimizationbasedontraditionalgradient-descent(Sec.4.1)andintelligentevolutionaryalgorithms
+(Sec.4.2). Inparticular,weabstracttheefficientpromptingasamulti-objectiveoptimizationproblem
+andlookforwardtofuturedirectionsfromatheoreticalperspective(Sec.5). Finally,wesummarize
+thefulltextinSection6. Additionally,weincludealistofopen-sourceprojectsA.2forconvenient
+referenceandatypologydiagramA.3ofefficientpromptingmethods.
+2 Overview
+2.1 Promptparadigm
+TheemergenceofpromptingiscloselyassociatedwiththeevolutionofPre-trainedLanguageModels
+(PLMs)andtheadvancementofLargeLanguageModels(LLMs).
+PLMEvolutionTheevolutionarytrajectoryofthePLMparadigmhastransitionedfromeffective-
+nesstoefficiency. SincetheTransformer(Vaswanietal.,2017)wasproposed,ithasbecomethe
+foundationalarchitectureofawiderangeofPLMs. Theself-attentionmechanismwithinTransformer
+has been proven effective in solving long sequence problems. To tackle basic Natural Language
+Understanding(NLU)andNaturalLanguageGeneration(NLG)tasksrespectively,mainstreamPLMs
+havegraduallyevolvedintotheBERT(Devlinetal.,2019)andGPT(Radfordetal.,2018)series
+models. Therearenumerousoptimizationstrategiessuchasexploringencodingmethods(Suetal.,
+2021),improvingself-attentionmechanism(Royetal.,2021)andrefiningmodelstructures(Lietal.,
+2021)toachieveefficientperformanceofPLMsinsolvingspecifictasks.
+NLPParadigmShiftTheNLPtrainingparadigmhaswitnessedtwopivotalshifts(Liuetal.,2023b),
+evolvingfrom“fullysupervisedlearning”to“pre-trainandfine-tune”,andeventuallyto“pre-train,
+prompt, and predict” (as illustrated in Figure 1). In this survey, we will concentrate on the most
+extensively adopted prompting paradigm, delving into its recent developments. Notably, GPT-3
+(Brownetal.,2020)playedaseminalroleinintroducingthehardprompt,enablinghumanstouse
+naturallanguagetointeractwithlanguagemodels. Thisbreakthroughwasmadepossiblebylarge-
+scaleparameters,whichempowerGPT-3withadeepunderstandingofnaturallanguage,thusallowing
+ittoleveragecomplexhardpromptsforfew-shotlearningwithoutthenecessityforfine-tuning.
+LLM Advancement After GPT-3 pioneering the LLM era, ChatGPT stands out as a significant
+milestone in shaping the prevailing mainstream paradigm of “LLM + prompting”. Its perfect
+integrationofNLUandNLGcapabilitieshasenthralledtheentireArtificialIntelligencecommunity.
+As scaling laws (Wei et al., 2022a) demonstrate remarkable emergent abilities (e.g., instruction
+following,in-contextlearning,andcomplexreasoning),researchershavepersistentlyexploredthe
+2UnderreviewasaconferencepaperatCOLM2024
+Template Instruction Complex
+Translate English Assuming you are a mathematician, help me solve the following math problem.
+to French:
++Demonstrations
+sea otter => loutre Q:Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How
+de mer much did she earn?
+A:10
+cheese => {Q:…A:…}
+Q:James writes a 3-page letter to 2 different friends twice a week. How many pages does he write a
+year?
+A:
++Chain-of-Thoughts
+Q:Weng earns $12 an hour for babysitting. Yesterday, she just did 50 minutes of babysitting. How
+much did she earn?
+A:Weng earns 12/60 = 0.2 per minute. Working 50 minutes, she earned 0.2 x 50 = 10. ### 10.
+{Q:…A:…}
+Q:James writes a 3-page letter to 2 different friends twice a week. How many pages does he write a
+year?
+Concise A:
+Figure3: Moredetailedhardprompts,wherethehighlightingindicatesadditionalreasoningprocess
+performanceboundariesofpromptingwhetheropen-orclosed-sourceLLMs. Forinstance,complex
+promptslikeChain-of-Thought(CoT)(Weietal.,2022b)amplifythepotentialreasoningabilityof
+LLMsbythinkingaloud. Whilethepromptingparadigmgraduallysolidifiesitsplace,theLLMstill
+faceschallengesintermsofcomputationalandhumanresourcesduetoitslarge-scaleparameters.
+Thus,effectivepromptingmethodstoconserveresourceshaveattractedbroadinterest.
+2.2 Typesofprompts
+Inessence,theprimaryobjectiveofpromptingistoachieveeffectivefew-shotlearninginplaceof
+the unnecessary resource consumption of full parameter fine-tuning. Prompt expressions can be
+categorizedintotwomaintypes,asillustratedinFigure2:discretenaturallanguageprompts(referred
+toashardprompts)andcontinuouslearnablevectors(referredtoassoftprompts).
+2.2.1 Hardprompt
+Hardpromptsareparticularlywell-suitedforgenerativelanguagemodels,notablyexemplifiedbythe
+GPTseriesofmodels. Thereasonswhyhardpromptsdeserveparticularattentionaretwo-fold. From
+apositivestandpoint,duetothevastamountofpre-trainingdataintegratedintoLLMs,humanscan
+easilyinteractwiththeworldknowledgecompressor(i.e. LLM)throughnativelanguage,ultimately
+obtaininghelpfulresponses. Fromanegativestandpoint,duetothewidespreadclosed-sourcenature
+ofcurrentLLMs,makingtheirparameterweightsinaccessible,usershavenochoicebuttoutilizehard
+promptswithLLMsthroughAPIcalls. Nevertheless,LLM’sstronginstruction-followingcapability
+laysasolidfoundationforthedevelopmentofhardprompts,andnaturallanguageasamediumfor
+seamlesshuman-computerinteractionisjustaroundthecorner.
+It is important to highlight the diverse variations among hard prompts. Initially, hard prompts
+comprised concise task instructions resembling templates designed for the Cloze task. However,
+as the comprehension capabilities of LLMs continue to advance, hard prompts have evolved to
+incorporateabroaderarrayofelements,mostcommonlyincludingdemonstrationsandChain-of-
+ThoughtsasdepictedinFigure3. TheincreasinginterestinhardpromptswithinthecurrentNLP
+community,whereeventutorialsforunlockingthefullpotentialofLLMs,indicatesthedesirefor
+human-modelalignmentleadingtoArtificialGeneralIntelligence(AGI).
+2.2.2 Softprompt
+Intheearlystagesofprompt-relatedresearch,softpromptsweremanifestedinformssuchasadapters
+(Houlsbyetal.,2019),prefixes(Li&Liang,2021),andevenunexplainablevectors.Numerousstudies
+(Lester et al., 2021; Liu et al., 2022) have investigated the benefits of soft prompts in enhancing
+3UnderreviewasaconferencepaperatCOLM2024
+efficienttrainingbyexploringdifferentembeddingpositions. Thestandardmethodsinvolvefreezing
+theoriginalmodelparametersandsolelytrainingsoftpromptstoachievetheeffectsofcomplete
+parameterfine-tuning. ThereisamoredetailedintroductioninDingetal.(2022)’swork.
+Giventhatlearnablevectorscanbeupdatedalongwithneuralnetworkparameters,softpromptsare
+evidentlymoreconduciveforLLMstocomprehendpromptseffectively. Itisessentialtonotethat
+thesoftpromptsdiscussedinthispaperaresimplyvectorrepresentationsofhardpromptsforLLMs
+asshowninFigure2,ratherthanabstractvectorsdevelopedfromscratch. Someendeavorshave
+involvedcompressinglongerhardpromptsintosignificantlyshortersoftprompts(RefertoSections
+3.1and3.2fordetailedinsights).
+2.3 Challenges
+Inlightofthefactthathardpromptshavebeenwidelyrecognizedandappliedinvariousdownstream
+tasks. Prompts are designed with greater detail to enhance task accuracy, consequently leading
+tomorelengthyandcomplexprompts. Inthissurvey,wepresenttwokeychallengesfacinghard
+promptsfromanefficiencystandpoint:
+LengthyPromptContentThelengthoftheprompttypicallyvariesdependingonthespecifictasks,
+the more demonstrations, the better the performance. For instance, the Chain-of-Thought (CoT)
+prompthassignificantlyenhancedthelogicalreasoningabilityofLLMs,leadingtotheemergenceof
+variousCoT-basedmethods. LikeSelf-Ask(Pressetal.,2022)andLeast-to-Mostprompt(Zhouetal.,
+2022a)assistLLMsinbreakingdowncomplexquestionsintosimplersubquestionsforstep-by-step
+answers. Wangetal.(2022)sampleadiversesetofreasoningpathsandWangetal.(2023b)guide
+LLMstogeneratecorrectPS(PlanandSolution),andthenselectthefinalanswer. However,the
+advantagesofusingsuchcomplexpromptsareaccompaniedbyhigherfinancialburdens,alongwith
+reducedinformationperceptioncapabilitiesofLLMs.
+DifficultPromptDesignDuetothediscretenatureofnaturallanguage,earlyusablehardprompts
+areusuallymanual-designedandthenobtainedthroughrepeatedtrialanderror. Hand-craftedprompt
+templatesrelyheavilyonempiricalknowledgeandinvolveobvioushumansubjectivity. Butthere
+isadifferencebetweenhumanproblem-solvingapproachesandthoseofneuralnetworks,inother
+words, theinterpretabilityofLLMsisstillatopicofcontinuousexploration, withnorecognized
+theoreticalguidanceatpresent. Asaresult,therearemanychallengesinpromptdesignforLLMs,
+includingthehighsensitivityofLLMstonaturallanguagepromptformats,thelargeperformance
+gapofsemanticallysimilarprompts,thecorrelationbetweenpromptcomplexityandtaskdifficulty,
+andthemodel-andtask-specificattributesoftheprompts. So,itistime-consumingandlaboriousto
+manuallydesignpromptsofhighqualityinthefaceofdifferentmodelsanddifferenttasks.
+Inconclusion,promptingeffectivelymitigatestheparameterredundancyproblemswhenappliedto
+downstreamtasks,therebysavingfinancialresources. However,intheeraofLLMs,theincreasing
+lengthofpromptshasbroughtchallengessuchaslargermemoryrequirement,slowerinferencespeed,
+andheightenedlaborintensity,whichdeviatesfromtheoriginalpurposeofprompting. Therefore,
+thissurveydelvesintotheefficientpromptingmethodscurrentlyemployedinLLMs.
+3 Promptingwithefficientcomputation
+AsthescaleofLLMscontinuestoexpand,theconceptof“PromptingwithEfficientComputation”
+hasemergedasaresponsetoalleviatetheeconomicburdenthatlengthypromptsimposeonbothopen-
+sourceandclosed-sourceLLMs. Ithasbeenobservedthatcompressedpromptscanbeeffectively
+reconstructedbyLLMsandreducethelengthofthegeneratedtext(Jiangetal.,2023a).Inthissection,
+weprovideinsightintoresearchrelatedtopromptcompression,categorizedintotext-to-vectorlevel
+andtext-to-textlevelapproaches. Theprimaryobjectiveofpromptcompressionistoextractessential
+informationfromtheoriginalpromptssothatLLMscanmaintainacomparableperformancelevel
+withtheoriginalprompts.
+3.1 Knowledgedistillation
+KnowledgeDistillation(KD)(Hintonetal.,2015)isaclassiccompressionmethod,thecoreidea
+istodirectalightweightstudentmodelto“mimic”abetter-performingandmorecomplexteacher
+4UnderreviewasaconferencepaperatCOLM2024
+model. TheKDmethodsinthispaperareorientedtowardsthecompressionofthepromptitself
+rather than the model structure, which aims to compress the natural language information of the
+hardpromptinsideLLMsthroughsoftprompttuning. Thecommonpracticeistousetheoutputs
+oftheteachermodelT aslabelsfortrainingthestudentmodelS toalignwiththedistributionofT.
+Withtheobjectiveofcompressingthehardpromptsc,thelossfunctionistypicallyKullback-Leibler
+Divergencebetweenteacherandstudent: L (pc,c)=E [D (p (y |c,x)∥pc(y |x))].
+S S x KL T S
+In-contextlearning(ICL)iscurrentlythemainmodeofadaptingLLMtodownstreamtasks,Askell
+et al. (2021) introduce Context Distillation technique to successfully compress a HHH (helpful,
+honest,andharmless)promptconsistingof4600wordsinsideLLMs,achievingamorebeneficial
+human-alignment effect compared to ICL. Choi et al. (2022) enable the student model to grasp
+inaccessiblepromptinformationthroughknowledgedistillation. Snelletal.(2022)proposeamethod
+of“learningbydistillingcontext”,allowingLLMstointernalizeICLbenefitsfromprompts. The
+zero-shotstudentpromptscontainonly[task-input]and[finalanswers],omitting[instructions]and
+[reasoningprocess]offew-shotteacherprompts, usedforfine-tuningthesamemodeltodirectly
+predictthefinalanswerwithminimalinstructions.
+AlthoughKDmethodscompresspromptinformationintolanguagemodelsatthemacrolevel,but
+thereisnoconcretecarrierforthecompressedinformation. ItwasnotuntilWingateetal.(2022)’s
+workthatcompressedprompttookshapeslightly. ItexperimentallyverifiesthatconditionedLLMs
+caneffectivelycompresshardpromptsintosoftpromptsbyminimizingtheKL-divergencebetween
+both distributions, which retain a substantive amount of information about the original prompts.
+UtilizingtheBayesianattributeclassifierframeworkwithcontrastivecontextsmethods,itisfurther
+discoveredthatevenasingletokeninthecompressedpromptscaneffectivelycontrolthereduction
+oftexttoxicity.
+Morebriefsonsimilarwork(Muetal.,2023;Kimetal.,2024)aredetailedintheAppendixA.1.1.
+Ascanbeseen, knowledgedistillationisaneffectivemeansofpromptcompression, however, it
+requiressynthesizingthetrainingdatawiththehelpofanotherteachermodel,essentiallymimicking
+thebehaviorofthebetter-performingmodel,ratherthanlearningtheabilitytocompressprompts.
+3.2 Encoding
+Asteadystreamofexperiments(Wangetal.,2023a;Hendeletal.,2023)haveconfirmedthatthe
+LLMcanactasacompressortoconvertinputtextstovectors,andwerefertothistext-to-vectorlevel
+compressionasencoding. Currentencodingmethodsfine-tuneLMswithCross-Entropyobjective,
+effectivelycompressingtheextensiveinformationofhardpromptsintoasetofconciseandmodel-
+accessiblevectors,thusalleviatingtheefficiencyconcernsassociatedwithlengthytexts.
+ThesemanticinformationfromallmodalitiesinthecontextisvaluableforpromptingLLMs. Early
+work(Galetal.,2022)encodedimageinformationintoaspecialtoken,e.g.,“aphotographofS ”,
+∗
+denotingimagefeaturesbyS ,andthentrainingmodelstogeneratedesiredimagesbasedonthis
+∗
+naturallanguageprompt. Subsequently,researchonthiskindofinformationencodingflourishedin
+theNLPcommunity.
+Interestingly,eXtensiblePromptproposedbyGeetal.(2022)canencodeindescribablestylesin
+natural language into imaginary words w in extensible vocabulary. The w is mixed with natural
+(cid:101) (cid:101)
+languagetokensduringtraining,notingthatotherparameterweightsexceptforwarefrozen. Inorder
+(cid:101)
+toavoidIn-Domain(ID)overfittingandachieveOut-of-Distribution(OOD)robustness, Context-
+AugmentedLearning(CAL),whichcontainstemplateandcontentaugmentation, achievesOOD
+X-PromptswithgeneralusabilitytocompensateforcommunicationgapsbetweenhumansandLLMs.
+Unlikethealignment(Wingateetal.,2022)betweenhardandsoftprompts,Chevalieretal.(2023)
+introducetheAutoCompressorbuildingontheRMT(Bulatovetal.,2022)architecture. Itrecursively
+compresseslongdocumentsintocompactsummaryvectorsbyfine-tuningPLMswithanunsupervised
+objective (i.e. next-token prediction), which are then accessible to the model as soft prompts.
+Thedetailedcompressionprocessistosplitthelongdocumentaccordingtorandomlength, and
+sequentially compress segment content and k summary tokens into summary vectors, which are
+prependedtothenextsegmentinputs,andsoonrecursivelycompresseduntilfinallyaccumulating
+summaryvectorsofthewholedocument. Summaryvectorscanencodeimportantinformationof
+5UnderreviewasaconferencepaperatCOLM2024
+long context especially suitable for retrieval settings and can also be pre-computed, cached, and
+re-usedlikeMuetal.(2023)toreducememoryfootprintandspeedupinference.
+Morebriefsonsimilarwork(Geetal.,2023;Qin&Durme,2023)aredetailedintheAppendixA.1.2.
+Weobservethattheaboveworkshavedesignedfictitioustokens(indicatedinitalicsinthissection)
+expandingthevocabularybeforecompression,andthesetokensextrinsicallyappeartocondense
+thekeyinformationintoaformunderstandabletoLLMs;intrinsicallycanitbeinterpretedthatthey
+extendthesemanticsaccordingtotheLLMproperties? CompressionassociatedwithLLMsisatopic
+worthpursuinginthefuture.
+3.3 Filtering
+TheabovetwopromptcompressionmethodsrequirecloseinvolvementofLLMs,buttheprevailing
+LLMs closed parameter weights and there are not enough computational resources available for
+text-to-vector level compression even with open-source LLMs. The current state of LLMs in
+dealingwithlengthypromptsisthattheirICLcapabilitywillbeimpededbyinputwindowsizeor
+informationredundancy,ultimatelyresultinginsuboptimalresponses. Socomesthequestion: isall
+theinformationinthepromptbeneficialforLLMs?ObviouslyNot.Inresponse,researchersgradually
+turntheirattentiontotext-to-textlevelcompression,whichinvolvesevaluatingtheinformationentropy
+ofdifferentlexicalstructuresinthepromptbyalightweightLM,andthenfilteringoutredundant
+informationtothegreatestextent,ultimatelysimplifyingtheuserprompts.
+SelectiveContext(Lietal.,2023)leveragestheconceptof“self-information”introducedbyShannon
+(Shannon, 1948) to quantify the amount of information within a prompt. Li et al. (2023) utilize
+acausallanguagemodeltopredicttheoutputprobabilityofeachtokenx andthencomputeself-
+i
+information,definedasthenegativelog-likelihoodprobabilityI(x )=−log P(x |x ,x ,...,x )
+i 2 i 0 1 i−1
+atsentence-level. Redundantinformationisthenfilteredoutusingapercentile-basedfilteringmethod,
+wherethreedistincttypesofsemanticunits(token,phrase,andsentence)aredefinedasthefiltered
+informationunits. Notably,thephrase-levelfilteringisverifiedtobethemosteffectiveapproachin
+optimizinginformationretention.
+Inadditiontotheinitialfilteringoforiginalprompts,someoftheworkalsoconsideredhowwell
+the filtered prompts fit into LLMs. So Jiang et al. (2023a) devise a series of tricks to refine the
+informationintegrityandLLMadaptabilityoftheprompts. Differentfromtheselectivecontext,
+LLMLinguarefinesthepromptsintothreecomponents: instructions,questions,anddemonstrations.
+Thebudgetcontrollerwilldynamicallyallocatedifferentcompressionratiosforeachcomponent,
+with redundant demonstrations compressed at a relatively high ratio. After demonstration-level
+compression,iterativetoken-levelpromptcompression(ITPC)isperformedbasedontheperplexity
+distributionofallsegmentscalculatedbyasmallcompressorPLM(Alpaca-7BorGPT2-Alpaca).
+Finally,inordertoachievedistributionalignment,thesmallcompressorPLMisinstructionfine-tuned
+withtheoutputfromtheLLMwithcompressedprompts.
+Morebriefsonsimilarwork(Jiangetal.,2023b;Panetal.,2024;Liuetal.,2023a;Feietal.,2023)
+aredetailedintheAppendixA.1.3.
+The above works achieve text-to-text level prompt compression by measuring and filtering out
+redundantinformationinnaturallanguagepromptsasmuchaspossible. RelativelyshorterLLM
+inputsinevitablybringthebenefitsoffasterinferenceandlowermemoryoverhead,sosuchmodel-
+agnosticpromptcompressionworkwillbemorepopularintheeraofclosed-sourceLLMs.
+ConclusionInordertoachieveefficientcomputationofprompting,thissectionfocusesonprompt
+compression. Itevolvesfromaparametricoptimizationatthetext-to-vectorleveltoparameter-free
+optimizationatthetext-to-textlevel. Basedontheamountofnaturallanguageinformation,theLLM
+inputisshortenedasmuchaspossible,whichinturnachievesthefollowingthreeaspectsofhigh
+efficiencies: 1)representinginformationasvectorstodecreaseperplexityandenhancetaskaccuracy;
+2)significantlyreducingmemoryusage,idealforsituationsthatinvolvepre-computation,caching,
+and reuse; and 3) expanding the context window capacity and accelerating inference of lengthy
+prompts,particularlybeneficialforscenarioswithextensivecontext. Inbrief,promptcompression
+emergesasapromisingresearchavenueforefficientlypromptingLLMsinthefuture.
+6UnderreviewasaconferencepaperatCOLM2024
+Original
+Prompts
+Input
+Optimization
+Gradient Evolution
+Meta Instruct Optimizer Algorithms
+Candidate Evaluator
+Prompts LM Augment prompt search space Prompts
+Output
+Feedback
+Optimized
+Prompts Iteratively Update
+Figure4: Processofautomaticpromptoptimization
+4 Promptingwithefficientdesign
+Theconceptof“PromptingwithEfficientDesign”isintroducedinresponsetothegrowingcomplexity
+ofpromptcontent. Astime-consumingandlaboriousmanual-designpromptmethodsfadedoutofthe
+historystage,andgradient-basedprompttuningmethodswerenolongerapplicabletoclosed-source
+LLMs,automaticoptimizationbasedonPromptEngineering(PE)graduallycameintothelimelight.
+Specifically, the “discrete” prompt optimization presented in this paper involves finding the best
+“naturallanguage”promptwithinagivensearchspacetomaximizetaskaccuracy. Basedonthe
+powerful generalist capabilities of LLMs, automatic prompt optimization has shown promising
+progress, whose workflow is roughly illustrated in Figure 4. We will explore this problem in
+depth from the perspectives of traditional mathematical optimization and intelligent algorithmic
+optimization,thusdividingthissectionintogradient-basedandevolution-basedapproaches.
+4.1 Gradient-basedmethods
+Gradient-descentisacoretraditionaloptimizationalgorithm. Intheprocessofupdatingparameters
+inneuralnetworks,manyobjectivefunctionsevolvefromgradient-descentalgorithms. Itiswell
+knownthatthepreconditionforusingthegradient-descentalgorithmincontinuousoptimization
+space (i.e., language models) is that the objective function is differentiable. However, the hard
+promptmentionedinthispaperisdiscrete,whichleadstoacontradictionbetweentheoptimization
+objectandtheoptimizationspace. Therefore,researchershaveinvestigatedsuitablegradient-based
+optimizationframeworksforopen-sourceandclosed-sourcemodelsseparately. Foropen-source
+models,fine-tuningcanbeperformedbasedontherealgradient,whileforclosed-sourcemodels,the
+gradientcanonlybeimitatedforprompting.
+4.1.1 Real-gradienttuning
+Extensiveresearch(Lesteretal.,2021)intheinitialstageshasdemonstratedsignificantadvantages
+inmodelperformanceaffordedbytheimplementationofsoftprompts,therearestillsomeeffortson
+howtooptimizehardpromptswithsoftprompttuning. Scholarshavedevelopedvariousstrategies
+thatfundamentallytranslatediscretespaceintocontinuousspacesothatdiscretepromptoptimization
+canbeperformedbasedonreal-gradienttuning.
+AutoPrompt (Shin et al., 2020) is one of the first discrete prompt optimization frameworks for
+Transformerencoder-onlymodels. Itreformulatesthetask-specificobjectiveasalanguagemodeling
+task similar to the fill-in-the-blank problem, with the purpose of eliciting knowledge from LMs.
+AutoPromptconstructsaprompttemplatecontainingtheoriginalinput,triggertokens,and[MASK]
+tokens. Inthecaseofthesentimentanalysistask,thelogicalclassifierautomaticallydetectsaset
+oflabeledtokenscorrespondingto[MASK]ascandidatesandtriggertokensareselectedfromthe
+vocabulary based on a gradient search, iteratively replacing the initial [MASK] according to the
+scores,andfinallyobtainingacompletenaturallanguageprompt.
+Duetothelackofinterpretabilityofsoftpromptsandintractableoptimizationoverdiscretetokens,
+RLPrompt(Dengetal.,2022)proposesadiscretepromptoptimizationapproachbasedonreinforce-
+mentlearning. Forclassificationandgenerationtasks,differentLMsareusedtofeedbackrewards
+respectively,whichisamorestabletrainingstrategyandimprovesthetrainingefficiencycompared
+7UnderreviewasaconferencepaperatCOLM2024
+toAutoPrompt. RLPromptcomputestheMLPgradientsbyback-propagatingthroughthepolicyLM
+andexploresthepromptsearchspacemoresystematicallyandefficientlythanGrIPS(Prasadetal.,
+2023). ItalsoverifiesthatgibberishpromptsaretransferrablebetweenPLMs,furtherillustratingthat
+PLMsgraspsharedstructuresforprompting,aswellasbeingdistinctfromhumanlanguagepatterns.
+For the text-to-image generation task, in order to generate more aesthetically pleasing images,
+Promptist(Haoetal.,2022)utilizesPLMlikeGPT-2asthepromptoptimizationmodeltoimprove
+thequalityoftextualpromptsinthetext-to-imagetask. Thepromptadaptationframeworkincludes
+supervisedfine-tuningwithhuman-engineeredpromptsandthenreinforcementlearningbasedon
+RelevanceandAestheticastherewardsignals.
+Morebriefsonsimilarwork(Wenetal.,2023;Chenetal.,2023b;Linetal.,2023)aredetailedinthe
+AppendixA.1.4.
+4.1.2 Imitated-gradientprompting
+AstheperformanceofLLMbecomesmoreandmoreexcellent,researcherstrytoadoptLLMsasthe
+optimizer,butinthefaceofmoreandmoreinaccessibleblack-boxLLMs,gradient-basedprompting
+optimization methods are no longer able to achieve discrete prompting optimization (Shin et al.,
+2020). Asfarasthecurrentresearchtrendisconcerned,researcherseitherextendthesearchspaceof
+hardpromptsorrepresenttheessenceofgradientsinnaturallanguage.
+GrIPS (Prasad et al., 2023) represents a pioneering approach in the realm of automatic prompt
+optimization,introducingGradient-free,Edit-basedInstructionalPromptSearchasthefirstattempt
+atoptimizingnaturallanguagepromptsutilizingAPI-based(i.e.,closed-source)models. Theprompt
+modescontaindifferentcombinationsofinstruction,in-contextexamples,andtestinstances. GrIPS
+expandsthepromptoptimizationspacebasedonfoureditingoperations(delete,swap,paraphrase,
+addition)atthephraseleveltoidentifythemosteffectivepromptthroughiterativebeamsearch.
+InspiredbyGrIPS,Zhouetal.(2022b)proposeAutomaticPromptEngineer(APE)forautomatic
+instruction generation and selection. Here we emphasize the important role played by LLMs in
+three aspects, 1) Inference: generating a large number of candidate prompts for a specific task’s
+input-outputpairs;2)Scoring: selectingbettercandidatepromptsaccordingtoevaluationmetrics;3)
+Resampling: MonteCarlosearchingiterativelytofurtheraugmenthigh-qualitypromptsbasedon
+semanticsimilarity. TheLLMsareguidedthroughamanuallydesignedinstructiontemplate(known
+asmeta-promptinthefollowing)torealizethecorrespondingfunctionsthatoptimizationrequires.
+Morebriefsonsimilarwork(Pryzantetal.,2023)aredetailedintheAppendixA.1.4.
+4.2 Evolution-basedmethods
+Itisbecauseblack-boxmodelsdonothaveaclearoptimizationdirection,andtraditionalmathematical
+optimizationalgorithmsaredifficulttosolvesuchNP-hardproblems. Theevolutionaryalgorithm,
+whichsimulatesthebiologicalevolutionprocessof“survivalofthefittest”innature,isakindof
+randomsearchbysamplingobjectivefunctions. Infact,manyresearchesarebasedontheideaof
+evolution,whichisessentiallytoexploitthediversityofsamplesinthesearchspace,andthenexplore
+theoptimizationdirectionthroughiterations.
+OPRO(Yangetal.,2023)placesadditionalconfidenceinthecapabilitiesofLLMasanoptimizer.
+DivergingfromapproachessuchasAPEandAPO,whichinvolvedirectinstructionstotheLLMon
+executingspecificfunctions,OPROintegratestheoptimizationtrajectorywithinthemeta-prompt.
+This strategy enables the LLM to understand the commonalities among high-scoring solutions,
+therebyindependentlyidentifyingtheoptimaldirectionforoptimization. Experimentalevidence
+indicatesthatOPROachievesamoreconsistentoptimizationprocessincomparisontoEvoPrompt
+whichreliesonhigh-qualityandtask-specificinitialprompts.
+WhetherusingLLMediting,evolution,orrephrasingmethodsiscurrentlyonlyattemptedonshorter
+prompts,applyingtheaboveworkstolongpromptsisstillchallenging.Asaresult,Hsiehetal.(2023)
+paymoreattentiontothediscreteoptimizationoflongprompts. Itdecomposeslongpromptsinto
+multipleindividualsentencesandemploystheLLM-Mutatortogeneratesemantic-similarprompts
+withthe“beamsearch”versiongreedyalgorithm,whencoupledwiththeinclusionofsearchhistory,
+resultsinanotableenhancementintaskperformance.
+8UnderreviewasaconferencepaperatCOLM2024
+Morebriefsonsimilarwork(Chenetal.,2023a;Guoetal.,2023;Fernandoetal.,2023)aredetailed
+intheAppendixA.1.5.
+ConclusionInordertoavoidextensivehumanresourceconsumptionofmanual-designedprompts,
+thissectiondiscussesavarietyofmethodsandframeworksforautomaticpromptoptimization. The
+prevailingresearchdrawsontheideaofoptimizationalgorithmsfromtraditionalmachinelearning.
+Theprimaryobjectiveisquicklysearchingfortheoptimalpromptinthenaturallanguagespace,
+therebyfacilitatingstate-of-the-artLLMs. Initialexplorationsintogradient-basedoptimizationhave
+seentheincorporationoflightweightneuralnetworksassupplementaryoptimizationinstruments.
+Subsequentmethodshaveevolvedtoeithertransformthediscretepromptspaceintoacontinuous
+oneforoptimizationpurposesortobroadenthediscretesearchdomaintoenabledirectoptimization.
+5 Futureprompting: atheoreticalperspective
+Atahigherlevel,wewouldliketoabstracttheefficientpromptingparadigmintoamulti-objective
+optimizationproblem,withtheoverallobjectiveofcompressingpromptstoreducethecomputational
+complexity(Objective1)whileoptimizingtheLLMtaskaccuracy(Objective2). Werespectively
+definetheinputsasX,theoutputsasY,andtheaccessibleparametersasΘ. WhereX isdiscrete,
+collectivelyreferredtoashardpromptsinthispaper,andcanbedecomposedintodifferentcom-
+ponents,suchasinstructionsx ,questionsx ,demonstrationsx ,etc. Θiscontinuousand
+ins que des
+containsnotonlytheaccessibleparametersofthemodelitselfθ ,butalsothevectorrepresentations
+M
+ofthehardpromptθ . TheoveralloptimizationformulationcanbedefinedasF :
+p total
+F
+total
+=λ 1·F compression(X(cid:101))+λ 2·F accuracy(Θ) (1)
+(cid:16) (cid:17)
+F compression(X(cid:101))=minD Y(X(cid:101) |argmaxI(X(cid:101))),Y(X) (2)
+whereX(cid:101) denotesthepromptsthatiscompressedasmuchaspossiblewhilekeepingtheperformance
+comparabletotheoriginalones,D(·)denotesthediscrepancybetweentheoutputsbeforeandafter
+promptcompressionF ,andI(x)denotestheinformationentropymetricsthatidentifythe
+compression
+amountofinformation. Dependingontheappropriatecompressionrate,themostusefulsemantic
+information in each prompt component is retained according to the semantic units. In order to
+achieve the faithfulness of the original prompts, the information filtering can be considered as a
+binaryclassificationtaskofthevalidandinvalidinformationaswell(Sec.3.3).
+The optimization process of Θ is to fine-tune the accessible parameters in the continuous space
+toachievedesiredtaskaccuracyF . Sincetheoptimizationobject(hardprompt)isdiscrete,
+accuracy
+oneapproachistoconvertittothesoftpromptformthroughknowledgedistillation(Sec.3.1)or
+encoding(Sec.3.2). Anotheroptionistoconverttheoptimizationspaceintoadiscreteone. Inspired
+byoptimizationalgorithms,thepowerfulLLMcanrespectivelyactasagenerator,optimizer,and
+evaluatortoexpandthepromptspace,andthensearchforthebestpromptbasedonthefeedback,
+similartothereinforcementlearningframeworkmentionedinSection4.
+Prospects for future work The huge potential of LLM remains to be explored, while efficient
+prompting methods as an important medium for human-computer interaction is a key means to
+achievealignment. Lookingahead,theinaccessibilityofLLMhasbecomeanirreversiblesituation.
+Therefore,itcanbeforeseenthatthetrendoffuturepromptingwillalsobecenteredaroundthehard
+prompt. BasedonEq.1,wediscussthepromisingfutureresearchdirectionsinthisfield.
+• FilteringX: Measuringtheamountofinformationinnaturallanguagethatisbeneficialto
+LLMsandthenfilteringoutredundantinformationasmuchaspossible.
+• Fine-tuning Θ: When constructing compressors, LLMs should focus on a reasonable
+conversionofdifferentsemanticspacewhilesmallerLMsshouldfocusontheconstruction
+ofthecompressedtrainingdata.
+• Co-optimization: simultaneousoptimizationofhard&softprompthasnotyetappeared,the
+combinationoftwodifferentsemanticspacesdeservesfurtherexploration,whichis,tosome
+extent,aconsiderabledevelopmentdirectionforhuman-modelalignment.
+9UnderreviewasaconferencepaperatCOLM2024
+6 Conclusion
+Inthiswork,wesummarizeefficientpromptingmethodsforLLMswiththepurposeofimproving
+theLLMefficiencyandperformance. Wereviewexistingrelatedworkwithhighrecognition,shed
+lightontheinherentconnectionswithineachcategory,anddeeplyabstracttheseapproachesfroma
+theoreticalperspective. Finally,weprovideLLMpractitionerswithalistofopen-sourceprojectsA.2
+forquickreferenceinbothscientificresearchandcommercialdeploymentandatypologydiagram
+A.3tooverviewtheefficientpromptingfield.
+Acknowledgements
+ThisworkwassupportedinpartbytheNationalScienceFoundationofChina(No.62276056),the
+NaturalScienceFoundationofLiaoningProvinceofChina(2022-KF-16-01),theFundamentalRe-
+searchFundsfortheCentralUniversities(Nos. N2216016andN2316002),theYunnanFundamental
+ResearchProjects(No. 202401BC070021),andtheProgramofIntroducingTalentsofDisciplineto
+Universities,Plan111(No.B16009).
+References
+AmandaAskell,YuntaoBai,AnnaChen,DawnDrain,DeepGanguli,TomHenighan,AndyJones,
+NicholasJoseph,BenjaminMann,NovaDasSarma,NelsonElhage,ZacHatfield-Dodds,Danny
+Hernandez,JohnKernion,KamalNdousse,CatherineOlsson,DarioAmodei,TomB.Brown,Jack
+Clark,SamMcCandlish,ChristopherOlah,andJaredKaplan. Agenerallanguageassistantasa
+laboratoryforalignment. ArXivpreprint,abs/2112.00861,2021. URLhttps://arxiv.org/
+abs/2112.00861.
+Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-
+wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agar-
+wal, Ariel Herbert-Voss, Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh,
+Daniel M. Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler,
+Mateusz Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCan-
+dlish, Alec Radford, Ilya Sutskever, and Dario Amodei. Language models are few-shot
+learners. In Hugo Larochelle, Marc’Aurelio Ranzato, Raia Hadsell, Maria-Florina Balcan,
+and Hsuan-Tien Lin (eds.), Advances in Neural Information Processing Systems 33: Annual
+Conference on Neural Information Processing Systems 2020, NeurIPS 2020, December 6-12,
+2020,virtual,2020. URLhttps://proceedings.neurips.cc/paper/2020/hash/
+1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html.
+Se´bastien Bubeck, Varun Chandrasekaran, Ronen Eldan, John A. Gehrke, Eric Horvitz, Ece Ka-
+mar, Peter Lee, Yin Tat Lee, Yuan-Fang Li, Scott M. Lundberg, Harsha Nori, Hamid Palangi,
+MarcoTulioRibeiro,andYiZhang. Sparksofartificialgeneralintelligence: Earlyexperiments
+withgpt-4. ArXivpreprint,abs/2303.12712,2023. URLhttps://arxiv.org/abs/2303.
+12712.
+AydarBulatov,YuriKuratov,andMikhailS.Burtsev. Recurrentmemorytransformer. ArXivpreprint,
+abs/2207.06881,2022. URLhttps://arxiv.org/abs/2207.06881.
+AngelicaChen,DavidDohan,andDavidR.So. Evoprompting: Languagemodelsforcode-level
+neural architecture search. ArXiv preprint, abs/2302.14838, 2023a. URL https://arxiv.
+org/abs/2302.14838.
+LichangChen,JiuhaiChen,TomGoldstein,HengHuang,andTianyiZhou. Instructzero: Efficient
+instructionoptimizationforblack-boxlargelanguagemodels. ArXivpreprint,abs/2306.03082,
+2023b. URLhttps://arxiv.org/abs/2306.03082.
+AlexisChevalier,AlexanderWettig,AnirudhAjith,andDanqiChen. Adaptinglanguagemodelsto
+compresscontexts. ArXivpreprint,abs/2305.14788,2023. URLhttps://arxiv.org/abs/
+2305.14788.
+10UnderreviewasaconferencepaperatCOLM2024
+EunbiChoi,YongraeJo,JoelJang,andMinjoonSeo. Promptinjection: Parameterizationoffixed
+inputs. ArXiv preprint, abs/2206.11349, 2022. URL https://arxiv.org/abs/2206.
+11349.
+MingkaiDeng,JianyuWang,Cheng-PingHsieh,YihanWang,HanGuo,TianminShu,MengSong,
+Eric Xing, and Zhiting Hu. RLPrompt: Optimizing discrete text prompts with reinforcement
+learning. InProceedingsofthe2022ConferenceonEmpiricalMethodsinNaturalLanguagePro-
+cessing,pp.3369–3391,AbuDhabi,UnitedArabEmirates,2022.AssociationforComputational
+Linguistics. URLhttps://aclanthology.org/2022.emnlp-main.222.
+JacobDevlin,Ming-WeiChang,KentonLee,andKristinaToutanova. BERT:Pre-trainingofdeep
+bidirectionaltransformersforlanguageunderstanding. InProceedingsofthe2019Conferenceof
+theNorthAmericanChapteroftheAssociationforComputationalLinguistics: HumanLanguage
+Technologies,Volume1(LongandShortPapers),pp.4171–4186,Minneapolis,Minnesota,2019.
+Association for Computational Linguistics. doi: 10.18653/v1/N19-1423. URL https://
+aclanthology.org/N19-1423.
+NingDing,YujiaQin,GuangYang,FuWei,ZonghanYang,YushengSu,ShengdingHu,YulinChen,
+Chi-MinChan,WeizeChen,JingYi,WeilinZhao,XiaozhiWang,ZhiyuanLiu,HaitaoZheng,
+JianfeiChen,YangLiu,JieTang,JuanLi,andMaosongSun. Deltatuning:Acomprehensivestudy
+ofparameterefficientmethodsforpre-trainedlanguagemodels. ArXivpreprint,abs/2203.06904,
+2022. URLhttps://arxiv.org/abs/2203.06904.
+QingxiuDong,LeiLi,DamaiDai,CeZheng,ZhiyongWu,BaobaoChang,XuSun,JingjingXu,and
+ZhifangSui.Asurveyonin-contextlearning.2022.URLhttps://api.semanticscholar.
+org/CorpusID:255372865.
+WeizhiFei,XueyanNiu,PingyiZhou,LuHou,BoBai,LeiDeng,andWeiHan. Extendingcontext
+windowoflargelanguagemodelsviasemanticcompression. ArXivpreprint, abs/2312.09571,
+2023. URLhttps://arxiv.org/abs/2312.09571.
+ChrisanthaFernando,DylanS.Banarse,HenrykMichalewski,SimonOsindero,andTimRockta¨schel.
+Promptbreeder: Self-referential self-improvement via prompt evolution. ArXiv preprint,
+abs/2309.16797,2023. URLhttps://arxiv.org/abs/2309.16797.
+RinonGal,YuvalAlaluf,YuvalAtzmon,OrPatashnik,AmitH.Bermano,GalChechik,andDaniel
+Cohen-Or. Animageisworthoneword: Personalizingtext-to-imagegenerationusingtextual
+inversion. ArXivpreprint,abs/2208.01618,2022. URLhttps://arxiv.org/abs/2208.
+01618.
+Tao Ge, Jing Hu, Li Dong, Shaoguang Mao, Yanqiu Xia, Xun Wang, Siyi Chen, Furu Wei, and
+Si-QingChen. Extensiblepromptsforlanguagemodelsonzero-shotlanguagestylecustomization.
+2022. URLhttps://api.semanticscholar.org/CorpusID:254125409.
+Tao Ge, Jing Hu, Xun Wang, Si-Qing Chen, and Furu Wei. In-context autoencoder for context
+compressioninalargelanguagemodel. ArXivpreprint,abs/2307.06945,2023. URLhttps:
+//arxiv.org/abs/2307.06945.
+QingyanGuo, RuiWang, JunliangGuo, BeiLi, KaitaoSong, XuTan, GuoqingLiu, JiangBian,
+YujiuYang,TsinghuaUniversity,andMicrosoftResearch. Connectinglargelanguagemodelswith
+evolutionaryalgorithmsyieldspowerfulpromptoptimizers. ArXivpreprint,abs/2309.08532,2023.
+URLhttps://arxiv.org/abs/2309.08532.
+YaruHao,ZewenChi,LiDong,andFuruWei. Optimizingpromptsfortext-to-imagegeneration.
+ArXivpreprint,abs/2212.09611,2022. URLhttps://arxiv.org/abs/2212.09611.
+Roee Hendel, Mor Geva, and Amir Globerson. In-context learning creates task vectors. ArXiv
+preprint,abs/2310.15916,2023. URLhttps://arxiv.org/abs/2310.15916.
+GeoffreyE.Hinton,OriolVinyals,andJeffreyDean. Distillingtheknowledgeinaneuralnetwork.
+ArXivpreprint,abs/1503.02531,2015. URLhttps://arxiv.org/abs/1503.02531.
+11UnderreviewasaconferencepaperatCOLM2024
+John H. Holland. Adaptation in natural and artificial systems: An introductory analysis with
+applications to biology, control, and artificial intelligence. 1992. URL https://api.
+semanticscholar.org/CorpusID:58781161.
+NeilHoulsby,AndreiGiurgiu,StanislawJastrzebski,BrunaMorrone,QuentindeLaroussilhe,Andrea
+Gesmundo, MonaAttariyan, andSylvainGelly. Parameter-efficienttransferlearningforNLP.
+InKamalikaChaudhuriandRuslanSalakhutdinov(eds.),Proceedingsofthe36thInternational
+ConferenceonMachineLearning,ICML2019,9-15June2019,LongBeach,California,USA,
+volume97ofProceedingsofMachineLearningResearch,pp.2790–2799.PMLR,2019. URL
+http://proceedings.mlr.press/v97/houlsby19a.html.
+Cho-JuiHsieh,SiSi,FelixX.Yu,andInderjitS.Dhillon. Automaticengineeringoflongprompts.
+ArXivpreprint,abs/2311.10117,2023. URLhttps://arxiv.org/abs/2311.10117.
+HuiqiangJiang,QianhuiWu,Chin-YewLin,YuqingYang,andLiliQiu. Llmlingua: Compressing
+promptsforacceleratedinferenceoflargelanguagemodels.InProceedingsofthe2023Conference
+onEmpiricalMethodsinNaturalLanguageProcessing,pp.13358–13376,2023a.
+HuiqiangJiang,QianhuiWu,XufangLuo,DongshengLi,Chin-YewLin,YuqingYang,andLiliQiu.
+Longllmlingua:Acceleratingandenhancingllmsinlongcontextscenariosviapromptcompression.
+ArXivpreprint,abs/2310.06839,2023b. URLhttps://arxiv.org/abs/2310.06839.
+GyeongmanKim,DoohyukJang,andEunhoYang. Promptkd: Distillingstudent-friendlyknowledge
+forgenerativelanguagemodelsviaprompttuning,2024.
+Brian Lester, Rami Al-Rfou, and Noah Constant. The power of scale for parameter-efficient
+prompt tuning. In Proceedings of the 2021 Conference on Empirical Methods in Natural
+Language Processing, pp. 3045–3059, Online and Punta Cana, Dominican Republic, 2021.
+Association for Computational Linguistics. doi: 10.18653/v1/2021.emnlp-main.243. URL
+https://aclanthology.org/2021.emnlp-main.243.
+BeiLi,QuanDu,TaoZhou,ShuhanZhou,XinZeng,TongXiao,andJingboZhu. Odetransformer:
+Anordinarydifferentialequation-inspiredmodelforneuralmachinetranslation. ArXivpreprint,
+abs/2104.02308,2021. URLhttps://arxiv.org/abs/2104.02308.
+XiangLisaLiandPercyLiang. Prefix-tuning: Optimizingcontinuouspromptsforgeneration. In
+Proceedingsofthe59thAnnualMeetingoftheAssociationforComputationalLinguisticsandthe
+11thInternationalJointConferenceonNaturalLanguageProcessing(Volume1: LongPapers),
+pp.4582–4597,Online,2021.AssociationforComputationalLinguistics. doi: 10.18653/v1/2021.
+acl-long.353. URLhttps://aclanthology.org/2021.acl-long.353.
+YuchengLi,BoDong,ChenghuaLin,andFrankGuerin. Compressingcontexttoenhanceinference
+efficiencyoflargelanguagemodels.InConferenceonEmpiricalMethodsinNaturalLanguagePro-
+cessing,2023. URLhttps://api.semanticscholar.org/CorpusID:263830231.
+Xiaoqiang Lin, Zhaoxuan Wu, Zhongxiang Dai, Wenyang Hu, Yao Shu, See-Kiong Ng, Patrick
+Jaillet, and Bryan Kian Hsiang Low. Use your instinct: Instruction optimization using neural
+bandits coupled with transformers. ArXiv preprint, abs/2310.02905, 2023. URL https://
+arxiv.org/abs/2310.02905.
+JunyiLiu,LiangzhiLi,TongXiang,BowenWang,andYimingQian. Tcra-llm: Tokencompression
+retrievalaugmentedlargelanguagemodelforinferencecostreduction. InConferenceonEmpirical
+MethodsinNaturalLanguageProcessing,2023a. URLhttps://api.semanticscholar.
+org/CorpusID:264439519.
+Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig.
+Pre-train,prompt,andpredict: Asystematicsurveyofpromptingmethodsinnaturallanguage
+processing. ACMComputingSurveys,55(9):1–35,2023b.
+XiaoLiu,KaixuanJi,YichengFu,WengTam,ZhengxiaoDu,ZhilinYang,andJieTang. P-tuning:
+Prompttuningcanbecomparabletofine-tuningacrossscalesandtasks. InProceedingsofthe60th
+AnnualMeetingoftheAssociationforComputationalLinguistics(Volume2: ShortPapers),pp.
+61–68,Dublin,Ireland,2022.AssociationforComputationalLinguistics. doi: 10.18653/v1/2022.
+acl-short.8. URLhttps://aclanthology.org/2022.acl-short.8.
+12UnderreviewasaconferencepaperatCOLM2024
+JesseMu,XiangLisaLi,andNoahD.Goodman. Learningtocompresspromptswithgisttokens.
+ArXivpreprint,abs/2304.08467,2023. URLhttps://arxiv.org/abs/2304.08467.
+Zhuoshi Pan, Qianhui Wu, Huiqiang Jiang, Menglin Xia, Xufang Luo, Jue Zhang, Qingwei Lin,
+VictorRu¨hle,YuqingYang,Chin-YewLin,H.VickyZhao,LiliQiu,DongmeiZhang,KarlCobbe,
+VineetKosaraju,MoBavarian,MarkChen,HeewooJun,LukaszKaiser,MatthiasPlappert,Jerry
+Tworek, Jacob Hilton, and Reiichiro Nakano. Llmlingua-2: Data distillation for efficient and
+faithfultask-agnosticpromptcompression. 2024. URLhttps://api.semanticscholar.
+org/CorpusID:268531237.
+Jason Phang, Yi Mao, Pengcheng He, and Weizhu Chen. Hypertuning: Toward adapting large
+languagemodelswithoutback-propagation. InInternationalConferenceonMachineLearning,
+2022. URLhttps://api.semanticscholar.org/CorpusID:253761398.
+Archiki Prasad, Peter Hase, Xiang Zhou, and Mohit Bansal. GrIPS: Gradient-free, edit-based
+instructionsearchforpromptinglargelanguagemodels. InProceedingsofthe17thConferenceof
+theEuropeanChapteroftheAssociationforComputationalLinguistics,pp.3845–3864,Dubrovnik,
+Croatia,2023.AssociationforComputationalLinguistics. URLhttps://aclanthology.
+org/2023.eacl-main.277.
+OfirPress,MuruZhang,SewonMin,LudwigSchmidt,NoahA.Smith,andMikeLewis. Measuring
+and narrowing the compositionality gap in language models. ArXiv preprint, abs/2210.03350,
+2022. URLhttps://arxiv.org/abs/2210.03350.
+ReidPryzant,DanIter,JerryLi,YinTatLee,ChenguangZhu,andMichaelZeng. Automaticprompt
+optimization with ”gradient descent” and beam search. In Conference on Empirical Methods
+in Natural Language Processing, 2023. URL https://api.semanticscholar.org/
+CorpusID:258546785.
+GuanghuiQinandBenjaminVanDurme. Nugget: Neuralagglomerativeembeddingsoftext. ArXiv
+preprint,abs/2310.01732,2023. URLhttps://arxiv.org/abs/2310.01732.
+Alec Radford, Karthik Narasimhan, Tim Salimans, Ilya Sutskever, et al. Improving language
+understandingbygenerativepre-training. 2018.
+AurkoRoy,MohammadSaffar,AshishVaswani,andDavidGrangier. Efficientcontent-basedsparse
+attentionwithroutingtransformers. TransactionsoftheAssociationforComputationalLinguistics,
+9:53–68, 2021. doi: 10.1162/tacl a 00353. URL https://aclanthology.org/2021.
+tacl-1.4.
+ClaudeE.Shannon. Amathematicaltheoryofcommunication. BellSyst.Tech.J.,27:623–656,1948.
+URLhttps://api.semanticscholar.org/CorpusID:55379485.
+Taylor Shin, Yasaman Razeghi, Robert L Logan IV, Eric Wallace, and Sameer Singh. Elicit-
+ing knowledge from languagemodels using automaticallygenerated prompts. ArXiv preprint,
+abs/2010.15980,2020. URLhttps://arxiv.org/abs/2010.15980.
+CharlesBurtonSnell,DanKlein,andRuiqiZhong. Learningbydistillingcontext. ArXivpreprint,
+abs/2209.15189,2022. URLhttps://arxiv.org/abs/2209.15189.
+RainerStornandKennethV.Price. Differentialevolution–asimpleandefficientheuristicforglobal
+optimizationovercontinuousspaces. JournalofGlobalOptimization,11:341–359,1997. URL
+https://api.semanticscholar.org/CorpusID:5297867.
+JianlinSu, YuLu, ShengfengPan, BoWen, andYunfengLiu. Roformer: Enhancedtransformer
+withrotarypositionembedding. ArXivpreprint,abs/2104.09864,2021. URLhttps://arxiv.
+org/abs/2104.09864.
+HugoTouvron,ThibautLavril,GautierIzacard,XavierMartinet,Marie-AnneLachaux,Timothe´e
+Lacroix,BaptisteRozie`re,NamanGoyal,EricHambro,FaisalAzhar,AurelienRodriguez,Armand
+Joulin,EdouardGrave,andGuillaumeLample. Llama: Openandefficientfoundationlanguage
+models. ArXiv preprint, abs/2302.13971, 2023. URL https://arxiv.org/abs/2302.
+13971.
+13UnderreviewasaconferencepaperatCOLM2024
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N. Gomez,
+LukaszKaiser, andIlliaPolosukhin. Attentionisallyouneed. InIsabelleGuyon, Ulrikevon
+Luxburg, Samy Bengio, Hanna M. Wallach, Rob Fergus, S. V. N. Vishwanathan, and Roman
+Garnett(eds.),AdvancesinNeuralInformationProcessingSystems30: AnnualConferenceon
+NeuralInformationProcessingSystems2017,December4-9,2017,LongBeach,CA,USA,pp.
+5998–6008, 2017. URL https://proceedings.neurips.cc/paper/2017/hash/
+3f5ee243547dee91fbd053c1c4a845aa-Abstract.html.
+ZhongweiWan,XinWang,CheLiu,SamiulAlam,YuZheng,JiachenLiu,ZhongnanQu,ShenYan,
+YiZhu,QuanluZhang,MosharafChowdhury,andMiZhang. Efficientlargelanguagemodels:
+Asurvey. ArXivpreprint,abs/2312.03863,2023. URLhttps://arxiv.org/abs/2312.
+03863.
+LeanWang,LeiLi,DamaiDai,DeliChen,HaoZhou,FandongMeng,JieZhou,andXuSun. Label
+wordsareanchors: Aninformationflowperspectiveforunderstandingin-contextlearning. ArXiv
+preprint,abs/2305.14160,2023a. URLhttps://arxiv.org/abs/2305.14160.
+LeiWang,WanyuXu,YihuaiLan,ZhiqiangHu,YunshiLan,RoyKa-WeiLee,andEe-PengLim.
+Plan-and-solveprompting: Improvingzero-shotchain-of-thoughtreasoningbylargelanguage
+models. In Annual Meeting of the Association for Computational Linguistics, 2023b. URL
+https://api.semanticscholar.org/CorpusID:258558102.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc Le, Ed Huai hsin Chi, and Denny Zhou.
+Self-consistency improves chain of thought reasoning in language models. ArXiv preprint,
+abs/2203.11171,2022. URLhttps://arxiv.org/abs/2203.11171.
+JasonWei,YiTay,RishiBommasani,ColinRaffel,BarretZoph,SebastianBorgeaud,DaniYogatama,
+MaartenBosma,DennyZhou,DonaldMetzler,EdHuaihsinChi,TatsunoriHashimoto,Oriol
+Vinyals,PercyLiang,JeffDean,andWilliamFedus. Emergentabilitiesoflargelanguagemodels.
+ArXivpreprint,abs/2206.07682,2022a. URLhttps://arxiv.org/abs/2206.07682.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,EdHuaihsinChi,F.Xia,QuocLe,
+andDennyZhou. Chainofthoughtpromptingelicitsreasoninginlargelanguagemodels. ArXiv
+preprint,abs/2201.11903,2022b. URLhttps://arxiv.org/abs/2201.11903.
+YuxinWen,NeelJain,JohnKirchenbauer,MicahGoldblum,JonasGeiping,andTomGoldstein.
+Hardpromptsmadeeasy: Gradient-baseddiscreteoptimizationforprompttuninganddiscovery.
+ArXivpreprint,abs/2302.03668,2023. URLhttps://arxiv.org/abs/2302.03668.
+DavidWingate,MohammadShoeybi,andTaylorSorensen. Promptcompressionandcontrastive
+conditioning for controllability and toxicity reduction in language models. In Findings of the
+AssociationforComputationalLinguistics:EMNLP2022,pp.5621–5634,AbuDhabi,UnitedArab
+Emirates,2022.AssociationforComputationalLinguistics. URLhttps://aclanthology.
+org/2022.findings-emnlp.412.
+Tong Xiao and Jingbo Zhu. Introduction to transformers: an nlp perspective. ArXiv preprint,
+abs/2311.17633,2023. URLhttps://arxiv.org/abs/2311.17633.
+Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc V. Le, Denny Zhou, and Xinyun
+Chen. Large language models as optimizers. ArXiv preprint, abs/2309.03409, 2023. URL
+https://arxiv.org/abs/2309.03409.
+ZhichaoYin,BinyuanHui,MinYang,FeiHuang,andYongbinLi. Dialclip: Empoweringclipas
+multi-modaldialogretriever. ArXivpreprint,abs/2401.01076,2024. URLhttps://arxiv.
+org/abs/2401.01076.
+DennyZhou,NathanaelScharli,LeHou,JasonWei,NathanScales,XuezhiWang,DaleSchuurmans,
+OlivierBousquet, QuocLe, andEdHuaihsinChi. Least-to-mostpromptingenablescomplex
+reasoning in large language models. ArXiv preprint, abs/2205.10625, 2022a. URL https:
+//arxiv.org/abs/2205.10625.
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han, Keiran Paster, Silviu Pitis, Harris Chan,
+and Jimmy Ba. Large language models are human-level prompt engineers. ArXiv preprint,
+abs/2211.01910,2022b. URLhttps://arxiv.org/abs/2211.01910.
+14UnderreviewasaconferencepaperatCOLM2024
+A Appendix
+A.1 Acollectionofmorebriefs
+A.1.1 Knowledgedistillation
+Gisting(Muetal.,2023)compressesmulti-taskpromptsintogisttokens,whichareconcretevector
+representationsthatcanbeattributedtotheencodinginSection3.2,butitsimplementationisstill
+basedontheideaofKDinSnelletal.(2022). Gistingfine-tunesthedistilledmodel(i.e. student)
+withattentionmaskingmechanismusingtheinstructionfine-tunedLLMs(i.e. teacher)synthesized
+multi-taskdata. SimilartothewayHyperTuning(Phangetal.,2022)generatesPEFTparameters,the
+distilledmodelpredictsgisttokenssothatgistingincursnoadditionaltrainingcostsbeyondstandard
+instructionfine-tuning. Improvingonpreviousworks,gistingimplementsmultitaskcapabilitiesand
+canbegeneralizedtounseentaskinstructions,achievinga26xcompressionratewhilemaintaining
+theoriginalperformance.
+PromptKD(Kimetal.,2024)leveragesprompttuninginKDforthefirsttimetoenablegenerative
+LLMstotransferstudent-friendlyknowledge. First, thestudentmodelgeneratestheresponseas
+pseudo-targetaccordingtotherequest. Then,extraaddedsoftpromptsoftheteacherdistillstudent-
+friendlyknowledgewithguidancefromthestudent. Finally,thediscrepancybetweenteacherand
+studentisminimizedbyreverseKLdivergence.
+A.1.2 Encoding
+ICAE(Geetal.,2023)compresseslongcontextinputintomemoryslotswitha4xcompressionrate.
+Inthepre-trainingphase,theautoencodingtaskisresponsibleformemoryslotcompression; the
+textcontinuationtaskextendsitsgeneralization. Theinstructionfine-tuningphaseisbeneficialfor
+memoryslotstoaccuratelyandappropriatelyrespondtovariousinstructions. ComparedtoChevalier
+etal.(2023),thetrainingprocessissimplerasitavoidsrecursivecompression.
+TheencodingframeworkNUGGET(Qin&Durme,2023)employshard-attentiontomaplinguistic
+inputintoafractionalnumberofnuggets. Itutilizesafeedforwardnetworktomeasurethecontext
+informationofeverytokenembeddinganddynamicallyselectstop-kasnuggets. Sincetheselection
+process is nondifferentiable, a residual connection is built to propagate the gradients back to the
+NUGGET.Resultsindicatethatpunctuationhasthehighestprobabilityofbeingselectedasnuggets
+to encode the preceding text information, and a 10% compression ratio is sufficient for perfect
+reconstructionoftheoriginalinput.
+Somerecentwork(Yinetal.,2024)hasalsoshownthatfusingandthencompressingusefulmulti-
+modalinformationintovectorrepresentationsthatareeasilyunderstoodbythemodel,ishelpfulfor
+promptingLLMstoperformmulti-modaltaskswithexcellentresults.
+A.1.3 Filtering
+OnthebasisoftheLLMLinguaframework,LongLLMLingua(Jiangetal.,2023b)supportsmodifica-
+tionofthepromptcomponent,e.g. thedemonstrationcanbefurtherextendedtoalongdocument. To
+refinethepreviouswork,itenhancesLLM’sperceptionofkeyinformationrelatedtothequestion
+componentinthepromptviacontrastiveperplexity,i.e.,thedistributionshiftcausedbythecondition
+ofthequestion. Therearealsoalotofeffectivetrickstoimprovetheperformanceofthemodel,
+suchasdocumentreorderingmechanismtoprecedenceimportantinformation;dynamiccompression
+ratiostoadaptivelycontrolthegranularofcoarse&fine-grainedcompression,andpost-compression
+subsequencerecoverystrategytoimprovetheintegrityofthekeyinformationinLLM’soutput. It
+finallyrealizestheperformanceimprovementrelativetotheoriginalpromptsandacceleratesthe
+end-to-endlatencyinlongcontextscenarios.
+Pan et al. (2024) compresses prompts with a classification objective of whether to preserve or
+discardtokensfromtheoriginalprompt,withtheadvantagesof1)fullyextractingfeaturesfrom
+bi-directional contexts using Transformer encoder-based LMs; 2) lower latency since the binary
+classificationobjectiveisthesameasthetrainingobjectiveoftheLMratherthantheinformation
+entropy;and3)guaranteedfaithfulnessofthecompressedprompt. LLMLingua-2servesasasmaller-
+15UnderreviewasaconferencepaperatCOLM2024
+scale LM compressor, achieves more efficient compression, greater generalization, and further
+reducedend-to-endlatencycomparedtopreviouswork.
+Liuetal.(2023a)respectivelyanalyzethegainininferencespeedofsummarizationcompression
+(based on summarization model mT5) and semantic compression (based on semantic deviation
+calculatedbyEuclideandistance)whenLLMprocessingretrievalaugmentationtasks,andexplore
+therelationshipbetweeninformationentropyandcompressibilityindetail. WhileFeietal.(2023)
+directlyusethesummarymodelforsemanticcompressiontoextendtheinformationcapacityofthe
+contextwindow.
+A.1.4 Gradient-basedmethods
+Real-gradient tuning Wen et al. (2023) propose a gradient-based discrete prompt optimization
+algorithmcalledPEZ,todiscretizethecontinuousspacebyaprojectionfunction. PEZfirstprojects
+thelearnableembeddingsintodiscretevectorsthencomputestheirgradientsforupdatingthecontin-
+uousiterations(i.e.,regardingsoftpromptsasintermediatevariables),andfinallymapstheminto
+hardprompts. PEZautomaticallygeneratesrobustandflexiblehardpromptsthatcanbeappliedto
+text-to-imageandtext-to-textapplications,respectively.
+Chenetal.(2023b)generatesnaturallanguagepromptsforblack-boxmodelsbysoftprompttuning
+open-source LLMs based on Bayesian Optimization (BO), outperforming APE’s zero-shot task
+accuracyon32tasks. Onthisbasis,Linetal.(2023)adoptaneuralbanditalgorithmthatreplaces
+theGaussianprocess(GP)inBOwithaneuralnetwork(NN)surrogatetooptimizeinstructionsfor
+black-boxmodels.
+Imitated-gradient prompting A similar work APO (ProTeGi) (Pryzant et al., 2023) introduces
+naturallanguagegradientsasanalternativetonumericalgradients. Themeta-promptsinstructthe
+LLM to perform the following functions: 1) generating the flaw of the target prompt in natural
+language(i.e.,gradient);2)editingthepromptintheoppositesemanticdirectionofthegradientto
+fixtheflawand3)paraphrasingcandidatepromptsunderconditionsofkeepingsemanticmeaning.
+Essentially,discretepromptoptimizationwithnonparametric“Gradient-Descent”isimplementedby
+substitutingdifferentiationwithLLMfeedbackandbackpropagationwithLLMediting.
+A.1.5 Evolution-basedmethods
+Chenetal.(2023a)combineshardpromptengineeringandsoftprompttuning,incorporatingideas
+fromevolutionarymeta-learningalgorithmsintotheoverallpromptoptimizationprocess. Itiswell
+knownthatevolutionaryalgorithmsrequireawell-designeddiscretesearchspace,andthegoalof
+this work is to enhance the flexibility and diversity of the search space through the LLM acting
+asacrossoveroperator. TheEvoPromptingmethodconsistsof5phasesthatiterativelygenerate
+high-qualitysolutions: initialingwithafewwell-designedseedprompts,crossingoverandmutating
+via2-shotin-contextlearning,filtering,andscoringgeneratedsamples,fitness-basedselectingtop
+candidatesandsoftprompttuningwithunselectedsamples.
+In fact, there are also some nice works using search algorithms for prompt design, unlike Evo-
+PromptingwhichmainlyappliesalgorithmicideastotheprocessdesignofpromptingLLMs,but
+insteadoptimizesthepromptsthemselves. Forexample,EvoPrompt(Guoetal.,2023)framework
+mainlyexploreshighlyregardedevolutionaryalgorithms(i.e.,GeneticAlgorithm(Holland,1992)
+andDifferentialEvolution(Storn&Price,1997)). LLMsareregardedasevolutionaryoperators,and
+carefullydesignedinstructionsguidethemtocompletetheevolutionaryprocess.
+Promptbreeder(Fernandoetal.,2023)furtherimprovesthediversityofpromptsandtaskaccuracy
+compared with a number of previous and concurrent related works, such as APE, OPRO, and
+EvoPrompt. ThemajorinnovationfromotherworksisthatPromptbreederevolvesthetask-prompt
+while also optimizing the mutation-prompt online, i.e., the previously mentioned meta-prompts.
+PromptbreederdesignedfivemutationoperatorsbasedonLLMs,whichgenerateandevolveprompts
+inaself-referentialway,enablingthepromptstoself-improvement.
+16UnderreviewasaconferencepaperatCOLM2024
+A.2 Alistofopen-sourceprojects
+Wecollatedlinkstoopen-sourceprojectsinvolvedinthispaper(refertoTable1below)forquick
+referenceinbothscientificresearchandcommercialdeployment.
+Method Link
+PromptInjection https://github.com/unbiarirang/
+Fixed-Input-Parameterization
+Gisting https://github.com/jayelm/gisting
+Textual-Inversion https://textual-inversion.github.io/
+AutoCompressor https://github.com/princeton-nlp/AutoCompressors
+ICAE https://github.com/getao/icae
+NUGGET https://github.com/hiaoxui/nugget
+SelectiveContext https://github.com/liyucheng09/Selective_Context
+LLMLingua https://huggingface.co/spaces/microsoft/LLMLingua
+LLMLingua-2 https://llmlingua.com/llmlingua2.html
+AutoPrompt https://ucinlp.github.io/autoprompt/
+RLPrompt https://github.com/mingkaid/rl-prompt
+GrIPS https://github.com/archiki/GrIPS
+APE https://github.com/keirp/automatic_prompt_engineer
+PEZ https://github.com/YuxinWenRick/
+hard-prompts-made-easy
+InstructZero https://github.com/Lichang-Chen/InstructZero
+INSTINCT https://github.com/xqlin98/INSTINCT
+APO https://github.com/microsoft/LMOps/tree/main/
+prompt_optimization
+OPRO https://github.com/google-deepmind/opro
+EvoPrompt https://github.com/beeevita/EvoPrompt
+Table1: Openresourcesofefficientmethods
+17UnderreviewasaconferencepaperatCOLM2024
+A.3 Atypologydiagramofefficientpromptingmethods
+Inordertoprovideamoreintuitiveviewofthetypologyofexistingefficientpromptingmethods,we
+listedonlyafewearlyeffortsineachcategory(refertoFigure5below).
+ContextDistillation(Askelletal.,2021)
+DistillingContext(Snelletal.,2022)
+Knowledge
+Distillation
+Gisting(Muetal.,2023)
+PromptKD(Kimetal.,2024)
+Textual-Inversion(Galetal.,2022)
+X-Prompt(Geetal.,2022)
+Efficient
+Encoding AutoCompressor(Chevalieretal.,2023)
+Computation
+ICAE(Geetal.,2023)
+NUGGET(Qin&Durme,2023)
+SelectiveContext(Lietal.,2023)
+LLMLingua(Jiangetal.,2023a)
+Filtering
+LongLLMLingua(Jiangetal.,2023b)
+Efficient LLMLingua-2(Panetal.,2024)
+Prompting
+Methods
+AutoPrompt(Shinetal.,2020)
+RLPrompt(Dengetal.,2022)
+Promptist(Haoetal.,2022)
+Gradient-based
+GrIPS(Prasadetal.,2023)
+APE(Zhouetal.,2022b)
+Efficient APO(ProTeGi)(Pryzantetal.,2023)
+Design
+OPRO(Yangetal.,2023)
+AEO(Hsiehetal.,2023)
+Evolution-based EvoPrompting(Chenetal.,2023a)
+EvoPrompt(Guoetal.,2023)
+Promptbreeder(Fernandoetal.,2023)
+Figure5: Typologyofefficientpromptingmethods
+18

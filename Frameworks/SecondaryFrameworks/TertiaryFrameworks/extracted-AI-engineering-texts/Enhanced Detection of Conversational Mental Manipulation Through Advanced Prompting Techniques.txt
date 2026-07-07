@@ -1,0 +1,190 @@
+Enhanced Detection of Conversational Mental Manipulation Through
+Advanced Prompting Techniques
+IvoryYang1 XiaoboGuo2 SeanXie3 SoroushVosoughi4
+1,2,3,4DepartmentofComputerScience,DartmouthCollege
+1Ivory.Yang.GR@dartmouth.edu
+4Soroush.Vosoughi@dartmouth.edu
+Abstract
+This study presents a comprehensive, long-
+term project to explore the effectiveness of
+variouspromptingtechniquesindetectingdi-
+alogicalmentalmanipulation. Weimplement
+Chain-of-ThoughtpromptingwithZero-Shot
+andFew-Shotsettingsonabinarymentalma-
+nipulationdetectiontask,buildinguponexist-
+ingworkconductedwithZero-ShotandFew-
+Shot prompting. Our primary objective is to
+decipherwhycertainpromptingtechniquesdis- Figure1: AnexampledialogueincorporatingChain-of-
+playsuperiorperformance,soastocraftanovel Thoughtreasoninginmentalmanipulationdetection
+frameworktailoredfordetectionofmentalma-
+nipulation. Preliminary findings suggest that
+advanced prompting techniques may not be leveragingZero-ShotandFew-Shotprompting,the
+suitableformorecomplexmodels,iftheyare authorssetafoundationalunderstandingofmodel
+nottrainedthroughexample-basedlearning. limitations in scenarios devoid of explicit toxic
+indicators. In recent years, there has been an ad-
+1 Introduction
+ventinsophisticatedpromptingtechniquestoim-
+prove LLM performance on complex NLP tasks.
+Mentalmanipulationisasubtleformofpsycholog-
+Chain-of-Thought prompting (Wei et al., 2022)
+icalinfluenceonpreferencesandchoice(Barnhill,
+uses example-based learning for models to gen-
+2014;BublitzandMerkel,2014),anditsimpacton
+erateintermediatereasoningstepsbeforearriving
+societyhasbeenexacerbatedbyadvancementsin
+ataconclusion. Asanextension,Zero-ShotChain-
+technology(Carrolletal.,2023). Thedetectionof
+of-Thought (Kojima et al., 2022) relies solely on
+suchmanipulativelanguageposesasignificanthur-
+craftedpromptsthatguidethemodeltoarticulate
+dlewithinthefieldofNaturalLanguageProcess-
+itsgradiationalreasoningprocess. Thispaperaims
+ing(NLP)(Huffakeretal.,2020),duetoitssubtle,
+toapplytheseadvancedpromptingtechniquesto
+context-dependentandinherentlynuancednature.
+theproblemofmentalmanipulationdetection.
+Toaddressthesechallenges,weinvestigatetheef-
+fectiveness of advanced prompting techniques at
+3 Experiment
+detectingmentalmanipulation. Theresultsofour
+xexperiments show that while Chain-of-Thought 3.1 Setup
+(CoT) prompting achieves exceptional accuracy
+WeconductedourexperimentsusingtheMental-
+across scenarios, special attention must be given
+ManipCon dataset (Wang et al., 2024), a rigor-
+tothelearningconfigurationinordertoensureits
+ouslyselectedcorpusofdialoguesonmentalma-
+highperformance.
+nipulation,withconsensusagreementamongstall
+three reviewers. We then conducted our experi-
+2 RelatedWork
+mentsacrosstwoLLMs: GPT-3.5andGPT-4o,to
+Wang et al. (2024) proposed MentalManip, a assess their performance in detecting mental ma-
+datasetcomprisingofover4000human-annotated nipulation. Bothmodelswereevaluatedusingthe
+dialogues focused on mental manipulation. By samesetoftasks,witheffectivenessmeasuredby
+4202
+guA
+41
+]LC.sc[
+1v67670.8042:viXraExperimentSetting GPT-3.5 GPT-4o
+P R Acc Fmi Fma P R Acc Fmi Fma
+1 1 1 1
+Zero-Shot .750 .827 .693 .693 .620 .741 .952 .739 .739 .617
+Few-Shot .789 .769 .702 .702 .659 .749 .980 .762 .762 .641
+CoT(Zero) .725 .951 .721 .721 .579 .729 .950 .724 .724 .586
+CoT(Few) .714 .909 .722 .722 .673 .769 .909 .778 .778 .750
+Table1: ResultsofmanipulationdetectiontaskonMentalManipCondataset. P,R,Acc,Fmi,andFmastandsfor
+1 1
+binaryprecision,binaryrecall,accuracy,microF ,andmacroF respectively. “CoT(Zero)”: “Chain-of-Thought
+1 1
+withZero-Shotlearningsettings”,“CoT(Few)”: “Chain-of-ThoughtwithFew-Shotlearningsettings”
+Precision, Recall, Accuracy and F1-Score across settings,weobservethatalthoughCoTshowsbet-
+promptingstrategies. Duetobinaryclassification, terperformanceingeneral, onthetaskofmental
+AccuracyandMicroF1reflectthesamescores. manipulation,itshouldbecombinedwithsamples
+forlearning. ConsideringthereducedPrecisionon
+3.2 PromptingTechniques bothGPT-3.5andGPT-4owithZero-ShotCoT,we
+assumethatbothmodelsmaywronglyunderstand
+In our study, we assess the effectiveness of four
+thedefinitionofmentalmanipulation,whichisfur-
+differentpromptingstrategiesinidentifyingmen-
+therenhancedduringCoT.Therefore,weconduct
+tal manipulation: Zero-Shot, Few-Shot and CoT
+apilotcheckonthegeneratedreasons.
+withZero-ShotandFew-Shotsettings. TheZero-
+Shotapproachwasimplementedwithoutproviding Frommanuallycheckingresults,GPT-4oplaces
+anypriorexamplestothemodel. Incontrast, the overemphasisonverbalcuesandmisinterpretsfrag-
+Few-Shotapproachutilizedasetofthreeexamples mentedorinformalspeech. Themodelattributes
+(two manipulative, one non-manipulative) which manipulation to communication style rather than
+were randomly chosen to guide the model. The actual manipulative intent. GPT-4o also ap-
+CoT strategy with Zero-Shot settings involved a pearstobebiasedtowardsconflict,detectingma-
+modifiedpromptthatencouragedthemodeltopro- nipulation even in benign situations, and inter-
+cessitsthoughtsstep-by-step,integratingareason- preting neutral or vague responses as signs of
+ing component into its responses. For CoT with manipulation. For mental manipulation detec-
+Few-Shotsettings,weenlistedtwocollegestudents, tion, CoT withoutexample-basedlearning may
+bothnativeEnglishspeakers,tomanuallyannotate performworse in relation to simpler techniques
+detailed,step-by-stepreasoningforarandomlyse- asmodelcomplexityincreases.
+lectedsetof42examples. Thisannotateddataset
+was then employed to train our model for CoT
+5 FutureWork
+prompting.
+4 Results WeaimtoextendouranalysisofCoTperformance
+concerningmodelcomplexity,andthedefinitionof
+FromtheresultsinTable1,itisevidentthatFew- mentalmanipulationprovidedtothemodel. More-
+ShotCoTproducesthebestperformanceinterms over,wewillexploreotherpromptingtechniques
+of Accuracy, at 0.722 for GPT-3.5 and 0.778 for such as Iterative prompting (Wang et al., 2022a),
+GPT-4o,whichalignswithourexpectations. How- Self-Consistency(Wangetal.,2022b),andTree-of-
+ever,itisnotablethatwhenupgradingfromGPT- Thoughtsprompting(Long,2023;Yaoetal.,2024).
+3.5toGPT-4o,Zero-ShotCoTdropsfromsecond We also seek to take into account serial position
+bestperformingtotheworstperformingtechnique, effects(GuoandVosoughi,2024)toanalyzehow
+evenworsethanregularZero-Shot. Italsoproduces placement of information within prompts affects
+asignificantnumberoffalsepositives,asreflected detectionaccuracy. Giventhatthisisalong-term
+byitsMacroF1scores,whicharethelowestacross projectonmentalmanipulationdetection,wemay
+alltechniquesforbothGPT-3.5andGPT-4o. potentially expand our scope to consider the im-
+TheexceptionalperformanceofFew-ShotCoT pact of gender (Grieve et al., 2019), stereotypes
+canbeattributedtoitsstructuredreasoningprocess, (Ma et al., 2023) and biases (Xie et al., 2024) in
+closelymirroringhumancognitivestrategies. How- ourresults.
+ever,bycomparingtheperformanceofZero-ShotReferences JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+Bosma,FeiXia,EdChi,QuocVLe,DennyZhou,
+AnneBarnhill.2014. Whatismanipulation? InMa-
+etal.2022. Chain-of-thoughtpromptingelicitsrea-
+nipulation: TheoryandPractice.OxfordUniversity
+soninginlargelanguagemodels. Advancesinneural
+Press.
+informationprocessingsystems,35:24824–24837.
+Jan Christoph Bublitz and Reinhard Merkel. 2014.
+Sean Xie, Saeed Hassanpour, and Soroush Vosoughi.
+Crimes against minds: On mental manipulations,
+2024. Addressing healthcare-related racial and
+harmsandahumanrighttomentalself-determination.
+lgbtq+biasesinpretrainedlanguagemodels. InFind-
+CriminalLawandPhilosophy,8:51–77.
+ingsoftheAssociationforComputationalLinguistics:
+MicahCarroll,AlanChan, HenryAshton, andDavid NAACL2024,pages4451–4464.
+Krueger.2023. Characterizingmanipulationfromai
+systems. InProceedingsofthe3rdACMConference Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+on Equity and Access in Algorithms, Mechanisms, TomGriffiths,YuanCao,andKarthikNarasimhan.
+andOptimization,pages1–13. 2024. Treeofthoughts: Deliberateproblemsolving
+with large language models. Advances in Neural
+Rachel Grieve, Evita March, and George Van Doorn. InformationProcessingSystems,36.
+2019. Masculinitymightbemoretoxicthanwethink:
+Theinfluenceofgenderrolesontraitemotionalma-
+nipulation. PersonalityandIndividualDifferences,
+138:157–162.
+XiaoboGuoandSoroushVosoughi.2024. Serialposi-
+tioneffectsoflargelanguagemodels. arXivpreprint
+arXiv:2406.15981.
+JordanSHuffaker,JonathanKKummerfeld,WalterS
+Lasecki, and Mark S Ackerman. 2020. Crowd-
+sourceddetectionofemotionallymanipulativelan-
+guage. InProceedingsofthe2020CHIconference
+onhumanfactorsincomputingsystems,pages1–14.
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu-
+takaMatsuo,andYusukeIwasawa.2022. Largelan-
+guagemodelsarezero-shotreasoners. Advancesin
+neural information processing systems, 35:22199–
+22213.
+JieyiLong.2023. Largelanguagemodelguidedtree-of-
+thought. arXivpreprintarXiv:2305.08291.
+WeichengMa,HenryScheible,BrianWang,Goutham
+Veeramachaneni,PratimChowdhary,AlanSun,An-
+drew Koulogeorge, Lili Wang, Diyi Yang, and
+SoroushVosoughi.2023. Decipheringstereotypesin
+pre-trainedlanguagemodels. InProceedingsofthe
+2023ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing,pages11328–11345.
+BoshiWang,XiangDeng,andHuanSun.2022a. Itera-
+tivelypromptpre-trainedlanguagemodelsforchain
+ofthought. arXivpreprintarXiv:2203.08383.
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc
+Le,EdChi,SharanNarang,AakankshaChowdhery,
+andDennyZhou.2022b. Self-consistencyimproves
+chainofthoughtreasoninginlanguagemodels. arXiv
+preprintarXiv:2203.11171.
+Yuxin Wang, Ivory Yang, Saeed Hassanpour, and
+SoroushVosoughi.2024. MentalManip: Adataset
+forfine-grainedanalysisofmentalmanipulationin
+conversations. In Proceedings of the 62nd Annual
+Meeting of the Association for Computational Lin-
+guistics(Volume1: LongPapers),pages3747–3764,
+Bangkok,Thailand.AssociationforComputational
+Linguistics.

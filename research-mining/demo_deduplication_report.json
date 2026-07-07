@@ -1,0 +1,95 @@
+{
+  "deduplication_summary": {
+    "original_concept_count": 5,
+    "duplicates_found": 4,
+    "merge_candidates": 4,
+    "processing_time_seconds": 0.044624,
+    "method_used": "faiss_semantic",
+    "similarity_threshold": 0.85,
+    "merge_threshold": 0.92
+  },
+  "detailed_matches": [
+    {
+      "concept1": {
+        "id": "concept-1",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "concept2": {
+        "id": "concept-5",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "similarity_score": 1.0,
+      "similarity_type": "exact",
+      "match_reason": "Exact text match",
+      "should_merge": true,
+      "merge_confidence": 1.0
+    },
+    {
+      "concept1": {
+        "id": "concept-1",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "concept2": {
+        "id": "concept-1",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "similarity_score": 1.0,
+      "similarity_type": "semantic",
+      "match_reason": "Semantic similarity: 1.000",
+      "should_merge": true,
+      "merge_confidence": 1.0
+    },
+    {
+      "concept1": {
+        "id": "concept-1",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "concept2": {
+        "id": "concept-2",
+        "label": "ML",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "similarity_score": 0.9284515380859375,
+      "similarity_type": "semantic",
+      "match_reason": "Semantic similarity: 0.928",
+      "should_merge": true,
+      "merge_confidence": 0.9284515380859375
+    },
+    {
+      "concept1": {
+        "id": "concept-2",
+        "label": "ML",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "concept2": {
+        "id": "concept-5",
+        "label": "Machine Learning",
+        "definition_snippet": "A subset of artificial intelligence that enables computers to learn from data without explicit progr..."
+      },
+      "similarity_score": 0.9284515380859375,
+      "similarity_type": "semantic",
+      "match_reason": "Semantic similarity: 0.928",
+      "should_merge": true,
+      "merge_confidence": 0.9284515380859375
+    }
+  ],
+  "statistics": {
+    "exact_matches": 1,
+    "near_duplicates": 0,
+    "semantic_matches": 3,
+    "high_confidence_merges": 2,
+    "medium_confidence_merges": 2
+  },
+  "technology_status": {
+    "faiss_available": true,
+    "transformers_available": true,
+    "semantic_deduplication_enabled": true,
+    "embedding_model": "all-MiniLM-L6-v2"
+  },
+  "export_timestamp": "2025-09-15T09:58:26.197521"
+}

@@ -1,0 +1,528 @@
+Human-Free Automated Prompting for Vision-Language Anomaly Detection:
+Prompt Optimization with Meta-guiding Prompt Scheme
+Pi-WeiChen JerryLin Feng-HaoYeh
+NationalChengKungUniversity BakuAIAS NationalChengKungUniversity
+nf6111015@gs.ncku.edu.tw jerry@bakuai.no yeh.feng.hao.110@gmail.com
+JiaJi Zih-ChingChen Chao-ChunChen
+NationalChengKungUniversity NVIDIA NationalChengKungUniversity
+jijia20001118@gmail.com virginiac@nvidia.com chencc@imis.ncku.edu.tw
+Abstract
+Pre-trainedvision-languagemodels(VLMs)arehighly
+adaptable to various downstream tasks through few-shot
+learning,makingprompt-basedanomalydetectionapromis-
+ingapproach.Traditionalmethodsdependonhuman-crafted
+promptsthatrequirepriorknowledgeofspecificanomaly
+types. Our goal is to develop a human-free prompt-based
+anomalydetectionframeworkthatoptimallylearnsprompts
+through data-driven manner, eliminating the need for hu-
+manintervention.Theprimarychallengeinthisapproach
+isthelackofanomaloussamplesduringthetrainingphase. Figure1.Theupperpartshowspreviousmethodsrequiringhuman-
+To tackle this challenge, we develop the Object-Attention designedprompts.Thelowerpartillustratesourautomated,data-
+drivenapproachusinglearnablepromptswithoutpriorknowledge.
+AnomalyGenerationModule(OAGM)tosynthesizeanomaly
+samplesfortraining.Furthermore,topreventlearnedprompt
+fromoverfitonsynthesizedanomalyfeature,weproposed
+Meta-Guiding Prompt-Tuning Scheme (MPTS) that itera- suchasCLIP,tofacilitatefew-shotanomalydetection.
+tivelyadjuststhegradient-basedoptimizationdirectionof Vision-language models are renowned for their adapt-
+learnable prompts to avoid overfitting to the synthesized ability to various downstream tasks such as classification
+anomalies.Thisframeworkallowsfortheoptimalprompt andsegmentation.Theremarkabletransferabilityofvision-
+embeddingsbysearchinginthecontinuouslatentspacevia languagemodelsacrossdifferentcomputervisiontaskscan
+backpropagation,freefromhumansemanticconstraints.Ad- beattributedtotheirlarge-scalepre-trainingontext-image
+ditionally, the modified locality-aware attention improves pairs[3].Thistrainingenablesthemodeltocapturerelevant
+theprecisionofpixel-wiseanomalysegmentation. semanticfeaturesbasedontheprovidedprompts,thereby
+allowingthemodeltoleveragethetextualmodalitytosolve
+visual tasks such as anomaly detection. [8] pioneered the
+1.Introduction applicationofVLMsforzero-shotorfew-shotanomalyde-
+tection. This approach leverages lexical terms related to
+Inthefieldofanomalydetection,acquiringannotationsfor ’anomaly’ and ’normal’ to identify anomalous visual fea-
+anomaloussamplesisoftenchallenging.Consequently,prior turesinthetestsamples,providingafoundationforsubse-
+research has focused on unsupervised learning, which in- quentstudiestofurtheradvancefew-shotanomalydetection
+volves training models on large volumes of anomaly-free methodologies.Promptengineeringisacrucialtechnique
+datatoidentifydeviationsfromnormalfeaturesasanomalies. thatpreservestherobustnessandgeneralizationcapabilities
+Recently, some approaches have addressed more extreme ofCLIPwhileefficientlyadaptingittomeetthedemands
+scenarios where only a few normal samples are available. of specific applications. The primary objective of prompt
+Thesemethodsleveragevision-languagepretrainedmodels, tuningistoobtainanoptimaltextualembeddingthataligns
+1
+4202
+peS
+11
+]VC.sc[
+4v79181.6042:viXrawiththetargetvisualimageembedding,ensuringthatthe imageregionsisnotoptimized,leadingtounpredictablere-
+modelaccuratelycapturesthenuancesofthetaskathand. sultswherethetargetpromptmaynotalignwiththetarget
+Previouswork[8]proposedapromptensembletechnique objectpixels[10,12].
+thatcomposesdifferentprompttemplates(e.g.,”aphotoofa In this paper, we propose a human-free automated
+[c] for visual inspection”) and normal-abnormal-relevant prompting anomaly detection framework, namely ”Meta-
+prompts (e.g., ”flawless” for normality, ”damaged” for prompting Semantic Learning for Anomaly Detection
+anomaly)toobtaintextembeddingsalignedwithanomaly with Locality-aware Attention Image Encoder”. The
+detectionsemantics.Recentstudies[9,16]haveleveraged proposed framework follows the intuition of data-driven
+prefixprompttuning(contextoptimization[15])toreplace methods that leverage back-propagation to actively find
+staticprompttemplateswithlearnableprompts,bettercater- the prompt that can generate the optimal textual embed-
+ing to anomaly detection tasks. Although prior work has dingsuitedforanomalydetection,insteadofpassivelycom-
+demonstratedtheefficacyofprefixprompting,itstillneces- bining all possible human semantic prompts to meet the
+sitatesacustomized,manually-designedsuffixtodescribe requirements of prompt-based anomaly detection. To ad-
+theanomalytypeforeachclassitem.Thisprocessheavily dress the limitation of the absence of anomaly samples
+reliesondetailedandspecificpriorknowledgeofthedataset forcontextoptimization,wedeveloptheObject-Attention
+andthetypesofanomaliesthatmayappearineachproduct AnomalyGenerationModuletosynthesizeanomalysam-
+category,asshownintheupperpartofFig1.Thisremainsa plesfortraining.Meanwhile,theproposedMeta-guiding
+non-trivialtaskrequiringiterativeadjustments,ratherthan Prompt-tuningScheme(MPTS)isdevelopedtopreventthe
+automaticallyfindingtheoptimaltextualembedding. learnablepromptfromoverfittingonsynthesizedanomalies
+Wearemotivatedby[15],whichprovidesinsightsthat throughiterativegradient-basedcalibration.
+theoptimalpromptsderivedthroughprompttuningdonot InMeta-PromptTuningScheme(MPTS),weintroduce
+necessarilyalignwithhumansemanticsorintuition.Previ- adynamicmeta-promptthatservesasananchortobalance
+ous work has often focused on combining various human specificityandgeneralityinanomalydetectionviagradient-
+semanticterms,suchas’anomaly’and’defect,’togenerate basedcalibration.Thismeta-promptensuresthatlearnable
+betterembeddings.However,weproposeanovelperspec- promptsremainalignedwithmeaningful,generalizablecon-
+tive: instead of adhering to human-centric semantics, we ceptswhileleveragingusefulinformationfromsynthesized
+shouldemploydata-drivenoptimizationmethods,suchas anomalieswithoutdeviatingfromthecoregoalofanomaly
+gradient-basedlearning,toderivethemosteffectivetextual detection.Initially,ageneralprompttemplateprovidedbya
+embeddings.Byutilizingtheseadvanceddeeplearningtech- largelanguagemodel(LLM)isembeddedwithreal-world
+niques,wecancreatemorerobustandpreciseembeddings anomalysemantics,servingastheinitialmeta-prompt.This
+thatbetter capturethe nuancesneeded foranomalydetec- helpsensurethatthelearnablepromptsdonotdeviatesignif-
+tionandadapttovariousdatasetswithouttheneedforprior icantlyfromtrueanomaliesduringfine-tuning.Throughout
+knowledgeasshowinlowerpartinFig1. eachtraininground,theoptimizedlearnablepromptfrom
+However, to optimize the Learnable Normal Prompt thepreviousroundservesasthenewmeta-guidingprompt,
+(LNP)andLearnableAnomalyPrompt(LAP),samplesfrom iterativelyrefiningtheprocess.Meta-guidingpromptsensure
+bothnormalandanomalousdataarerequired.Inthecase thatthelearnablepromptsresemblerealanomalies,enhanc-
+offew-shotanomalysetting,onlynormalsamplesareavail- ingdetectioneffectiveness.Additionally,introducingGaus-
+ableduringtraining.Toenabletheacquirementofoptimal siannoisediversifiesthepatterns,improvinggeneralization
+textualembeddingforanomalydetection,weneedtoself- acrossvariousanomalytypes.Thiscombinationallowsthe
+generateanomalysampletoobtaintheoptimalpromptfor learnablepromptstogeneralizewelltodifferentanomalies
+bettertextualembedding.Oneintuitivemethodtosynthesize whilemaintainingalignmentwithreal-worldcharacteristics.
+anomaloussamplesisbyaddingGaussiannoisetotheimage To further improve the quality of synthesized anoma-
+pixelstomimicanomalies.However,Gaussiannoisealone loussamples,weintroducethe”Object-AttentionAnomaly
+might not guarantee performance in real-world scenarios GenerationModule”.Thismoduleleveragesthegeneral
+because such synthetic anomalies often lack the complex knowledgeofCLIPtoidentifythetargetobjectintheimage
+andcontext-specificcharacteristicsoftrueanomalies. andappliesnoisespecificallytothatobject.Bydoingso,the
+Additionally,Vision-LanguageModels(VLMs)arenot synthesizedanomaliesbetterreflectpracticalscenarios,as
+designed for pixel-wise tasks like segmentation, making real-worldanomaliesusuallyoccurontargetobjectsrather
+themunsuitableforpixel-levelanomalydetection.During thaninthebackground,whichistypicallynotthefocusof
+VLM pre-training, only global features (e.g., class tokens anomalydetection.
+in Vision Transformers) are considered, neglecting local- Additionally, we introduce Locality-aware Attention,
+izedfeaturesthatcapturefine-grainedimagedetails.Conse- which can be adopted by any transformer-based model to
+quently,therelationshipbetweentextpromptsandspecific mitigatethemisalignmentofinputtokenfeaturesandcorre-
+2Figure2.TheoverallarchitectureofMeta-promptingSemanticLearningforAnomalyDetectionwithLocalityFeatureAttentionImage
+Encoder
+spondingoutputtokenfeatures.Thismechanismrestrictsat- between text embeddings and visual features. These mul-
+tentiontolocalneighborhoods,preservingessentiallocalde- timodalmodelsaretrainedonextensivedatasetsofpaired
+tailsandenhancingthealignmentbetweentheinputfeatures imagesandtext,utilizingtechniqueslikecontrastivelearning
+andtheoutputtokens.Byfocusingonneighboringregions, [3]andmaskedlanguagemodelingtomapvisualandtextual
+thelocality-awareattentionensuresthatthefeatureextrac- data into a shared semantic space. A notable open-source
+tionprocessmaintainsthespatialintegrityoftheimage.This VLMisOPENCLIP[7],whichexcelsingeneralization,en-
+addressesthelimitationsofthevanillaattentionmechanism, abling rapid adaptation to various downstream tasks such
+wheredistanttokenstendtodilutecruciallocalinformation, as image classification and object detection without task-
+resultinginthemisalignmentoflocalityfeaturesbetween specifictraining.Furthermore,[15]proposedcontextopti-
+inputandoutput.Thecontributionsarelistedasfollows:(1) mization,whichcantunelearnablepromptswithfew-shot
+Weproposeanovelparadigmforaprompt-basedanomaly samples,achievingoptimalperformancesurpassinghuman-
+detectionframework,namelyMeta-promptingSemantic designedpromptswith.
+LearningforAnomalyDetectionwithLocalityFeature
+AttentionImageEncoder,whichoptimizesthepre-trained 2.2.Anomalydetection
+VLMforanomalydetectiontasksinahuman-freeprompting
+Traditional paradigms of anomaly detection [2, 6, 11, 13]
+manner;(2)WeintroducetheMeta-guidingPrompt-tuning
+typicallyutilizeonlynormalsamplesfortraininganomaly
+SchemealongwiththeObject-AttentionAnomalyGenera-
+detection models. This approach, known as unsupervised
+tionModuletoenabletheoptimizationoflearnableprompts
+anomalydetection,doesnotrequireanyanomalysamples
+intheabsenceofanomalysamples.Theoptimizedlearnable
+duringtraining.Inrecentyears,theresearchfocushasshifted
+prompts with the Meta-guiding Prompt-tuning Scheme
+fromunsupervisedanomalydetectiontothemorechalleng-
+even exceed manually designed prompts by a significant
+ingfew-shotscenario,whereonlyalimitednumberofnor-
+margin;(3)WeproposetheLocality-AwareTransformer,
+malsamplesareavailableduringthetrainingphase.Patch-
+whichaimstoextractafeaturemapwherealllocalityfea-
+Core[4]employsamemory-efficienttechniquetocapture
+turesalignwiththeiroriginalimagepositions,ensuringpixel-
+normalpatternsinfew-shotdataforanomalyinference.Re-
+wiseanomalysegmentationintheCLIP-basedframework.
+gAD[14]introducesaregion-basedmethodthatmaximizes
+the information extracted from each example, effectively
+2.RelatedWork
+learninginformativefeaturesforanomalyinferenceusing
+onlyafewnormalsamples.
+2.1.Vision-languagemodel
+Recentstudies[8,9]havefurtheraddressedtheanomaly
+Vision-languagemodels(VLMs)areadvancedAIsystems detectionchallengewithmultimodalsolutions,leveraging
+thatintegratecomputervision(CV)andnaturallanguagepro- the general knowledge embedded in pre-trained vision-
+cessing(NLP)tounderstandthecommonalityofsemantics languagemodels(VLMs)toperformzero-shotandfew-shot
+3anomaly detection with the guidance of textual modality.
+However, these approaches still rely on human-designed
+prompts,withtheirperformancedependentontheprompt
+engineer’spriorknowledgeofthespecificapplicationsce-
+nario. This dependency highlights the need for more ad-
+vanced,data-drivenmethodstooptimizepromptselection
+andenhanceanomalydetectionperformance.
+3.ProposedFramework
+3.1.ProblemDefinition:
+In this paper, we address the few-shot anomaly detection Figure3.TheillustrationofMeta-guidingPrompt-tuningScheme
+task,whereonlyafewnormalsamplesareavailableduring
+thetrainingstage.WesupposeD ={(x ,y =0)}k is
+train i i i=1
+sets a new paradigm for prompt-based anomaly detection
+thek-shotsamplegiveninthetrainingstage(y ∈ {0,1}).
+i
+Each x ∈ RH×W is a normal sample when y = 0, and withnohumansemanticlexiconinvolvedininference.Toad-
+i i
+dresstheabsenceofanomaloussamplesfortuningprompts,
+abnormalwheny =1.
+i
+theproposedObject-AttentionAnomalyGenerationModule
+Inourproposedhuman-freeprompt-basedanomalydetec-
+(OAGM)(Sec3.4)producessynthesizedanomaloussamples
+tionframework,wesubstitutetraditionalhumanprompts(”a
+for tuning while remaining practical by only applying to
+photoofa{}withoutdefect”asthenormalitypromptand
+itemsinsteadofthebackground.Additionally,toenhance
+”aphotoofadefective{}”astheabnormalityprompt)with
+the locality feature extraction, the visual encoder adopts
+learnableprompts.Thelearnablenormalityprompt(LNP)
+a novel proposed Locality-Aware Transformer (Sec 3.5),
+andthelearnableabnormalityprompt(LAP)arecomposed
+whichenhanceslocalityfeatureextractionwithneighbor-cls-
+ofalearnablegeneralprefix(LGP)=[G ,...,G ]anda
+1 ng
+onlyattention.ThepromptsLGandnormal/abnormalsuffix
+learnablenormalorabnormalsuffix(LNS=[N ,...,N ]
+1 nr
+(LNS/LAS)aredesignedasfullylearnableparameters.
+orLAS=[A ,...,A ],respectively:
+1 na
+3.3.Meta-guidingPrompt-tuningScheme
+(cid:40)
+LNP=[G ,...,G ][cls][N ,...,N ]
+1 ng 1 nr (1) The Meta-guiding Prompt-tuning Scheme is illustrated in
+LAP=[G ,...,G ][cls][A ,...,A ]
+1 ng 1 na Fig3,whichanself-optimizedmeta-promptwilliterativly
+updateitselfandguidingthelearningdirectionoflearnable
+TheLNPandLAPareleveragedtocalculatetheanomaly
+promptwithgradientcorrection.
+score map S ∈ RH×W×1 on the feature map F ∈
+RH′×W′×C extractedfromthetestingsample. TotuneLAPandLNPtoalignwiththeanomalydetec-
+tiontask,theOAGM(Sec3.4)willsynthesizeanomalous
+Intheinferencestage,wehaveD ={(x ,y ,M )}N .
+test i i i i=1 samples (x′ ,y =1,M′a)i=1k, where M′ ∈ 0,1H×W
+The mask M ∈ {0,1}H×W is the ground truth map for i i a
+is the abnormality binary mask indicating whether each
+anomalypixels,whereeachpixelm ∈M indicateswhether
+j pixelm ∈M′ iscontaminatedwithsynthesizedanomaly
+thecorrespondingpixelx ∈ xisanomalous(m = 1)or j a
+j j (m = 1)ornot(m = 0).AnormalitybinarymaskM′
+normal(m =0). j j n
+j canbeobtainedby:
+OurobjectiveistoleverageD totuneLAPandLNP
+train
+suchthattheycanyieldananomalyscoremapS thataligns
+M′ =1−M′ (3)
+withthegroundtruthanomalymapM.Thiscanberepre- n a
+sentedas:
+The LNP with the extracted feature map of x′ is dot-
+i
+multiplied to calculate the normality score map S , indi-
+argmaxSim(S,M) (2) n
+catingwhethereachpixelinx′ alignswithnormality.Sim-
+i
+where Sim() is a similarity metric that calculates the ilarly,LAPisusedtoobtainanabnormalityscoremapS .
+a
+alignmentdegreebetweenS andM. ToaggregatetheinformationfrombothLNPandLAPand
+produceaprobability-likeoutput(boundedfrom0to1),we
+3.2.Overview
+concatenateS andS andapplySoftmaxalongeachele-
+n a
+The overall framework of the proposed Meta-prompting ment,finallyobtainingnormalizedscoremapsS′ andS′.
+n a
+SemanticLearningforAnomalyDetectionwithLocality ThetrainingobjectiveistotuneLNPsuchthatitsembedding
+FeatureAttentionImageEncoderisillustratedinFig2. perfectlyalignswiththenormalityembeddinginx′.This
+TheproposedMeta-guidingPrompt-tuningScheme(Sec3.3) involves aligning S′ with the normality binary mask M′
+n n
+4usingBCEloss: TheLAPandLNPareoptimizedwiththegradientGLAP/LNP
+ano
+(cid:88) (cid:104) afterbeingcalibratedwithEq10:
+LLNP =− M′(j)logS′(j)
+ano n n
+(cid:40)
+j|mj=1 G ano−λ·Cos(G ano,G div), ifCos(G ano,G div)<0
+(cid:105)
++(1−M n′(j))log(1−S n′(j)) (4) G ano, otherwise
+(10)
+ForLAP,theobjectiveistoalignLAPwiththeabnormality Themeta-guidingschemeensuresthattheoptimizationdi-
+embeddinginx′: rection will explore the optimal prompt that aligns better
+(cid:88) (cid:104) withtheanomalydetectiontaskwhilepreventingoverfitting
+LLAP =− M′(j)logS′(j)
+ano a a onsynthesizedanomalies.
+j|mj=1 Basedontheintuitionthatwehaveobtainedamoreop-
++(1−M′(j))log(1−S′(j))(cid:105)
+(5)
+timalLAPt+1/LNPt+1 throughgradientdescentinsteadof
+a a
+relyingonhumansemantics,wesubstitutetheMAP/MNP
+Meta-guiding:Synthesizedanomalysamples,whileuse- withLAPt+1/LNPt+1asthenewMetapromptforthenext
+fulfortraining,maycontainartifactsorspecificcharacteris- meta-epoch training. We iteratively refine the MAP/MNP
+ticsthatarenotrepresentativeofreal-worldanomalies.To andLAP/LNPuntilthelossconverges.Thisiterativesubsti-
+addressthislimitation,weproposeameta-guidingschemeto tutionstrategybalancestheneedfortask-specificadaptation
+regularizethetuningprocesswithgeneral,domain-agnostic andgeneralization.Bycontinuallyreferringbacktothemeta-
+knowledgeembeddedinpre-trainedVLMs. guidingprompts,themodelmaintainsaconnectiontothe
+Initially, we provide general manual prompts as Meta initialgeneralknowledgewhilefine-tuningthepromptsto
+Normality Prompt (MNP) and Meta Abnormality Prompt betterdetectanomalies.
+(MAP)(seeappendix),whichactasanchorstopreventLAP
+3.4.Object-attentionAnomalyGenerationModule
+andLNPfromoverfittingonartifactanomaliesandmain-
+taingeneralizationwithabroaderconceptofanomaly.By TotuneLAPandLNPtoalignwiththeanomalydetection
+calibratingtheLNPandLAPgradientsfromEq4andEq5, task,weproposetheObject-AttentionAnomalyGeneration
+respectively,withthedivergencelossbetweenMAP/MNP Module (OAGM). Traditional methods that add Gaussian
+andLAP/LNP,wecanensurethatLAPandLNPareopti- noiserandomlyacrosstheentireimagearesuboptimalbe-
+mizedtowardatask-specificpromptthathumansemantics causetheyaffectirrelevantbackgroundregions,dilutingthe
+cannotachievewhilemaintaininggeneralization. model’s ability to focus on the target object. The OAGM
+Thisdivergencelossisdesignedtoestimatetheoutput addresses this limitation by selectively adding noise only
+scoremapsfromLAP/LNP(S a′ andS n′,respectively)and tothetargetobjectareas,enhancingthemodel’sabilityto
+MAP/MNP(denotedasS aM andS nM,respectively).Since detectanomalies.
+thevaluesoftheoutputscoremapsarealreadytransformed First, we utilize a pre-trained Vision-Language Model
+toprobabilityform,weuseKLdivergenceasthedistance (VLM)toproducethebinarymaskM forthetargetobject:
+obj
+metrictoestimatethedivergence.Thedivergencelosscan
+(cid:40)
+bewrittenas: 1 ifpixel(i,j)belongstothetargetobject
+M (i,j)=
+H×W obj 0 otherwise
+(cid:88)
+LA = KL(SM(i)∥S′(i)) (6)
+div a a
+i=1 Next,GaussiannoiseN(0,σ2)isselectivelyaddedtothe
+H×W pixelsidentifiedbyM obj:
+(cid:88)
+LM = KL(SM(i)∥S′(i)) (7)
+div n n (cid:40)
+i=1
+x′(i,j)=
+x(i,j)+N(0,σ2) ifM obj(i,j)=1
+Tostrikeabalancebetweentask-specificobjectivesand x(i,j) ifM (i,j)=0
+obj
+generalization,themeta-guidingschemewillonlycalibrate
+the gradient when the gradient GLAP/LNP from fine-tuning 3.5.Locality-awareattention
+ano
+theanomalyloss:
+ThevanillaViTisnotsuitableforpixel-leveltasksdueto
+∂LLAP/LNP thefeaturemisalignmentissue.Weobtaininsightfrom[5]
+GLAP/LNP = ano (8)
+ano ∂θ thatthefeaturemisalignmentissueresultsfromthenatureof
+LAP/LNP
+theoriginalattentionmechanism,whereeachpatch(token)
+contradictsthegradientfromdivergencelossGLAP/LNP.
+div featureattendstodistantpatchfeatures.Thisleadstolocal
+∂LA/M features being fused with irrelevant background features,
+GLAP/LNP = div (9)
+div ∂θ causingmisalignmentbetweeninputandoutputfeatures.
+LAP/LNP
+5Table1.ComparisontoHumansemanticprompt
+Class carpet grid leather tile wood bottle cable capsule hazelnut metalnut pill screw toothbrush transistor zipper mean
+Human-semanticprompt 93.98 35.86 90.89 43.21 57.74 82.86 42.54 72.05 84.09 55.98 51.57 70.77 75.43 62.23 50.90 64.67
+Ours 99.40 98.45 99.38 96.12 96.18 89.91 87.75 94.51 97.70 75.08 95.92 95.48 97.23 72.23 90.63 92.40
+Basedonthisobservation,wesubstitutethevanillaatten- taskisnotnecessaryalignwithhumansemantic.Thehuman-
+tionwiththeproposedLocality-AwareAttention(LAA)that semanticprompttemplateandsuffixisfollowedbytheliter-
+restrictseachtokentoattendonlytoitsneighboringtoken ature[].WehavefurtherconductablationstudyinSec.4.2
+featuresduringfeatureextraction.Toavoidmodelcollapse toverifythatthemeta-promptguidingschemeiscrucialfor
+causedbydirectlymodifyingtheself-attentionmechanism, learningtheoptimalpromptembedding.
+which would lead to changes in subsequent layers and be
+4.2.AblationStudy
+amplifiedthroughthelayers,weadoptthedual-pathdesign
+from[]tomaintainstableinputfeaturesbypreservingthe AblationonMeta-promptguidingscheme
+originalpathalongsidethenewpath.
+Table2.TheablationstudyofguidinglevelλforMeta-guiding
+TheLAAappliesak-neighborexclusivemaskM ∈
+LAA
+RH′×W′ tomasktheattentionmap(thedotproductofQ Prompt-tuningScheme
+andK)intheattentionmechanism:
+AblationstudyonMPTS
+(cid:18) QKT +M (cid:19) Class λ=0 λ=0.5 λ=1
+Attention (Q,K,V)=softmax √ LAA V carpet 76.27 99.32 99.40
+LAA
+d
+k grid 60.51 97.97 98.45
+(11)
+leather 76.84 99.15 99.38
+whereM isconstructedwiththefollowingformulato
+LAA tile 80.87 94.86 96.12
+enableeachtokentoattendonlytoitsk-neighbors:
+wood 50.06 95.42 96.18
+(cid:40) (cid:112) bottle 49.01 84.26 89.91
+0 if (i−m)2+(j−n)2 ≤k
+M = cable 48.90 81.80 87.75
+(i,j),(m,n)
+−∞ otherwise
+capsule 87.55 91.84 94.51
+(12) hazelnut 77.84 87.74 97.70
+Each patch can be indexed in the 2D grid as (i,j) where metal nut 52.74 76.77 75.08
+0 ≤ i < H′ and 0 ≤ j < W′. (i,j) and (m,n) are the pill 67.36 87.33 95.92
+coordinatesofthepatchesintheoriginalfeaturemapbefore screw 78.54 95.27 95.48
+patchification,andkisthepredefinedneighbordistance. toothbrush 52.90 92.59 97.23
+transistor 60.55 65.23 72.23
+4.Experiments zipper 88.22 93.90 90.63
+mean 67.21 89.56 92.40
+We conduct experiment to validate that Meta-guiding
+Prompt-tuning Scheme with Object-attention Generation
+TheablationstudyresultsinTable2highlighttheeffec-
+Modulecanoptimizeapromptembeddingthatoutperform
+tivenessoftheMeta-guidingPrompt-tuningScheme,partic-
+human-semanticpromptunderscenariothatonly1sample
+ularlyinenhancinganomalydetectionperformance.When
+(1-shot) is provided in pixel-level anomaly segmentation.
+λ=0,themodellacksmeta-guidingandachievesamean
+Additionally,wecompleteablationexperimenttoverifythe
+scoreof67.21,indicatinglimitedeffectivenessduetooverfit-
+effectivenessofeachproposedcomponent.
+ting on synthesized anomalies. Introducing meta-guiding
+DatasetInthispaper,weconductexperimentonMVTec[1]
+with λ = 0.5 significantly improves the mean score to
+dataset,whichisabenchmarkdatasetforindustrialanomaly
+89.56,demonstratingenhancedgeneralizationandalignment
+detectionthatprovidepixel-levelgroundtruthmapindicat-
+withbroaderanomalyconcepts.Thehighestperformanceis
+ing the anomaly location in the image. MVtec comprise
+achievedwithλ = 1,yieldingameanscoreof92.40and
+15Categoriesofitem, andeach categorycontain 5-6sub-
+near-perfect results in several classes, confirming that the
+categoriesofanomlaytype.
+schemeeffectivelybalancestask-specifictuningandgeneral
+knowledgeintegration.Thesefindingsvalidatethemodule’s
+4.1.Comparisontohuman-semanticprompt
+contributiontoimprovinganomalydetectionaccuracyand
+AsshowninTable1,wecanseethatourproposedframework robustness.
+outperform manual design prompt by 28%, which further AblationonObject-attentionAnomalyGeneratedMod-
+validateourassumptionthatoptimalpromptfordownstream ule(OAGM)
+6Table3.ComparisonofAnomalyDetectionPerformancewithand Table4.AblationstudyonLocality-AwareAttention
+withoutOAGM
+AblationstudyonLocality-AwareAttention
+AblationstudyonOAGM Class VV-att QK-LAA VV-LAA
+Class WithoutOAGM WithOAGM(λ=1) carpet 98.29 99.29 99.40
+carpet 98.36 99.40 grid 95.93 96.93 98.45
+grid 96.53 98.45 leather 98.10 99.10 99.38
+leather 97.93 99.38 tile 94.63 95.63 96.12
+tile 91.14 96.12 wood 94.07 95.07 96.18
+wood 89.19 96.18 bottle 79.83 80.83 89.91
+bottle 64.18 89.91 cable 84.58 85.58 87.75
+cable 49.31 87.75 capsule 89.09 90.09 94.51
+capsule 85.53 94.51 hazelnut 94.53 95.53 97.70
+hazelnut 65.62 97.70 metalnut 72.64 73.64 75.08
+metal nut 72.12 75.08 pill 85.12 86.12 95.92
+pill 78.42 95.92 screw 91.77 92.77 95.48
+screw 87.06 95.48 toothbrush 95.55 96.55 97.23
+toothbrush 77.05 97.23 transistor 70.19 71.19 72.23
+transistor 66.85 72.23 zipper 87.45 88.45 90.63
+zipper 75.61 90.63 mean 89.52 90.52 92.40
+mean 78.54 92.40
+alignmentissuebutalsosynergizeseffectivelywithadvanced
+TheablationstudyinTable3demonstratestheeffective-
+attentionmechanismstoboostoverallperformance.Thissig-
+nessoftheObject-attentionAnomalyGenerationModule
+nificantimprovementunderscorestheeffectivenessofLAA
+(OAGM)acrossdifferentcategories.Fortextureitemslike
+inenhancingpixel-wiseanomalydetectiontasks.
+carpet,wood,andtile,theentireimageservesasthetarget,
+leadingtohighbaselineperformanceevenwithoutOAGM
+5.Conclusion
+(98.36, 89.19, and 91.14, respectively). OAGM provides
+slight improvements (99.40, 96.18, and 96.12) due to the
+In this paper, we introduced a novel framework, Meta-
+inherentnatureoftheseitems.Conversely,object-likeitems
+prompting Semantic Learning for Anomaly Detection
+such as bottle, cable, and capsule show significant perfor-
+withLocalityFeatureAttentionImageEncoder,which
+mance boosts with OAGM, increasing from 64.18, 49.31,
+optimizesvision-languagemodelsforanomalydetectionin
+and 85.53 to 89.91, 87.75, and 94.51, respectively. The
+ahuman-freemanner.OurMeta-guidingPrompt-tuning
+overallmeanscorerisesfrom78.54to92.40,highlighting
+SchemeandObject-AttentionAnomalyGenerationMod-
+OAGM’sroleinenhancinganomalydetectionbyfocusing
+ule address the absence of anomaly samples by synthe-
+ontargetobjectsandreducingirrelevantbackgroundnoise,
+sizing realistic anomalies and iteratively refining prompts
+especiallyinobject-centriccategories.
+via gradient-based calibration. Additionally, the Locality-
+AblationonLocality-awareAttention
+Aware Transformer preserves local details and ensures
+ToevaluatetheimpactoftheproposedLocality-AwareAt-
+alignmentbetweeninputfeaturesandoutputtokens,enhanc-
+tention(LAA),weconductedanablationstudycomparing
+ingpixel-wiseanomalysegmentation.Ourextensiveexperi-
+different configurations of attention mechanisms. Specifi-
+mentsdemonstratedsignificantperformanceimprovements
+cally, we compared the original VV-att (V-V attention as
+overmanuallydesignedprompts,showcasingtheefficacyof
+described in [10]), QK-LAA (original QK attention with
+ourapproachandadvancingthefieldoffew-shotandzero-
+LAA),andVV-LAA(V-VattentioncombinedwithLAA).
+shot anomaly detection.This work opens new avenues for
+TheresultsaresummarizedinTable4.
+futureresearchindevelopingmoresophisticatedanomalyde-
+Fromtheresults,itisevidentthatLAAenhancesperfor-
+tectionmodelsthatcanadapttovariousreal-worldscenarios
+manceacrossallcategories.ThemeanperformanceofQK-
+withoutextensivehumanintervention.
+LAA(90.52)surpassesthatofVV-att(89.52),demonstrating
+thatthelocalityconstraintimprovesfeaturealignmenteven
+References
+when applied to the traditional QK attention mechanism.
+Furthermore,thecombinationofV-VattentionwithLAA [1] P.Bergmann,M.Fauser,D.Sattlegger,andC.Steger. Mvtec
+(VV-LAA)achievesthehighestmeanperformance(92.40), ad–a comprehensive real-world dataset for unsupervised
+indicatingthatourLAAnotonlyaddressesthefeaturemis- anomalydetection. InProceedingsoftheIEEE/CVFCon-
+7ferenceonComputerVisionandPatternRecognition,pages
+9592–9600,2019. 6
+[2] L.Chen,Z.You,N.Zhang,J.Xi,andX.Le. Utrad:Anomaly
+detectionandlocalizationwithu-transformer. NeuralNet-
+works,147:53–62,2022. 3
+[3] T.Chen,S.Kornblith,M.Norouzi,andG.Hinton. Asimple
+frameworkforcontrastivelearningofvisualrepresentations.
+In International Conference on Machine Learning, pages
+1597–1607.PMLR,2020. 1,3
+[4] L.Cohen,L.Bergman,andY.Hoshen. Patchcore:Memory-
+efficientpatch-basedcore-setconstructionforunsupervised
+anomalydetection. arXivpreprintarXiv:2012.04228,2020.
+3
+[5] A.Dosovitskiy,L.Beyer,A.Kolesnikov,D.Weissenborn,X.
+Zhai,T.Unterthiner,M.Dehghani,M.Minderer,G.Heigold,
+S. Gelly, et al. An image is worth 16x16 words: Trans-
+formers for image recognition at scale. arXiv preprint
+arXiv:2010.11929,2020. 5
+[6] S.Fan,C.Shi,andX.Wang. Abnormaleventdetectionvia
+heterogeneousinformationnetworkembedding. InProceed-
+ingsofthe27thACMInternationalConferenceonInforma-
+tionandKnowledgeManagement,pages1483–1486,2018.
+3
+[7] G.Ilharco,M.Wortsman,R.Wightman,C.Gordon,N.Car-
+lini,R.Taori,A.Dave,V.Shankar,H.Namkoong,J.Miller,
+H.Hajishirzi,A.Farhadi,andL.Schmidt. Openclip,2021. If
+youusethissoftware,pleaseciteitasbelow. 3
+[8] J.Jeong,Y.Zou,T.Kim,D.Zhang,A.Ravichandran,andO.
+Dabeer. Winclip:Zero-/few-shotanomalyclassificationand
+segmentation. InProceedingsoftheIEEE/CVFConference
+onComputerVisionandPatternRecognition,pages19606–
+19616,2023. 1,2,3
+[9] X. Li, Z. Zhang, X. Tan, C. Chen, Y. Qu, Y. Xie, and
+L. Ma. Promptad: Learning prompts with only normal
+samples for few-shot anomaly detection. arXiv preprint
+arXiv:2404.05231,2024. 2,3
+[10] Y.Li,H.Wang,Y.Duan,andX.Li. Clipsurgeryforbetter
+explainabilitywithenhancementinopen-vocabularytasks.
+arXivpreprintarXiv:2304.05653,2023. 2,7
+[11] T.Schlegl,P.Seebo¨ck,S.M.Waldstein,G.Langs,andU.
+Schmidt-Erfurth. f-anogan:Fastunsupervisedanomalyde-
+tectionwithgenerativeadversarialnetworks. MedicalImage
+Analysis,54:30–44,2019. 3
+[12] F. Wang, J. Mei, and A. Yuille. Sclip: Rethinking self-
+attentionfordensevision-languageinference. arXivpreprint
+arXiv:2312.01597,2023. 2
+[13] J.Xie,R.Girshick,andA.Farhadi. Unsuperviseddeepem-
+beddingforclusteringanalysis. InInternationalConference
+onMachineLearning,pages478–487,2016. 3
+[14] W. Zhang, W. Li, Y. Liu, and X. Wang. Regad: Region-
+basedanomalydetectioninmedicalimaging. arXivpreprint
+arXiv:2103.10242,2021. 3
+[15] K.Zhou,J.Yang,C.C.Loy,andZ.Liu. Learningtoprompt
+forvision-languagemodels. InternationalJournalofCom-
+puterVision,130(9):2337–2348,2022. 2,3
+[16] Q.Zhou,G.Pang,Y.Tian,S.He,andJ.Chen. Anomaly-
+clip:Object-agnosticpromptlearningforzero-shotanomaly
+detection. arXivpreprintarXiv:2310.18961,2023. 2
+8

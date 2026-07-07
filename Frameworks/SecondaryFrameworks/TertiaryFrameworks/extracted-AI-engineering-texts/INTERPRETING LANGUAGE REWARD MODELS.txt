@@ -1,0 +1,962 @@
+Preprint
+INTERPRETING LANGUAGE REWARD MODELS
+VIA CONTRASTIVE EXPLANATIONS
+JunqiJiang1,2∗,TomBewley2,SaumitraMishra2,FreddyLecue2,ManuelaVeloso2
+1ImperialCollegeLondon 2J.P.MorganAIResearch
+junqi.jiang@imperial.ac.uk,{firstname.surname}@jpmorgan.com
+ABSTRACT
+Rewardmodels(RMs)areacrucialcomponentinthealignmentoflargelanguage
+models’ (LLMs) outputs with human values. RMs approximate human prefer-
+ences over possible LLM responses to the same prompt by predicting and com-
+paringrewardscores. However,astheyaretypicallymodifiedversionsofLLMs
+with scalar output heads, RMs are large black boxes whose predictions are not
+explainable. MoretransparentRMswouldenableimprovedtrustinthealignment
+ofLLMs. Inthiswork,weproposetousecontrastiveexplanationstoexplainany
+binaryresponsecomparisonmadebyanRM.Specifically,wegenerateadiverse
+setofnewcomparisonssimilartotheoriginalonetocharacterisetheRM’slocal
+behaviour. Theperturbedresponsesformingthenewcomparisonsaregenerated
+toexplicitlymodifymanuallyspecifiedhigh-levelevaluationattributes,onwhich
+analysesofRMbehaviouraregrounded. Inquantitativeexperiments,wevalidate
+theeffectivenessofourmethodforfindinghigh-qualitycontrastiveexplanations.
+Wethenshowcasethequalitativeusefulnessofourmethodforinvestigatingglobal
+sensitivityofRMstoeachevaluationattribute, anddemonstratehowrepresenta-
+tiveexamplescanbeautomaticallyextractedtoexplainandcomparebehaviours
+ofdifferentRMs.WeseeourmethodasaflexibleframeworkforRMexplanation,
+providingabasisformoreinterpretableandtrustworthyLLMalignment.
+1 INTRODUCTION
+The training of safe and capable large language models (LLMs) typically involves a fine-tuning
+steptoaligntheiroutputswithhumanpreferences. RecentworkbyXuetal.(2024)suggeststhat
+fine-tuningbyreinforcementlearningusingalanguagerewardmodel(RM),whichrepresentsthese
+preferences by rating the quality of LLM responses to user prompts, remains the state-of-the-art
+alignmentmethod. Insuchframeworks,theeffectivenessofalignmentheavilydependsonthequal-
+ityoftheRMitself(Chaudharietal.,2024). Whileagrowingbodyofresearchaimsatimproving
+the performance of RMs (Bai et al., 2022; Chan et al., 2024; Wang et al., 2024a), evaluating and
+understanding RMs has received “relatively little study” (Lambert et al., 2024). This is despite it
+being identified as a key aspect of the AI safety research agenda (Curtis et al., 2024). Among the
+limitedpriorworks,severalfocusoncharacterisingcertainfailuremodesofRMs,suchasunwanted
+biasestowardslongeranswers(Singhaletal.,2023),aninabilitytogeneralisetoslightlyperturbed
+responses(Pikusetal.,2023), andasusceptibilitytobeingover-optimised(Gaoetal.,2023). Re-
+cently,Zengetal.(2024)andParketal.(2024)curatedatasetsbyperturbingresponsesalongcertain
+evaluationaspectsforresponses,(e.g. instructionfollowing,responselength,correctness),andsys-
+tematicallyevaluateRMresponsestothesechangestogainmoreinsights.
+Acomplementaryapproachforachievingbetterunderstandingsofcomplexmachinelearningmod-
+elsistoapplyexplainableAI(XAI)techniques,whichaimtouncoverreasonsbehindtheirpredic-
+tions.Inadditiontothecomplexityofthelanguagedomain,aparticularchallengeforunderstanding
+RMsisthelackofdirectmeaningintheirpredictedrewards. RMsaretypicallytrainedandevalu-
+atedonbinaryresponsecomparisons(Ouyangetal.,2022)usingthepreferencemodelofBradley
+&Terry(1952),whichconvertstheRM’sscalarrewardforeachresponseintoaprobabilisticprefer-
+enceforoneresponseortheother. Outsideofsuchacomparison,themeaningoftheoutputscalars
+∗Correspondingauthor.WorkdoneduringaninternshipatJ.P.MorganAIResearch.
+1
+4202
+voN
+52
+]GL.sc[
+1v20561.1142:viXraPreprint
+themselvesisunclear,buttraditionalXAItechniquesusuallyrequirebeingabletointerprettheout-
+put values as part of the explanation. Recent studies propose to provide more information in RM
+outputsbydecomposingonerewardintomultipleevaluationaspectslikecorrectness,relevanceand
+verbosity(Wangetal.,2023;Goetal.,2024;Wangetal.,2024a). However,thisdoesnotprovide
+upstream explanations for why the model assigns the aspect-level rewards. In the XAI literature,
+explanationsareachievedbymethodslikefeatureimportanceanalysis,i.e. highlightingpartsofthe
+input which are most relevant to the model output, and contrastive explanations, i.e. altering the
+inputtoproduceadesiredchangeinmodeloutput(seeKarimietal.(2023);Aryal&Keane(2023)
+forrecentoverviews). Toourknowledge,nosuchXAItechniqueshavebeenexploredforRMs.
+In this work, we adapt the contrastive explanation paradigm to explain RM predictions. The two
+mostcommonvariantsarecounterfactual(CF)explanations(Wachteretal.,2017)andsemifactual
+(SF)explanations(Kenny&Keane,2021),whicharedefinedforclassificationsettingsasfollows.
+ACFisaminimallyperturbedinputthatyieldsanalternativepredictionfromthemodel,providing
+informationaboutawhatif scenario: hadtheinputbeendifferent,thepredictionwouldhavebeen
+different. AnSFisamaximallyperturbedinputforwhichthepredictiondoesnotchange,indicating
+how even if the input were different, the prediction result would be the same. Contrastive expla-
+nationsarecommonlyadvocatedforastheyalignwithhumanexplanatoryreasoning,thushelping
+improveusertrust(Miller,2019;Celar&Byrne,2023;Aryal&Keane,2023). InthecaseofRMs,
+thefundamentalpredictiontaskistooutputrewardsfortworesponses(tothesameuserprompt)and
+choosethehigher-rewardresponse.Sincetherearetwochoiceoptions,suchbinarycomparisonscan
+bereinterpretedasbinaryclassificationtasks,towhichCF/SFanalysiscanbenaturallyapplied.
+We begin by formalising the notion of contrastive
+explanations for binary comparisons made by
+Chosen
+RMs. Our explanations are a set of new compar-
+isons over perturbed responses, obtained by mod- Prompt Semifactual
+Helpfulness
+ifying the original ones in controlled ways. In
+general, the RM predictions over the set of new
+comparisonsyieldbothCFs(preferenceisflipped) Rejected Counterfactual
+andSFs(preferencestays),thuscharacterisingthe Harmlessness
+RM’slocalbehaviourandsensitivitiesintheneigh-
+"How can I pass my molecular chemistry exam?"
+bourhood of the original responses. We then pro-
+posedesideratafor theperturbedresponses, anda "Revise bonding types and practise with a friend."
+method for prompting an LLM to generate them "Revise soH meel p tfu hln ie nss gs and practise with a friend."
+from the original responses by modifying high- Harmlessness
+"Revise bonding types and copy from a friend."
+level attributes such as helpfulness and harmless-
+ness.Figure1illustratesthismethodanditsresults "Sounds tricky... maybe read a book?"
+foranexemplarpromptrequestingschoolexamad-
+Figure1: Illustrationofmethod.
+vice. Inthisexample,perturbingthehigher-reward
+(chosen)responsetoreduceitshelpfulness(byan-
+sweringvaguely)reducestherewardbutnotbelowthatoftherejectedresponse. Sincethispertur-
+bationdoesnotflipthepreferenceoftheRM,weclassifyitasanSF.Onthecontrary,perturbingto
+reduceharmlessness(byencouragingcheating)doesfliptheRM’spreference,yieldingaCF.
+WeobtainaglobalsummaryofanRM’ssensitivitytoeachevaluationattributebyaggregatingCFs
+andSFsovermultiplecomparisons,assimilarlydonein,e.g.,globalrecourse(Rawal&Lakkaraju,
+2020)andglobalfeatureimportance(Ribeiroetal.,2016). Forexample,ifperturbingaresponseto
+bemoreorlessharmfulalwayscausesanRM’spreferencetoflip,wethenunderstandthatthisRM
+isverysensitivetoharmfulcontent. Wethenpresentaworkflowforfindingrepresentativeexample
+comparisons for which the reward changes over the local perturbations best match the pattern in
+anRM’sglobalsensitivity. Explanationsfortheseexamplesprovideinformativedemonstrationsof
+typicalRMbehaviour,complementingtheglobalanalysis. Thecontributionsofourworkinclude:
+• WearethefirsttoproposecontrastiveexplanationsofbinarycomparisonsmadebyRMs.
+• We introduce a novel method for computing meaningful textual perturbations via high-
+level evaluation attributes, and categorising them into CFs and SFs. This is a post hoc,
+local,model-agnosticXAImethod,requiringonlyblack-boxaccesstoRMs(Section2).
+• Throughaquantitativeevaluationinvolvingthreedatasets,threeopensourceRMsandtwo
+baselines,weshowthatourmethodyieldshigh-qualityexplanations(Section3).
+2Preprint
+• We demonstrate the qualitative usefulness of our method for explaining RM preferences.
+We quantify global sensitivities of RMs to high-level evaluation attributes and present a
+workflowforautomaticallyfindingexamplesthatillustratethesesensitivities(Section4).
+2 CONTRASTIVE EXPLANATIONS FOR LANGUAGE REWARD MODELS
+2.1 PRELIMINARIES
+Let x denote a natural language prompt and y denote an LLM-generated response. An RM is
+a parameterised model trained to predict human evaluations of candidate responses to the same
+prompt. InthestandardtrainingpipelineofBradley-Terry(BT)modelling(Bradley&Terry,1952),
+RMsaretypicallymodifiedLLMstoppedwithscalaroutputheads(Ouyangetal.,2022;Baietal.,
+2022). Givenaprompt-responsepair(x,y),theRMassignsascalarreward,denotedasr (x,y).
+BT
+Given two responses y and y such that r (x,y ) > r (x,y ), we say that the RM has a
++ − BT + BT −
+preferencefory ≻ y asaresponsetopromptx. Inthecontextofsuchabinarycomparison,we
++ −
+refertoy asthechosenresponseandy astherejected response. TheRMistrainedondatasets
++ −
+withgroundtruthhumanpreferencestypicallyprovidedbyteamsofhumanannotators.
+Alternatively,multi-dimensionalregressionRMs(r ),implementedaslanguagemodelswithre-
+MR
+gression heads (Dong et al., 2023; Wang et al., 2023; 2024b;a), are trained to predict a vector of
+rewards, witheach dimensionrepresentinganevaluation aspectofthe response(Cuietal., 2023).
+To compare responses overall, a scalarisation function (e.g. a weighted sum function or another
+machinelearningmodel)gisappliedtoconvertrewardvectorsintosinglenumbers.Givenaprompt
+x,anoverallpreferencey ≻y ispredictedifg(r (x,y ))>g(r (x,y )).
++ − MR + MR −
+In this work, we focus on explaining binary comparisons made by RMs because this is their most
+basicfunctionalityandfacilitatesadefinitionofcontrastiveexplanation. Indoingso, weneednot
+distinguishbetweenthetwotypesofRM,andusertodenoteeitherr (·,·)org(r (·,·)).
+BT MR
+2.2 CONTRASTIVEEXPLANATIONS
+We now introduce contrastive explanations for any binary comparison made by an RM, involving
+auserpromptxandapairofchosenandrejectedresponsesy ,y suchthattheRM’spreference
++ −
+is y ≻ y . We assume access to two sets of perturbed responses, Y and Y , which are per-
++ − + −
+turbations of y and y respectively. In this section, we remain agnostic to the nature of these
++ −
+perturbationsforthesakeofgenerality. However, weproposespecificrequirementsandagenera-
+tionmethodforperturbedresponsesinSection2.3below. Contrastiveexplanationsoftheoriginal
+comparisonareobtainedbymakingnewcomparisonsbetweentheoriginalandperturbedresponses.
+As discussed in Section 1, we can distinguish two classes of perturbation, namely counterfactuals
+(CFs)andsemifactuals(SFs),basedonwhethertheRM’spreferenceflipsforthenewcomparisons.
+Concretely, given Y and Y , we denote YC = {y′ ∈ Y | r(x,y′ ) < r(x,y )} and YC =
++ − + + + + − −
+{y′ ∈ Y | r(x,y′ ) > r(x,y )} as the sets of CF perturbations of the original chosen and
+− − − +
+rejectedresponsesrespectively. Similarly,werefertoYS ={y′ ∈Y |r(x,y′ )≥r(x,y )}and
++ + + + −
+YS = {y′ ∈ Y |r(x,y′ ) ≤ r(x,y )}asthesetsofSFperturbations. AperturbationisaCFif
+− − − − +
+comparingittotheotheroriginalresponsecausestheRM’spreferencetoflip,andanSFotherwise.
+Collectively, the sets of categorised perturbations YC, YC, YS and YS can be understood as a
++ − − −
+datasetofnewbinarycomparisonsintheneighbourhoodoftheoriginalone,revealingsensitivities
+intheRM’slocalbehaviourandtherebyhelpingtoexplaintheoriginalpreference.Aswillbeshown
+later,thesecontrastiveexplanationsarenotonlyusefulforexplaininglocalpreferences,butcanalso
+beaggregatedovermanycomparisonstoforminsightsintoglobalRMbehaviour.
+2.3 GENERATINGPERTURBEDRESPONSES
+The preceding conceptual formulation requires a set of perturbed responses Y and Y for cate-
++ −
+gorising into CFs and SFs. In this section, we suggest desiderata for the content and structure of
+theseperturbations,andproposeanovelLLMpromptingmethodforgeneratingthemfromy and
++
+y whilesatisfyingthedesiderata.
+−
+3Preprint
+Desiderata. For explanations to provide meaningful insight, the perturbed responses should be
+well-formedsentenceswhicharegrammaticallycorrectandsemanticallyinterpretable.Thismakes
+na¨ıve methods based on randomly replacing characters, tokens or words unsuitable. Additionally,
+theRM’spreferencesoncomparisonsinvolvingtheperturbationsshouldthoroughlycharacteriseits
+local behaviour near the original responses. This requires that the perturbed responses be similar
+to the original responses such that the explanations are local, and that the original responses be
+perturbed in a variety of significantly different ways, forming a diverse set of texts. Finally, the
+perturbationmethodshouldmoveeachresponseinadirectionopposingtheRM’soriginalevalua-
+tion,i.e. makey (y )aworse(better)response,inordertobettercoverbothcounterfactualand
++ −
+semifactualscenariosstraddlingthemodel’slocaldecisionboundary.Thesehighlighteddesiderata
+areconsistentwiththosepreviouslysuggestedforCFsfortextclassification(Nguyenetal.,2024).
+ResponseperturbationviaLLMsprompting. Generativelanguagemodelshaveproveneffective
+at producing well-formed sentences for use in explanation (Sen et al., 2023) and RM evaluation
+(Zeng et al., 2024; Park et al., 2024), and we follow this precedent here. In the literature on CFs
+for text classification, LLMs have been used to obtain perturbed texts that change the prediction
+outcome,arediverse,andaresimilartooriginaltexts. EarlierworksbyYangetal.(2020)andWu
+etal.(2021)relyonmaskedlanguagemodelsandGPT-2(Radfordetal.,2019)toperformelemen-
+taryperturbationslikewordinsertion,deletionandreplacement. Morerecently,variousprompting
+strategieshavebeenproposedtoutilisepubliclyavailableLLMslikeGPT-4(Achiametal.,2023)
+andLlama(AI@Meta,2024)forperturbingtextstoobtainCFs(Gatetal.,2024;Chengetal.,2024;
+Bhattacharjee et al., 2024). However, these strategies give no guarantee of flipping the prediction
+becausethetextsarefirstperturbedandthentestedonthemodeltoexplain. Therefore,inpractice,
+perturbedtextsusuallyconsistofamixofCFsandSFs,bothofwhichareleveragedinourwork.
+Attribute-conditionedpromptingstrategy. Tosatisfythedesiderataoflocalityanddiversity,we
+proposeatwo-stepLLMpromptingstrategytogenerateY andY .Thecoreofthisstrategyliesin
++ −
+definingalistofhigh-levelevaluationattributesforthecontentandstructureofresponses.InStep1,
+weasktheLLMtoidentifywordsiny andy thatarerelevanttooneattributefromthislist.Then,
++ −
+inStep2,weprompttheLLMtoperturbeithery ory intheopposingdirection(i.e. makingy
++ − +
+worse;makingy better)alongthatattribute. WeasktheLLMtofocusitsperturbationsaroundthe
+−
+wordsidentifiedinStep1,whichrestrictstheextentofmodificationandkeepsperturbedresponses
+similartotheoriginalones. Weempiricallyvalidatetheeffectivenessofthisfocusingthroughabla-
+tion(seeAppendixD).Inourexperiments,Y andY bothcontain15perturbedresponses,each
++ −
+associatedwithoneattributefromthefollowinglist:avoid-to-answer,appropriateness,
+assertiveness, clarity, coherence, complexity, correctness, engagement,
+harmlessness, helpfulness, informativeness, neutrality, relevance,
+sensitivity,verbosity. SeeAppendicesAandBfordetailsaboutattributesandprompts.
+Aswellashelpingtoachievediversity,attribute-conditionedperturbationallowsustoperformanal-
+ysisatanattributelevel,enablinggeneralisedinsightssuchasthatoneRMismoreawareofprivacy
+risksthananother(seeSection4). Theapproachisrelatedtorecentworkondecomposingreward
+signalsintomultipleattributes,providingamorefine-grainedtaskspecification(Wangetal.,2023;
+2024a). SimilartechniqueshavebeenexploredtoevaluateRMs’abilitytocorrectlyidentifybiases
+along these directions (Zeng et al., 2024; Park et al., 2024). To our knowledge, we are the first to
+leveragesuchattributesforgeneratingdiversesetsofperturbedresponsesforexplanatorypurposes.
+Our list of 15 attributes is partly constructed from ones used in these prior works, combined with
+othersidentifiedbypromptingLLMs(seeAppendixA).Thelistisageneralstartingpointforsim-
+ple conversation tasks, but could be customised to match any specific dataset characteristics, e.g.
+instructionfollowing(Cuietal.,2023)orvarioustypesofharmfulness(Ko¨pfetal.,2023).
+2.4 OVERALLPIPELINE
+Figure2givesanoverviewofourmethod. Foreachbinarycomparisontoexplain(x,y ,y ),our
++ −
+methodfirstpromptsanLLMusingthetwo-stepstrategytoobtainY andY .Usingtheprediction
++ −
+functionoftheRMr,wegettherewardsofallperturbedresponses. CFandSFresponsesarethen
+identified by comparing these perturbed rewards to those of the original responses and checking
+if the RM’s preference is flipped. The sets of CFs and SFs for many comparisons provide a rich
+informationsourceforfollow-upexplanatoryanalysis,suchasglobalattributesensitivityextraction
+andrepresentativeexampleidentification. ThisanalysispipelineisdiscussedindetailinSection4.
+4Preprint
+Prompt Generating contrastive explanations for a language reward model Counterfactuals
+lower reward
+than ?
+attr attr
+Perturbed responses Yes Semifactuals
+Chosen 2-Step prompting Using RM to test for
+with external LLM counterfactual or No
+attr 1 attr 2 attr M semifactual response attr attr
+LLM RM Counterfactuals
+External Perturbed responses Yes
+Rejected LLM RM attr attr
+No
+attr 1 attr 2 attr M Semifactuals
+A list of M higher reward
+evaluation than ?
+attributes attr attr
+Example analysis pipeline using contrastive explanations How frequently does
+perturbing along each
+attribute cause
+?
+In the perturbed responses for comparison 1, attr
+get attributes associated with counterfactuals
+Extracting How frequently does
+Comparison 1 gIn e tt h ae tt rp ie br ut tu er sb e ad ss r oe cs ip ao ten ds e ws i tf ho r c c oo um ntp ea rfr ais co tn u a2 ls, g tolo eb aa cl hs e an tts ri it biv ui tt ey pert au tr tb rii bn ug t ea l co an ug s e each
+Comparison 2 attr 1 attr M ?
+attr
+attr 1 attr M
+Comparison N attr g1In e tt h ae tta p rtite brr uMt tu er sb e ad ss r oe cs ip ao ten ds e ws i tf ho r c c oo um ntp ea rr fais co tn u aN ls,
+Comparison i
+attr 1 attr M
+Finding
+attr 1 attr M representative examples
+matching the pattern in attr 1 attr M
+global sensitivity
+attr 1 attr M
+attr 1 attr M
+Figure2: Generationandanalysisofcontrastiveexplanationsforlanguagerewardmodels.
+3 QUANTITATIVE EVALUATION
+In this section, we demonstrate the effectiveness of our method for generating high-quality con-
+trastive explanations. Our experiments are conducted on three open source human preference
+datasetsandthreeRMs. Foreachdataset,werandomlyselect30binarycomparisonsfromthetrain-
+ing set serving as test comparisons (repeated five times with different random seeds, making 150
+test comparisons in total), for which we then generate contrastive explanations using our method
+andthebaselinesforeachRM.Theexplanationsareevaluatedagainsttherequirementsdiscussed
+inSection2.3usingpopularmetricsfromthetextCFliterature(Nguyenetal.,2024).
+Datasets. WeuseHelpSteer2(hs2)(Wangetal.,2024b),HH-RLHF-helpful,andHH-RLHF-
+harmless1(Baietal.,2022).Wefocusonexplainingsingle-turnconversationsinourexperiments.
+hs2isamulti-regressiondatasetwithfiveevaluationaspectsasthelabel. Wefilterhs2forpairsof
+responseswherethepreferenceisclear,i.e. thegroundtruthscoresofoneresponsearegreaterthan
+theotherresponseacrossallevaluationaspects,toextractbinarycomparisons. ThetwoHH-RLHF
+variationsarebothdatasetsofbinarycomparisonswherethegroundtruthpreferenceisexplicitfor
+eachcomparison. TheresponselengthsforHH-RLHFdatasets(usuallyoneorafewsentences)are
+muchshorterthanthehs2dataset(about800words).
+Reward Models. We generate explanations for three open source RMs from the OpenAssistant
+community. DeBERTa-large(v1)2andDeBERTa-large-v23,comprising0.4billionparameters,are
+RMsfine-tunedfromtheDeBERTamodel(Heetal.,2021)usingdifferentdatasets(seetheirmodel
+cardsformoredetails). pythia-1.4b-epoch-2.54isalargermodelwith1.4billionparameters.
+Metrics. WeuseasetofmetricsderivedfromthedesideratainSection2.3. CF(orSF)Coverage
+evaluates the fraction of test comparisons for which at least one valid CF (SF) is found. Having
+both high CF and SF coverage indicates that an explainer is better at obtaining a balanced mix of
+1HH-RLHF-helpfulandHH-RLHF-harmlessaretwobranchesoftheHH-RLHFdataset. Wetreat
+themseparatelybecausetheyhavedistinctcharacteristics.
+2https://huggingface.co/OpenAssistant/reward-model-deberta-v3-large
+3https://huggingface.co/OpenAssistant/reward-model-deberta-v3-large-v2
+4https://huggingface.co/OpenAssistant/oasst-rm-2.1-pythia-1.4b-epoch-2.5
+5Preprint
+CFsandSFs. Tomeasurethesimilaritybetweenperturbedresponsesandtheirassociatedoriginal
+response,weusetwodistancemetricsbetweensentences.Syntacticdistancemeasurestheextentof
+syntacticchange,forwhichweuseword-levelLevenshteineditdistance(Overill,2001). Semantic
+distance, a common metric for measuring differences in meaning, is the cosine distance between
+theSentence-BERTencodingsofthetwotextpieces(Reimers&Gurevych,2019). Inbothcases,
+lowerdistancevaluesarepreferredbecausewewishtoobserveandanalyseRMbehaviourcloseto
+the original responses. Semantic diversity refers to the average semantic distance between every
+pairofperturbedresponseswithinthesetofperturbedresponsesforthesameresponse.
+Baselines. We compare our method to two baselines for generating perturbed responses, from
+whichCFsandSFsareidentifiedusingthesamecategorisationprocedure(Section2.2). Weadapt
+Polyjuice(PJ)byWuetal.(2021),ageneral-purposeCFgenerationmethodforclassificationtasks
+basedonacustomfine-tunedGPT-2model. WeconfigurePJtogenerate15meaningfulperturba-
+tions of each response (matching the number in our method). Another baseline is random LLM-
+based perturbation (RP), where we prompt GPT-4o to generate 15 random perturbations for each
+response,withoutattribute-conditioning(seeAppendixCfordetailedprompts). OURSdenotesour
+methodasdescribedinSection2, alsousingGPT-4oforobtainingperturbedresponses. Notethat
+the perturbation quality can be sensitive to the LLM used to generate them. We choose the best-
+performingonehereandrefertoBhattacharjeeetal.(2024);Senetal.(2023)forfurtheranalysis.
+Table 1 shows results for the CF and SF coverage metrics (mean and standard deviation across
+the five random seeds). We separately evaluate how often explanations are found for the chosen
+response, the rejected response, and both responses. Table 2 reports the two distances averaged
+acrossCFandSFresponses,andtheaveragesemanticdiversityofeachsetofCFsorSFs.
+Chosen Rejected Both
+Dataset Method
+CFcov. SFcov. CFcov. SFcov. CFcov. SFcov.
+PJ 0.74±.149 0.94±.039 0.40±.016 0.95±.064 0.26±.080 0.89±.061
+harmless RP 0.64±.118 0.93±.051 0.38±.159 0.92±.082 0.22±.100 0.86±.072
+OURS 0.76±.086 0.97±.031 0.85±.109 0.91±.059 0.69±.111 0.90±.061
+PJ 0.97±.035 0.87±.042 0.14±.097 0.99±.008 0.13±.088 0.87±.041
+helpful RP 0.84±.066 0.81±.081 0.23±.095 0.99±.008 0.21±.088 0.81±.079
+OURS 0.81±.042 0.99±.020 0.98±.028 0.75±.081 0.80±.047 0.74±.067
+hs2
+RP 0.86±.035 0.54±.060 0.05±.038 0.99±.008 0.04±.035 0.54±.060
+OURS 0.83±.069 0.86±.160 0.39±.145 0.95±.047 0.33±.144 0.84±.149
+Table1: ComparisonofCFandSFcoverageforourmethodandbaselines.
+Dataset Method syn.dist. sem.dist sem.div.
+PJ 0.74±.042 0.69±.038 0.49±.024
+harmless RP 0.81±.015 0.70±.018 0.36±.028
+OURS 0.65±.015 0.36±.028 0.31±.023
+PJ 0.48±.059 0.40±.047 0.46±.025
+helpful RP 0.59±.031 0.34±.022 0.29±.028
+OURS 0.61±.018 0.28±.018 0.20±.012
+hs2
+RP 0.44±.023 0.18±.015 0.14±.020
+OURS 0.31±.023 0.07±.017 0.07±.010
+Table2: Perturbationdistancesanddiversityforourmethodandbaselines.
+ThemostnotableadvantageofourmethodisCFcoverage. ItfindsCFsforbothresponsesfor
+over 68% of test inputs for the harmless and helpful datasets and over 33% for hs2, while
+thebaselinesonlyfindvalidCFsfornomorethan26%oftestcomparisons. Thisismainlydueto
+thebaselinesbeingpooratfindingperturbationsthatmakerejectedresponsesmorepreferredtothe
+originalchosenones,whileourmethodisexplicitlydesignedtoperturbresponsesinthisopposing
+direction.SFsareeasiertoobtainbecausenochangeofpreferenceisrequired,andallmethodshave
+similarperformance,withourmethodachievingbetterresultsinharmlessandhs2.
+Theperturbationscomputedbyourmethodalsohavelower(better)distancestotheoriginal
+inputsthanthebaselines,withbettersyntacticdistancesontwodatasetsandmuchlowersemantic
+distancesforalldatasets.Thisvalidatesthatourexplanationsareasetofnewcomparisonswhichare
+verysimilartotheoriginalones,whilestillcoveringbothCFandSFscenarios.Ourperturbationsare
+6Preprint
+notassemanticallydiverseasthebaselines. Tosomeextent,thisisanunavoidableconsequenceof
+thembeingmoresemanticallysimilartotheoriginalresponse.Despitethelowernumericaldiversity
+bythismetric,ourmethodhastheadditionalbenefitofgroundingperturbedresponsesin15distinct
+evaluationattributes,sowedostillobtainadiversityofchangesfromtheoriginalresponses.
+Tocomplementthemainresultsreportedabove,weconductanablationstudyofourmethodusing
+different prompting strategies, showing our current configuration is the most effective (Appendix
+D).WealsoincluderesultsinAppendixEshowingourmethodcangenerateexplanationsregardless
+ofwhethertheRMhascorrectorwrongpreferencesaccordingtoahumangroundtruth.
+4 QUALITATIVE ANALYSIS
+In this section, we demonstrate how our proposed contrastive explanation approach can be useful
+forinvestigatingglobalbehavioursandunderstandinglocalpreferencesofRMs. Wevalidatesome
+desirablebehavioursandrevealinterestingundesirablebehavioursofv1andv2. Wealsoshowin
+AppendixGthatsomeoftheweaknessesalsoexistinstate-of-the-artRMswith8billionparameters.
+4.1 GLOBALSENSITIVITY
+ThekeyintuitionweleverageisthatthechangedattributesinaCFaremorecausallyrelevanttoan
+originalprediction,whilethoseinanSFarelesscausallyrelevant(McCloy&Byrne,2002;Aryal
+& Keane, 2023). Therefore in our case, for any given binary response comparison (x,y ,y :
++ −
+r(x,y ) > r(x,y )),theattributesassociatedwiththeCFresponses,YC andYC,canbelabelled
++ − + −
+as strongly relevant, and those of the SF responses, YS and YS, as weakly relevant. Note that
++ −
+weneedtoseparatelyconsiderY andY forthisanalysisbecauseperturbingy tobecomeless
++ − +
+preferredthany isanindependentprocessfromperturbingy tobecomemorepreferredthany
+− − +
+(seeAppendixF).Oneachdataset, aggregatingtheselabelsovermanytestcomparisonsgivesthe
+RM’s global sensitivity to each evaluation attribute: how often that attribute is (strongly) relevant
+totheRM’spreferences. Thistypeofanalysis(aggregatinglocalexplanationsforglobalinsights)
+hasproveneffectiveforprovidingrichCFsummariesfortabulardatasettings(Rawal&Lakkaraju,
+2020)andglobalfeatureattributions(Ribeiroetal.,2016).
+Following the experimental setup in Section 3, we randomly select 500 comparisons from each
+datasetandfilterforthecomparisonswherethethreeRMspredictthesamepreference.Wegenerate
+explanations for these test comparisons and perform our analysis on them. We use our method to
+firstgenerateperturbedresponses,thenextractCFsandSFsforthethreeRMsusingthesamesetof
+perturbedresponses. Thisallowsustofairlycomparetheglobalbehaviourofthemodels. Then,to
+quantifytheRMs’globalsensitivitytoeachattribute,werecordeachattribute’spreferencefliprate
+(PFR):theproportionoftestcomparisonsforwhichtheattribute’sassociatedperturbedresponseis
+acounterfactualresponseandresultsinaCF.ThePFRisseparatelycalculatedforY andY .
++ −
+Figure 3 shows each model’s PFR along each attribute for each dataset. To further investigate the
+differences between the three RMs on each dataset, we obtain each RM’s ranking vector over the
+PFRofall15attributesandcalculateKendall’sτ correlationcoefficient(Kendall,1938)(ranged−1
+to1)betweentherankingvectorsofeachpairofRMs. TheresultsarereportedinTable3.
+harmless helpful hs2
+Y Y Y Y Y Y
++ − + − + −
+v1,v2 0.16 0.54 0.60 0.75 0.71 0.79
+v1,pythia 0.68 0.62 0.68 0.77 0.47 0.52
+v2,pythia 0.10 0.73 0.62 0.79 0.60 0.62
+Table3: Rankingsimilarityofglobalattributesensitivitybetweenpairsofmodelsonalldatasets.
+Whilefine-grainedinformationcanbeobtainedbyzoominginFigure3abouteachRM,wehighlight
+someobservedgeneraltrendswhencomparingthethreeRMsfromFigure3andTable3.
+On most datasets, the global sensitivity rankings are similar, but the magnitudes differ. For
+example,onhelpful,Y ,therankingsofthreeRMsarehighlycorrelated,demonstratingsimilar
+−
+behaviours, with v1 (pythia) being slightly more (less) sensitive to perturbations along the at-
+7Preprint
+(a)harmless,Y (b)helpful,Y (c)hs2,Y
++ + +
+(d)harmless,Y (e)helpful,Y (f)hs2,Y
+− − −
+Figure3: PreferenceflipratesofthreeRMs,indicatingtheirglobalsensitivitytoeachattribute,on
+threedatasets. Subplots(a)-(c)and(d)-(f)respectivelyshowthePFRforY (whetherperturbations
++
+ofy arelesspreferredthany )andY (whetherperturbationsofy aremorepreferredthany ).
++ − − − +
+tributes. Onhs2,Y ,however,pythiaismuchmoresensitivealongeveryattribute. Overall,the
+−
+global sensitivities depend not only on the characteristic differences between the models, but also
+onthecharacteristicsofeachdataset,whichisanimportantconsiderationforinterpretation.
+The behaviour of v2 is distinct from the other two models on the harmless dataset. This
+is visible in the low ranking similarities for Y in Table 3. Figure 3a shows that v2 is most sen-
++
+sitivetotheattributeharmless,avoid-to-answer,sensitivityandneutrality,i.e.
+whentheoriginallychosenresponsesbecomemoreharmful,v2oftenseesthemasworsethanthe
+originallyrejectedresponse,showingitsabilitytobetterdistinguishharmfulcontent. Crucially,this
+observationisconsistentwiththefactthatv2wastrainedontheharmlessdatasetandtheother
+twomodelswerenot. Itthereforeprovidesanencouragingvalidationofouranalysisapproach.
+4.2 FINDINGREPRESENTATIVEEXAMPLESFORRM’SGLOBALBEHAVIOUR
+Following on from a global analysis, for each test comparison in a dataset, we record r(x,y )−
+−
+r(x,y′ )andr(x,y′ )−r(x,y )foreveryperturbedresponsey′ ∈ Y andy′ ∈ Y ,indicating
++ − + + + − −
+howmuchtheperturbationcausestheRMoutputtochangeintheoppositedirection. Wesortthe
+15attributesbytheirassociatedrewarddifferencestoobtainalocal-levelranking. Inlinewithour
+globalsensitivityinterpretation, higher-rankedattributesareconsideredmorerelevanttotheRM’s
+preference. We calculate the ranking similarity (Kendall’s τ correlation coefficient) between the
+globalandlocalrankings. Thetestcomparisonswiththehighestsimilaritycanbeconsideredasthe
+most representative examples for a dataset. This process is completed separately for Y and Y .
++ −
+We follow this approach to conduct two case studies focusing on the harmless dataset and v2
+model,forwhichtheglobalsensitivitypatternisdistinctive.
+4.2.1 REPRESENTATIVEEXAMPLESFORONEMODEL
+Tofindrepresentativeexamplescapturingglobalpatternsonbothsides(Y andY )ofonedataset,
++ −
+we calculate the sum of the ranking similarities for both responses in each test comparison. The
+comparison with the highest sum of ranking similarity is the most representative example. Figure
+4showsonesuchexampleforv2onharmlessdataset,wherethemodelcorrectlyidentifiesthat
+bettingondogfightsisaharmfulactivityandassignsahigherrewardtothey ,whichavoidsan-
++
+8Preprint
+Figure 4: Representative example for v2 on harmless dataset. The predicted rewards for each
+responseandperturbation(colour-coded)areshowninthemiddle.
+sweringthequestiondirectly. Theperturbedresponsesfory associatedwithattributesanswer,
++
+relevance, harmlessness and sensitivity most push the reward in the opposite direc-
+tion,andtheformerthreeareCFresponses. Theseattributeslargelyoverlapwiththetopattributes
+in Figure 3a. Similarly, there are five CF responses for y , and their associated attributes closely
+−
+matchtheonesv2ismostsensitivetoasshowninFigure3d.
+The contrastive explanations provide insight into why the RM exhibits its original preference.
+Firstly,wevalidatesomedesirablebehaviours: thoseperturbationsofy encouragingmorediscus-
++
+sions about dog fights (answer, harmlessness) or mentioning completely irrelevant contents
+(relevance) receive much lower rewards, and the perturbations of y arguing against betting
+−
+on dog fights receive higher rewards (appropriateness, correctness, harmlessness,
+neutrality, relevance). Unexpectedlocalbehavioursofthemodelcanalsobediscovered.
+Bymakingy lessappropriateandlessneutralwithdisrespectfullanguagetotheuser,or
++
+incorporatingincorrectinformation,therewardsassignedbyv2increase. Interestingly,when
+perturbingy ,addingdetaileddescriptionsaboutidentifyingwinningdogscausestherewardtoin-
+−
+crease(answer,sensitivity),inonecaseevenbecomingpreferredtoy .Inafurtheranalysis
++
+withtwo8-billionparameterRMs,wefoundthatsimilarundesirablebehaviours,notablypreferring
+disrespectfulperturbations,alsoexistinthesemorepowerfulmodels(seeAppendixGformorede-
+tails). Theseobservationsprovidemorefine-grainedinsightsthatcouldbeusedforimprovingthe
+RM’sperformance,andmaynothavebeenaccessiblewithoutacontrastiveanalysis.
+4.2.2 REPRESENTATIVEEXAMPLESFORCOMPARINGTWOMODELS
+WecanalsofindrepresentativeexamplesthatmaximisethesumofrankingsimilaritiesoftwoRMs
+onthesamedataset(foreitherY orY ),jointlyexemplifyingsimilaritiesanddifferencesbetween
++ −
+the two models. Here, we focus on v1 and v2 because they have the same architecture and only
+differintheirtrainingdatasets. WeconsidertheharmlessdatasetandY perturbations.
++
+The found example is shown in Figure 5. The chosen response avoids giving private information
+aboutaphonenumber,andtherejectedresponsetriestofinddetailedinformationaboutthenumber
+owner,posingprivacyrisksthatanyLLMoutputsshouldavoid. InFigure5,theCFresponsesare
+theperturbationswhosepredictedrewardsarelowerthanthatoftherejectedresponse. Inspecting
+their reward values gives more fine-grained insight. The five attributes that most decrease the re-
+wards for v1 are appropriateness, sensitivity, relevance, assertiveness and
+informativeness. Perturbingalongalltheseattributescausedv1toflipitspreference,show-
+ingthatthemodeldoesnotidentifyprivacyconcernsandinsteadprioritisestheresponse’smanner
+andhelpfulnessaspects. Thetopfiveattributesforv2aresensitivity,informativeness,
+9Preprint
+Figure 5: Representative example (anonymised) for v1 and v2 models on the harmless, Y
++
+dataset. Lessrelevantperturbationsareomitted. Thepredictedrewardsareshownontheright.
+helpfulness,harmlessnessandrelevance. Althoughallcausetherewardstodecrease,
+onlysensitivityandinformativenessresultinCFs, showingv2’sfocusonidentifying
+harmful,sensitivecontent. Wecanthereforeconcludethat, whilebothRMshavethesameprefer-
+ence for the original comparison, v2’s preference has a more trustworthy basis than v1’s. Notice
+howthisinsightcanonlybeobtainedfromthecontrastiveanalysisofperturbedresponses,andnot
+fromtheoriginalresponsesalone,demonstratingthevalueofourapproach.
+5 CONCLUSION
+Inthiswork,weformulatecontrastiveexplanationsforlanguagerewardmodelsandusethemforin-
+terpretation.Weproposeamethodtogenerateadiversesetofcounterfactualsandsemifactualsalong
+high-levelevaluationattributes,allowingustoanalyseRMbehaviourbothlocallyandglobally. We
+quantitatively evaluate our generated explanations against two baselines, with strong results. We
+furtherqualitativelydemonstratetheusefulnessofourmethodforobtainingglobalinsightsofRMs,
+showinghowrepresentativeexamplescanbefoundthatbestmatchtheRM’sglobalbehaviour,and
+howourexplanationscanprovidevaluableinformationaboutRM’slocalpreferences.
+Thisworkcomeswithlimitations. AsisthecaseforCFsintextclassification,thereisnoguarantee
+thatcounterfactualresponsescanbefoundforanygiventestcomparison.Itwouldbedesirableifthe
+perturbingmechanismweremorecloselylinkedtothemodeltoexplain. Also,inourformulations,
+SFsdonotdistinguishbetweenthecasewheretherewardsforperturbedresponsessitbetweenthose
+for the two original responses, and where the rewards for perturbed chosen (rejected) responses
+becomehigher(lower)thantheoriginallychosen(rejected)response’srewards. Morefine-grained
+categorisationforperturbedresponsescouldpotentiallyenablemorestructuredanalyses.
+This work presents a novel method and example workflow to systematically interpret behaviours
+ofRMs, whichopenupexcitingavenuesforfuturework. Firstly, withasupervisoryagent(either
+human or LLM) providing ground truth labels for the newly generated comparisons, augmented
+datasets with a focus on the list of high-level evaluation attributes can be constructed. This struc-
+turedwayofconstructingdatasetsisfullyautomated,andatalowercostcomparedwithcollecting
+humanresponses. Itwouldbeinterestingtoseewhethertrainingontheaugmenteddatasetindeed
+improvestheoverallqualityofRMs. Ourproposedapproachalsointersectswithrecentworkson
+the evaluation of LLM-based RMs, and those on decomposing single reward signals, given sim-
+ilar high-level evaluation attributes. Leveraging our explanations for model debugging, and thus
+improvingthemodelperformance,wouldbeanotherpromisingdirection.
+10Preprint
+DISCLAIMER
+This paper was prepared for informational purposes by the Artificial Intelligence Research group
+of JPMorgan Chase & Co. and its affiliates (“J.P. Morgan”) and is not a product of the Research
+DepartmentofJ.P.Morgan. J.P.Morganmakesnorepresentationandwarrantywhatsoeveranddis-
+claimsallliability,forthecompleteness,accuracyorreliabilityoftheinformationcontainedherein.
+Thisdocumentisnotintendedasinvestmentresearchorinvestmentadvice, orarecommendation,
+offerorsolicitationforthepurchaseorsaleofanysecurity, financialinstrument, financialproduct
+orservice,ortobeusedinanywayforevaluatingthemeritsofparticipatinginanytransaction,and
+shallnotconstituteasolicitationunderanyjurisdictionortoanyperson, ifsuchsolicitationunder
+suchjurisdictionortosuchpersonwouldbeunlawful.
+REFERENCES
+Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Florencia Leoni Ale-
+man,DiogoAlmeida,JankoAltenschmidt,SamAltman,ShyamalAnadkat,etal. Gpt-4technical
+report. arXivpreprintarXiv:2303.08774,2023.
+AI@Meta.Llama3modelcard,2024.URLhttps://github.com/meta-llama/llama3/
+blob/main/MODEL_CARD.md.
+Saugat Aryal and Mark T. Keane. Even if explanations: Prior work, desiderata & benchmarks
+for semi-factual XAI. In Proceedings of the 32nd International Joint Conference on Artificial
+Intelligence,IJCAI,pp.6526–6535,2023.
+Yuntao Bai, Andy Jones, Kamal Ndousse, Amanda Askell, Anna Chen, Nova DasSarma, Dawn
+Drain, Stanislav Fort, Deep Ganguli, Tom Henighan, et al. Training a helpful and harmless
+assistant with reinforcement learning from human feedback. arXiv preprint arXiv:2204.05862,
+2022.
+AmritaBhattacharjee,RahaMoraffah,JoshuaGarland,andHuanLiu. Zero-shotllm-guidedcoun-
+terfactualgenerationfortext. arXivpreprintarXiv:2405.04793,2024.
+RalphAllanBradleyandMiltonETerry. Rankanalysisofincompleteblockdesigns: I.themethod
+ofpairedcomparisons. Biometrika,39(3/4):324–345,1952.
+LenartCelarandRuthM.J.Byrne. Howpeoplereasonwithcounterfactualandcausalexplanations
+for AI decisions in familiar and unfamiliar domains. Memory & Cognition, 51(7):1481–1496,
+2023. ISSN1532-5946.
+Alex James Chan, Hao Sun, Samuel Holt, and Mihaela van der Schaar. Dense reward for free in
+reinforcementlearningfromhumanfeedback.InForty-firstInternationalConferenceonMachine
+Learning,ICML,2024.
+Shreyas Chaudhari, Pranjal Aggarwal, Vishvak Murahari, Tanmay Rajpurohit, Ashwin Kalyan,
+Karthik Narasimhan, Ameet Deshpande, and Bruno Castro da Silva. Rlhf deciphered: A
+critical analysis of reinforcement learning from human feedback for llms. arXiv preprint
+arXiv:2404.08555,2024.
+FuruiCheng,Vile´mZouhar,RobinShingMoonChan,DanielFu¨rst,HendrikStrobelt,andMenna-
+tallah El-Assady. Interactive analysis of llms using meaningful counterfactuals. arXiv preprint
+arXiv:2405.00708,2024.
+Robert Chew, John Bollenbacher, Michael Wenger, Jessica Speer, and Annice Kim. Llm-assisted
+content analysis: Using large language models to support deductive coding. arXiv preprint
+arXiv:2306.14924,2023.
+GanquCui,LifanYuan,NingDing,GuanmingYao,WeiZhu,YuanNi,GuotongXie,ZhiyuanLiu,
+andMaosongSun. Ultrafeedback: Boostinglanguagemodelswithhigh-qualityfeedback. arXiv
+preprintarXiv:2310.01377,2023.
+11Preprint
+Samuel Curtis, Ravi Iyer, Cameron Domenico Kirk-Giannini, Victoria Krakovna, David Krueger,
+Nathan Lambert, Bruno Marnette, Colleen McKenzie, Julian Michael, Evan Miyazono, et al.
+Researchagendaforsociotechnicalapproachestoaisafety. online,2024.
+Shih-Chieh Dai, Aiping Xiong, and Lun-Wei Ku. Llm-in-the-loop: Leveraging large language
+model for thematic analysis. In Findings of the Association for Computational Linguistics:
+EMNLP,pp.9993–10001,2023.
+YiDong,ZhilinWang,MakeshNarsimhanSreedhar,XianchaoWu,andOleksiiKuchaiev. Steerlm:
+AttributeconditionedSFTasan(user-steerable)alternativetoRLHF. InFindingsoftheAssoci-
+ationforComputationalLinguistics: EMNLP,pp.11275–11288,2023.
+Leo Gao, John Schulman, and Jacob Hilton. Scaling laws for reward model overoptimization. In
+The40thInternationalConferenceonMachineLearning, ICML,volume202ofProceedingsof
+MachineLearningResearch,pp.10835–10866,2023.
+Yair Ori Gat, Nitay Calderon, Amir Feder, Alexander Chapanin, Amit Sharma, and Roi Reichart.
+Faithfulexplanationsofblack-boxnlpmodelsusingllm-generatedcounterfactuals. InThe12th
+InternationalConferenceonLearningRepresentations,ICLR,2024.
+DongyoungGo, TomaszKorbak, Germa´nKruszewski, JosRozen, andMarcDymetman. Compo-
+sitionalpreferencemodelsforaligningLMs. InThe12thInternationalConferenceonLearning
+Representations,ICLR,2024.
+PengchengHe,XiaodongLiu,JianfengGao,andWeizhuChen. Deberta: decoding-enhancedbert
+with disentangled attention. In The 9th International Conference on Learning Representations,
+ICLR,2021.
+Amir-HosseinKarimi,GillesBarthe,BernhardScho¨lkopf,andIsabelValera. Asurveyofalgorith-
+mic recourse: Contrastive explanations and consequential recommendations. ACM Computint
+Survey,55(5):95:1–95:29,2023.
+MauriceGKendall. Anewmeasureofrankcorrelation. Biometrika,30(1-2):81–93,1938.
+Eoin M. Kenny and Mark T. Keane. On generating plausible counterfactual and semi-factual ex-
+planationsfordeeplearning. InThe35thAAAIConferenceonArtificialIntelligence, AAAI,pp.
+11575–11585,2021.
+AndreasKo¨pf,YannicKilcher,DimitrivonRu¨tte,SotirisAnagnostidis,ZhiRuiTam,KeithStevens,
+AbdullahBarhoum,DucNguyen,OliverStanley,Richa´rdNagyfi,ShahulES,SameerSuri,David
+Glushkov,ArnavDantuluri,AndrewMaguire,ChristophSchuhmann,HuuNguyen,andAlexan-
+der Mattick. Openassistant conversations - democratizing large language model alignment. In
+AdvancesinNeuralInformationProcessingSystems36,NeurIPS,2023.
+NathanLambert,ValentinaPyatkin,JacobMorrison,LJMiranda,BillYuchenLin,KhyathiChandu,
+Nouha Dziri, Sachin Kumar, Tom Zick, Yejin Choi, et al. Rewardbench: Evaluating reward
+modelsforlanguagemodeling. arXivpreprintarXiv:2403.13787,2024.
+ChrisYuhaoLiu, LiangZeng, JiacaiLiu, RuiYan, JujieHe, ChaojieWang, ShuichengYan, Yang
+Liu,andYahuiZhou. Skywork-reward:Bagoftricksforrewardmodelinginllms. arXivpreprint
+arXiv:2410.18451,2024.
+RachelMcCloyandRuthMJByrne. Semifactual“evenif”thinking. Thinking&reasoning,8(1):
+41–67,2002.
+TimMiller. Explanationinartificialintelligence: Insightsfromthesocialsciences. ArtificialIntel-
+ligence,267:1–38,2019.
+Van Bach Nguyen, Paul Youssef, Jo¨rg Schlo¨tterer, and Christin Seifert. Llms for generating and
+evaluatingcounterfactuals: Acomprehensivestudy. arXivpreprintarXiv:2405.00722,2024.
+12Preprint
+Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo Almeida, Carroll L. Wainwright, Pamela Mishkin,
+ChongZhang,SandhiniAgarwal,KatarinaSlama,AlexRay,JohnSchulman,JacobHilton,Fraser
+Kelton, Luke Miller, Maddie Simens, Amanda Askell, Peter Welinder, Paul F. Christiano, Jan
+Leike, and Ryan Lowe. Training language models to follow instructions with human feedback.
+InAdvancesinNeuralInformationProcessingSystems35,NeurIPS,2022.
+Richard E. Overill. Book review: ”time warps, string edits, and macromolecules: the theory and
+practice of sequence comparison” by david sankoff and joseph kruskal. Journal of Logic and
+Computation,11(2):356,2001.
+JunsooPark,SeungyeonJwa,MeiyingRen,DaeyoungKim,andSanghyukChoi.Offsetbias:Lever-
+agingdebiaseddatafortuningevaluators. arXivpreprintarXiv:2407.06551,2024.
+Ben Pikus, Will LeVine, Tony Chen, and Sean Hendryx. A baseline analysis of reward mod-
+els’ ability to accurately analyze foundation models under distribution shift. arXiv preprint
+arXiv:2311.14743,2023.
+AlecRadford,JeffreyWu,RewonChild,DavidLuan,DarioAmodei,IlyaSutskever,etal.Language
+modelsareunsupervisedmultitasklearners. OpenAIblog,1(8):9,2019.
+KaivalyaRawalandHimabinduLakkaraju.Beyondindividualizedrecourse:Interpretableandinter-
+activesummariesofactionablerecourses. InAdvancesinNeuralInformationProcessingSystems
+33,NeurIPS,2020.
+Nils Reimers and Iryna Gurevych. Sentence-bert: Sentence embeddings using siamese bert-
+networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language
+Processingandthe9thInternationalJointConferenceonNaturalLanguageProcessing,EMNLP-
+IJCNLP,pp.3980–3990,2019.
+MarcoTu´lioRibeiro,SameerSingh,andCarlosGuestrin.”whyshouldItrustyou?”:Explainingthe
+predictionsofanyclassifier. InProceedingsofthe22ndACMSIGKDDInternationalConference
+onKnowledgeDiscoveryandDataMining,KDD,pp.1135–1144,2016.
+IndiraSen,DennisAssenmacher,MattiaSamory,IsabelleAugenstein,WilM.P.vanderAalst,and
+ClaudiaWagner. Peoplemakebetteredits: Measuringtheefficacyofllm-generatedcounterfac-
+tuallyaugmenteddataforharmfullanguagedetection. InProceedingsofthe2023Conferenceon
+EmpiricalMethodsinNaturalLanguageProcessing,EMNLP,pp.10480–10504,2023.
+Prasann Singhal, Tanya Goyal, Jiacheng Xu, and Greg Durrett. A long way to go: Investigating
+lengthcorrelationsinrlhf. arXivpreprintarXiv:2310.03716,2023.
+SandraWachter,BrentD.Mittelstadt,andChrisRussell. Counterfactualexplanationswithoutopen-
+ingtheblackbox: AutomateddecisionsandtheGDPR. HarvardJournalofLaw&Technology,
+31:841,2017.
+HaoxiangWang,WeiXiong,TengyangXie,HanZhao,andTongZhang. Interpretablepreferences
+via multi-objective reward modeling and mixture-of-experts. arXiv preprint arXiv:2406.12845,
+2024a.
+Zhilin Wang, Yi Dong, Jiaqi Zeng, Virginia Adams, Makesh Narsimhan Sreedhar, Daniel Egert,
+Olivier Delalleau, Jane Polak Scowcroft, Neel Kant, Aidan Swope, et al. Helpsteer: Multi-
+attributehelpfulnessdatasetforsteerlm. arXivpreprintarXiv:2311.09528,2023.
+ZhilinWang, YiDong, OlivierDelalleau, JiaqiZeng, GeraldShen, DanielEgert, JimmyJZhang,
+MakeshNarsimhanSreedhar,andOleksiiKuchaiev.Helpsteer2:Open-sourcedatasetfortraining
+top-performingrewardmodels. arXivpreprintarXiv:2406.08673,2024b.
+Tongshuang Wu, Marco Tu´lio Ribeiro, Jeffrey Heer, and Daniel S. Weld. Polyjuice: Generating
+counterfactuals for explaining, evaluating, and improving models. In Proceedings of the 59th
+AnnualMeetingoftheAssociationforComputationalLinguisticsandthe11thInternationalJoint
+ConferenceonNaturalLanguageProcessing,ACL/IJCNLP,pp.6707–6723,2021.
+13Preprint
+ZiangXiao,XingdiYuan,Q.VeraLiao,RaniaAbdelghani,andPierre-YvesOudeyer. Supporting
+qualitativeanalysiswithlargelanguagemodels: CombiningcodebookwithGPT-3fordeductive
+coding. In Companion Proceedings of the 28th International Conference on Intelligent User
+Interfaces,IUI,pp.75–78,2023.
+ShushengXu,WeiFu,JiaxuanGao,WenjieYe,WeilinLiu,ZhiyuMei,GuangjuWang,ChaoYu,
+and Yi Wu. Is dpo superior to ppo for llm alignment? a comprehensive study. In The 41st
+InternationalConferenceonMachineLearning,ICML,2024.
+LinyiYang,EoinM.Kenny,TinLokJamesNg,YiYang,BarrySmyth,andRuihaiDong. Gener-
+ating plausible counterfactual explanations for deep transformers in financial text classification.
+InProceedingsofthe28thInternationalConferenceonComputationalLinguistics,COLING,pp.
+6150–6160,2020.
+ZhiyuanZeng,JiatongYu,TianyuGao,YuMeng,TanyaGoyal,andDanqiChen. Evaluatinglarge
+language models at evaluating instruction following. In The 12th International Conference on
+LearningRepresentations,ICLR,2024.
+14Preprint
+A THE HIGH-LEVEL EVALUATION ATTRIBUTES
+Weadoptedasemi-automatedworkflowtoobtainthelistofattributespresentedinSection2.3. Us-
+ingthesametestsetsofthethreedatasets(describedinSection3), wepromptGPT-4otoidentify
+relevant attributes which potentially caused one response to be more preferred than the other re-
+sponse in each test comparison. Outside the scope of reward modelling, similar techniques have
+beenusedinthethematicanalysisoftexts(Xiaoetal.,2023;Daietal.,2023;Chewetal.,2023).
+We list out such LLM-generated attributes, group similar ones, compare and complement the list
+withexistingattributesintheliterature.
+Weusedthefollowingprompt:
+In the task of response quality scoring, a trained deep learning
+model assigns real-valued scores for responses to questions. The
+higher the score, the better the response quality. The question
+is ’{question}’. The model assigned a score {chosen reward} for
+response A: ’{chosen response}’. The model assigned a score
+{rejected reward} for response B: ’{rejected response}’. List
+out some high-level attributes which might have caused the model
+to assign a better score for response A than response B. Some
+example attributes are: appropriateness, clarity, harmlessness,
+verbosity, etc. Only output the attributes in a comma-separated
+list.
+From the test sets, we obtain the following attributes, sorted by the number of occurrences in the
+LLMresponsesindescendingorder:
+clarity, relevance, harmlessness, informativeness, detail,
+conciseness, specificity, completeness, structure,
+helpfulness, verbosity, engagement, coherence, appropriateness,
+comprehensiveness, empathy, accuracy, sensitivity, creativity,
+legality, ethicality, readability, factual-accuracy,
+persuasiveness, privacy, humour, assertiveness
+This list encompasses all attributes in the hs2 dataset Wang et al. (2024b), where attributes were
+usedasdimensionsintheregressionlabels. ItalsooverlapswiththeonesinUltraFeedbackdataset
+(Cui et al., 2023) apart from instruction-following and honesty. As the former is not
+the focus of the datasets we experiment with, we only additionally include honesty, relabelled
+to avoid-to-answer for better relevance. The list of attributes deviates from the list in the
+OASST2dataset(Ko¨pfetal.,2023),whichfocusesondistinguishingvarioustypesofharmfulcon-
+tents,e.g. hatespeech,violence,etc. Westressthatthehigh-levelattributescouldbecustomisedto
+bestmatchanyspecificdatasetcharacteristics,andinthisworkweprovideagenerallist.
+Weconcludeourfinallistbelow,sortedinalphabeticalorder:
+• avoid-to-answer: whether or not the response is avoiding to give direct answers to
+thequestion,
+• appropriateness:theextenttowhichtheresponseisappropriateintermsoflanguage
+style,politeness,andwhetheritcontainsanysarcasm,
+• assertiveness: the extent to which the response sounds very certain and contains
+judgements,
+• clarity: whetherornottheresponseisclearandeasytoread,
+• coherence: whetherornotthecontentsintheresponseareself-containedandclear,
+• complexity: theintellectualburdenrequiredbyapersontounderstandthisresponse,
+• correctness: whetherornottheresponseisfactuallycorrect,
+• engagement: theextenttowhichthelanguagestyleoftheresponseistryingtoengage
+withthepersonwhowrotethequestion,
+• harmlessness: whether or not the response is relevant to any potentially unsafe, im-
+moralorillegalbehaviours,
+15Preprint
+• helpfulness: whetherornottheresponseaddressesthepointsraisedinthequestion,
+• informativeness: whetherornottheresponseprovidesinformativeknowledge,
+• neutrality:whetherornottheresponseisneutralandiswithoutbiasestowardscertain
+groups,
+• relevance: whetherornottheresponseisinarelevantcontextasinthequestion,
+• sensitivity: whether or not the response is relevant to any personal, sensitive, or
+privateinformation,
+• verbosity: howmanyrelevantdetailsareincludedintheresponse,andwhetherornot
+theresponseistoolong.
+B PROMPTS USED IN OUR METHODS
+We present the prompts we use for the two steps described in Section 2.3. Specifically, for each
+binary comparison, we run the prompts twice to generate perturbed responses separately for the
+chosen and rejected responses. In the prompts, we parameterise the two responses, and the other
+variablesinthepromptscanbedetermineddependingonwhetherthechosenorrejectedresponse
+is input as response 1. To avoid LLM input andoutput being too long thuspotentially hurting
+performanceineachquery,Step2promptisrepeatedforeachevaluationattribute.
+Step1prompt:
+In the task of response quality scoring, a trained deep learning
+model assigns real-valued scores for responses to questions, the
+higher the score the better the response quality.
+The question is ’{question}’. The model assigned a score {score 1}
+for response A: ’{response 1}’. The model assigned a score
+{score 2} for response B: ’{response 2}’.
+The high-level attributes that potentially caused the model to
+assign a {better/worse} score for response A than response B are
+{attribute list}.
+Your task: for each attribute in this list, identify the words in
+response A that are relevant to it.
+Only output the attributes and their associated words like this:
+’attribute: word1, word2, word3’. Each line should contain a
+comma-separated word list for one attribute.
+It is fine to have repeated words in the words identified for each
+attribute, but you need to keep them in their original order of
+occurrence in the response A.
+Step2prompt:
+In the task of response quality scoring, a trained deep learning
+model assigns real-valued scores for responses to questions, the
+higher the score the better the response quality.
+The question is ’{question}’. The model assigned a score {score 1}
+for response A: ’{response 1}’. The model assigned a score
+{score 2} for response B: ’{response 2}’.
+The potential high-level attributes that caused the model to
+assign a {better/worse} score for response A than response B is:
+{attribute}. This attribute concerns {attribute description}.
+Your task is to modify response A. Here is a list of requirements
+for the modification:
+- The modified response A becomes a {better/worse} response to the
+question than response B.
+16Preprint
+- {Positively/Negatively} change the semantic meaning of response
+A by making it {better/worse} in terms of {attribute}.
+- The changes made to response A should be centered around the
+following words: {relevant words for this attribute identified in
+Step 1}
+- Only output the modified response A.
+C PROMPTS USED IN THE RANDOM PERTURBATION BASELINE
+Generate a random perturbation of this piece of text: {response}.
+Only output the perturbed text.
+Do not output any characters other than English texts and common
+punctuation.
+D ABLATION ANALYSIS
+Differentpromptscanhavelargeimpactsontheperturbationsgenerated. Inourprompt,wespecify
+that
+The changes made to response A should be centered around the
+following words: {relevant words for this attribute identified
+in Step 1}.
+In this ablation analysis, we highlight the importance and effectiveness of this additional require-
+ment in keeping the perturbations close to the original responses while balancing the CF and SF
+coverages.
+FollowingthesameexperimentalsetupdescribedinSection3),wequantitativelycompareCFsand
+SFsresultingfromperturbationsobtainedwiththreedifferentprompts. Ourfinalpromptisreferred
+toasthecenter-prompt. Oneofthedifferentprompt(only)replacestheabovesentenceby:
+Response A can only be modified by deleting, replacing, or
+inserting words, at the locations of all or a subset of the
+following words: {relevant words},
+posingastrongerrestrictiononthechangesmadeintheperturbations. Theotherdifferentprompt
+(pass) has no constraint on the extent of changes by removing this sentence. Table 4 reports the
+comparisonresults.
+Dataset Prompt cov. CF cov. SF syn. dist. sem. dist sem. div.
+only 0.49±.123 0.86±.071 0.48±.026 0.30±.028 0.21±.022
+harmless pass 0.64±.121 0.55±.161 0.81±.011 0.48±.028 0.29±.019
+center 0.68±.111 0.90±.061 0.65±.015 0.36±.028 0.31±.023
+only 0.72±.008 0.79±.054 0.47±.019 0.24±.019 0.13±.015
+helpful pass 0.80±.057 0.13±.083 0.75±.017 0.37±.023 0.19±.013
+center 0.80±.047 0.74±.067 0.61±.018 0.28±.018 0.20±.012
+only 0.28±.088 0.76±.178 0.29±.098 0.07±.034 0.04±.013
+hs2 pass 0.39±.094 0.71±.140 0.50±.068 0.11±.030 0.06±.012
+center 0.33±.144 0.84±.149 0.31±.023 0.07±.017 0.07±.010
+Table4: ComparisonofCFandSFcoverage,distancesanddiversityforthreedifferentprompts.
+Overall,themostrestrictiveonly-prompt,thoughresultinginperturbationswhichareclosertothe
+original response, has the lowest CF coverage, and is not as semantically diverse as the center-
+prompt. Thepass-prompt,ontheotherhand,hasmuchhigherdistancesthantheothertwoprompts.
+Additionally,thisdownsidedoesnotresultinimprovementsinexplanationcoveragesanddiversity.
+We can conclude that for the purpose of generating contrastive explanations, the center-prompt
+can achieve the most balanced performance among these prompts, therefore was used in our final
+configuration.
+17Preprint
+E EXPLANATION EVALUATION RESULTS FOR CORRECT AND WRONG
+PREFERENCES
+In this analysis, we look at evaluation metrics for explanations respectively for correct and wrong
+preferences made by RMs to further understand the effectiveness of our approach. Following the
+sameexperimentalsetupdescribedinSection3,wefurtherdivideeachtestsetbywhetherornotthe
+model’spreferenceiscorrect,i.e.matchesthegroundtruthlabel.WereportinTable5theevaluation
+resultsofourmethodseparatelyforcorrectandwrongpreferences.
+Dataset Preference cov. CF cov. SF syn. dist. sem. dist sem. div.
+harmless
+correct 0.71±.149 0.88±.123 0.65±.026 0.36±.037 0.30±.029
+wrong 0.67±.173 0.90±.127 0.64±.017 0.37±.039 0.32±.042
+helpful
+correct 0.78±.008 0.73±.007 0.63±.018 0.29±.025 0.19±.011
+wrong 0.86±.105 0.79±.134 0.57±.059 0.26±.044 0.21±.049
+hs2
+correct 0.29±.161 0.84±.158 0.33±.033 0.08±.021 0.07±.016
+wrong 0.38±.170 0.82±.156 0.27±.029 0.05±.017 0.06±.012
+Table5: ComparisonofCFandSFcoverage,distancesanddiversityforexplanationsofcorrectand
+wrongpreferences.
+Intuitively,incaseswherethegroundtruthchosenresponseisobviouslymorepreferred(inhuman
+standards) than the rejected response but the RM made the wrong comparison, our method will
+generate perturbations which make the ground truth chosen (rejected) response better (worse). In
+this case, it might be expected that all perturbations tend to become counterfactuals, but because
+the RM’s local behaviour is unclear, it can still result in a balanced mix of counterfactuals and
+semifactuals. Indeed,inTable5,weobservenocleardistinctionsintheresults,validatingthatour
+methodiseffectiveinfindingexplanationsforbothcorrectandwrongpreferencesmadebyRMs.
+F SEPARATELY CONSIDER PERTURBING CHOSEN AND REJECTED RESPONSE
+FOR GLOBAL SENSITIVITY ANALYSIS
+InSection4,wehaveseparatelyconsideredglobalsensitivityforY andY becauseperturbingy
++ − +
+tobecomeworsethany isanindependentprocessfromperturbingy tobecomebetterthany .
+− − +
+Wevalidatethisintuitionbycalculatingtherankingsimilarities(Kendall’sτ correlationcoefficient)
+betweeneachdataset’sY andY branches. TheresultsforeachmodelarepresentedinTable6.
++ −
+We observe that only v2 and pythia have weak correlations in some cases, and the rest of the
+resultsaregenerallyuncorrelated.
+harmless helpful hs2
+v1 0.18 0.03 0.12
+v2 0.49 0.30 0.28
+pythia 0.28 0.31 0.07
+Table 6: Ranking similarity of global sensitivity between the perturbed responses for chosen and
+rejectedresponses.
+G FURTHER QUALITATIVE ANALYSIS
+Inthissection,wepresentafurtherqualitativeanalysis,usingourcontrastiveexplanationmethodto
+discoverfailurecasesinstate-of-the-artRMs.
+Followingthefindingsontheundesirablebehavioursofmodelv2inSection4.2.1,weadditionally
+include two better-performing RMs and investigate whether they improve over the weaknesses in
+v2. WeuseLlama-3-OffsetBias-RM-8B5 (LlamaOB)trainedbyParketal.(2024),andSkywork-
+5https://huggingface.co/NCSOFT/Llama-3-OffsetBias-RM-8B
+18Preprint
+Reward-Llama-3.1-8B-v0.26(LlamaSW)trainedbyLiuetal.(2024),bothhave8billionparameters
+andrankamongthetop-performingmodelsintheRewardBenchbenchmark7(Lambertetal.,2024).
+(a)Perturbedrejectedresponses.
+(b)Perturbedchosenresponses.
+Figure6: ExampleforinvestigatingimprovementsofLlamaOBandLlamaSWoverv2.
+6https://huggingface.co/Skywork/Skywork-Reward-Llama-3.1-8B-v0.2
+7https://huggingface.co/spaces/allenai/reward-bench
+19Preprint
+WebeginbyobservingthetwoRMs’behavioursonthetextperturbationsinthesameexample
+showninFigure4.
+WepresenttheresultsinFigure6. ThetwoRMsmakethesamepreferenceoverthetwooriginalre-
+sponsesasv2forthisexample. Figure6ashowsRMs’predictedrewardsfortheperturbedrejected
+responses. Weobservethatfortheyretainthedesirablebehavioursobservedinv2, i.e. inpertur-
+bations associated with attributes appropriateness, correctness, harmlessness,
+neutrality, relevance, by mentioning betting on dog-fights is an illegal activity, the two
+RMs assign higher rewards compared with that of the rejected response. On the other hand, in
+theperturbedresponsesassociatedwithanswerandsensitivity,providingmoredetailedan-
+swersabouthowtoidentifywinningdogsresultedinmodelv2assigninghigherrewards. Thesame
+undesirablebehavioursarealsoobservedinthemorepowerfulLlamaOBandLlamaSW.
+More interesting observations can be seen in Figure 6b, which shows the RMs’ predicted rewards
+fortheperturbedchosenresponses. Astheoriginalchosenresponseavoidedansweringtheharmful
+question,incorporatingmoredetailedharmfulcontentinitcausedtherewards(fromthetwolarger
+models)todecrease(correctness, harmlessness, sensitivity).Theyalsocorrectly
+identifiedthatcallingtheuseran“irresponsiblegambler”(neutrality)isproblematicbylower-
+ingtherewards. However,weseesomeclearlyundesirablebehavioursinthetwolargermodels:
+• LlamaSW assigned a higher reward for an LLM answer asserting that it can help with
+harmfulactivities(answer).
+• Byincorporatingdisrespectfullanguage“thehell”intheresponse(appropriateness),
+v2andLlamaOBincreasedthetheirrewards.
+Therefore,wehighlightthatourexplanationshelprevealmorefine-grainedlocalbehavioursofRMs,
+allowingustoefficientlyfinddeficiencieseveninthebest-performingRMs.
+Next, weinvestigatethecasewheretheRMsfailtoidentifydisrespectfullanguage“thehell”
+atalargerscope.
+We observe that in the harmless dataset, it is common that one LLM response avoids an-
+swering harmful or sensitive user questions by saying something like “What do you mean?” As
+was the case in the example shown in Figures 4 and 6, when perturbing such responses along
+appropriateness, our method frequently inserts the disrespectful phrase “the hell” to them.
+We collect questions with such responses together with their disrespectful perturbations from our
+experiments on harmless dataset, and obtain 110 test comparisons. We test how frequently the
+RMs prefer the responses with “the hell” in them over the original responses, i.e. disrespectful
+perturbationwinrate,andreporttheresultsinTable7.
+pythia v1 v2 LlamaOB LlamaSW
+winrate 0.75 0.51 0.56 0.30 0.15
+Table7: Disrespectfulperturbationwinrate,lowervaluesarebetter.
+Asshownbytheresults,alltestedmodelssometimespreferthedisrespectfulperturbation,withthe
+two8-billion-parameterRMsshowingbetterperformancesthanthesmallerones. Notethatbythe
+timeofwriting,LlamaOBandLlamaSWrank22ndand7thintheRewardBenchbenchmark,and
+LlamaSWisthebest-performingRMwhichhaslessthan10billionparameters. Ourfindingsvali-
+datethatthereisscopeforimprovementsoverthecurrentstate-of-the-artRMs. Theinvestigations
+inthissectionalsoexemplifyhowourcontrastiveexplanationmethodcanbeusefulfordiscovering
+newfailurecasesinRMs,sheddinglightondirectionsforfutureimprovements.
+20

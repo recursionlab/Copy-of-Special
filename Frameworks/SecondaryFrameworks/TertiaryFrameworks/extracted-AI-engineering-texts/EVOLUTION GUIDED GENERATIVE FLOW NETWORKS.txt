@@ -1,0 +1,1693 @@
+UnderreviewasaconferencepaperatICLR2025
+000 EVOLUTION GUIDED GENERATIVE FLOW NETWORKS
+001
+002
+003 Anonymousauthors
+004 Paperunderdouble-blindreview
+005
+006
+007 ABSTRACT
+008
+009
+GenerativeFlowNetworks(GFlowNets)areafamilyofprobabilisticgenerative
+010
+modelsrecentlyinventedthatlearntosamplecompositionalobjectsproportional
+011
+to their rewards. One big challenge of GFlowNets is training them effectively
+012 when dealing with long time horizons and sparse rewards. To address this, we
+013 proposeEvolutionguidedgenerativeflownetworks(EGFN),asimpleandpowerful
+014 augmentationtotheGFlowNetstrainingusingEvolutionaryalgorithms(EA).Our
+015 methodcanworkontopofanyGFlowNetstrainingobjective,bytrainingaset
+016 ofagentparametersusingEA,storingtheresultingtrajectoriesintheprioritized
+017 replaybuffer,andtrainingtheGFlowNetsagentusingthestoredtrajectories. We
+presentathoroughinvestigationoverawiderangeoftoyandreal-worldbenchmark
+018
+tasksshowingtheeffectivenessofourmethodinhandlinglongtrajectoriesand
+019
+sparserewards.
+020
+021
+022
+1 INTRODUCTION
+023
+024
+GenerativeFlowNetworks(GFlowNets)(Bengioetal.,2021;2023)areafamilyofprobabilistic
+025
+amortizedsamplersthatlearntosamplefromaspaceproportionallytosomerewardfunctionR(x),
+026
+effectively sampling compositional objects over some probability distribution. As a generative
+027
+process,itcomposesobjectsbysomesequenceofactions,terminatingbyreachingatermination
+028
+state.
+029
+GFlowNetshaveshowngreatpotentialfordiversechallengingapplications,suchasmoleculediscov-
+030
+ery(Jainetal.,2023a),biologicalsequencedesign(Jainetal.,2022),combinatorialoptimization
+031
+(Zhangetal.,2023a),latentvariablesampling(Liuetal.,2023)androadgeneration(Ikrametal.,
+032
+2023). ThekeyadvantageofGFlowNetsoverothermethodssuchasreinforcementlearning(RL)is
+033
+thatGFlowNets’skeyobjectiveisnotrewardmaximization,allowingthemtosamplediversesamples
+034
+fromdifferentpeaksofhighrewards. Althoughentropy-regularizedRLalsoencouragesrandomness
+035 whentakingactions,itisnotgeneralinwhentheunderlyinggraphisnotatree(i.e.,astatecanhave
+036 multipleparentstates)(Zhaoetal.,2019).
+037
+Despitetherecentadvancements,thereal-worldadaptationofGFlowNetsisstilllimitedbyamajor
+038
+problem:temporalcreditassignmentforlongtrajectoriesandsparserewards.Forexample,real-world
+039
+problemssuchasproteindesignoftenareoftenlong-horizonproblems,necessitatinglongtrajectories
+040
+forsampling. Sincerewardisgivenonlywhentheagentreachestheterminalstates, associating
+041 actionswithrewardsoveralengthytrajectorybecomeschallenging. Additionally,rewardspaceis
+042 sparseinreal-worldtasks,makingtemporalcreditassignmentmoredifficult. Trajectorybalance(TB)
+043 objective(Malkinetal.,2022)attemptstotackletheproblembymatchingtheflowacrosstheentire
+044 trajectory,butinpractice,itinduceslargervarianceandishighlysensitivetosparserewards(Madan
+045 etal.,2023),makingthetrainingunstable.
+046
+Evolutionaryalgorithms(EA)(Bäck&Schwefel,1993),aclassofoptimizationalgorithmsinspired
+047 bynaturalselectionandevolution, canbeapromisingcandidatefortacklingthesaidchallenges.
+048 Indeed, the shortcomings of GFlowNets are the advantages of EA, which makes it promising to
+049 considerincorporatingEAintothelearningparadigmofGFlowNetstoleveragethebestfromboth
+050 worlds. First,theselectionoperationinEAisachievedbyfitnessevaluationthroughouttheentire
+051 trajectory,whichmakesthemrobusttolongtrajectoriesandsparserewardsastheynaturallybias
+052 towardsregionswithhighexpectedreturns. Secondly,mutationmakesEAnaturallyexploratory,
+whichiscrucialforGFlowNetstrainingandmode-findingastheyrelyondiversesamplesforbetter
+053
+training(Panetal.,2022b). Third,EA’snaturalselectionbiasestowardsparametersthatgenerate
+1UnderreviewasaconferencepaperatICLR2025
+054
+055
+056
+057
+058
+059
+060
+061
+062
+063
+064
+065
+Figure1: TheproposedEGFNarchitecture. Steponeprovideshigh-qualitytrajectoriestothereplaybuffer
+066 byevolvingtheagentsusingthetrajectoryrewardsasfitness.Steptwogatherstrainingtrajectoriesfromboth
+067 onlineandofflinetrajectories.Stepthreetrainsthestaragentusingthetrainingtrajectories.
+068
+069
+070 highrewardsamples,which,coupledwithareplaybuffer,canprovidesampleredundancy,resulting
+071 inabettergradientsignalforstableGFlowNetstraining.
+072
+In this work, we introduce Evolution guided generative flow networks (EGFN), a novel training
+073
+methodforGFlowNetscombininggradient-basedandgradient-freeapproachesandbenefitfrom
+074 the best of both worlds. Our proposed approach is a three-step training process, as summarized
+075 in Figure 1. First, using a fitness metric across sampled trajectories taken over a population of
+076 GFlowNetsagents,weperformselection,crossover,andmutationonneuralnetworkparametersof
+077 GFlowNetsagentstogenerateanewpopulation. Toreusethepopulation’sexperience,westorethe
+078 evaluatedtrajectoriesintheprioritizedreplaybuffer(PRB).Forthesecondstep,wesamplethestored
+079 trajectoriesfromaPRBandcombinethemwithonlinesamplesfromadifferentGFlowNetsagent.
+Finally,usingthegatheredsamples,wetrainaGFlowNetsagentusinggradientdescentoversome
+080
+objectivessuchasFlowmatching(FM),TB,andDetailedbalance(DB).Thereward-maximizing
+081
+capabilityofEAenhancesgradientsignalthroughhighrewardtrainingsamples, ensuringstable
+082
+GFlowNetstrainingeveninconditionswithsparserewardsandlongtrajectories. Throughextensive
+083
+evaluationinexperimentalandawiderangeofreal-worldsettings,ourmethodproveseffectivein
+084
+addressingweaknessesrelatedtotemporalcreditassignmentinsparserewardsandlongtrajectories,
+085 surpassing GFlowNets baselines in terms of both the number of re-discovered modes and top-K
+086 rewards.
+087
+088
+089 2 PRELIMINARIES
+090
+091 2.1 GENERATIVEFLOWNETWORKS(GFLOWNETS)
+092
+093 GenerativeFlowNetworks(GFlowNets)areafamilyofgenerativemodelsthatsamplescompositional
+094 objectsthroughasequenceofactions. GivenaterminalstatespaceX,theyaimtolearnastochastic
+095 policyπ thatcansampleterminalstatesx ∈ X proportionallytoanon-negativerewardfunction
+096 R(x),i.e.,π(x)∝R(x). GFlowNetsconstructobjectsx∈X bysamplingconstructive,irreversible
+actionsa ∈ Athattransitions tos . WedenotetheMarkoviancompositiontrajectory(s →
+097 t t+1 0
+s →− ···→x)asτ ∈T,whereT isthesetofalltrajectories. Thus,theproblemisformulatedas
+098 1
+adirectedacyclicgraph(DAG),(S,E),whereeachnodeinS denotesastatewithaninitialstate
+099
+s , and each edge in E denotes a transition s → s with a special terminal action indicating
+0 t t+1
+100
+s=x∈X. ThereexistdifferentpathsleadingtothesamestateintheDAG.Animportantadvantage
+101
+ofGFlowNetsisthatGFNcansampleproportionallytodifferentpeaksofrewardandwecantrainit
+102 inbothonlineandofflinesettings,allowingustotrainfromreplaybuffers.
+103
+ThekeyobjectiveofGFlowNetstrainingistotrainP suchthatπ(x)∝R(x),where,
+104 F
+105
+|τ|−1
+106 (cid:88) (cid:89)
+π(x)= P (s |s ;θ) (1)
+107 F t+1 t
+τ∈T t=0
+x∈τ
+2UnderreviewasaconferencepaperatICLR2025
+108 where, P is a parametric model reprenting the forward transition probability of s to s with
+F t t+1
+109 parameterθ. ThereareseveralwidelyusedlossfunctionstooptimizeGFlowNetsincludingFM,DB
+110 andTB.
+111
+FlowmatchingFollowingBengioetal.(2021),wedefinethestateflowandedgeflowfunctions
+112 F(s) = (cid:80) F(τ)andF(s → s′) = (cid:80) F(τ),respectively. Then,theFMcriterion
+113 s∈τ τ=(...s→s′...)
+matchesthein-flowandtheout-flowforallstatess∈S,formally–
+114
+115 (cid:88) F(s→s′)= (cid:88) F(s′ →s′′) (2)
+116
+s:(s→s′)∈A s′′:(s′→s′′)∈A
+117
+118 whereF(s′ →s′′)=R(s)ifs∈X. UsingP (s′|s,θ)=F(s′ →s′′),weturnequation2toaloss
+F
+119
+function–
+120 (cid:34) (cid:80) P (s′|s,θ) (cid:35)2
+121 L (s′,θ)= log (s→s′)∈A F (3)
+FM (cid:80) P (s′|s′′,θ)
+122 (s′→s′′)∈A F
+123
+DetailedbalanceFollowingBengioetal.(2023),weparameterizeF(s),F(s→s′),andF(s′ →s)
+124
+withF (s),P (s′|s,θ),andP (s|s′,θ),respectively. Then,theDBlossforasampledtrajectory
+125 θ F B
+τ ∈T is–
+126
+(cid:20)
+F (s)P
+(s′|s,θ)(cid:21)2
+127 L (s,s′,θ)= log θ F (4)
+DB F (s′)P (s|s′,θ)
+128 θ B
+129
+forall(s→s′)∈τ.
+130
+131 TrajectorybalanceMalkinetal.(2022)extendsthedetailbalanceobjectivetothetrajectorylevel,
+132 viaatelescopingoperationofEq.(4). Specifically,Z θ isalearnableparameterthatrepresentsthe
+(cid:80) (cid:80)
+133 totalflow: x∈X R(x)= s:s0→s∈τ∀τ∈T P F(s|s 0;θ),andtheTBlossisdefinedas:
+134
+135
+L
+(τ,θ)=(cid:34)
+log
+Z θ(cid:81)| tτ =| 0−1P F(s t+1|s t,θ) (cid:35)2
+. (5)
+136 TB R(x)(cid:81)|τ|−1P (s |s ,θ)
+t=0 B t t+1
+137
+138 ThiscanincurlargervarianceasdemonstratedinMadanetal.(2023).
+139 WetraintheGFlowNetsparameterθ byminimizingthelossLbyperformingstochasticgradient
+140 descent.
+141
+142
+2.2 EVOLUTIONARYALGORITHMS(EA)
+143
+144 Evolutionaryalgorithms(EA)(Bäck,2006;Spearsetal.,1993)areaclassofoptimizationalgorithms
+145 that generally rely on three key techniques: mutation, crossover, and selection as in biological
+146 evolution. Thecrossoveroperationisresponsibleforgeneratingnewsamplesbasedonexchangeof
+informationamongapopulationofsamples. Themutationoperationaltersthegeneratedsamples,
+147
+usuallywithsomeprobabilityp . Finally,theselectionoperationevaluatesthefitnessscore
+148 mutation
+ofthepopulationandisresponsibleforgeneratingthenextpopulation. Inthiswork,weapplyEA
+149
+inthecontextoftheweightsoftheneuralnetworks,oftenreferredtoasneuroevolution(Stanley&
+150
+Miikkulainen,2002b;Risi&Togelius,2014;Floreanoetal.,2008;Lüdersetal.,2017).
+151
+152
+153 3 EVOLUTION GUIDED GENERATIVE FLOW NETWORKS (EGFN)
+154
+EGFN is a strategy to augment existing training methods of GFlowNets. The evolutionary part
+155 in EGFN (Step one) samples discrete objects, e.g., a molecular structure, using a population of
+156 GFlowNetsagents, evaluatesthefitnessoftheagentsbasedonthesamples, andgeneratesbetter
+157 samplesbymanipulatingtheweightsoftheagentpopulation. Westorethesamplesobtainedfrom
+158 thepopulationinaPRBthattheGFlowNetssamplerusesto,alongsideon-policysamples,trainits
+159 weights(Steptwo&three). TodifferentiatetheGFlowNetsagenttrainedbygradientdescentinstep
+160 twoandthreefromtheagentpopulationtrainedusingEAinstepone,werefertotheagenttrained
+bygradientdescentasthestaragent andGFlowNetsagentstrainedusingEAasEAGFlowNets
+161
+agents. Thetrainingloopcanbesummarizedinthefollowingthreesteps:
+3UnderreviewasaconferencepaperatICLR2025
+162 Algorithm1EvolutionGuidedGFlowNetTraining
+163
+Input:
+164 P∗: Forwardflowofthestaragentwithweightsθ∗
+F
+165 pop : Populationofkagentswithrandomlyinitiatedweights
+F
+166 D: Prioritizedreplaybuffer
+167 E: Numberofepisodesinanevaluation
+168 ϵ: percentofgreedilyselectedelites
+169 δ: online-to-offlinesampleratio
+170 γ: mutationstrength
+foreachepisodesdo
+171
+foreachP ∈pop do
+172 F F
+fitness,D=EVALUATE(P ,E,noise=None,D); // store experience in
+173 F
+replay buffer
+174
+Sortpop basedonfitnessinadescendingorder
+175 F
+SelectthefirstϵkP frompop aselite
+176 F F
+Select(1-ϵ)P frompop stochasticallybasedonfitnessasS
+F F
+177
+while|S|<kdo
+178 crossoverbetweenP ∈eliteandP ∈S andappendtoS
+F F
+179
+foreachP ∈S do
+F
+180 Applymutation∼N(0,γ)toθ withprobabilityp
+181
+fitness,D=EVALUATE(P∗,E,D)PF mutation
+182 Sampleaminibatchof(1−F δ)T offlinetrajectoriesT fromD
+183 SampleaminibatchofδT onlinetrajectoriesT fromP∗
+F
+184 ComputelossLusingtrajectorybalancelossfromT
+185 Updateparametersθ∗usingstochasticdescentonlossL
+186
+187
+188
+189 StepOne Generate a population of EA GFlowNets agents. Evaluate the fitness of the agents’
+weightsbyevaluatingthesamplesgatheredfromtheagents’. Applythenecessaryselection,
+190
+mutation,andcrossovertotheweightstogeneratethenextpopulation. Storethegenerated
+191
+trajectories{(τ ,...,τ ) ,(τ ,...,τ ) ,...,(τ ,...,τ ) }tothePRB.
+192 1 E 1 1 E 2 1 E k
+193 StepTwo GatheronlinetrajectoriesfromstaragentP∗ andofflinesamplesfromPRB.
+F
+194
+195 StepThree TrainP∗ using{τ ,τ ,...,τ }usinggradientdescentonanyGFlowNetslossfunction
+F 1 2 T
+196 suchasequations3,4,or5.
+197
+198
+199
+3.1 STEPONE: EVOLVE
+200
+ThisstepinvolvesoptimizingEAGFlowNetsagentweightstoproducetrajectoriesthataccelerate
+201
+P∗ trainingusingthePRB.Tothisend,beforethetrainbegins,weinitializepop,apopulationofk
+202 F
+EAGFlowNetsagentswithrandomweights. WeoptimizethepopulationweightsinastandardEA
+203
+processthatcontainsselection,crossover,andmutation. Algorithm2intheappendixCdetailsthe
+204
+evaluationprocess.
+205
+206 Selection The selection process begins with an evaluation of the population by calculating each
+agent’sfitnessscores. WedefinethefitnessscoreofanagentbythemeanrewardofE trajectories
+207
+{τ ,τ ,...,τ }sampledfromtheagent. Next,basedonfitnessscores,wetransferthetopϵ%elite
+208 1 2 E
+agents’weightstothenextpopulation,unmodified. Notably,westorethekE trajectoriessampled
+209
+fromthissteptothePRBinthisstep. Optionally,werestorethestaragentparameterstotheagent
+210
+populationbyreplacingtheparameterswiththeworstfitnessperiodically.
+211
+212 CrossoverThecrossoverstepensuresweightmixingbetweenagents’weights,ensuringstochasticity
+(Spears,1995). Here,weperformthecrossoverintwosteps. First,weperformaselectiontournament
+213
+processamongtheagentstogetpop-eliteagents,samplingproportionallytotheirfitnessvalueand
+214
+performingcrossoveramongthem. Next,weperformacrossoverbetweentheunselectedagentsand
+215
+elite. Wecombinethetwosetsofagentsandpassthemontothemutationprocess.
+4UnderreviewasaconferencepaperatICLR2025
+216
+217
+218
+219
+220
+221
+222
+223
+224
+225
+226
+227
+228 Figure3:Left:AnexamplehypergridenvironmentfordimensionD=2,horizonH =16.Here,the22 =4
+yellowtilesrefertothehighrewardmodes. Right: Experimentalresultscomparisonforthehypergridtask
+229
+betweenEGFN,GFlowNets,RL,andMCMCbaselineacrossincreasingdimensionsfor2500trainingsteps.
+230
+Righttop:theℓ errorbetweenthelearneddistributiondensityandthetruetargetdensity.Rightbottom:the
+1
+231 numberofdiscoveredmodesacrossthetrainingprocess.Asthedimensionofthegridincreases,thetrajectory
+232 lengthalsoincreases.TheproposedEGFNmethodachievesbetterperformancethanallbaselines,withbroader
+233 performancegapbetweenEGFNandGFlowNetswithincreasingtrajectorylength.
+234
+235
+MutationThemutationprocessensuresnaturalexploratorypolicyinagents. Weapplymutationby
+236
+addingagaussianperturbationN(0,γ)totheagentweights. Inthiswork,weonlyapplymutationto
+237
+thenon-eliteagents.
+238
+239
+3.2 STEPTWO: SAMPLE
+240
+241 In this step, we gather trajectory samples
+242 {τ ,τ ,...,τ }totrainthestaragent. Weuse
+1 2 T
+243 bothonlinetrajectoriessampledbythestaragent
+244 and offline trajectories stored in the PRB. For
+245 onlinetrajectories,weconstructatrajectoryτ
+246 byapplyingP F∗ togets 0 →s 1 →···→x,x∈
+X,whereX isthesetofallterminalstates. Itis
+247
+noteworthythattherearemanyworks(Rector-
+248
+Brooksetal.,2023;Kimetal.,2023;Panetal.,
+249
+2023a;2022a)thataugmentorperturbtheon-
+250
+line trajectories by applying stochastic explo-
+251
+ration, temperature scaling, etc. In this work,
+252 we choose a simple on-policy sampling from
+253 P∗ to get the online trajectories. For offline
+F
+254 samples,wesimplyusePRBtosampletrajec-
+255 toriescollectedfromsteponeproportionallyto
+256 the terminal reward. For this work, we take a
+257 simpleapproachforPRB,uniformlysampling
+Figure2:ThecrossoveroperationinEGFN.Here,we
+50%trajectoriesfromthe20percentileand50%
+258 fill a proportion of population through the crossover
+trajectoriesfromtherest.
+259 betweenagentsselectedproportionallytotheirfitness.
+260 Wefilltherestwiththecrossoverbetweentheunselected
+261
+3.3 STEPTHREE: TRAIN agentsandtheeliteagents.
+262
+We train the star agent by calculating loss L
+263
+using equation 3, 4, or 5 and minimizing the
+264
+lossbyapplyingstochasticgradientdescenttotheparameterθ.
+265
+266
+4 EXPERIMENTS
+267
+268
+In this section, we validate EGFN for different synthetic and real-world tasks. 4.1 presents an
+269
+investigationofEGFN’sperformanceinlongtrajectoryandsparserewards,generalizabilityacross
+5UnderreviewasaconferencepaperatICLR2025
+270
+271
+272
+273
+274
+275
+276
+277
+278
+279
+280
+281
+282
+283
+284 Figure4:ExperimentalresultscomparisonforthehypergridtaskbetweenEGFN,GFlowNets,RL,andMCMC
+baselineacrossincreasingdimensionsfor2500trainingsteps.Top:theℓ errorbetweenthelearneddistribution
+285 1
+densityandthetruetargetdensity.Bottom:thenumberofdiscoveredmodesacrossthetrainingprocess.Here,
+286
+H = 20,D = 5. AstheR valuedecreases, therewardsparsityincreases. TheproposedEGFNmethod
+0
+287 achievesbetterperformancethanallbaselines,withbroaderperformancegapbetweenEGFNandGFlowNets
+288 withincreasingsparsity.
+289
+290
+291 multipleGFlowNetsobjectives,andanablationstudyondifferentcomponents. Next,wepresent
+292 five real-world molecule generation experiments. In 4.2 and 4.4, we offer large-scale molecule
+293 experimentstoconfirmEGFN’sabilitytoproducelongersequences. Additionally,wecompareour
+294 methodwithexperimentsrelevanttopreviousliteraturein4.3,D.2,andD.3. Forallthefollowing
+experiments,weusek = 10,E = 4,ϵ = 0.2,andγ = 1. Allbaselinesareequippedwithreplay
+295
+buffersthathaveparameterssimilartotheEGFNinordertoconductfaircomparisons. Theexception
+296
+tothisisPPO,wherewedoublethesamplesizetoguaranteefairness. Allresultfiguresreportthe
+297
+meanandvarianceoverthreerandomseeds.
+298
+299
+300 4.1 SYNTHETICTASKS
+301
+WefirststudytheeffectivenessofEGFNinvestigatingthewell-studiedhypergridtaskintroduced
+302
+byBengioetal.(2021). ThehypergridisaD-dimensionalenvironmentofH horizons,withaHD
+303
+state-space,D+1action-space,and2D modes. Theithactionintheactionspacecorrespondsto
+304
+moving1unitintheithdimension,withtheDthactionbeingaterminationactionwithwhichthe
+305
+agentcompletesthetrajectoryandgetsarewardspecifiedbyequation6.
+306
+307 Inthisempiricalexperiment,twoquestionsinterestus.
+308
+• DoesEGFNaugmentationprovideimprovementagainstthebestGFlowNetsbaselinefor
+309
+longertrajectoriesandsparserewards?
+310
+311 • Isthismethodgenerallyapplicabletootherbaselines?
+312
+313 Setup. We run all hypergrid experiments for D ∈ {3,4,5}, H = 20, and R ∈
+0
+314 {10−3,10−4,10−5}. To determine the best GFlowNets baseline, we run three objectives ∈
+315 {FM,TB,DB} (please see Figure 10 in appendix D.1) and decide to use DB with a PRB of size
+316 1000. For a fair comparison, we use DB for implementing EGFN. We use R 0 = 10−5 for the
+longtrajectoryexperimentandD =5fortherewardsparsityexperiment,keepingothervariables
+317
+fixed. Finally,wepresentanablationstudyondifferentcomponentsusedinourexperimentsfor
+318
+H =16,D =5,andR =10−5.
+319 0
+320 Foracompletepicture,wecompareourmethodwithRLbaselinessuchasPPO(Schulmanetal.,
+321 2017), SAC (Haarnoja et al., 2018; Christodoulou, 2019), and IQL (Kostrikov et al., 2022) and
+322 MCMCbaselinesuchasMARS(Xieetal.,2020),andrecentGFlowNetbaselinesuchasGAFN.
+Besides,wealsocompareitagainstasimplervariationtoourmethodthatinvolvesGFlowNetswith
+323
+itsofflinetrajectoriessampledbyrandompolicyensembles.
+6UnderreviewasaconferencepaperatICLR2025
+324
+325
+326
+327
+328
+329
+330
+331
+332
+333
+334
+335
+336
+337
+Figure5: ExperimentalresultsforthehypergridtaskondifferentcomponentsofEGFN.Top: theℓ error
+1
+338 betweenthelearneddistributiondensityandthetruetargetdensity.Bottom:thenumberofdiscoveredmodes
+339 acrossthetrainingprocess.Here,H =20,D=5,andweuseDBobjective.
+340
+341
+342 Longtimehorizonresult. Inthisexperiment,asDincreases,|τ|increases,showingtheperfor-
+343 manceoverincreasing|τ|. Figure3demonstratesthatEGFNoutperformsGFlowNetsbaselineboth
+344 intermsofmodefindingefficiencyandL1error. Notably, as|τ|increases, theperformancegap
+increases,confirmingitsefficacyinchallengingenvironments. Unexpectedly,MARSprovetobe
+345
+veryslowforthesechallengingenvironments. Besides,whileRLbaselinesuchPPOcompeteswith
+346
+GFlowNetsandEGFNinthebeginning,itfailstodiscoverallmodesduetoitsmodemaximization
+347
+objective.
+348
+349 Rewardsparsityresult. Next,tounderstandtheeffectofsparserewards,wecompareourmethod
+350 againstGFlowNets. WithadecreasingR 0,rewardsparsityincreases. Figure4showsthatEGFN
+outperformsGFlowNets. Similartothepreviousexperiment,weseeanincreasingperformancegap
+351
+astherewardsparsityincreases. Similartopreviousexperiment,bothRLandMCMCbaselinesare
+352
+nomatchforsuchdifficultenvironments.
+353
+354 Ablationstudyresult. Tounderstandtheindividualeffectofeachcomponentofourmethod,we
+355 runthehypergridexperimentbycomparingourmethodagainstthesamewithoutPRBandmutation.
+356 Figure5detailstheresultsoftheexperiment,underscoringtheimportanceofthemutationoperator
+inEGFN.ItshowsthatPRBindividuallyisnoteffectiveforimprovedresults,butwhenitiscoupled
+357
+withmutation,ourmethoddeliversbetterresults.
+358
+359
+360 4.2
+ANTIBODYSEQUENCEOPTIMIZATIONTASK(cid:0) |X|≈1066(cid:1)
+361
+362
+Top-KE ↑ Top-Kindex↓
+d
+363
+GFlowNet 34.91 39.04
+364
+EGFN 40.47 35.95
+365
+GAFN 17.46 38.08
+366
+SAC 0.0 40.41
+367
+368
+Table1:Experimentresultsforantibodysequenceoptimiza-
+369
+tionbetweenEGFN,GFlowNets,GAFN,andSACbaseline
+370 Figure6:Experimentalresultscomparisonforan-taskaftertrainingfor2500steps. EGFNachievesthelow-
+371 tibodysequenceoptimizationtaskfor2500train-estinstabilityindexwhileretainingthebestdiversity. The
+372 ingsteps.EGFNachievesthebestperformancein performancesmeasuresaretakenfrom1000samplesafter
+termsofmodediscovery. trainingandK =100
+373
+374
+375
+376
+Setup. Inthistask, ourgoalistogenerateanantibodyheavychainsequenceoflength50that,
+377
+augmentedwithapre-definedsuffixsequence, optimizestheinstabilityindex(Guruprasadetal.,
+7UnderreviewasaconferencepaperatICLR2025
+378
+379
+380
+381
+382
+383
+384
+385
+386
+387
+Figure 7: From left to right. Example binder produced in the Soluable Epoxy Hydrolase (sEH)
+388
+binder generation task. Here the structure corresponds to the molecule with SMILES representation
+389 O=P([O-])(O)c1ccc2ccccc2c1. sEH binder generation experiment over 2.5 × 104 training steps.
+390 GFlowNetsimplementationusesFMobjective. Thenumberofmodeswitharewardthresholdof7.5and
+391 8.0. Theaveragerewardacrossthetop-100and1000molecules. TheproposedaugmentationwithEGFN
+achievesbetterresultsbothintermsofmodediscoveryandaveragereward.
+392
+393
+394
+395 1990) of the antibody sequence. We represent antibody sequences as x = (x ,...,x ), where
+1 d
+396 x ∈ 1,...,21referstothe20aminoacid(AA)type,withthegaptoken’-’toensurevariable
+i
+397 length. We label the training sequences using BioPython (Cock et al., 2009) and transform the
+398 instabilityindextoarewardbyperformingthefollowingtransformation: R(x)=2ind 1e 0x−5 where
+399 indexistheinstabilityindexofx. Finally,wedefinesequenceswithaninstabilityindexlessthan35
+400 asmodes1.
+401
+Results. Forcomparison,weincludeGFlowNets,GAFN,andSAC.Wetrainallthebaselinesfor
+402 2500stepsandsample1000sequencesafterwards. Tocalculatethediversityofthesamples,weuse
+403 theeditdistance(E ). Figure4.2reportstheresultsfrombothtrainingandpost-training. During
+d
+404 training,EGFNdiscoversasignificantnumberofmodescomparedtotheotherbaselines. Wecansee
+405 thatthistranslatestopost-trainingsamplequality,asEGFNsampleshavealowermeaninstability
+406 indexandhigherdiversity.
+407
+408
+409 4.3 SOLUABLEEPOXYHYDROLASE(SEH)BINDERGENERATIONTASK
+(cid:0) |X|≈1016(cid:1)
+410
+411 Setup. Inthisexperiment,weareinterestedingeneratingmoleculeswithdesiredchemicalproper-
+tiesthatarenottoosimilartooneanother. Here,werepresentmoleculesstatesasgraphstructures
+412
+andactionsasavocabularyofblocksspecifiedbyjunctiontreemodeling(Bickertonetal.,2012;Shi
+413
+etal.,2020). Inthepharmaceuticalindustry,drug-likeliness(Bickertonetal.,2012),synthesizability
+414
+(Shietal.,2020), andtoxicityarecrucialproperties. Hence, weareinterestedinfindingdiverse
+415
+candidatemoleculesforagivencriteriatoincreasechancesforpost-selection. Here,thecriteriaisthe
+416
+molecule’sbindingenergytothe4JNCinhibitorofthesolubleepoxidehydrolase(sEH)protein. To
+417 thisend,wetrainaproxyrewardfunctionforpredictingthenegativebindingenergythatservesasthe
+418 rewardfunction. Weperformtheexperimentfollowingtheexperimentaldetailsandrewardfunction
+419 specificationsfromBengioetal.(2021). Sinceweareinterestedinboththediversityandefficacy
+420 ofdrugs,wedefineamodeasamoleculewitharewardgreaterthan7.5andatanimotosimilarity
+421 amongpreviousmodeslessthan0.7. WeuseFMastheGFlowNetsbaselineandimplementEGFN
+422 forthesameobjective.
+423 Results. Since the state space is large, we show the result of the number of modes > 7.5, the
+424 numberofmodes>8.0,thetop-100,andthetop1000overthefirst2.5×104statesvisited. Figure
+425 7confirmsthatEGFNoutperformsGFlowNetsbaselineformodediscovery. Remarkably,EGFN
+426 discoversraremoleculewithaveryhighreward(R>8)thatGFlowNetsfailstodiscover. Besides,
+427 EGFNhasabettertop-100andtop-1000rewardperformancethanGFlowNetsbaseline,solicitingits
+428 modediversity.
+429
+430
+431
+1Basedontheliterature,anyindexgreaterthan40isunstable,butwedefinemodeswithindex<35tomake
+therewardspacemoresparse.
+8UnderreviewasaconferencepaperatICLR2025
+432
+4.4 HU4D5CDRH3MUTATIONGENERATIONTASK
+433
+434 Setup. Tofurthershowtherobustness,hereweconsiderthetaskofgeneratingCDRmutantsona
+435 hu4D5antibodymutantdataset(Masonetal.,2021). Afterde-duplicationandremovalofmulti-label
+436 samples, this dataset contains 9k binding and 25k non-binding hu4D5 CDR mutants up to 10
+437 mutations. Toclassifythegeneratedsamples,wetrainabinaryclassifierthatachieves85%accuracy
+438 onanIIDvalidationset. Forthistask,wedefinesamples,whichareclassifiedasbinderswithahigh
+439 probability(>96%)asmodes. TherewardtransformationinthistaskisR(x)=2pbind −1.
+440 Results. We compare EGFN against
+441 GFlowNets, GAFN, and SAC and train the
+442 baselinesfor2500steps. AsshowninFigure8,
+443 themodesdiscoveredbyEGFNduringtraining
+444 exceedtheotherbaselines.
+445
+446
+4.5 RESULTSUMMARY
+447
+448
+Inboththesyntheticandreal-worldexperiments,
+449
+EGFNperformswellformodediscoveryusing
+450
+fewer training stepsthan GFlowNets baseline.
+451
+Theperformancegapincreaseswithincreasing
+452 trajectorylengthandrewardsparsity. Wealso
+453 discoverthatthemutationoperatoristhemost
+454 importantfactorforperformanceimprovement.
+455
+456
+Figure 8: Experimental comparison of discovered
+457 5 DISCUSSION AND LIMITATIONS modes across the training process for the hu4D5
+458 CDR H3 mutation generation task between EGFN,
+459 GFlowNets,SAC,andGAFNbaselinefor2500train-
+WhydoesEGFNwork?Toexplorethis,wecom-
+460 ingsteps. Righttop: theℓ 1 errorbetweenthelearned
+parethetrajectoriesstoredinthetrainingstep
+distributiondensityandthetruetargetdensity. EGFN
+461
+forGFlowNetsandEGFNacrosstrainingsteps augmentationachievesbettermodediscoverycompared
+462 ∈ {500,1000,1500,2000,2500} in the hyper- tootherbaselines.
+463 gridtaskinFigure9fordifferentlevelsofspar-
+464 sity (R ∈ {10−2,10−5}. We see that when
+0
+465 thereislowrewardsparsity(left),thetrainingtrajectorylengthdistributionofbothmethodsissimilar.
+466 However,whentherewardsparsityincreases(right),GFlowNetstrainingtrajectoriescenteraround
+467 alowertrajectorylengththanthatofEGFN.However,forareward-symmetricalenvironmentlike
+hypergrid,thesampledtrajectorylengthmustbeuniformlydistributedtotrulycapturethedatadistri-
+468
+bution. EGFNcanachievethisthroughpopulationvariation,diversifyingthesampledtrajectoriesin
+469
+thePRB.
+470
+471 A potential limitation of this work is that it is
+472 based on GFlowNets, which is an amortized
+473 sampler with the provable objective of fitting
+therewarddistributioninsteadofRL’sreward
+474
+maximization. Thus,dependingontheperspec-
+475
+tive,thismethodmayseemslowerthanRL.Be-
+476
+sides,becauseoftheevolutionstep,themethod
+477
+takes longer than the vanilla GFlowNets. For
+478
+example,wereporttheruntimeanalysisonthe
+479 QM9 task (appendix D.3) in table 2, which is
+480 performedwithanIntelXeonProcessor(Sky-
+481 lake,IBRS)with512GBofRAMandasingle
+Figure9:Experimentalresultsforthetrajectorylengths
+482 A100NVIDIAGPU.Wecanseethattherun- ofthetrajectoriesstoredinthetrainingsamplesacross
+483 time has increased by 35%. However, we do differenttrainingstepsforR =10−2(left)and10−4
+0
+484 notethatthereisnoadditionalcostforincreas- (right).Top:GFlowNetsBottom:EGFN
+ing the population size since we perform the
+485
+populationsamplingbyutilizingthreading.
+9UnderreviewasaconferencepaperatICLR2025
+486 Table2:RuntimeanalysiscomparingEGFNandGFlowNetsontheQM9task.
+487
+488 Wall-clocktimeperstep K numberofevalsamples numberofonlinesamples
+489
+GFN 3.033±0.004 10 1 24
+490
+EGFN 2.243±0.016 0 0 32
+491
+492
+493 6 RELATED WORK
+494
+495
+6.1 EVOLUTIONINLEARNING
+496
+497 There has been many attempts to augment learning, especially RL, with EA. Early works such
+498 Whiteson (2006) combine NEAT (Stanley & Miikkulainen, 2002a) and Q Learning (Watkins &
+499 Dayan,1992)byusingevolutionarystrategiestobettertunethefunctionapproximators. Inasimilar
+manner,Colasetal.(2018)usesEAforexplorationinpolicygradient,generatingdiversesamples
+500
+usingmutation. Fernandoetal.(2017)useEAforallowingparameterreusewithoutcatastrophic
+501
+forgetting.Recently,manymethodsuseEAtoenhancedeepRLarchitecturessuchasProximalPolicy
+502
+Optimization(PPO)(Hämäläinenetal.,2020),Soft-ActorCritic(SAC)(Houetal.,2020),andPolicy
+503
+Gradient(Khadka&Tumer,2018). ThekeyideafromtheseapproachesistouseEAtoovercome
+504
+thetemporalcreditassignmentandimproveexplorationbygettingdiversesamples(Leeetal.,2020),
+505 withsomeexceptionssuchasGangwani&Peng(2018);Fujimotoetal.(2018);Pourchot&Sigaud
+506 (2019)wheretheyutilizeEAtotunetheparameteroftheactoritself.
+507
+508 6.2 GFLOWNETS
+509
+510 GFlowNetshaverecentlybeenappliedtovariousproblems(Liuetal.,2023;Bengioetal.,2021).
+511 TherehavealsobeenrecenteffortsinextendingGFlowNetstocontinuous(Lahlouetal.,2023)and
+512 stochasticworlds(Panetal.,2023b),andalsoleveragingthepowerofpre-trainedmodels(Panetal.,
+2024). InGFlowNetstraining,explorationisanimportantconceptfortrainingconvergence,which
+513
+manyworksattemptindifferentways. Forexample,Bengioetal.(2021)useϵ-greedyexploration
+514
+strategy,Kimetal.(2023)learnthelogitsconditionedondifferentannealedtemperatures,Panetal.
+515
+(2022b)introducesaugmentedflowsintotheflownetworkrepresentedbyintrinsicrewards,etc. The
+516
+temporalcreditassignmentforlongtrajectoriesandsparserewardisamorerecentlystudiedtopicfor
+517
+GFlowNets. RecentworkssuchasMalkinetal.(2022)attempttotacklethisproblembyminimizing
+518 the loss over an entire trajectory as opposed to state-wise FM proposed by Bengio et al. (2021),
+519 however,itmayincurlargevarianceasdemonstratedinMadanetal.(2023).
+520
+521
+7 CONCLUSION
+522
+523
+Inthiswork,wepresentedEGFN,asimpleandeffectiveEAbasedstrategyfortrainingGFlowNets,
+524
+especiallyforcreditassignmentinlongtrajectoriesandsparserewards. Thisstrategymixesthebest
+525
+ofbothworlds: EA’spopulation-basedapproachbiasestowardsregionswithlong-termreturns,and
+526
+GFlowNet’sgradient-basedobjectiveshandlethematchingoftherewarddistributionwiththesample
+527 distribution by leveraging better gradient signals. Besides, EA promotes natural diversity of the
+528 exploredregion,removingtheneedtouseanyotherexplorationstrategiesforGFlowNetstraining.
+529 Furthermore,byincorporatingPRBforofflinesamples,EApromotesredundancyofhighregion
+530 samples,stabilizingtheGFlowNettrainingwithbettergradientsignals. Wevalidateourmethodona
+531 widerangeofchallengingtoyandreal-worldbenchmarkswithexponentiallylargecombinatorial
+532 search spaces, showing that our method outperforms the best GFlowNet baselines on long time
+horizonandsparserewards.
+533
+534 Inthiswork,weimplementastandardevolutionaryalgorithmforEGFN.Incorporatingmorecomplex
+535 sub-modulesofEAforGFlowNetstrainingsuchasCovarianceMatrixAdaptationandEvolution
+536 Strategy(CMA-ES)suchastheworkinPourchot&Sigaud(2019)canbeanexcitingfuturework.
+537 AnotherfuturedirectioncouldbeintegratingthegradientsignalfromtheGFlowNetsobjectivesinto
+538 theEAstrategy,creatingafeedbackloop. Besides,whileweuseareward-maximizationformulation
+fortheEAinthiswork,thereareworkssuchasParker-Holderetal.(2020)thatdirectlyimproves
+539
+diversitybyformulation. Weleavethatforthefuturework.
+10UnderreviewasaconferencepaperatICLR2025
+540 REFERENCES
+541
+ThomasBäck. Evolutionarycomputation: Towardanewphilosophyofmachineintelligence(ieee
+542
+pressseriesoncomputationalintelligence). 2006. URLhttps://api.semanticscholar.
+543
+org/CorpusID:27611267. 3
+544
+545 Thomas Bäck and Hans-Paul Schwefel. An overview of evolutionary algorithms for parameter
+546 optimization. Evolutionarycomputation,1(1):1–23,1993. 1
+547
+Luis A Barrera, Anastasia Vedenko, Jesse V Kurland, Julia M Rogers, Stephen S Gisselbrecht,
+548
+ElizabethJRossin,JaieWoodard,LucaMariani,KianHongKock,SachiInukai,etal. Survey
+549
+ofvariationinhumantranscriptionfactorsrevealsprevalentdnabindingchanges. Science,351
+550
+(6280):1450–1454,2016. 19
+551
+552 Emmanuel Bengio, Moksh Jain, Maksym Korablyov, Doina Precup, and Yoshua Bengio. Flow
+553 network based generative models for non-iterative diverse candidate generation. Advances in
+554 NeuralInformationProcessingSystems,34:27381–27394,2021. 1,3,6,8,10,17,18,19
+555
+YoshuaBengio, SalemLahlou, TristanDeleu, EdwardJHu, MoTiwari, andEmmanuelBengio.
+556
+Gflownetfoundations. JournalofMachineLearningResearch,24(210):1–55,2023. 1,3
+557
+558 G Richard Bickerton, Gaia V Paolini, Jérémy Besnard, Sorel Muresan, and Andrew L Hopkins.
+559 Quantifyingthechemicalbeautyofdrugs. Naturechemistry,4(2):90–98,2012. 8
+560
+PetrosChristodoulou. Softactor-criticfordiscreteactionsettings. arXivpreprintarXiv:1910.07207,
+561
+2019. 6
+562
+563 PeterJACock,TiagoAntao,JeffreyTChang,BradAChapman,CymonJCox,AndrewDalke,Iddo
+564 Friedberg,ThomasHamelryck,FrankKauff,BartekWilczynski,etal. Biopython: freelyavailable
+565 pythontoolsforcomputationalmolecularbiologyandbioinformatics. Bioinformatics, 25(11):
+566 1422,2009. 8
+567
+Cédric Colas, Olivier Sigaud, and Pierre-Yves Oudeyer. Gep-pg: Decoupling exploration and
+568
+exploitationindeepreinforcementlearningalgorithms. InInternationalconferenceonmachine
+569
+learning,pp.1039–1048.PMLR,2018. 10
+570
+571 Chrisantha Fernando, Dylan Banarse, Charles Blundell, Yori Zwols, David Ha, Andrei A Rusu,
+572 AlexanderPritzel,andDaanWierstra. Pathnet:Evolutionchannelsgradientdescentinsuperneural
+573 networks. arXivpreprintarXiv:1701.08734,2017. 10
+574
+DarioFloreano,PeterDürr,andClaudioMattiussi. Neuroevolution: fromarchitecturestolearning.
+575
+EvolutionaryIntelligence,1:47–62,2008. URLhttps://api.semanticscholar.org/
+576
+CorpusID:2942634. 3
+577
+578 NathanCFrey,DanielBerenberg,KarinaZadorozhny,JosephKleinhenz,JulienLafrance-Vanasse,
+579 IsidroHotzel,YanWu,StephenRa,RichardBonneau,KyunghyunCho,etal. Proteindiscovery
+580 withdiscretewalk-jumpsampling. arXivpreprintarXiv:2306.12360,2023. 19
+581
+ScottFujimoto,HerkeHoof,andDavidMeger. Addressingfunctionapproximationerrorinactor-
+582
+criticmethods. InInternationalconferenceonmachinelearning,pp.1587–1596.PMLR,2018.
+583 10
+584
+585 Tanmay Gangwani and Jian Peng. Policy optimization by genetic distillation. In International
+586 ConferenceonLearningRepresentations,2018. 10
+587
+JustinGilmer,SamuelSSchoenholz,PatrickFRiley,OriolVinyals,andGeorgeEDahl. Neural
+588
+messagepassingforquantumchemistry. InInternationalconferenceonmachinelearning,pp.
+589 1263–1272.PMLR,2017. 18
+590
+591 KunchurGuruprasad,BVBhaskerReddy,andMadhusudanWPandit. Correlationbetweenstability
+592 ofaproteinanditsdipeptidecomposition: anovelapproachforpredictinginvivostabilityof
+aproteinfromitsprimarysequence. ProteinEngineering,DesignandSelection,4(2):155–161,
+593
+1990. 7
+11UnderreviewasaconferencepaperatICLR2025
+594
+TuomasHaarnoja, AurickZhou, Pieter Abbeel, andSergey Levine. Softactor-critic: Off-policy
+595 maximumentropydeepreinforcementlearningwithastochasticactor. InInternationalconference
+596 onmachinelearning,pp.1861–1870.PMLR,2018. 6
+597
+PerttuHämäläinen,AminBabadi,XiaoxiaoMa,andJaakkoLehtinen. Ppo-cma: Proximalpolicy
+598
+optimizationwithcovariancematrixadaptation. In2020IEEE30thInternationalWorkshopon
+599
+MachineLearningforSignalProcessing(MLSP),pp.1–6.IEEE,2020. 10
+600
+601 ZhiminHou, KuangenZhang, YiWan, DongyuLi, ChenglongFu, andHaoyongYu. Off-policy
+602 maximum entropy reinforcement learning: Soft actor-critic with advantage weighted mixture
+603 policy(sac-awmp). arXivpreprintarXiv:2002.02829,2020. 10
+604
+ZarifIkram,LingPan,andDianboLiu. Probabilisticgenerativemodelingforproceduralroundabout
+605
+generationfordevelopingcountries. InNeurIPS2023WorkshoponAdaptiveExperimentalDesign
+606
+andActiveLearningintheRealWorld,2023. URLhttps://openreview.net/forum?
+607 id=WWqJWiyQ2D. 1,16
+608
+609 Moksh Jain, Emmanuel Bengio, Alex Hernandez-Garcia, Jarrid Rector-Brooks, Bonaventure FP
+610 Dossou,ChanakyaAjitEkbote,JieFu,TianyuZhang,MichaelKilgour,DinghuaiZhang,etal.
+Biologicalsequencedesignwithgflownets. InInternationalConferenceonMachineLearning,pp.
+611
+9786–9801.PMLR,2022. 1
+612
+613 MokshJain,TristanDeleu,JasonHartford,Cheng-HaoLiu,AlexHernandez-Garcia,andYoshua
+614 Bengio. Gflownetsforai-drivenscientificdiscovery. DigitalDiscovery,2(3):557–577,2023a. 1
+615
+Moksh Jain, Sharath Chandra Raparthy, Alex Hernández-Garcıa, Jarrid Rector-Brooks, Yoshua
+616
+Bengio, Santiago Miret, and Emmanuel Bengio. Multi-objective gflownets. In International
+617
+ConferenceonMachineLearning,pp.14631–14653.PMLR,2023b. 19
+618
+619 ShauhardaKhadkaandKaganTumer. Evolution-guidedpolicygradientinreinforcementlearning.
+620 InNeuralInformationProcessingSystems,2018. URLhttps://api.semanticscholar.
+621 org/CorpusID:53096951. 10
+622
+MinsuKim,JoohwanKo,DinghuaiZhang,LingPan,TaeyoungYun,WooChangKim,JinkyooPark,
+623
+andYoshuaBengio. Learningtoscalelogitsfortemperature-conditionalgflownets. InNeurIPS
+624
+2023AIforScienceWorkshop,2023. 5,10
+625
+626 Ilya Kostrikov, Ashvin Nair, and Sergey Levine. Offline reinforcement learning with implicit
+627 q-learning. In International Conference on Learning Representations, 2022. URL https:
+628 //openreview.net/forum?id=68n2s9ZJWF8. 6
+629
+SalemLahlou,TristanDeleu,PabloLemos,DinghuaiZhang,AlexandraVolokhova,AlexHernández-
+630
+Garcıa, Léna Néhale Ezzine, Yoshua Bengio, and Nikolay Malkin. A theory of continuous
+631 generativeflownetworks. InInternationalConferenceonMachineLearning,pp.18269–18300.
+632 PMLR,2023. 10
+633
+KyunghyunLee,Byeong-UkLee,UkcheolShin,andInSoKweon.Anefficientasynchronousmethod
+634
+forintegratingevolutionaryandgradient-basedpolicysearch. AdvancesinNeuralInformation
+635
+ProcessingSystems,33:10124–10135,2020. 10
+636
+637 Dianbo Liu, Moksh Jain, Bonaventure FP Dossou, Qianli Shen, Salem Lahlou, Anirudh Goyal,
+638 Nikolay Malkin, Chris Chinenye Emezue, Dinghuai Zhang, Nadhir Hassen, et al. Gflowout:
+639 Dropoutwithgenerativeflownetworks. InInternationalConferenceonMachineLearning,pp.
+640 21715–21729.PMLR,2023. 1,10
+641
+BennoLüders,MikkelSchläger,AleksandraKorach,andSebastianRisi. Continualandone-shot
+642
+learningthroughneuralnetworkswithdynamicexternalmemory. InEvoApplications,2017. URL
+643 https://api.semanticscholar.org/CorpusID:37413014. 3
+644
+645 Kanika Madan, Jarrid Rector-Brooks, Maksym Korablyov, Emmanuel Bengio, Moksh Jain, An-
+646 dreiCristianNica, TomBosc, YoshuaBengio, andNikolayMalkin. Learninggflownetsfrom
+partialepisodesforimprovedconvergenceandstability. InInternationalConferenceonMachine
+647
+Learning,pp.23467–23483.PMLR,2023. 1,3,10
+12UnderreviewasaconferencepaperatICLR2025
+648
+NikolayMalkin,MokshJain,EmmanuelBengio,ChenSun,andYoshuaBengio. Trajectorybalance:
+649 Improvedcreditassignmentingflownets. AdvancesinNeuralInformationProcessingSystems,35:
+650 5955–5967,2022. 1,3,10
+651
+DerekMMason,SimonFriedensohn,CédricRWeber,ChristianJordi,BastianWagner,SimonM
+652
+Meng,RoyAEhling,LuciaBonati,JanDahinden,PabloGainza,etal. Optimizationoftherapeutic
+653
+antibodiesbypredictingantigenspecificityfromantibodysequenceviadeeplearning. Nature
+654
+BiomedicalEngineering,5(6):600–612,2021. 9
+655
+656 Ling Pan, Dinghuai Zhang, Aaron Courville, Longbo Huang, and Yoshua Bengio. Generative
+657 augmentedflownetworks. InTheEleventhInternationalConferenceonLearningRepresentations,
+658 2022a. 5,17,18
+659
+Ling Pan, Dinghuai Zhang, Aaron Courville, Longbo Huang, and Yoshua Bengio. Generative
+660
+augmentedflownetworks. InTheEleventhInternationalConferenceonLearningRepresentations,
+661
+2022b. 1,10
+662
+663 LingPan,NikolayMalkin,DinghuaiZhang,andYoshuaBengio. Bettertrainingofgflownetswith
+664 localcreditandincompletetrajectories. arXivpreprintarXiv:2302.01687,2023a. 5
+665
+LingPan,DinghuaiZhang,MokshJain,LongboHuang,andYoshuaBengio. Stochasticgenerative
+666
+flownetworks. arXivpreprintarXiv:2302.09465,2023b. 10
+667
+668 LingPan,MokshJain,KanikaMadan,andYoshuaBengio. Pre-trainingandfine-tuninggenerative
+669 flownetworks. InTheTwelfthInternationalConferenceonLearningRepresentations,2024. URL
+670 https://openreview.net/forum?id=ylhiMfpqkm. 10
+671
+JackParker-Holder,AldoPacchiano,KrzysztofMChoromanski,andStephenJRoberts. Effective
+672
+diversityinpopulationbasedreinforcementlearning. AdvancesinNeuralInformationProcessing
+673
+Systems,33:18050–18062,2020. 10
+674
+675 AdamPaszke,SamGross,FranciscoMassa,AdamLerer,JamesBradbury,GregoryChanan,Trevor
+676 Killeen, Zeming Lin, Natalia Gimelshein, Luca Antiga, et al. Pytorch: An imperative style,
+677 high-performancedeeplearninglibrary. Advancesinneuralinformationprocessingsystems,32,
+2019. 15
+678
+679
+AloïsPourchotandOlivierSigaud. Cem-rl: Combiningevolutionaryandgradient-basedmethodsfor
+680 policysearch. In7thInternationalConferenceonLearningRepresentations,ICLR2019,2019. 10
+681
+682 RaghunathanRamakrishnan,PavloODral,MatthiasRupp,andOAnatoleVonLilienfeld. Quantum
+683 chemistrystructuresandpropertiesof134kilomolecules. Scientificdata,1(1):1–7,2014. 16,19
+684
+Jarrid Rector-Brooks, Kanika Madan, Moksh Jain, Maksym Korablyov, Cheng-Hao Liu, Sarath
+685
+Chandar,NikolayMalkin,andYoshuaBengio. Thompsonsamplingforimprovedexploration
+686 ingflownets. InICML2023WorkshoponStructuredProbabilisticInference{\&}Generative
+687 Modeling,2023. 5
+688
+SebastianRisiandJulianTogelius. Neuroevolutioningames: Stateoftheartandopenchallenges.
+689
+IEEETransactionsonComputationalIntelligenceandAIinGames,9:25–41,2014. URLhttps:
+690
+//api.semanticscholar.org/CorpusID:11245845. 3
+691
+692 JohnSchulman,FilipWolski,PrafullaDhariwal,AlecRadford,andOlegKlimov. Proximalpolicy
+693 optimizationalgorithms. arXivpreprintarXiv:1707.06347,2017. 6
+694
+MaxWShen,EmmanuelBengio,EhsanHajiramezanali,AndreasLoukas,KyunghyunCho,and
+695
+TommasoBiancalani. Towardsunderstandingandimprovinggflownettraining. arXivpreprint
+696
+arXiv:2305.07170,2023. 16,19
+697
+698 ChenceShi,MinkaiXu,HongyuGuo,MingZhang,andJianTang. Agraphtographsframework
+699 forretrosynthesisprediction. InInternationalconferenceonmachinelearning,pp.8818–8827.
+700 PMLR,2020. 8
+701
+WilliamMSpears. Adaptingcrossoverinevolutionaryalgorithms. 1995. 4
+13UnderreviewasaconferencepaperatICLR2025
+702
+WilliamM.Spears,KennethA.DeJong,ThomasBäck,DavidB.Fogel,andHugodeGaris. An
+703 overviewofevolutionarycomputation. InEuropeanConferenceonMachineLearning,1993. URL
+704 https://api.semanticscholar.org/CorpusID:175549. 3
+705
+KennethOStanleyandRistoMiikkulainen.Evolvingneuralnetworksthroughaugmentingtopologies.
+706
+Evolutionarycomputation,10(2):99–127,2002a. 10
+707
+708 Kenneth O. Stanley and Risto Miikkulainen. Evolving neural networks through augment-
+709 ing topologies. Evolutionary Computation, 10:99–127, 2002b. URL https://api.
+710 semanticscholar.org/CorpusID:498161. 3
+711
+Teague Sterling and John J Irwin. Zinc 15–ligand discovery for everyone. Journal of chemical
+712
+informationandmodeling,55(11):2324–2337,2015. 18
+713
+714 BrandonTrabucco,XinyangGeng,AviralKumar,andSergeyLevine. Design-bench:Benchmarksfor
+715 data-drivenofflinemodel-basedoptimization. InInternationalConferenceonMachineLearning,
+716 pp.21658–21676.PMLR,2022. 16
+717
+ChristopherJCHWatkinsandPeterDayan. Q-learning. Machinelearning,8:279–292,1992. 10
+718
+719 Shimon Whiteson. Evolutionary function approximation for reinforcement learning. Journal of
+720 MachineLearningResearch,7,2006. 10
+721
+YutongXie,ChenceShi,HaoZhou,YuweiYang,WeinanZhang,YongYu,andLeiLi. Mars:Markov
+722
+molecularsamplingformulti-objectivedrugdiscovery. InInternationalConferenceonLearning
+723
+Representations,2020. 6
+724
+725 DinghuaiZhang,HanjunDai,NikolayMalkin,AaronCourville,YoshuaBengio,andLingPan. Let
+726 theflowstell: Solvinggraphcombinatorialproblemswithgflownets. InThirty-seventhConference
+727 onNeuralInformationProcessingSystems,2023a. 1
+728
+DinghuaiZhang,LingPan,RickyTQChen,AaronCourville,andYoshuaBengio. Distributional
+729
+gflownetswithquantileflows. arXivpreprintarXiv:2302.05793,2023b. 18
+730
+731 ShuoZhang,YangLiu,andLeiXie.Molecularmechanics-drivengraphneuralnetworkwithmultiplex
+732 graphformolecularstructures. arXivpreprintarXiv:2011.07457,2020. 16,19
+733
+RuiZhao,XudongSun,andVolkerTresp. Maximumentropy-regularizedmulti-goalreinforcement
+734
+learning. InInternationalConferenceonMachineLearning,pp.7553–7562.PMLR,2019. 1
+735
+736
+737
+738
+739
+740
+741
+742
+743
+744
+745
+746
+747
+748
+749
+750
+751
+752
+753
+754
+755
+14UnderreviewasaconferencepaperatICLR2025
+756 A CODES
+757
+758 Our code is available at https://anonymous.4open.science/r/EGFN. The hyper-
+759 grid and sEH binder task is based on the code from https://github.com/zdhNarsil/
+760 Distributional-GFlowNets. The QM9 and TFBind8 task is based on the code from
+761 https://github.com/maxwshen/gflownet. All our implementation code uses the Py-
+762 Torchlibrary(Paszkeetal.,2019). WeusedMolViewhttps://molview.org/tovisualizethe
+763 moleculediagramsforourpaper.
+764
+765
+B SUMMARY OF NOTATIONS
+766
+767
+Wesummarizethenotationsusedinourpaperinthetable3below.
+768
+769
+Table3:Notationssummary
+770
+771
+Symbol Description
+772
+S statespace
+773
+X terminalstatespace
+774
+A actionspace(s→s′)
+775
+T trajectoryspace
+776
+s initialstateinS
+0
+777
+s stateinS
+778 x terminalstateinX
+779 τ trajectoryinT
+780 P forwardflow
+F
+781 P backwardflow
+B
+782 k populationsize
+783 D replaybuffer
+ϵ elitepopulationratio
+784
+γ mutationstrength
+785
+786
+787
+788
+C FITNESS EVALUATION ALGORITHM
+789
+790
+791 Algorithm2EvaluationofForwardFlows
+792
+Data: ForwardflowP
+F
+793 Result: UpdatedreplaybufferwithtrajectoriesandfitnessofP
+F
+794 ProcedureEVALUATE(P ,E,D)
+F
+795 fitness←0
+796
+797 foriter=1toE do
+Initializestartstates; // Can also be parallelized
+798
+InitializetrajectoryT toanemptylist
+799
+whilesnotaterminalstatedo
+800
+SampleactionabasedonP (s|θ )
+801 F PF
+s′ ←transition(s,a)
+802 Append(s′,a)totheT
+803 s←s′
+804
+805 ComputeR(s)usingrewardfunctionusingthelaststateinT
+806 fitness←fitness+R(s)
+807 AppendT toD
+808
+809 Return fitness,D
+E
+15UnderreviewasaconferencepaperatICLR2025
+810
+811
+812
+813
+814
+815
+816
+817
+818
+819
+820 Figure10:ExperimentalresultsforthehypergridtaskbetweenEGFNandGFNacrossdifferentGFlowNets
+821 objectives.Top:theℓ 1errorbetweenthelearneddistributiondensityandthetruetargetdensity.Bottom:the
+822 numberofdiscoveredmodesacrossthetrainingprocess.TheproposedaugmentationwithEGFNachievesbetter
+resultsforallthreeobjectives.
+823
+824
+825 D ADDITIONAL EXPERIMENTS
+826
+827
+D.1 GENERALIZABILITYEXPERIMENT
+828
+829 ToseehowwellEGFNworkswithdifferentGFlowNetsobjectives,weshowtheresultofaugmen-
+830 tationofourmethodoverallthreeGFlowNetsobjectivesinFigure10. WeseethatEGFNoffersa
+831 steadyimprovementacrossallthreeGFlowNetsobjectives.
+832
+833 D.2 TRANSCRIPTIONFACTORBINDERGENERATIONTASK(|X|≈70000)
+834
+835 Setup In this experiment, we generate a
+836 nucleotide as a string of length 8. Al-
+though the string could be generated autore-
+837
+gressively,inthisexperimentsetting,weusea
+838
+Prepend-AppendMarkovdecisionprocess(PA-
+839
+MDP), used in similar settings by Shen et al.
+840
+(2023); Ikram et al. (2023). Using this MDP,
+841
+GFlowNetsagentactionsprependorappendto
+842 the nucleotide string. The reward is a DNA
+843 bindingaffinitytoahumantranscriptionfactor
+844 providedbyTrabuccoetal.(2022). Weattempt
+845 threeGFlowNetsobjectives,finallydecidingto
+846 useTBasthebestGFlowNetsbaselineandim- Figure 11: Experiment results for transcription fac-
+torbindergenerationtaskover2000trainingstepsfor
+847 plement EGFN with the same using a reward
+β = 3. Top: thenumberofdiscoveredmodesacross
+exponentβ =3.
+848 thetrainingprocess. Bottom: therelativemeanerror.
+849 Results Figure 11 shows the result over 2000 TheproposedaugmentationwithEGFNachievesbetter
+850 trainingsteps,showingthatGFlowNetsoutper- results.GFlowNetsimplementationusesTBobjective.
+851 formsGFlowNetsbaselinebothintermsofthe
+852 numberofmodesdiscoveredandthemeanrela-
+853 tiveerror.
+854
+855 D.3 SMALLMOLECULEGENERATIONTASK(|X|≈60000)
+856
+SetupInthisexperiment,wegenerateasmallmoleculegraphbasedontheQM9data(Ramakrishnan
+857
+etal.,2014)thatmaximizestheenergygapbetweenitsHOMOandLUMOorbitals,therebyincreasing
+858
+itsstability. Theresultingmoleculeisa5-blockmolecule,havingachoiceamong12blocksforits
+859
+twostems. Fortherewardfunction,weuseapre-trainedMXMNetproxybyZhangetal.(2020)with
+860
+arewardexponentβ =1. SimilartoD.2,weuseTBforthisexperiment.
+861
+862 ResultsInFigure12,wereportthemodediscoveryandL1errorresultsover2000trainingsteps.
+Similartopreviousexperiments,EGFNmaintainsasteadyimprovementovertheGFlowNetsbaseline
+863
+formodediscoverywhiledecreasingtheL1errorquicker.
+16UnderreviewasaconferencepaperatICLR2025
+864
+865
+866
+867
+868
+869
+870
+871
+872
+873
+874
+875
+876
+877
+878
+879
+880 Figure12: Fromtoptobottom: Examplemoleculeproducedintheqm9taskwithSMILESrepresentation
+881
+C1CCCCC1NOCFO.ExperimentresultsforsmallmoleculegenerationtaskontheQM9dataover2000training
+stepsforβ =1. Thenumberofdiscoveredmodesacrossthetrainingprocess. Therelativemeanerror. The
+882
+proposedaugmentationwithEGFNachievesbetterresults.GFlowNetsimplementationusesTBobjective.
+883
+884
+885
+E ADDITIONAL IMPLEMENTATION DETAILS
+886
+887
+888
+E.1 HYPERGRIDTASK
+889
+Thehypergridrewardfunctionisdefinedby-
+890
+891
+8 89 92
+3
+R(x)=R 0+R 1(cid:89)D I(cid:20)(cid:12) (cid:12) (cid:12) (cid:12)Hx −d
+1
+−0.5(cid:12) (cid:12) (cid:12) (cid:12)∈(0.25,0.5](cid:21) +R 2(cid:89)D I(cid:20)(cid:12) (cid:12) (cid:12) (cid:12)Hx −d
+1
+−0.5(cid:12) (cid:12) (cid:12) (cid:12)∈(0.3,0.4](cid:21)
+d=1 d=1
+894 (6)
+895 where I is the indicator function and R ,R , and R are reward control parameters. In our ex-
+0 1 2
+896
+periments, R and R stay at a fixed value of 0.5 and 2. In our experiments, R varies within
+1 2 0
+897 {10−3,10−4,10−5}. AmodeistheterminalstatexforwhichR(x)=R . Fromtheequation6,
+max
+898 itisevidentthatthereare2D distinctmodes. Besides,H referstothehorizonoftheenvironment,
+899 meaningeachdimensionofxcanbeequaltoi∈{0,1,2,...,H −1}. Forexample,Figure4uses
+900 D =5andH =20. Clearly,whileincreasingbothDandH increasesthecomplexityofthetask,
+901 effecting the trajectory length |τ| and the number of states |X|, only increasing D increases the
+902 numberofmodes. Tocalculatetheempiricalprobabilitydensity,wecollectthepastvisited200000
+statesandcalculatetheprobabilitydensity.
+903
+904 ArchitectureWemodeltheforwardlayerwitha3-layerMLPwith256hiddendimensions,followed
+905 byaleakyReLU.Theforwardlayertakestheone-hotencodingofthestatesasinputsandoutputs
+906 actionlogits. ForFM,wesimplyusetheforwardlayertomodeltheedgeflow. ForTBandDB,
+907 wedoubletheactionspaceandtraintheMLPasboththeforwardandbackwardflow. Weusea
+908 learningrateof10−4forFMand10−3forbothTBandDB,includingalearningrateof0.1forZ θ.
+Thereplaybufferusesamaximumsizeof1000,andweuseaworst-rewardfirstpolicyforreplay
+909
+replacement. ForRLandMCMCbaselines,weusetheimplementationprovidedbyBengioetal.
+910
+(2021). ForGAFNbaseline,weusetheofficialcodeprovidedbyPanetal.(2022a),performinga
+911
+hyper-parametertuningofintrinsicrewardandusingintrinsicreward={0.05,0.03,0.01}forour
+912
+experimentswithD ∈{3,4,5},respectively.
+913
+914
+915 E.2 ANTIBODYSEQUENCEOPTIMIZATIONTASK
+916
+In this task, we are interested in generating the mutation of the first 50 charac-
+917
+ters of a heavy-chain antibody sequence. To adapt to the variable length of the se-
+17UnderreviewasaconferencepaperatICLR2025
+918 quence, we use a gap token of ’-’, making the total number of actions 21 2. The
+919 heavy and light chain suffixes appended to the generated 21-length sequences are
+920 QVQLVQSGTEVKKPGSSVKVSCKASGGTFSSYAVSWVRQAPGQGLEWMGRFIPIL-
+921 NIKNYAQDFQGRVTITADKSTTTAYMELINLGPEDTAVYYCARGSLSGREGLPLEYWGQGTLV
+922 SVSSandEVVMTQSPATLSVSPGESATLYCRASQIVTSDLAWYQQIPGQAPRLLIFAASTRAT-
+923 GIPARFSGSGSETDFTLTISSLQSEDFAIYYCQQYFHWPPTFGQGTKVEIK,respectively. We
+924 collectthechainpairfromtheobservedantibodyspace(OAS)database. Finally,weuseareward
+policytoreducetheinstabilityindexofthemutatedsequences. Themaingoalofthistaskistoassess
+925
+theGFlowNet’sabilitytoperformonlongersequenceswithlongtrajectories. Tothebestofour
+926
+knowledge,noGFlowNetsliteraturehasexperimentedwithtaskswithsuchalongtrajectorylength,
+927
+mainlybecauseGFlowNetsstrugglewithlongertrajectories.
+928
+929 ArchitectureThistask’sarchitecturecloselyresemblesthehypergridsetting. Carefularchitecture
+930 choicemayimprovetheobservedresultsofthetask,butthisisoutsidethescopeofthiswork.
+931
+932
+E.3 SEHBINDERGENERATIONTASK
+933
+934
+935
+936
+937
+938
+939
+940
+941
+942
+943
+944
+Figure13: IllustrationofGFlowNetspolicyforsEHbindergenerationtask. FigureadoptedfromPanetal.
+945 (2022a)
+946
+947
+948 Forthistask,thenumberofactionsiswithin100to2000,dependingonthestate,making|X|≈1016.
+949 Weallowtheagenttochoosefromalibraryof72blocks. SimilartoBengioetal.(2021),weinclude
+950 the different symmetry groups of a given block, making the action count 105 per stem. We also
+951 allow the agent to select up to 8 blocks, choosing them as suggested by Sterling & Irwin (2015)
+952 fromtheZINCdataset(Sterling&Irwin,2015). FollowingZhangetal.(2023b),weuseTanimoto
+953 similarity,definedbytheratiobetweentheintersectionandtheunionoftwomoleculesbasedon
+954 their SMILES representation. To maintain diversity, we define a mode to be a terminal state for
+whichthenormalizednegativebindingenergytothe4JNCinhibitorofthesolubleepoxidehydrolase
+955
+(sEH)proteinismorethan7.5andthetanimotosimilarityofotherdiscoveredmodesislessthan0.7.
+956
+NotethatthisobjectiveismorelimitingthansimplycountingthenumberofdifferentBemis-Murcko
+957
+scaffoldsthatreachtherewardthresholdlikeBengioetal.(2021). Sincewearefocusingonboth
+958
+moleculeseparationandoptimization,ourapproachismoreapplicablefordenovomoleculedesign,
+959
+whilethescaffold-basedmetricissuitableforleadoptimization.
+960
+ArchitectureFollowingBengioetal.(2021),weuseamessagepassingneuralnetwork(MPNN)
+961
+(Gilmeretal.,2017)thatreceivestheatomgraphtocalculatetheproxyrewardofthemolecules.
+962
+Similarly,weuseanotherMPNNthatreceivestheblockgraphforflowestimation. Theblockgraph
+963
+isatreeoflearnednodeembeddingsthatrepresenttheblocksandedgeembeddingsthatrepresent
+964
+thebonds. Torepresenttheflow,wepassthestemsthrougha10-layergraphconvolutionfollowed
+965
+by GRU to calculate their embedding and pass the embedding through a 3-layer MLP to get a
+966 105-dimensionlogit. Similarly,torepresentthestopaction,wepasstheglobalmeanpoolingtothe
+967 3-layerMLP.TheMLPsuse256hiddendimensions,followedbyaleakyReLU.Weusealearning
+968 rateof0.0005andaminibatchsizeof4. ForEGFN,weuseanofflinesampleprobabilityof0.2.
+969 Besides,weusearewardexponentβ =10andanormalizingconstantof8.
+970
+971
+2A=22,aswestillneedastoptokenfortheGFlowNetsagent.
+18UnderreviewasaconferencepaperatICLR2025
+972
+973
+974
+975
+976
+977
+978
+979
+980
+981
+982
+983
+984
+985
+986
+Figure14:MoleculeblocksforthesEHproteintask.FigureadaptedfromBengioetal.(2021)
+987
+988
+989 E.4 HU4D5CDRH3MUTATIONGENERATIONTASK
+990
+991 FollowingFreyetal.(2023),weconsiderthetaskofgeneratingCDR310-lengthmutationsona
+992 hu4D5antibodymutantdataset. Thedatasetcontainsbothnon-binderandbindersequences. We
+993 trainadiscriminatormodelonthebindinglikelihoodofasequenceandthencomparethestarting
+pointsformakingsequencesthatimproveboththebindinglikelihoodandthediversityshownbythe
+994
+pairwiseeditdistanceofthenewsequences.
+995
+996 ArchtectureThearchitectureofdifferentbaselinesfollowsthebaselinesofthepreviouslydiscussed
+997 tasks. Weusea35-layerBytenetarchitecturewithahiddenlayerof128forthediscriminatormodel.
+998 Thisisfollowedbya3-layer1D-CNNanda3-layerMLP,withleakyReLUactivationsaddedbetween
+999 thelayers. Wetrainthemodelonthehu4D5antibodymutantdataset,whichachieves85%accuracy
+onthetestset.
+1000
+1001
+1002 E.5 TFBIND8TASK
+1003
+Forthistask,thegoalistogeneratean8-lengthDNAsequencethatmaximizesthebindingactivity
+1004
+scorewithaparticulartranscriptionfactorSIX6REFR1(Barreraetal.,2016). Weuseaprecalculated
+1005
+oraclefortheproxyrewardcalculation. UsingaPA-MDP,weprependorappendaneucleotidein
+1006
+eachstep. Notethatthisformulationreducesthetrajectorylengthsignificantlydespiteoureffortto
+1007
+showcasebetterperformanceinlongtrajectories,butweuseitfollowingpreviousworks.
+1008
+ArchitectureFollowingShenetal.(2023),theGFlowNetsarchitectureusesa2-layerMLPwith
+1009
+128-dimensionhiddenlayerparameterizingSSR(S,S′ →R+). Foreachtrainingstep,wetrainon
+1010
+bothonlineandofflinetrajectoriesforthreesteps,usingaminibatchof32. Besides,weusealearning
+1011
+rateof10−4forpolicyand0.01forZ . Finally,weusearewardexponentβ =3andanexploration
+1012 θ
+probabilityof0.01(wedonotuseanyexplorationforEGFN).
+1013
+1014
+E.6 QM9TASK
+1015
+1016
+ThegoalhereistogeneratediversemoleculesbasedontheQM9data(Ramakrishnanetal.,2014)
+1017
+that maximize the HOMO-LUMO. To that end, we use the reward proxy that Jain et al. (2023b)
+1018 providesbasedonZhangetal.(2020). SimilartothesEHtask,wegeneratemoleculeswithatoms
+1019 andbonds. Theblocksusedherearethefollowing:C, 0, N, C-F, C=0, C#C, c1ccccc1,
+1020 C1CCCCC1, C1CCNC1, CCC.
+1021
+Architecture Using a PA-MDP, we use a 2-layer MLP with 1024 hidden dimensions for flow
+1022
+estimation. The reward proxy is a MXMNet proxy trained on the QM9 data. We use a reward
+1023
+exponentβ =1. ThelearningrateandtrainingstylefollowtheonesusedfortheTFBind8task,with
+1024 theexceptionofexplorationprobability(0.1here)andhiddendimension(1024here).
+1025
+Wedetailthesummaryofthetraininghyperparametersintable4.
+19UnderreviewasaconferencepaperatICLR2025
+1026 Table4:Summaryofthehyperparametersforallexperiments
+1027
+1028 Hypergrid/Antibody/CDR3 sEHSmallMolecules TFBind8 QM9
+1029
+LearningRate 10−4(FM),10−3 5×10−4 10−4 10−4
+1030
+Z LearningRate 0.1 N/A 0.01 0.01
+θ
+1031 β 1 10 3 1
+1032 MDP Enumerate SequenceInsert PA-MDP PA-MDP
+1033 Explorationϵ(noneforEGFN) 0 0 0.01 0.1
+1034 ReplayBufferTraining 50% 0(20%foregfn) 50% 50%
+1035 MLPlayers 3 3 2 2
+1036 MLPhiddendimensions 256 256 128 1024
+1037
+1038
+1039 F ADDITIONAL ABLATION EXPERIMENTS
+1040
+1041 F.1 NUMBEROFPOPULATION
+1042
+1043 Toinvestigatetheeffectofpopulationsize,wevarythek ∈{5,10,15},whilekeepingϵ=0.2,D =
+5,H =20,R =10−5. WeplottheresultsoftheexperimentinFigure15. Itshowsthatincreasing
+1044 0
+kbeyond10leadstodiminishingreturns,motivatingourchoiceofk =10foralltheexperiments.
+1045
+ForDB,however,increasingk leadstoconsiderableimprovement. Indeed,thisisusefulbecause
+1046
+increasedpopulationsizeleadstomoreevaluationroundrequired. Whiletheseevaluationroundcan
+1047
+beparallelizedwiththreadsaswedoinourwork,massivepopulationsizerequirementisdifficultto
+1048
+satisfy.
+1049
+1050
+1051
+1052
+1053
+1054
+1055
+1056
+1057
+1058
+1059
+1060
+Figure15:ExperimentalresultsforthehypergridtaskforEGFNamongdifferentvaluesofkacrossthethree
+1061
+trainingobjectives.Top:theℓ errorbetweenthelearneddistributiondensityandthetruetargetdensity.Bottom:
+1
+1062 thenumberofdiscoveredmodesacrossthetrainingprocess. Here,H = 20,D = 5. Theresultsshowthat
+1063 increasingpopulationsizeleadstodiminishingreturns.
+1064
+1065
+1066
+F.2 ELITEPOPULATION
+1067
+1068 Followingablationonk,wenextperformablationontheelitepopulationratio,ϵ∈{0.2,0.4,0.6}.
+1069 For this experiment, we use the same hypergrid settings for k = 10. We plot the results of the
+1070 experiment in Figure 16. It shows that low ϵ improves mode discovery, especially for FM and
+1071 TB objectives. This result is reasonable: we apply mutation and crossover only to the non-elite
+1072 population,sohavingalownumberofelitepopulationmeanswehaveabetterchanceatexploring
+1073 usingthenon-elitepopulation’smutationandcrossover.
+1074
+1075 F.3 REPLAYBUFFERSIZE
+1076
+1077 Tounderstandtheeffectofreplaybuffersize,werunGFlowNetsbaselinewithPRBandEGFNona
+1078 20x20x20x20x20environmentwithR 0 =10−5 forreplaybuffersize∈{1000,5000,10000}. We
+presentthefindingsinFigure17. Fromthefigure,weseethatincreasingbuffersizegenerallyhas
+1079
+littleeffectforGFlowNets,butitimprovesEGFN’srobustnessalittle.
+20UnderreviewasaconferencepaperatICLR2025
+1080
+1081
+1082
+1083
+1084
+1085
+1086
+1087
+1088
+1089
+1090
+1091 Figure16:ExperimentalresultsforthehypergridtaskforEGFNamongdifferentvaluesofϵacrossthethree
+1092
+trainingobjectives.Top:theℓ 1errorbetweenthelearneddistributiondensityandthetruetargetdensity.Bottom:
+thenumberofdiscoveredmodesacrossthetrainingprocess.Here,H =20,D=5.Weobservethatlowerϵ
+1093
+leadstobetterresultsforFMandTB.
+1094
+1095
+1096
+1097
+1098
+1099
+1100
+1101
+1102
+1103
+1104
+1105
+Figure17:ExperimentalresultsforthehypergridtaskbetweenGFlowNetsandEGFNacrossdifferentvaluesof
+1106
+|D|.Top:theℓ errorbetweenthelearneddistributiondensityandthetruetargetdensity.Bottom:thenumber
+1107 1
+ofdiscoveredmodesacrossthetrainingprocess.Here,weuseDBforH =20,D=5.Theresultsshowthat
+1108 whileincreasingreplaybuffersizeimprovestherobustnessoftheresult,ithaslittleeffectotherwise.
+1109
+1110
+1111 F.4 MUTATIONSTRENGTH
+1112
+We now turn our attention to the mutation. To observe the effect of the mutation strength γ, we
+1113
+runthehypergridexperimentforthethreetrainingobjectivesusingEGFNforγ ∈{1,5,10}. The
+1114
+hypergridconfigurationsfollowthethesameconfigurationsasbefore. Weplotthemodediscovery
+1115
+andℓ errorbetweenthelearneddistributiondensityandthetruetargetdensityover2500training
+1
+1116
+stepsinFigure18. Whiletheresultsindicatethathavingahigherγ leadstobetterresultforDB,the
+1117 improvementisnotextraordinary. Besides,inourwork,weexperiencetraininginstabilityforhigher
+1118 γ. Thus,werestrictγ tobe1throughoutinourwork.
+1119
+1120
+1121
+1122
+1123
+1124
+1125
+1126
+1127
+1128
+1129
+1130
+1131 Figure18:ExperimentalresultsforthehypergridtaskforEGFNamongdifferentvaluesofγacrossthethree
+1132 trainingobjectives.Top:theℓ 1errorbetweenthelearneddistributiondensityandthetruetargetdensity.Bottom:
+thenumberofdiscoveredmodesacrossthetrainingprocess.Here,H =20,D=5.Weobservethatlowerγ
+1133
+leadstobetterresultsforFMandTB,whilehigherγleadstobetterresultsforDB.
+21UnderreviewasaconferencepaperatICLR2025
+1134
+F.5 PRIORITYPERCENTILE
+1135
+1136
+1137
+1138
+1139
+1140
+1141
+1142
+1143
+1144
+1145
+1146
+1147
+Figure19:ExperimentalresultsforthehypergridtaskforEGFNamongdifferentpercentilesofprioritysamples
+1148
+fortheTBobjective.Throughouttheexperiment,wekeepa50-50splitbetweenthepriorityandnon-priority
+1149 samples. Top: theℓ errorbetweenthelearneddistributiondensityandthetruetargetdensity. Bottom: the
+1
+1150 numberofdiscoveredmodesacrossthetrainingprocess. Here, H = 20,D = 5. Weobservethathigher
+1151 percentileprioritysamplesleadtobetterresultsforTB.
+1152
+1153
+1154 PRB is an important component of our EGFN setup. Therefore, an important question is how
+1155 the definition of priority samples stored in the replay buffer affects the results. To answer this
+1156 question,werunthehypergridexperimentinthehardestsettingwhilechangingtheprioritypercentile
+1157 ∈{50,70,90}controllingthesamplingsplit,i.e.,whilesamplingofflinetrajectoriesfromthePRB,
+1158 50%ofthemcomefromtheprioritysamplesandtherestcomefromthenon-prioritysamples. Figure
+1159 20showstheresults. Itindicatesthathavinghigh-rewardprioritysamplesstoredinthereplaybuffer
+benefitsthetrainingintermsofmodediscovery,butthereislittleimprovementindistributionfitting.
+1160
+1161
+1162 F.6 PRIORITYSPLIT
+1163
+1164
+1165
+1166
+1167
+1168
+1169
+1170
+1171
+1172
+1173
+1174 Figure20:ExperimentalresultsforthehypergridtaskforEGFNamongdifferentsplitsofprioritysamplingfor
+theTBobjective.Throughouttheexperiment,weused90percentilesamplesasprioritysamples.Top:theℓ
+1175 1
+errorbetweenthelearneddistributiondensityandthetruetargetdensity. Bottom: thenumberofdiscovered
+1176
+modesacrossthetrainingprocess.Here,H =20,D=5.Weobservethathavingahighpriority-non-priority
+1177 splitleadstobetterresultsforTB.
+1178
+1179
+1180 Finally,adecisionjustasimportantastheprioritypercentileisthesamplingratiobetweenthepriority
+andnon-priorityofflinetrajectories. Thistime,wekeeptheprioritypercentilefixedat90%,while
+1181
+changingtheprioritytonon-priorityratiosplitsbetween{20,50,80}. Werunanexperimentsimilar
+1182
+tothepreviousexperimentswiththeaforementionedsettingandreporttheresultsinFigure20. The
+1183
+resultsclearlydemonstratethat,despitetheircollectionfromasmallsubsetofstates,samplingmore
+1184
+fromtheprioritysamplesisbeneficialforbothmodediscoveryanddistributionfitting.
+1185
+1186
+1187
+22

@@ -1,0 +1,140 @@
+{
+  "ecosystem_stats": {
+    "total_concepts": 4,
+    "active_concepts": 3,
+    "high_quality_concepts": 0,
+    "mid_quality_concepts": 4,
+    "refinement_queue_size": 0,
+    "merged_concepts": 1,
+    "conceptual_diversity": 0.0,
+    "relation_count": 0,
+    "contradiction_count": 0,
+    "quality_score": 0.7600000000000001,
+    "refinement_success_rate": 0.0
+  },
+  "concepts": [
+    {
+      "id": "concept-7dd43daf",
+      "label": "Unknown",
+      "definition_full": "The simulation of human intelligence processes by machines, especially computer systems",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MERGED",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 1.0,
+        "refinement_potential": 0.0,
+        "evidence_strength": 0.6,
+        "merge_count": 1,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:59:06.634543"
+    },
+    {
+      "id": "concept-7c5f8687",
+      "label": "Unknown",
+      "definition_full": "A subset of artificial intelligence that provides systems the ability to automatically learn and improve from experience",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:59:06.634543"
+    },
+    {
+      "id": "concept-c9e2d101",
+      "label": "Unknown",
+      "definition_full": "A subset of machine learning that uses neural networks with multiple layers to model and understand complex patterns",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:59:06.635810"
+    },
+    {
+      "id": "concept-dffae161",
+      "label": "Unknown",
+      "definition_full": "Computing systems inspired by biological neural networks that constitute animal brains",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T09:59:06.636810"
+    }
+  ],
+  "evolution_log": [
+    {
+      "operation": "DEDUPLICATION_MERGE",
+      "parent_ids": [
+        "concept-7dd43daf"
+      ],
+      "offspring_id": "concept-7dd43daf",
+      "transformation": "Concept deduplication merge with evidence strengthening",
+      "delta": "Merged similar concept #1, enhanced evidence base",
+      "quality_improvement": 0.1,
+      "quality_tier_change": null,
+      "success": true,
+      "failure_reason": null,
+      "timestamp": "2025-09-15T09:59:06.635810"
+    }
+  ],
+  "refinement_queue": [],
+  "quality_thresholds": {
+    "high_quality_threshold": 0.8,
+    "mid_quality_threshold": 0.4,
+    "refinement_threshold": 0.3,
+    "discard_threshold": 0.15,
+    "adaptive_length_minimum": 20,
+    "evidence_strength_weight": 0.3,
+    "completeness_weight": 0.5,
+    "support_strength_weight": 0.2
+  }
+}

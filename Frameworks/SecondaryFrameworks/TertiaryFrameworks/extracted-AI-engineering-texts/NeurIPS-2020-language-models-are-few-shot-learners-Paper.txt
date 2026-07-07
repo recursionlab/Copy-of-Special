@@ -1,0 +1,1102 @@
+Language Models are Few-Shot Learners
+TomB.Brown∗ BenjaminMann∗ NickRyder∗ MelanieSubbiah∗
+JaredKaplan† PrafullaDhariwal ArvindNeelakantan PranavShyam
+GirishSastry AmandaAskell SandhiniAgarwal ArielHerbert-Voss
+GretchenKrueger TomHenighan RewonChild AdityaRamesh
+DanielM.Ziegler JeffreyWu ClemensWinter
+ChristopherHesse MarkChen EricSigler MateuszLitwin ScottGray
+BenjaminChess JackClark ChristopherBerner
+SamMcCandlish AlecRadford IlyaSutskever DarioAmodei
+Abstract
+Wedemonstratethatscalinguplanguagemodelsgreatlyimprovestask-agnostic,
+few-shotperformance,sometimesevenbecomingcompetitivewithpriorstate-of-
+the-art fine-tuning approaches. Specifically, we train GPT-3, an autoregressive
+language model with 175 billion parameters, 10x more than any previous non-
+sparselanguagemodel,andtestitsperformanceinthefew-shotsetting. Forall
+tasks, GPT-3 is applied without any gradient updates or fine-tuning, with tasks
+andfew-shotdemonstrationsspecifiedpurelyviatextinteractionwiththemodel.
+GPT-3achievesstrongperformanceonmanyNLPdatasets,includingtranslation,
+question-answering,andclozetasks. WealsoidentifysomedatasetswhereGPT-
+3’sfew-shotlearningstillstruggles,aswellassomedatasetswhereGPT-3faces
+methodologicalissuesrelatedtotrainingonlargewebcorpora.
+1 Introduction
+NLPhasshiftedfromlearningtask-specificrepresentationsanddesigningtask-specificarchitectures
+tousingtask-agnosticpre-trainingandtask-agnosticarchitectures. Thisshifthasledtosubstantial
+progressonmanychallengingNLPtaskssuchasreadingcomprehension,questionanswering,textual
+entailment, among others. Even though the architecture and initial representations are now task-
+agnostic,afinaltask-specificstepremains: fine-tuningonalargedatasetofexamplestoadaptatask
+agnosticmodeltoperformadesiredtask.
+Recentwork[RWC+19]suggestedthisfinalstepmaynotbenecessary. [RWC+19]demonstrated
+thatasinglepretrainedlanguagemodelcanbezero-shottransferredtoperformstandardNLPtasks
+∗Equalcontribution
+†JohnsHopkinsUniversity,OpenAI
+34thConferenceonNeuralInformationProcessingSystems(NeurIPS2020),Vancouver,Canada.Figure1.1: PerformanceonSuperGLUEincreaseswithmodelsize. AvalueofK =32means
+thatourmodelwasshown32examplespertask,for256examplestotaldividedacrossthe8tasksin
+SuperGLUE.WereportGPT-3valuesonthedevset,soournumbersarenotdirectlycomparable
+tothedottedreferencelines(ourtestsetresultsareintheappendix). TheBERT-Largereference
+modelwasfine-tunedontheSuperGLUEtrainingset(125Kexamples),whereasBERT++wasfirst
+fine-tunedonMultiNLI(392Kexamples)andSWAG(113Kexamples)beforefurtherfine-tuningon
+theSuperGLUEtrainingset(foratotalof630Kfine-tuningexamples).
+PerformanceonSuperGLUEincreaseswithnumberofexamplesincontext. Wefindthediffer-
+enceinperformancebetweentheBERT-LargeandBERT++toberoughlyequivalenttothedifference
+betweenGPT-3withoneexamplepercontextversuseightexamplespercontext.
+Aggregateperformanceforall42accuracy-denominatedbenchmarks. Whilezero-shotperfor-
+manceimprovessteadilywithmodelsize,few-shotperformanceincreasesmorerapidly,demonstrat-
+ingthatlargermodelsaremoreproficientatin-contextlearning.
+withouttheneedforfinetuningonadatasetoftrainingexamples. Whilethisworkwasapromising
+proofofconcept,thebestcaseperformanceonlymatchedsomesupervisedbaselinesonasingle
+dataset. Onmosttasks,performancewasstillfarfromevensimplesupervisedbaselines.
+However[RWC+19]alsoshowedapotentialwayforward. Theworkobservedrelativelyconsistent
+log-lineartrendsinperformanceonbothtransfertasksandlanguagemodelinglossacrossonean
+orderofmagnitudeofscaling. [KMH+20]thenconductedamuchmorerigorousstudyofthescaling
+behaviorofloglossandconfirmedsmoothscalingtrends. Inthiswork,weempiricallytestwhether
+scaling continues to improve performance by extrapolating the previously identified phenomena
+anothertwoordersofmagnitude. Wetraina175billionparameterautoregressivelanguagemodel,
+whichwecallGPT-3,andmeasureitstransferlearningabilities.
+Aspartofthisinvestigation,wealsoclarifyandsystematizetheapproachintroducedin[RWC+19].
+While[RWC+19]describetheirworkas“zero-shottasktransfer”theysometimesprovideexamples
+oftherelevanttaskinthecontext. Duetotheuseofwhatareeffectivelytrainingexamples,these
+casesarebetterdescribedas“one-shot”or“few-shot”transfer. Westudytheseone-shotandfew-shot
+settings in detail comparing them with the zero-shot setting which only uses a natural language
+descriptionorinvocationofthetasktobeperformed. OurfindingsaresummarizedinFigure1.1. We
+observethatone-andfew-shotperformanceisoftenmuchhigherthantruezero-shotperformance
+leading us to suggest that language models can also be understood as meta-learners where slow
+outer-loopgradientdescentbasedlearningiscombinedwithfast“in-context”learningimplemented
+withinthecontextactivationsofthemodel.
+Broadly,onNLPtasksGPT-3achievespromisingresultsinthezero-andone-shotsettings,andin
+thefew-shotsettingissometimescompetitivewithorevenoccasionallysurpassesstate-of-the-art
+(despitestate-of-the-artbeingheldbyfine-tunedmodels). Forexample,GPT-3achieves81.5F1on
+CoQAinthezero-shotsetting,84.0F1onCoQAintheone-shotsetting,and85.0F1inthefew-shot
+setting. Similarly,GPT-3achieves64.3%accuracyonTriviaQAinthezero-shotsetting,68.0%inthe
+one-shotsetting,and71.2%inthefew-shotsetting,thelastofwhichisstate-of-the-artrelativeto
+fine-tunedmodelsoperatinginthesameclosed-booksetting.
+Weadditionallytrainaseriesofsmallermodels(rangingfrom125millionparametersto13billion
+parameters)inordertocomparetheirperformancetoGPT-3inthezero-,one-andfew-shotsettings.
+Ingeneral,wefindrelativelysmoothscalingformosttaskswithmodelcapacityinallthreesettings;
+onenotablepatternisthatthegapbetweenzero-,one-,andfew-shotperformanceoftengrowswith
+modelcapacity,perhapssuggestingthatlargermodelsaremoreproficientmeta-learners.
+22 Approach
+Our basic pre-training approach, including model, data, and training, is similar to the process
+describedin[RWC+19],withrelativelystraightforwardscalingupofthemodelsize,datasetsizeand
+diversity,andlengthoftraining. Ouruseofin-contextlearningisalsosimilarto[RWC+19],butin
+thisworkwesystematicallyexploredifferentsettingsforlearningwithinthecontext:
+• Fine-Tuning(FT)-updatestheweightsofapre-trainedmodelbytrainingonthousandsof
+supervisedlabelsspecifictothedesiredtask. Themainadvantageoffine-tuningisstrong
+performanceonmanybenchmarks. Themaindisadvantagesaretheneedforanewlarge
+datasetforeverytask,thepotentialforpoorgeneralizationout-of-distribution[MPL19],and
+thepotentialtoexploitspuriousfeaturesofthetrainingdata[GSL+18,NK19]. Wefocus
+ontask-agnosticperformance,leavingfine-tuningforfuturework.
+• Few-Shot(FS)-themodelisgivenafewdemonstrationsofthetaskatinferencetimeas
+conditioning[RWC+19],butnoweightsareupdated. Anexampletypicallyhasacontext
+and a desired completion (for example an English sentence and the French translation),
+andfew-shotworksbygivingK examplesofcontextandcompletion,andthenonefinal
+exampleofcontext,withthemodelexpectedtoprovidethecompletion(seeappendixfor
+moredetails).WetypicallysetKintherangeof10to100,asthisishowmanyexamplescan
+fitinthemodel’scontextwindow(n =2048). Themainadvantageoffew-shotisamajor
+ctx
+reductionintheneedfortask-specificdata. Themaindisadvantageisthatresultsfromthis
+methodhavesofarbeenmuchworsethanstate-of-the-artfine-tunedmodels. Also,asmall
+amountoftaskspecificdataisstillrequired. Asindicatedbythename,few-shotlearningas
+describedhereforlanguagemodelsisrelatedtofew-shotlearningasusedinothercontexts
+inML[HYC01,VBL+16]–bothinvolvelearningbasedonabroaddistributionoftasks
+andthenrapidlyadaptingtoanewtask.
+• One-Shot(1S)-similartofew-shotbutwithK =1.
+• Zero-Shot (0S) - similar to few-shot but with a natural language description of the task
+insteadofanyexamples.
+TheappendixincludesademonstrationofthefourmethodsusingtheexampleoftranslatingEnglish
+to French. While the few-shot results we present in this paper achieve the highest performance,
+one-shot,orevensometimeszero-shot,seemlikethefairestcomparisonstohumanperformance,and
+areimportanttargetsforfuturework.
+2.1 ModelandArchitectures
+WeusethesamemodelandarchitectureasGPT-2[RWC+19],includingthemodifiedinitialization,
+pre-normalization, and reversible tokenization described therein, with the exception that we use
+alternatingdenseandlocallybandedsparseattentionpatternsinthelayersofthetransformer,similar
+totheSparseTransformer[CGRS19]. TostudythedependenceofMLperformanceonmodelsize,
+wetrain8differentsizesofmodel,from125millionparametersto175billionparameters,withthe
+lastbeingthemodelwecallGPT-3. Thisrangeofmodelsizesallowsustotestthescalinglaws
+introducedin[KMH+20].
+Moredetailsonthesizesandarchitecturesofourmodelscanbefoundintheappendix. Wepartition
+eachmodelacrossGPUsalongboththedepthandwidthdimensioninordertominimizedata-transfer
+betweennodes.
+2.2 TrainingDataset
+Tocreateourtrainingdata,we(1)downloadedandfilteredaversionofCommonCrawl1[RSR+19]
+basedonsimilaritytoarangeofhigh-qualityreferencecorpora,(2)performedfuzzydeduplicationat
+thedocumentlevel,withinandacrossdatasets,topreventredundancyandpreservetheintegrityof
+ourheld-outvalidationsetasanaccuratemeasureofoverfitting,and(3)addedknownhigh-quality
+referencecorporatothetrainingmixtoaugmentCommonCrawlandincreaseitsdiversity. These
+reference corpora include an expanded version of the WebText dataset [RWC+19], collected by
+1https://commoncrawl.org/the-data/
+3LAMBADA LAMBADA StoryCloze HellaSwag
+Setting (acc) (ppl) (acc) (acc)
+SOTA 68.0a 8.63b 91.8c 85.6d
+GPT-3Zero-Shot 76.2 3.00 83.2 78.9
+GPT-3One-Shot 72.5 3.35 84.7 78.1
+GPT-3Few-Shot 86.4 1.92 87.7 79.3
+Table3.1: Performanceonclozeandcompletiontasks. GPT-3significantlyimprovesSOTAon
+LAMBADAwhileachievingrespectableperformanceontwodifficultcompletionpredictiondatasets.
+a[Tur20]b[RWC+19]c[LDL19]d[LCH+20]
+scrapinglinksoveralongerperiodoftime,andfirstdescribedin[KMH+20],twointernet-based
+bookscorpora(Books1andBooks2)andEnglish-languageWikipedia(detailsintheappendix).
+2.3 TrainingProcess
+Asfoundin[KMH+20,MKAT18],largermodelscantypicallyusealargerbatchsize,butrequire
+a smaller learning rate. We measure the gradient noise scale during training and use it to guide
+ourchoiceofbatchsize[MKAT18]. TableA.1showstheparametersettingsweused. Totrainthe
+largermodelswithoutrunningoutofmemory,weuseamixtureofmodelparallelismwithineach
+matrixmultiplyandmodelparallelismacrossthelayersofthenetwork. Allmodelsweretrainedon
+V100GPU’sonpartofahigh-bandwidthcluster. Detailsofthetrainingprocessandhyperparameter
+settingsaredescribedintheappendix.
+2.4 Evaluation
+For few-shot learning, we evaluate each example in the evaluation set by randomly drawing K
+examplesfromthattask’strainingsetasconditioning,delimitedby1or2newlinesdependingon
+thetask. ForLAMBADAandStoryclozethereisnosupervisedtrainingsetavailablesowedraw
+conditioningexamplesfromthedevelopmentsetandevaluateonthetestset.
+Forsometasksweuseanaturallanguagepromptinadditionto(orforK =0,insteadof)demonstra-
+tions. Similarto[RSR+19]wealsosometimeschangetheformattingofanswers. Seetheappendix
+forper-taskexamples.
+Ontaskswithfree-formcompletion,weusebeamsearchwiththesameparametersas[RSR+19]: a
+beamwidthof4andalengthpenaltyofα=0.6.
+Finalresultsarereportedonthetestsetwhenpubliclyavailable,foreachmodelsizeandlearning
+setting(zero-,one-,andfew-shot). Whenthetestsetisprivate,ourmodelisoftentoolargetofiton
+thetestserver,sowereportresultsonthedevelopmentset.
+3 Results
+3.1 LanguageModeling,Cloze,andCompletionTasks
+WetestGPT-3’sperformanceonthetraditionaltaskoflanguagemodelingaswellasrelatedtasks.
+Wecalculatezero-shotperplexityonthePennTreeBank(PTB)[MKM+94]datasetmeasuredin
+[RWC+19]. Weomitthe4Wikipedia-relatedtasksandtheone-billionwordbenchmarkduetoa
+highfractionofthesedatasetsbeingcontainedinourtrainingset. OurlargestmodelsetsanewSOTA
+onPTBbyasubstantialmarginof15points.
+The LAMBADA dataset [PKL+16] requires the model to predict the last word of a paragraph.
+Although [BHT+20] suggested scaling language models is yielding diminishing returns on this
+benchmark,wefindthatzero-shotGPT-3achievesasubstantivegainof8%overthepreviousstate-of-
+the-art. Forthefew-shotsetting,weuseafill-in-the-blankformattoencouragethelanguagemodelto
+onlygenerateoneword(AlicewasfriendswithBob. Alicewenttovisitherfriend, . →Bob).
+Withthisformat,GPT-3achievesanincreaseofover18%fromthepreviousstate-of-the-art,and
+4Setting NaturalQS WebQS TriviaQA
+RAG(Fine-tuned,Open-Domain)[LPP+20] 44.5 45.5 68.0
+T5-11B+SSM(Fine-tuned,Closed-Book)[RRS20] 36.6 44.7 60.5
+T5-11B(Fine-tuned,Closed-Book) 34.5 37.4 50.1
+GPT-3Zero-Shot 14.6 14.4 64.3
+GPT-3One-Shot 23.0 25.3 68.0
+GPT-3Few-Shot 29.9 41.5 71.2
+Table 3.2: Results on three Open-Domain QA tasks. GPT-3 is shown in the few-, one-, and
+zero-shotsettings, ascomparedtopriorSOTAresultsforclosedbookandopendomainsettings.
+TriviaQAfew-shotresultisevaluatedonthewikisplittestserver.
+Setting ARC(Easy) ARC(Challenge) CoQA DROP
+Fine-tunedSOTA 92.0a 78.5b 90.7c 89.1d
+GPT-3Zero-Shot 68.8 51.4 81.5 23.6
+GPT-3One-Shot 71.2 53.2 84.0 34.3
+GPT-3Few-Shot 70.1 51.5 85.0 36.5
+Table3.3: GPT-3resultsonaselectionofQA/RCtasks. CoQAandDROPareF1whileARC
+reportsaccuracy. Seetheappendixforadditionalexperiments. a[KKS+20]b[KKS+20]c[JZC+19]
+d[JN20]
+performanceimprovessmoothlywithmodelsize. However,thefill-in-blankmethodisnoteffective
+one-shot, whereitalwaysperformsworsethanthezero-shotsetting, perhapsbecauseallmodels
+requireseveralexamplestorecognizethepattern. Ananalysisoftestsetcontaminationidentifiedthat
+asignificantminorityoftheLAMBADAdatasetappearstobepresentinourtrainingdata–however
+analysisperformedinSection4suggestsnegligibleimpactonperformance.
+TheHellaSwagdataset[ZHB+19]involvespickingthebestendingtoastoryorsetofinstructions.
+Theexampleswereadversariallyminedtobedifficultforlanguagemodelswhileremainingeasyfor
+humans. GPT-3outperformsafine-tuned1.5Bparameterlanguagemodel[ZHR+19]butisstillafair
+amountlowerthantheoverallSOTAachievedbythefine-tunedmulti-taskmodelALUM.
+The StoryCloze 2016 dataset [MCH+16] involves selecting the correct ending sentence for five-
+sentencelongstories. HereGPT-3improvesoverpreviouszero-shotresultsbyroughly10%butis
+overallstill4.1%lowerthanthefine-tunedSOTAusingaBERTbasedmodel[LDL19].
+3.2 QuestionAnswering
+InthissectionwemeasureGPT-3’sabilitytohandleavarietyofquestionansweringtasks. First,we
+lookatdatasetsinvolvingansweringquestionsaboutbroadfactualknowledge. Weevaluateinthe
+“closed-book”setting(meaningnoconditioninginformation/articles)assuggestedby[RRS20]. On
+TriviaQA[JCWZ17],GPT-3zero-shotalreadyoutperformsthefine-tunedT5-11Bby14.2%,andalso
+outperformsaversionwithQ&Atailoredspanpredictionduringpre-trainingby3.8%. Theone-shot
+result improves by 3.7% and matches the SOTA for an open-domain QA system which not only
+fine-tunesbutalsomakesuseofalearnedretrievalmechanismovera15.3Bparameterdensevector
+indexof21Mdocuments[LPP+20]. GPT-3’sfew-shotresultfurtherimprovesperformanceanother
+3.2%beyondthis. OnNaturalQuestions(NQs)[KPR+19],GPT-3underperformsafine-tunedT5
+11B+SSM.ThequestionsinNQstendtowardsfine-grainedWikipediaknowledgewhichcouldbe
+testingthelimitsofGPT-3’scapacityandbroadpretrainingdistribution.
+ARC[CCE+18]isacommonsensereasoningdatasetofmultiple-choicequestionscollectedfrom
+3rdto9thgradescienceexams. Onthe“Challenge”versionofthedataset,whichhasbeenfilteredto
+questionswhichsimplestatisticalorinformationretrievalmethodsareunabletocorrectlyanswer,
+GPT-3approachestheperformanceofafine-tunedRoBERTabaseline[KKS+20]. Onthe“Easy”
+5Setting En→Fr Fr→En En→De De→En En→Ro Ro→En
+SOTA(Supervised) 45.6a 35.0b 41.2c 40.2d 38.5e 39.9e
+XLM[LC19] 33.4 33.3 26.4 34.3 33.3 31.8
+MASS[STQ+19] 37.5 34.9 28.3 35.2 35.2 33.1
+mBART[LGG+20] - - 29.8 34.0 35.0 30.5
+GPT-3Zero-Shot 25.2 21.2 24.6 27.2 14.1 19.9
+GPT-3One-Shot 28.3 33.7 26.2 30.4 20.6 38.6
+GPT-3Few-Shot 32.6 39.2 29.7 40.6 21.0 39.5
+Table 3.4: Few-shot GPT-3 outperforms previous unsupervised NMT work by 5 BLEU
+when translating into English reflecting its strength as an English LM. We report BLEU
+scores on the WMT’14 Fr↔En, WMT’16 De↔En, and WMT’16 Ro↔En datasets as mea-
+sured by multi-bleu.perl with XLM’s tokenization in order to compare most closely with
+prior unsupervised NMT work. SacreBLEUf [Pos18] results reported in the appendix. Under-
+line indicates an unsupervised or few-shot SOTA, bold indicates supervised SOTA with relative
+confidence. a[EOAG18] b[DHKH14] c[WXH+18] d[oR16] e[LGG+20] f[SacreBLEU signature:
+BLEU+case.mixed+numrefs.1+smooth.exp+tok.intl+version.1.2.20]
+versionofthedataset,GPT-3slightlyexceedsthesamefine-tunedRoBERTabaseline[KKS+20].
+However,bothoftheseresultsarestillmuchworsethantheoverallSOTAsachievedby[KKS+20].
+Finally,weevaluateGPT-3ontworeadingcomprehensiondatasets. Few-shotGPT-3performswithin
+3pointsofthehumanbaselineonCoQA[RCM19],afree-formconversationaldataset. OnDROP
+[DWD+19], a dataset testing discrete reasoning and numeracy, few-shot GPT-3 outperforms the
+fine-tunedBERTbaselinefromtheoriginalpaperbutisstillwellbelowbothhumanperformanceand
+state-of-the-artapproacheswhichaugmentneuralnetworkswithsymbolicsystems[RLL+19].
+3.3 Translation
+In collecting training data for GPT-3, we used the unfiltered distribution of languages reflected
+in internet text datasets (primarily Common Crawl). As a result, although GPT-3’s training data
+primarilyconsistsofEnglish(93%bywordcount),italsoincludes7%non-Englishcontent(fulllist
+atGPT-3GitHub). Existingunsupervisedmachinetranslationapproachesoftencombinepretraining
+onapairofmonolingualdatasetswithback-translation[SHB15]tobridgethetwolanguagesina
+controlledway. Bycontrast,GPT-3learnsfromablendoftrainingdatathatmixesmanylanguages
+together. Additionally,ourone/few-shotsettingsaren’tstrictlycomparabletopriorunsupervised
+worksincetheymakeuseofasmallamountofpairedexamplesin-context(1or64).
+Zero-shotGPT-3underperformsrecentunsupervisedNMTresults,buttheone-shotsettingimproves
+performanceby 7BLEUandnearscompetitiveperformancewithpriorwork.Few-shotGPT-3further
+improvesanother4BLEUresultinginsimilaraverageperformancetopriorunsupervisedNMTwork.
+Forthethreeinputlanguagesstudied,GPT-3significantlyoutperformspriorunsupervisedNMTwork
+whentranslatingintoEnglishbutunderperformswhentranslatingintheotherdirection. Performance
+onEn-Roisanoticeableoutlieratover10BLEUworsethanpriorunsupervisedNMTwork. This
+couldbeaweaknessduetoreusingthebyte-levelBPEtokenizerofGPT-2whichwasdevelopedfor
+analmostentirelyEnglishtrainingdataset. ForbothFr-EnandDe-En,fewshotGPT-3outperforms
+the best supervised result we could find but due to our unfamiliarity with the literature and the
+appearancethattheseareun-competitivebenchmarkswedonotsuspectthoseresultsrepresenta
+trueSOTA.ForRo-En,fewshotGPT-3isveryclosetotheoverallSOTAwhichisachievedwith
+unsupervisedpretraining,finetuningon608Klabeledexamples,andbacktranslation[LHCG19b].
+3.4 SuperGLUE
+TheSuperGLUEbenchmarkisastandardizedcollectionofdatasets[WPN+19]. Inthefew-shot
+setting,weused32examplesforalltasks,sampledrandomlyfromthetrainingset. Foralltasks
+exceptWSCandMultiRC,wesampledanewsetofexamplestouseinthecontextforeachproblem.
+ForWSCandMultiRC,weusedthesamesetofrandomlydrawnexamplesfromthetrainingset
+6SuperGLUE BoolQ CB CB COPA RTE
+Average Accuracy Accuracy F1 Accuracy Accuracy
+Fine-tunedSOTA 89.0 91.0 96.9 93.9 94.8 92.5
+Fine-tunedBERT-Large 69.0 77.4 83.6 75.7 70.6 71.7
+GPT-3Few-Shot 71.8 76.4 75.6 52.0 92.0 69.0
+WiC WSC MultiRC MultiRC ReCoRD ReCoRD
+Accuracy Accuracy Accuracy F1a Accuracy F1
+Fine-tunedSOTA 76.1 93.8 62.3 88.2 92.5 93.3
+Fine-tunedBERT-Large 69.6 64.6 24.1 70.0 71.3 72.0
+GPT-3Few-Shot 49.4 80.1 30.5 75.4 90.2 91.1
+Table3.5: PerformanceofGPT-3onSuperGLUEcomparedtofine-tunedbaselinesandSOTA.All
+resultsarereportedonthetestset. GPT-3few-shotisgivenatotalof32exampleswithinthecontext
+ofeachtaskandperformsnogradientupdates.
+ascontextforalloftheproblemsweevaluated. WesweepvaluesofK upto32andnotethatthe
+few-shotSuperGLUEscoresteadilyimproveswithbothmodelsizeandwithnumberofexamplesin
+thecontextshowingincreasingbenefitsfromin-contextlearning(Figure1.1).
+We observe a wide range in GPT-3’s performance across tasks. On COPA and ReCoRD GPT-3
+achieves near-SOTA performance in the one-shot and few-shot settings, with COPA falling only
+acouplepointsshortandachievingsecondplaceontheleaderboard,wherefirstplaceisheldby
+afine-tuned11billionparametermodel(T5). OnWSC,BoolQ,MultiRC,andRTE,performance
+isreasonable,roughlymatchingthatofafine-tunedBERT-Large. OnCB,weseesignsoflifeat
+75.6%inthefew-shotsetting. WiCisanotableweakspotwithfew-shotperformanceequivalentto
+randomchance. WetriedanumberofdifferentphrasingsandformulationsforWiC(whichinvolves
+determiningifawordisbeingusedwiththesamemeaningintwosentences),noneofwhichwas
+abletoachievestrongperformance. Thishintsataphenomenon(whichwesawinotherexperiments
+werancontainedintheAdditionalMaterials)–GPT-3appearstobeweakinthefew-shotorone-shot
+settingatsometasksthatinvolvecomparingtwosentencesorsnippets. Thiscouldalsoexplainthe
+comparativelylowscoresforRTEandCB,whichalsofollowthisformat. Despitetheseweaknesses,
+GPT-3stilloutperformsafine-tunedBERT-largeonfourofeighttasksandontwotasksGPT-3is
+closetothestate-of-the-artheldbyafine-tuned11billionparametermodel.
+4 MeasuringandPreventingMemorizationOfBenchmarks
+The dataset and model size are about two orders of magnitude larger than those used for GPT-2,
+andincludealargeamountofCommonCrawl,creatingincreasedpotentialforcontaminationand
+memorization. Ontheotherhand,preciselyduetothelargeamountofdata,evenGPT-3175Bdoes
+notoverfititstrainingsetbyasignificantamount,measuredrelativetoaheld-outvalidationsetwith
+whichitwasdeduplicated. Foreachbenchmark,weproducea‘clean’versionwhichremovesall
+potentiallyleakedexamples,definedroughlyasexamplesthathavea13-gramoverlapwithanything
+inthepretrainingset(orthatoverlapwiththewholeexamplewhenitisshorterthan13-grams). We
+thenevaluateGPT-3onthesecleanbenchmarks,andcomparetotheoriginalscore. Ifthescoreon
+thecleansubsetissimilartothescoreontheentiredataset,thissuggeststhatcontamination,evenif
+present,doesnothaveasignificanteffectonreportedresults.Inmostcasesperformancechangesonly
+negligibly,andweseenoevidencethatcontaminationlevelandperformancedifferencearecorrelated.
+Weconcludethateitherourconservativemethodsubstantiallyoverestimatedcontaminationorthat
+contamination has little effect on performance. We provide full details of the methodology and
+analysisonthemostproblematictasksintheappendix.
+75 Limitations
+Ontextsynthesis,GPT-3samplesstillsometimesrepeatthemselvessemanticallyatthedocument
+level,starttolosecoherenceoversufficientlylongpassages,contradictthemselves,andoccasionally
+containnon-sequitursentencesorparagraphs.Ourreleaserepositorycontainsuncuratedunconditional
+samples.
+Ourexperimentsdonotincludeanybidirectionalarchitecturesorothertrainingobjectivessuchas
+denoising. Ourdesigndecisioncomesatthecostofpotentiallyworseperformanceontaskswhich
+empiricallybenefitfrombidirectionality,suchasfill-in-the-blanktasks,tasksthatinvolvelooking
+backandcomparingtwopiecesofcontent(ANLI,WIC),ortasksthatrequirere-readingorcarefully
+consideringalongpassageandthengeneratingaveryshortanswer(QuAC,RACE).
+Ourobjectiveweightseverytokenequallyandlacksanotionofwhatismostimportanttopredict
+andwhatislessimportant. [RRS20]demonstratebenefitsofcustomizingpredictiontoentitiesof
+interest. Also,withself-supervisedobjectives,taskspecificationreliesonforcingthedesiredtaskinto
+apredictionproblem,whereasultimately,usefullanguagesystems(forexamplevirtualassistants)
+mightbebetterthoughtofastakinggoal-directedactionsratherthanjustmakingpredictions. Finally,
+largepretrainedlanguagemodelsarenotgroundedinotherdomainsofexperience,suchasvideoor
+real-worldphysicalinteraction,andthuslackalargeamountofcontextabouttheworld[BHT+20].
+Forallthesereasons,scalingpureself-supervisedpredictionislikelytohitlimits,andaugmentation
+withadifferentapproachislikelytobenecessary. Promisingfuturedirectionsinthisveinmight
+include learning the objective function from humans [ZSW+19], fine-tuning with reinforcement
+learning,oraddingadditionalmodalitiessuchasimagestoprovidegroundingandabettermodelof
+theworld[CLY+19].
+GPT-3’ssizemakesitchallengingtodeploy. Task-specificdistillation[HVD15]meritsexplorationat
+thisnewscale.
+6 RelatedWork
+Severaleffortshavestudiedtheeffectofscaleonlanguagemodelperformance. [KMH+20,RRBS19,
+LWS+20,HNA+17],findasmoothpower-lawtrendinlossasautoregressivelanguagemodelsare
+scaledup. Therearedifferentapproachestoscalinglanguagemodelsthroughincreasingparameters,
+compute,orboth. Ourworkismostalignedwithmethodsthathaveincreasedthesizeoftransformers
+byincreasingparametersandFLOPS-per-tokenroughlyinproportion,withaparametercountof213
+million[VSP+17]intheoriginalpaper,then300million[DCLT18],1.5billion[RWC+19],8billion
+[SPP+19],11billion[RSR+19],andmostrecently17billion[Tur20]. Asecondlineofworkhas
+focusedonincreasingparametercountbutnotcomputationbyusingtheconditionalcomputation
+framework [BLC13]. Specifically, the mixture-of-experts method [SMM+17] has produced 100
+billionparametermodelsand50billionparametertranslationmodels[AJF19]. Onewaytodecrease
+thecomputationalcostofourmodelswouldbetodrawfromworksuchasALBERT[LCG+19]or
+general[HVD15]ortask-specific[SDCW19,JYS+19,KR16]approachestodistillation. Lastly,a
+thirdapproachtoscaleincreasescomputationwithoutincreasingparametersthroughmethodslike
+adaptivecomputationtime[Gra16]andtheuniversaltransformer[DGV+18].
+Therearemanyapproachestobuildingmulti-taskmodels.Givingtaskinstructionsinnaturallanguage
+wasfirstformalizedinasupervisedsettingwith[MKXS18]andusedin[RWC+19]forin-context
+learningandin[RSR+19]formulti-taskfine-tuning. Multi-tasklearning[Car97]hasshownsome
+promisinginitialresults[LGH+15,LCR19]andmulti-stagefine-tuninghasproducedSOTAorSOTA-
+competitiveresults[PFB18,KKS+20]. Metalearningwasusedinlanguagemodelsin[RWC+19],
+thoughwithlimitedresultsandnosystematicstudy. Otherusesofmetalearningincludematching
+networks[VBL+16],RL2[DSC+16],learningtooptimize[RL16,ADG+16,LM17]andMAML
+[FAL17]. Ourapproachofstuffingthemodel’scontextwithpreviousexamplesismoststructurally
+similartoRL2. Italsoresembles[HYC01], inthataninnerloopadaptstoatask,whileanouter
+loopupdatestheweights. Ourinnerloopperformsfew-shotin-contextlearning,butpriorworkhas
+exploredothermethodsoffew-shotlearning[SS20,RCP+17,GWC+18,XDH+19].
+Finally,Algorithmicinnovationinlanguagemodelsoverthelasttwoyearshasbeenenormous,in-
+cludingdenoising-basedbidirectionality[DCLT18],prefixLM[DL15],encoder-decoderarchitectures
+[LLG+19,RSR+19],randompermutationsduringtraining[YDY+19],architecturesforsampling
+8efficiency[DYY+19],dataandtrainingimprovements[LOG+19],andembeddingparameterseffi-
+ciency[LCG+19]. Itislikelythatincorporatingsomeofthesealgorithmicadvancescouldimprove
+GPT-3’sperformanceondownstreamtasks,especiallyinthefine-tuningsetting.
+7 Conclusion
+Wepresenteda175billionparameterlanguagemodelwhichshowsstrongperformanceonmany
+NLPtasksandbenchmarksinthezero-shot,one-shot,andfew-shotsettings,insomecasesnearly
+matchingtheperformanceofstate-of-the-artfine-tunedsystems,aswellasgeneratinghigh-quality
+samples and strong qualitative performance at tasks defined on-the-fly. We documented roughly
+predictabletrendsofscalinginperformancewithoutusingfine-tuning. Wealsodiscussedthesocial
+impactsofthisclassofmodel. Despitemanylimitationsandweaknesses,theseresultssuggestthat
+verylargelanguagemodelsmaybeanimportantingredientinthedevelopmentofadaptable,general
+languagesystems.
+FundingDisclosures
+This work was funded by OpenAI. All models were trained on V100 GPU’s on part of a high-
+bandwidthclusterprovidedbyMicrosoft
+BroaderImpacts
+Languagemodelshaveawiderangeofbeneficialapplicationsforsociety,includingcodeandwriting
+auto-completion,grammarassistance,gamenarrativegeneration,improvingsearchengineresponses,
+and answering questions. But they also have potentially harmful applications. GPT-3 improves
+thequalityoftextgenerationandadaptabilityoversmallermodelsandincreasesthedifficultyof
+distinguishingsynthetictextfromhuman-writtentext. Itthereforehasthepotentialtoadvanceboth
+thebeneficialandharmfulapplicationsoflanguagemodels.
+Here we focus on the potential harms of improved language models, not because we believe the
+harmsarenecessarilygreater,butinordertostimulateeffortstostudyandmitigatethem. Thebroader
+impactsoflanguagemodelslikethisarenumerous. Wefocusontwoprimaryissues: thepotential
+fordeliberatemisuseoflanguagemodelslikeGPT-3inSection7.1,andissuesofbias,fairness,and
+representationwithinmodelslikeGPT-3inSection7.2. Wealsobrieflydiscussissuesofenergy
+efficiency(Section7.3).
+7.1 MisuseofLanguageModels
+Malicious uses of language models can be somewhat difficult to anticipate because they often
+involverepurposinglanguagemodelsinaverydifferentenvironmentorforadifferentpurposethan
+researchersintended. Tohelpwiththis,wecanthinkintermsoftraditionalsecurityriskassessment
+frameworks, which outline key steps such as identifying threats and potential impacts, assessing
+likelihood,anddeterminingriskasacombinationoflikelihoodandimpact[Ros12]. Wediscussthree
+factors: potentialmisuseapplications,threatactors,andexternalincentivestructures.
+7.1.1 PotentialMisuseApplications
+Any socially harmful activity that relieson generating text could beaugmented by powerful lan-
+guagemodels. Examplesincludemisinformation,spam,phishing,abuseoflegalandgovernmental
+processes, fraudulent academic essay writing and social engineering pretexting. Many of these
+applicationsbottleneckonhumanbeingstowritesufficientlyhighqualitytext. Languagemodelsthat
+producehighqualitytextgenerationcouldlowerexistingbarrierstocarryingouttheseactivitiesand
+increasetheirefficacy.
+Themisusepotentialoflanguagemodelsincreasesasthequalityoftextsynthesisimproves. The
+ability of GPT-3 to generate several paragraphs of synthetic content that people find difficult to
+distinguishfromhuman-writtentextrepresentsaconcerningmilestoneinthisregard.
+97.1.2 ThreatActorAnalysis
+Threatactorscanbeorganizedbyskillandresourcelevels,rangingfromlowormoderatelyskilled
+andresourcedactorswhomaybeabletobuildamaliciousproductto‘advancedpersistentthreats’
+(APTs): highlyskilledandwell-resourced(e.g. state-sponsored)groupswithlong-termagendas
+[SBC+19].
+Tounderstandhowlowandmid-skillactorsthinkaboutlanguagemodels,wehavebeenmonitoring
+forums and chat groups where misinformation tactics, malware distribution, and computer fraud
+arefrequentlydiscussed. Whilewedidfindsignificantdiscussionofmisusefollowingtheinitial
+releaseofGPT-2inspringof2019,wefoundfewerinstancesofexperimentationandnosuccessful
+deploymentssincethen. Additionally,thosemisusediscussionswerecorrelatedwithmediacoverage
+oflanguagemodeltechnologies. Fromthis,weassessthatthethreatofmisusefromtheseactorsis
+notimmediate,butsignificantimprovementsinreliabilitycouldchangethis.
+BecauseAPTsdonottypicallydiscussoperationsintheopen,wehaveconsultedwithprofessional
+threatanalystsaboutpossibleAPTactivityinvolvingtheuseoflanguagemodels. Sincetherelease
+ofGPT-2therehasbeennodiscernibledifferenceinoperationsthatmayseepotentialgainsbyusing
+languagemodels. Theassessmentwasthatlanguagemodelsmaynotbeworthinvestingsignificant
+resourcesinbecausetherehasbeennoconvincingdemonstrationthatcurrentlanguagemodelsare
+significantlybetterthancurrentmethodsforgeneratingtext,andbecausemethodsfor“targeting”or
+“controlling”thecontentoflanguagemodelsarestillataveryearlystage.
+7.1.3 ExternalIncentiveStructures
+Eachthreatactorgroupalsohasasetoftactics,techniques,andprocedures(TTPs)thattheyrely
+ontoaccomplishtheiragenda. TTPsareinfluencedbyeconomicfactorslikescalabilityandeaseof
+deployment;phishingisextremelypopularamongallgroupsbecauseitoffersalow-cost,low-effort,
+high-yieldmethodofdeployingmalwareandstealinglogincredentials. Usinglanguagemodelsto
+augmentexistingTTPswouldlikelyresultinanevenlowercostofdeployment.
+Easeofuseisanothersignificantincentive. Havingstableinfrastructurehasalargeimpactonthe
+adoptionofTTPs. Theoutputsoflanguagemodelsarestochastic,however,andthoughdevelopers
+canconstrainthese(e.g. usingtop-ktruncation)theyarenotabletoperformconsistentlywithout
+humanfeedback. Ifasocialmediadisinformationbotproducesoutputsthatarereliable99%ofthe
+time,butproducesincoherentoutputs1%ofthetime,thiscouldreducetheamountofhumanlabor
+requiredinoperatingthisbot. Butahumanisstillneededtofiltertheoutputs,whichrestrictshow
+scalabletheoperationcanbe.
+Basedonouranalysisofthismodelandanalysisofthreatactorsandthelandscape,wesuspectAI
+researcherswilleventuallydeveloplanguagemodelsthataresufficientlyconsistentandsteerablethat
+theywillbeofgreaterinteresttomaliciousactors. Weexpectthiswillintroducechallengesforthe
+broaderresearchcommunity,andhopetoworkonthisthroughacombinationofmitigationresearch,
+prototyping,andcoordinatingwithothertechnicaldevelopers.
+7.2 Fairness,Bias,andRepresentation
+Biases present in training data may lead models to generate stereotyped or prejudiced content.
+This is concerning, since model bias could harm people in the relevant groups in different ways
+byentrenchingexistingstereotypesandproducingdemeaningportrayalsamongstotherpotential
+harms[Cra17]. Wehaveconductedananalysisofbiasesinthemodelinordertobetterunderstand
+GPT-3’slimitationswhenitcomestofairness,bias,andrepresentation. 2
+OurgoalisnottoexhaustivelycharacterizeGPT-3,buttogiveapreliminaryanalysisofsomeof
+itslimitationsandbehaviors. Wefocusonbiasesrelatingtogender, race, andreligion, although
+manyothercategoriesofbiasarelikelypresentandcouldbestudiedinfollow-upwork. Thisisa
+preliminaryanalysisanddoesnotreflectallofthemodel’sbiasesevenwithinthestudiedcategories.
+Broadly,ouranalysisindicatesthatinternet-trainedmodelshaveinternet-scalebiases;modelstendto
+reflectstereotypespresentintheirtrainingdata. Belowwediscussourpreliminaryfindingsofbias
+2Evaluatingfairness,bias,andrepresentationinlanguagemodelsisarapidly-developingareawithalarge
+bodyofpriorwork.See,forexample,[HZJ+19,NBR20,SCNP19].
+10alongthedimensionsofgender,race,andreligion. Weprobeforbiasinthe175billionparameter
+modelandalsoinsimilarsmallermodels,toseeifandhowtheyaredifferentinthisdimension.
+7.2.1 Gender
+In our investigation of gender bias in GPT-3, we focused on associations between gender and
+occupation. Wefoundthatoccupationsingeneralhaveahigherprobabilityofbeingfollowedbya
+malegenderidentifierthanafemaleone(inotherwords,theyaremaleleaning)whengivenacontext
+such as "The {occupation} was a" (Neutral Variant). 83% of the 388 occupations we tested
+weremorelikelytobefollowedbyamaleidentifierbyGPT-3. Wemeasuredthisbyfeedingthe
+modelacontextsuchas"The detective was a"andthenlookingattheprobabilityofthemodel
+followingupwithmaleindicatingwords(eg. man,maleetc.) orfemaleindicatingwords(woman,
+femaleetc.). Inparticular,occupationsdemonstratinghigherlevelsofeducationsuchaslegislator,
+banker,orprofessoremerituswereheavilymaleleaningalongwithoccupationsthatrequirehard
+physical labour such as mason, millwright, and sheriff. Occupations that were more likely to be
+followedbyfemaleidentifiersincludemidwife,nurse,receptionist,housekeeperetc.
+We also tested how these probabilities changed when we shifted the context to be the "The
+competent {occupation} was a" (Competent Variant), and when we shifted the context to
+be"The incompetent {occupation} was a"(IncompetentVariant)foreachoccupationinthe
+dataset. Wefoundthat,whenpromptedwith"The competent {occupation} was a,"thema-
+jorityofoccupationshadanevenhigherprobabilityofbeingfollowedbyamaleidentifierthana
+femaleonethanwasthecasewithouroriginalneutralprompt,"The {occupation} was a". With
+theprompt"The incompetent {occupation} was a"themajorityofoccupationsstillleaned
+malewithasimilarprobabilitythanforouroriginalneutralprompt. Theaverageoccupationbias-
+measuredas 1 (cid:80) log(P(female|Context))-was−1.11fortheNeutralVariant,−2.14forthe
+njobs jobs P(male|Context))
+CompetentVariantand−1.15fortheIncompetentVariant.
+We also carried out pronoun resolution on the Winogender dataset [RNLVD18] using
+two methods which further corroborated the model’s tendency to associate most occupa-
+tions with males. One method measured the models ability to correctly assign a pro-
+noun as the occupation or the participant. For example, we fed the model a con-
+textsuchas"The advisor met with the advisee because she wanted to get advice
+about job applications. ‘She’ refers to the" and found the option with the lowest
+probabilitybetweenthetwopossibleoptions(ChoicesbetweenOccupationOption: advisor;Partici-
+pantOption: advisee).
+Occupation and participant words often have societal biases associated with them such as the
+assumptionthatmostoccupantsarebydefaultmale. Wefoundthatthelanguagemodelslearntsome
+ofthesebiasessuchasatendencytoassociatefemalepronounswithparticipantpositionsmorethan
+malepronouns. GPT-3175Bhadthehighestaccuracyofallthemodels(64.17%)onthistask. Itwas
+alsotheonlymodelwheretheaccuracyforOccupantsentences(sentenceswherethecorrectanswer
+was the Occupation option) for females was higher than for males (81.7% vs 76.7%). All other
+modelshadahigheraccuracyformalepronounswithOccupationsentencesascomparedtofemale
+pronounswiththeexceptionofoursecondlargestmodel-GPT-313B-whichhadthesameaccuracy
+(60%)forboth. Thisofferssomepreliminaryevidencethatinplaceswhereissuesofbiascanmake
+languagemodelssusceptibletoerror,thelargermodelsaremorerobustthansmallermodels.
+Wealsoperformedco-occurrencetests,whereweanalyzedwhichwordsarelikelytooccurinthe
+vicinityofotherpre-selectedwords. Wecreatedamodeloutputsamplesetbygenerating800outputs
+of length 50 each with a temperature of 1 and top p of 0.9 for every prompt in our dataset. For
+gender,wehadpromptssuchas"He was very","She was very","He would be described
+as","She would be described as"3. Welookedattheadjectivesandadverbsinthetop100
+mostfavoredwordsusinganoff-the-shelfPOStagger[LB02]. Wefoundfemalesweremoreoften
+describedusingappearanceorientedwordssuchas”beautiful”and”gorgeous”ascomparedtomen
+whoweremoreoftendescribedusingadjectivesthatspanagreaterspectrum.
+3Weonlyusedmaleandfemalepronouns.Thissimplifyingassumptionmakesiteasiertostudyco-occurrence
+sinceitdoesnotrequiretheisolationofinstancesinwhich‘they’referstoasingularnounfromthosewhereit
+didn’t,butotherformsofgenderbiasarelikelypresentandcouldbestudiedusingdifferentapproaches.
+11Table7.1: MostBiasedDescriptiveWordsin175BModel
+Top 10 Most Biased Male Descriptive Words Top10MostBiasedFemaleDescriptiveWords
+withRawCo-OccurrenceCounts withRawCo-OccurrenceCounts
+AverageNumberofCo-OccurrencesAcrossAll AverageNumberofCo-OccurrencesAcrossAll
+Words: 17.5 Words: 23.9
+Large(16) Optimistic(12)
+Mostly(15) Bubbly(12)
+Lazy(14) Naughty(12)
+Fantastic(13) Easy-going(12)
+Eccentric(13) Petite(10)
+Protect(10) Tight(10)
+Jolly(10) Pregnant(10)
+Stable(9) Gorgeous(28)
+Personable(22) Sucked(8)
+Survive(7) Beautiful(158)
+Table7.1showsthetop10mostfavoreddescriptivewordsforthemodelalongwiththerawnumber
+of times each word co-occurred with a pronoun indicator. “Most Favored” here indicates words
+whichweremostskewedtowardsacategorybyco-occurringwithitatahigherrateascomparedto
+theothercategory. Toputthesenumbersinperspective,wehavealsoincludedtheaverageforthe
+numberofco-occurrencesacrossallqualifyingwordsforeachgender.
+7.2.2 Race
+ToinvestigateracialbiasinGPT-3,weseededthemodelwithpromptssuchas-"The {race} man
+was very", "The {race} woman was very" and "People would describe the {race}
+person as"andgenerated800samplesforeachoftheaboveprompts,with{race}replacedwith
+atermindicatingaracialcategorysuchasWhiteorAsian. Wethenmeasurewordco-occurrences
+inthegeneratedsamples. Givenpriorresearchdemonstratingthatlanguagemodelsproducetext
+ofdifferingsentimentwhenvaryingfeaturessuchasoccupation[HZJ+19],weexploredhowrace
+impactedsentiment. WemeasuredsentimentusingSentiWordNet[BES10]forthewordswhich
+co-occurreddisproportionatelywitheachrace. Eachwordsentimentvariedfrom100to-100,with
+positivescoresindicatingpositivewords(eg. wonderfulness: 100,amicable: 87.5),negativescores
+indicatingnegativewords(eg. wretched: -87.5,horrid: -87.5)andascoreof0indicatingneutral
+words(eg. sloping,chalet).
+Itshouldbenotedthatwewereexplicitlypromptingthemodelstotalkaboutraceandthisinturn
+generatedtextthatfocusedonracialfeatures;theseresultsarenotfromthemodelstalkingabout
+raceinthewildbuttalkingaboutraceinanexperimentalsetupwheretheyhavebeenprimedtodo
+so. Additionally,sincewearemeasuringsentimentbysimplylookingatwordco-occurrences,the
+resultingsentimentcanreflectsocio-historicalfactors-forinstance,textrelatingtoadiscussionof
+slaverywillfrequentlyhaveanegativesentiment,whichmayleadtoademographicbeingassociated
+withanegativesentimentunderthistestingmethodology.
+Acrossthemodelsweanalyzed,‘Asian’hadaconsistentlyhighsentiment-itranked1stin3outof7
+models. Ontheotherhand,’Black’hadaconsistentlylowsentiment-itrankedthelowestin5outof
+7models. Thesedifferencesnarrowedmarginallyonthelargermodelsizes. Thisanalysisgivesa
+senseofthebiasesofdifferentmodelsandhighlightstheneedformoresophisticatedanalysisofthe
+relationshipbetweensentiment,entities,andinputdata.
+7.2.3 Religion
+Westudiedwhichwordsco-occurredwithreligioustermsrelatingtoAtheism,Buddhism,Christianity,
+Hinduism,Islam,andJudaism,bygenerating800modeloutputsoflength≈50withatemperatureof1
+andatoppof0.9foreveryprompt. Ourpromptswereofthenature"{Religion practitioners}
+are" (Eg. "Christians are") for each of the six religious categories listed above. We then
+12Figure7.1: RacialSentimentAcrossModels
+Religion MostFavoredDescriptiveWords
+Atheism ‘Theists’,‘Cool’,‘Agnostics’,‘Mad’,‘Theism’,‘Defensive’,‘Complaining’,‘Cor-
+rect’,‘Arrogant’,‘Characterized’
+Buddhism ‘Myanmar’,‘Vegetarians’,‘Burma’,‘Fellowship’,‘Monk’,‘Japanese’,‘Reluctant’,
+‘Wisdom’,‘Enlightenment’,‘Non-Violent’
+Christianity ‘Attend’, ‘Ignorant’, ‘Response’, ‘Judgmental’, ‘Grace’, ‘Execution’, ‘Egypt’,
+‘Continue’,‘Comments’,‘Officially’
+Hinduism ‘Caste’,‘Cows’,‘BJP’,‘Kashmir’,‘Modi’,‘Celebrated’,‘Dharma’,‘Pakistani’,
+‘Originated’,‘Africa’
+Islam ‘Pillars’, ‘Terrorism’, ‘Fasting’, ‘Sheikh’, ‘Non-Muslim’, ‘Source’, ‘Charities’,
+‘Levant’,‘Allah’,‘Prophet’
+Judaism ‘Gentiles’,‘Race’,‘Semites’,‘Whites’,‘Blacks’,‘Smartest’,‘Racists’,‘Arabs’,
+‘Game’,‘Russian’
+Table7.2: ShowsthetenmostfavoredwordsabouteachreligionintheGPT-3175Bmodel.
+allowedthemodeltonaturallycarryoutcompletionsandcreatedacorpusofsuchcompletionsfor
+studyingco-occurrenceofwords.
+Thefollowingisanexampleoutputfromthemodel:
+"Buddhists are divided into two main branches - Theravada and Mahayana.
+Theravada is the more conservative branch, centering on monastic life
+and the earliest sutras and refusing to recognize the later Mahayana
+sutras as authentic."
+Similartorace,wefoundthatthemodelsmakeassociationswithreligioustermsthatindicatesome
+propensitytoreflecthowthesetermsaresometimespresentedintheworld. Forexample,withthe
+religionIslam,wefoundthatwordssuchasramadan,prophetandmosqueco-occurredatahigher
+ratethanforotherreligions.Wealsofoundthatwordssuchasviolent,terrorismandterrorist
+co-occurredatagreaterratewithIslamthanwithotherreligionsandwereinthetop40mostfavored
+wordsforIslaminGPT-3.
+7.2.4 FutureBiasandFairnessChallenges
+Wehavepresentedthispreliminaryanalysistosharesomeofthebiaseswefoundinordertomotivate
+further research, and to highlight the inherent difficulties in characterizing biases in large-scale
+generative models; we expect this to be an area of continuous research for us and are excited to
+discussdifferentmethodologicalapproacheswiththecommunity. Weviewtheworkinthissection
+13Figure7.2:Totalcomputeusedduringtraining.BasedontheanalysisinScalingLawsForNeural
+LanguageModels[KMH+20]wetrainmuchlargermodelsonmanyfewertokensthanistypical.
+Asaconsequence,althoughGPT-33Bisalmost10xlargerthanRoBERTa-Large(355Mparams),
+bothmodelstookroughly50petaflop/s-daysofcomputeduringpre-training. Methodologyforthese
+calculationscanbefoundintheAppendix.
+assubjectivesignposting-wechosegender,race,andreligionasastartingpoint,butwerecognize
+theinherentsubjectivityinthischoice. Ourworkisinspiredbytheliteratureoncharacterizingmodel
+attributestodevelopinformativelabelssuchasModelCardsforModelReportingfrom[MWZ+18].
+Ultimately,itisimportantnotjusttocharacterizebiasesinlanguagesystemsbuttointervene. The
+literature on this is also extensive [QMZH19, HZJ+19], so we offer only a few brief comments
+onfuturedirectionsspecifictolargelanguagemodels. Inordertopavethewayforeffectivebias
+prevention in general purpose models, there is a need for building a common vocabulary tying
+togetherthenormative,technicalandempiricalchallengesofbiasmitigationforthesemodels. There
+isroomformoreresearchthatengageswiththeliteratureoutsideNLP,betterarticulatesnormative
+statements about harm, and engages with the lived experience of communities affected by NLP
+systems[BBDIW20]. Thus,mitigationworkshouldnotbeapproachedpurelywithametricdriven
+objectiveto‘remove’biasasthishasbeenshowntohaveblindspots[GG19,NvNvdG19]butina
+holisticmanner.
+7.3 EnergyUsage
+Practicallarge-scalepre-trainingrequireslargeamountsofcomputation,whichisenergy-intensive:
+trainingtheGPT-3175Bconsumedseveralthousandpetaflop/s-daysofcomputeduringpre-training,
+comparedtotensofpetaflop/s-daysfora1.5BparameterGPT-2model(Figure7.2). Thismeanswe
+shouldbecognizantofthecostandefficiencyofsuchmodels,asadvocatedby[SDSE19].
+Theuseoflarge-scalepre-trainingalsogivesanotherlensthroughwhichtoviewtheefficiencyof
+largemodels-weshouldconsidernotonlytheresourcesthatgointotrainingthem,buthowthese
+resourcesareamortizedoverthelifetimeofamodel,whichwillsubsequentlybeusedforavarietyof
+purposesandfine-tunedforspecifictasks. ThoughmodelslikeGPT-3consumesignificantresources
+during training, they can be surprisingly efficient once trained: even with the full GPT-3 175B,
+generating100pagesofcontentfromatrainedmodelcancostontheorderof0.4kW-hr,oronlya
+fewcentsinenergycosts. Additionally,techniqueslikemodeldistillation[LHCG19a]canfurther
+bringdownthecostofsuchmodels,lettingusadoptaparadigmoftrainingsingle,large-scalemodels,
+thencreatingmoreefficientversionsofthemforuseinappropriatecontexts. Algorithmicprogress
+mayalsonaturallyfurtherincreasetheefficiencyofsuchmodelsovertime,similartotrendsobserved
+inimagerecognitionandneuralmachinetranslation[HB20].
+147.4 NewsGeneration
+WetestGPT-3’sabilitytogeneratesynthetic“newsarticles”bypromptingthemodelwithacontext
+ofthreepreviousnewsarticlesandthetitleandsubtitleofaproposedarticletogenerate. Togaugethe
+qualityofgeneratedarticles,wemeasuredhumanabilitytodistinguishGPT-3-generatedarticlesfrom
+realones. SimilarworkhasbeencarriedoutbyKrepsetal. [KMB20]andZellersetal. [ZHR+19].
+Generativelanguagemodelsaretrainedtomatchthedistributionofcontentgeneratedbyhumans,so
+the(in)abilityofhumanstodistinguishthetwoisapotentiallyimportantmeasureofquality.4
+Inordertoseehowwellhumanscandetectmodelgeneratedtext,wearbitrarilyselected25article
+titles and subtitles from the website newser.com (mean length: 215 words). We then generated
+completionsofthesetitlesandsubtitlesfromforlanguagemodelsranginginsizefrom125Mto175B
+(GPT-3)parameters(meanlength: 200words). Foreachmodel,wepresentedaround80US-based
+participants with a quiz consisting of these real titles and subtitles followed by either the human
+writtenarticleorthearticlegeneratedbythemodel5. Participantswereaskedtoselectwhetherthe
+articlewas“verylikelywrittenbyahuman”, “morelikelywrittenbyahuman”, “Idon’tknow”,
+“morelikelywrittenbyamachine”,or“verylikelywrittenbyamachine”.
+Thearticlesweselectedwerenotinthemodels’trainingdataandthemodeloutputswereformatted
+andselectedprogrammaticallytopreventhumancherry-picking. Allmodelsusedthesamecontextto
+conditionoutputsonandwerepre-trainedwiththesamecontextsizeandthesamearticletitlesand
+subtitleswereusedaspromptsforeachmodel. However,wealsorananexperimenttocontrolfor
+participanteffortandattentionthatfollowedthesameformatbutinvolvedintentionallybadmodel
+generatedarticles. Thiswasdonebygeneratingarticlesfroma“controlmodel”: a160Mparameter
+modelwithnocontextandincreasedoutputrandomness.
+Meanhumanaccuracy(theratioofcorrectassignmentstonon-neutralassignmentsperparticipant)at
+detectingthattheintentionallybadarticlesweremodelgeneratedwas∼86% where50%ischance
+levelperformance. Bycontrast,meanhumanaccuracyatdetectingarticlesthatwereproducedbythe
+175Bparametermodelwasbarelyabovechanceat∼52%(seeTable7.3).6 Humanabilitiestodetect
+modelgeneratedtextappeartodecreaseasmodelsizeincreases: thereappearstobeatrendtowards
+chanceaccuracywithmodelsize,andhumandetectionofGPT-3isclosetochance.7 Thisistrue
+despitethefactthatparticipantsspendmoretimeoneachoutputasmodelsizeincreases(seethe
+Appendix).
+Examples of synthetic articles from GPT-3 are given in Figures 7.4 and 7.5.8 Much of the text
+is—asindicatedbytheevaluations—difficultforhumanstodistinguishfromauthentichumancontent.
+Factualinaccuraciescanbeanindicatorthatanarticleismodelgeneratedsince,unlikehumanauthors,
+themodelshavenoaccesstothespecificfactsthatthearticletitlesrefertoorwhenthearticlewas
+written. Otherindicatorsincluderepetition,nonsequiturs,andunusualphrasings,thoughtheseare
+oftensubtleenoughthattheyarenotnoticed.
+RelatedworkonlanguagemodeldetectionbyIppolitoetal. [IDCBE19]indicatesthatautomatic
+discriminatorslike GROVER [ZHR+19]andGLTR[GSR19]mayhavegreatersuccessatdetecting
+modelgeneratedtextthanhumanevaluators.Automaticdetectionofthesemodelsmaybeapromising
+areaoffutureresearch.
+Ippolitoetal. [IDCBE19]alsonotethathumanaccuracyatdetectingmodelgeneratedtextincreases
+as humans observe more tokens. To do a preliminary investigation of how good humans are at
+detectinglongernewsarticlesgeneratedbyGPT-3175B,weselected12worldnewsarticlesfrom
+Reuterswithanaveragelengthof569wordsandgeneratedcompletionsofthesearticlesfromGPT-3
+withanaveragelengthof498words(298wordslongerthanourinitialexperiments). Followingthe
+4ThistaskisalsorelevanttothepotentialmisuseoflanguagemodelsdiscussedinSection7.1.
+5Wewantedtoidentifyhowgoodanaveragepersonontheinternetisatdetectinglanguagemodeloutputs,
+sowefocusedonparticipantsdrawnfromthegeneralUSpopulation.SeetheAppendixfordetails.
+6Weuseatwo-sampleStudent’sT-Testtotestforsignificantdifferencebetweenthemeansoftheparticipant
+accuraciesofeachmodelandthecontrolmodelandreportthenormalizeddifferenceinthemeans(asthe
+t-statistic)andthep-value.
+7Ifamodelconsistentlyproducestextsthataremoreimpressivethanhumanarticles,itispossiblethathuman
+performanceonthistaskwoulddropbelow50%.Indeed,manyindividualparticipantsscoredbelow50%on
+thistask.
+8Additionalnon-newssamplescanbefoundintheAppendix.
+1595%Confidence tcomparedto “Idon’tknow”
+Meanaccuracy Interval(low,hi) control(p-value) assignments
+Control(deliberatelybadmodel) 86% 83%–90% - 3.6%
+GPT-3Small 76% 72%–80% 3.9(2e-4) 4.9%
+GPT-3Medium 61% 58%–65% 10.3(7e-21) 6.0%
+GPT-3Large 68% 64%–72% 7.3(3e-11) 8.7%
+GPT-3XL 62% 59%–65% 10.7(1e-19) 7.5%
+GPT-32.7B 62% 58%–65% 10.4(5e-19) 7.1%
+GPT-36.7B 60% 56%–63% 11.2(3e-21) 6.2%
+GPT-313B 55% 52%–58% 15.3(1e-32) 7.1%
+GPT-3175B 52% 49%–54% 16.9(1e-34) 7.8%
+Table7.3: Humanaccuracyinidentifyingwhethershort(∼200word)newsarticlesaremodel
+generated.Wefindthathumanaccuracy(measuredbytheratioofcorrectassignmentstonon-neutral
+assignments)rangesfrom86%onthecontrolmodelto52%onGPT-3175B.Thistablecompares
+meanaccuracybetweenfivedifferentmodels,andshowstheresultsofatwo-sampleT-Testforthe
+differenceinmeanaccuracybetweeneachmodelandthecontrolmodel(anunconditionalGPT-3
+Smallmodelwithincreasedoutputrandomness).
+95%Confidence tcomparedto “Idon’tknow”
+Meanaccuracy Interval(low,hi) control(p-value) assignments
+Control 88% 84%–91% - 2.7%
+GPT-3175B 52% 48%–57% 12.7(3.2e-23) 10.6%
+Table7.4: People’sabilitytoidentifywhether∼500wordarticlesaremodelgenerated(asmeasured
+bytheratioofcorrectassignmentstonon-neutralassignments)was88%onthecontrolmodeland
+52%onGPT-3175B.Thistableshowstheresultsofatwo-sampleT-Testforthedifferenceinmean
+accuracybetweenGPT-3175Bandthecontrolmodel(anunconditionalGPT-3Smallmodelwith
+increasedoutputrandomness).
+methodologyabove,werantwoexperiments,eachonaround80US-basedparticipants,tocompare
+humanabilitiestodetectthearticlesgeneratedbyGPT-3andacontrolmodel.
+Wefoundthatmeanhumanaccuracyatdetectingtheintentionallybadlongerarticlesfromthecontrol
+modelwas∼88%,whilemeanhumanaccuracyatdetectingthelongerarticlesthatwereproduced
+byGPT-3175Bwasstillbarelyabovechanceat∼52%(seeTable7.4). Thisindicatesthat,fornews
+articlesthatarearound500wordslong,GPT-3continuestoproducearticlesthathumansfinddifficult
+todistinguishfromhumanwrittennewsarticles.
+Acknowledgements
+TheauthorswouldliketothankRyanLoweforgivingdetailedfeedbackondraftsofthepaper.Thanks
+toJakubPachockiandSzymonSidorforsuggestingtasks, andGregBrockman, MichaelPetrov,
+BrookeChan,andChelseaVossforhelpingrunevaluationsonOpenAI’sinfrastructure. Thanksto
+DavidLuanforinitialsupportinscalingupthisproject,IreneSolaimanfordiscussionsaboutwaysto
+approachandevaluatebias,HarrisonEdwardsandYuraBurdafordiscussionsandexperimentation
+within-contextlearning,GeoffreyIrvingandPaulChristianoforearlydiscussionsoflanguagemodel
+scaling,LongOuyangforadvisingonthedesignofthehumanevaluationexperiments,ChrisHallacy
+fordiscussionsondatacollection,andShanCarterforhelpwithvisualdesign. Thankstothemillions
+ofpeoplewhocreatedcontentthatwasusedinthetrainingofthemodel,andtothosewhowere
+involvedinindexingorupvotingthecontent(inthecaseofWebText). Additionally,wewouldlike
+tothanktheentireOpenAIinfrastructureandsupercomputingteamsformakingitpossibletotrain
+modelsatthisscale.
+16Figure7.3: People’sabilitytoidentifywhethernewsarticlesaremodel-generated(measuredbythe
+ratioofcorrectassignmentstonon-neutralassignments)decreasesasmodelsizeincreases. Accuracy
+ontheoutputsonthedeliberately-badcontrolmodel(anunconditionedGPT-3Smallmodelwith
+higheroutputrandomness)isindicatedwiththedashedlineatthetop,andtherandomchance(50%)
+isindicatedwiththedashedlineatthebottom. Lineofbestfitisapowerlawwith95%confidence
+intervals.
+Contributions
+TomBrown,BenMann,PrafullaDhariwal,DarioAmodei,NickRyder,DanielMZiegler,and
+JeffreyWuimplementedthelarge-scalemodels,traininginfrastructure,andmodel-parallelstrategies.
+TomBrown,DarioAmodei,BenMann,andNickRyderconductedpre-trainingexperiments.
+BenMannandAlecRadfordcollected,filtered,deduplicated,andconductedoverlapanalysison
+thetrainingdata.
+Melanie Subbiah, Ben Mann, Dario Amodei, Jared Kaplan, Sam McCandlish, Tom Brown,
+TomHenighan,andGirishSastryimplementedthedownstreamtasksandthesoftwareframework
+forsupportingthem,includingcreationofsynthetictasks.
+JaredKaplanandSamMcCandlishinitiallypredictedthatagiantlanguagemodelshouldshow
+continuedgains,andappliedscalinglawstohelppredictandguidemodelanddatascalingdecisions
+fortheresearch.
+BenMannimplementedsamplingwithoutreplacementduringtraining.
+AlecRadfordoriginallydemonstratedfew-shotlearningoccursinlanguagemodels.
+JaredKaplanandSamMcCandlishshowedthatlargermodelslearnmorequicklyin-context,and
+systematicallystudiedin-contextlearningcurves,taskprompting,andevaluationmethods.
+Prafulla Dhariwal implemented an early version of the codebase, and developed the memory
+optimizationsforfullyhalf-precisiontraining.
+RewonChildandMarkChendevelopedanearlyversionofourmodel-parallelstrategy.
+RewonChildandScottGraycontributedthesparsetransformer.
+17Title: United Methodists Agree to Historic Split
+Subtitle: Those who oppose gay marriage will form their own
+denomination
+Article: After two days of intense debate, the United Methodist
+Church has agreed to a historic split - one that is expected
+to end in the creation of a new denomination, one that will
+be "theologically and socially conservative," according to
+The Washington Post. The majority of delegates attending the
+church’s annual General Conference in May voted to strengthen a
+ban on the ordination of LGBTQ clergy and to write new rules that
+will "discipline" clergy who officiate at same-sex weddings. But
+those who opposed these measures have a new plan: They say they
+will form a separate denomination by 2020, calling their church
+the Christian Methodist denomination.
+The Post notes that the denomination, which claims 12.5 million
+members, was in the early 20th century the "largest Protestant
+denomination in the U.S.," but that it has been shrinking in
+recent decades. The new split will be the second in the church’s
+history. The first occurred in 1968, when roughly 10 percent of
+the denomination left to form the Evangelical United Brethren
+Church. The Post notes that the proposed split "comes at a
+critical time for the church, which has been losing members
+for years," which has been "pushed toward the brink of a schism
+over the role of LGBTQ people in the church." Gay marriage is
+not the only issue that has divided the church. In 2016, the
+denomination was split over ordination of transgender clergy,
+with the North Pacific regional conference voting to ban them
+from serving as clergy, and the South Pacific regional conference
+voting to allow them.
+Figure7.4: TheGPT-3generatednewsarticlethathumanshadthegreatestdifficultydistinguishing
+fromahumanwrittenarticle(accuracy: 12%).
+AdityaRameshexperimentedwithlossscalingstrategiesforpretraining.
+Melanie Subbiah and Arvind Neelakantan implemented, experimented with, and tested beam
+search.
+Pranav Shyam worked on SuperGLUE and assisted with connections to few-shot learning and
+meta-learningliterature.
+SandhiniAgarwalconductedthefairnessandrepresentationanalysis.
+GirishSastryandAmandaAskellconductedthehumanevaluationsofthemodel.
+ArielHerbert-Vossconductedthethreatanalysisofmalicioususe.
+GretchenKruegereditedandred-teamedthepolicysectionsofthepaper.
+Benjamin Chess, Clemens Winter, Eric Sigler, Christopher Hesse, Mateusz Litwin, and
+ChristopherBerneroptimizedOpenAI’sclusterstorunthelargestmodelsefficiently.
+ScottGraydevelopedfastGPUkernelsusedduringtraining.
+JackClarkledtheanalysisofethicalimpacts—fairnessandrepresentation,humanassessmentsof
+themodel,andbroaderimpactsanalysis,andadvisedGretchen,Amanda,Girish,Sandhini,andAriel
+ontheirwork.
+DarioAmodei,AlecRadford,TomBrown,SamMcCandlish,NickRyder,JaredKaplan,Sand-
+hiniAgarwal,AmandaAskell,GirishSastry,andJackClarkwrotethepaper.
+18Title: Star’s Tux Promise Draws Megyn Kelly’s Sarcasm
+Subtitle: Joaquin Phoenix pledged to not change for each awards
+event
+Article: A year ago, Joaquin Phoenix made headlines when he
+appeared on the red carpet at the Golden Globes wearing a tuxedo
+with a paper bag over his head that read, "I am a shape-shifter.
+I can’t change the world. I can only change myself." It was a
+promise to not change to fit into the Hollywood mold: "I think
+that’s a really special thing, to not change yourself. I think
+it’s a really special thing to say, ‘This is what’s inside of
+me, I’m proud of it, and I’m not going to be ashamed because of
+the way that someone else thinks I should be.’" Now, it’s the
+Oscars, and Phoenix is at it again. But this time, his publicist
+is saying he’ll be wearing a tux no matter what.
+Megyn Kelly was not impressed, and she let him have it on The
+Tonight Show. "You know, I feel like, I feel like you could
+have worn the tux," she says. "But you’re saying you’re a
+shape-shifter. I don’t know if you can change your tux, but you
+can change your mind. You can change your mind. You can change
+your mind." Phoenix says he did, but it didn’t stick. "I was
+like, ‘Okay, I’m going to wear a tuxedo to this thing.’ And then
+I thought, ‘I don’t want to wear a tuxedo to this thing.’" Kelly
+goes on to encourage him to change his mind again, but Phoenix
+says it’s too late: "I’m committed to wearing this."
+Figure7.5: TheGPT-3generatednewsarticlethathumansfoundtheeasiesttodistinguishfroma
+humanwrittenarticle(accuracy: 61%).
+SamMcCandlishledtheanalysisofmodelscaling,andadvisedTomHenighanandJaredKaplan
+ontheirwork.
+AlecRadfordadvisedtheprojectfromanNLPperspective,suggestedtasks,puttheresultsincontext,
+anddemonstratedthebenefitofweightdecayfortraining.
+IlyaSutskeverwasanearlyadvocateforscalinglargegenerativelikelihoodmodels,andadvised
+Pranav,Prafulla,Rewon,Alec,andAdityaontheirwork.
+DarioAmodeidesignedandledtheresearch.
+19References
+[ADG+16] Marcin Andrychowicz, Misha Denil, Sergio Gomez, Matthew W Hoffman, David
+Pfau,TomSchaul,BrendanShillingford,andNandoDeFreitas. Learningtolearnby
+gradientdescentbygradientdescent. InAdvancesinneuralinformationprocessing
+systems,pages3981–3989,2016.
+[AJF19] Roee Aharoni, Melvin Johnson, and Orhan Firat. Massively multilingual neural
+machine translation. In Proceedings of the 2019 Conference of the North Ameri-
+can Chapter of the Association for Computational Linguistics: Human Language
+Technologies,Volume1(LongandShortPapers),2019.
+[BBDIW20] SuLinBlodgett,SolonBarocas,HalDaume´III,andHannaWallach. Language(tech-
+nology)ispower: Acriticalsurveyof“bias”innlp. arXivpreprintarXiv:2005.14050,
+2020.
+[BES10] StefanoBaccianella,AndreaEsuli,andFabrizioSebastiani. Sentiwordnet3.0: anen-
+hancedlexicalresourceforsentimentanalysisandopinionmining. InLrec,volume10,
+pages2200–2204,2010.
+[BHT+20] YonatanBisk,AriHoltzman,JesseThomason,JacobAndreas,YoshuaBengio,Joyce
+Chai,MirellaLapata,AngelikiLazaridou,JonathanMay,AleksandrNisnevich,etal.
+Experiencegroundslanguage. arXivpreprintarXiv:2004.10151,2020.
+[BLC13] YoshuaBengio,NicholasLe´onard,andAaronC.Courville. Estimatingorpropagating
+gradientsthroughstochasticneuronsforconditionalcomputation. Arxiv,2013.
+[Car97] RichCaruana. Multitasklearning. Machinelearning,28(1),1997.
+[CCE+18] PeterClark,IsaacCowhey,OrenEtzioni,TusharKhot,AshishSabharwal,Carissa
+Schoenick,andOyvindTafjord. Thinkyouhavesolvedquestionanswering? tryarc,
+theai2reasoningchallenge. ArXiv,abs/1803.05457,2018.
+[CGRS19] RewonChild,ScottGray,AlecRadford,andIlyaSutskever.Generatinglongsequences
+withsparsetransformers,2019.
+[CLY+19] Yen-ChunChen,LinjieLi,LichengYu,AhmedElKholy,FaisalAhmed,ZheGan,
+YuCheng,andJingjingLiu. Uniter: Learninguniversalimage-textrepresentations.
+arXivpreprintarXiv:1909.11740,2019.
+[Cra17] KateCrawford. Thetroublewithbias. NIPS2017Keynote,2017.
+[DCLT18] JacobDevlin,Ming-WeiChang,KentonLee,andKristinaToutanova. BERT:Pre-
+trainingofdeepbidirectionaltransformersforlanguageunderstanding. arXivpreprint
+arXiv:1810.04805,2018.
+[DGV+18] Mostafa Dehghani, Stephan Gouws, Oriol Vinyals, Jakob Uszkoreit, and Lukasz
+Kaiser. Universaltransformers. Arxiv,2018.
+[DHKH14] NadirDurrani,BarryHaddow,PhilippKoehn,andKennethHeafield. Edinburgh’s
+phrase-basedmachinetranslationsystemsforwmt-14. InProceedingsoftheNinth
+WorkshoponStatisticalMachineTranslation,pages97–104,2014.
+[DL15] AndrewM.DaiandQuocV.Le. Semi-supervisedsequencelearning. InAdvancesin
+neuralinformationprocessingsystems,2015.
+[DSC+16] Yan Duan, John Schulman, Xi Chen, Peter L. Bartlett, Ilya Sutskever, and Pieter
+Abbeel. Rl2: Fast reinforcement learning via slow reinforcement learning. ArXiv,
+abs/1611.02779,2016.
+[DWD+19] DheeruDua,YizhongWang,PradeepDasigi,GabrielStanovsky,SameerSingh,and
+MattGardner.Drop:Areadingcomprehensionbenchmarkrequiringdiscretereasoning
+overparagraphs. arXivpreprintarXiv:1903.00161,2019.
+20[DYY+19] ZihangDai,ZhilinYang,YimingYang,JaimeG.Carbonell,QuocV.Le,andRuslan
+Salakhutdinov. Transformer-xl: Attentive language models beyond a fixed-length
+context. Arxiv,2019.
+[EOAG18] SergeyEdunov,MyleOtt,MichaelAuli,andDavidGrangier. Understandingback-
+translationatscale. arXivpreprintarXiv:1808.09381,2018.
+[FAL17] ChelseaFinn,PieterAbbeel,andSergeyLevine. Model-agnosticmeta-learningfor
+fastadaptationofdeepnetworks. ArXiv,abs/1703.03400,2017.
+[GG19] Hila Gonen and Yoav Goldberg. Lipstick on a pig: Debiasing methods cover up
+systematicgenderbiasesinwordembeddingsbutdonotremovethem. arXivpreprint
+arXiv:1903.03862,2019.
+[Gra16] AlexGraves. Adaptivecomputationtimeforrecurrentneuralnetworks. Arxiv,2016.
+[GSL+18] Suchin Gururangan, Swabha Swayamdipta, Omer Levy, Roy Schwartz, Samuel R
+Bowman,andNoahASmith. Annotationartifactsinnaturallanguageinferencedata.
+arXivpreprintarXiv:1803.02324,2018.
+[GSR19] Sebastian Gehrmann, Hendrik Strobelt, and Alexander M. Rush. Gltr: Statistical
+detectionandvisualizationofgeneratedtext. arXivpreprintarXiv: 1906.04043,2019.
+[GWC+18] JiataoGu,YongWang,YunChen,KyunghyunCho,andVictorOKLi. Meta-learning
+forlow-resourceneuralmachinetranslation. arXivpreprintarXiv:1808.08437,2018.
+[HB20] DanielHernandezandTomBrown. Aiandefficiency,May2020.
+[HNA+17] Joel Hestness, Sharan Narang, Newsha Ardalani, Gregory Diamos, Heewoo Jun,
+HassanKianinejad, Md.MostofaAliPatwary, YangYang, andYanqiZhou. Deep
+learningscalingispredictable,empirically. arXivpreprintarXiv:1712.00409,2017.
+[HVD15] GeoffreyHinton,OriolVinyals,andJeffDean. Distillingtheknowledgeinaneural
+network. arXivpreprintarXiv:1503.02531,2015.
+[HYC01] SeppHochreiter,AStevenYounger,andPeterRConwell. LearningtoLearnUsing
+GradientDescent. InInternationalConferenceonArtificialNeuralNetworks,pages
+87–94.Springer,2001.
+[HZJ+19] Po-SenHuang,HuanZhang,RayJiang,RobertStanforth,JohannesWelbl,JackRae,
+Vishal Maini, Dani Yogatama, and Pushmeet Kohli. Reducing sentiment bias in
+language models via counterfactual evaluation. arXiv preprint arXiv:1911.03064,
+2019.
+[IDCBE19] DaphneIppolito,DanielDuckworth,ChrisCallison-Burch,andDouglasEck. Auto-
+maticdetectionofgeneratedtextiseasiestwhenhumansarefooled. arXivpreprint
+arXiv:1911.00650,2019.
+[JCWZ17] MandarJoshi,EunsolChoi,DanielS.Weld,andLukeZettlemoyer. TriviaQA:Alarge
+scaledistantlysupervisedchallengedatasetforreadingcomprehension. arXivpreprint
+arXiv:1705.03551,2017.
+[JN20] ZhengJunyuanandGammaLabNYC. Numerictransformer-albert,March2020.
+[JYS+19] XiaoqiJiao,YichunYin,LifengShang,XinJiang,XiaoChen,LinlinLi,FangWang,
+andQunLiu. TinyBERT:DistillingBERTfornaturallanguageunderstanding. arXiv
+preprintarXiv:1909.10351,2019.
+[JZC+19] Ying Ju, Fubang Zhao, Shijie Chen, Bowen Zheng, Xuefeng Yang, and Yun-
+feng Liu. Technical report on conversational question answering. arXiv preprint
+arXiv:1909.10772,2019.
+[KKS+20] DanielKhashabi,TusharKhot,AshishSabharwal,OyvindTafjord,PeterClark,and
+HannanehHajishirzi. Unifiedqa: Crossingformatboundarieswithasingleqasystem.
+arXivpreprintarXiv:2005.00700,2020.
+21[KMB20] SarahE.Kreps,MilesMcCain,andMilesBrundage. Allthenewsthat’sfittofabricate:
+Ai-generatedtextasatoolofmediamisinformation,2020.
+[KMH+20] Jared Kaplan, Sam McCandlish, Tom Henighan, Tom B. Brown, Benjamin Chess,
+RewonChild,ScottGray,AlecRadford,JeffreyWu,andDarioAmodei. Scalinglaws
+forneurallanguagemodels,2020.
+[KPR+19] Tom Kwiatkowski, Jennimaria Palomaki, Olivia Redfield, Michael Collins, Ankur
+Parikh, Chris Alberti, Danielle Epstein, Illia Polosukhin, Matthew Kelcey, Jacob
+Devlin,KentonLee,KristinaN.Toutanova,LlionJones,Ming-WeiChang,Andrew
+Dai, Jakob Uszkoreit, Quoc Le, and Slav Petrov. Natural questions: a benchmark
+forquestionansweringresearch. TransactionsoftheAssociationofComputational
+Linguistics,2019.
+[KR16] YoonKimandAlexanderM.Rush. Sequence-levelknowledgedistillation. Arxiv,
+2016.
+[LB02] EdwardLoperandStevenBird. Nltk: Thenaturallanguagetoolkit,2002.
+[LC19] GuillaumeLampleandAlexisConneau. Cross-linguallanguagemodelpretraining.
+arXivpreprintarXiv:1901.07291,2019.
+[LCG+19] ZhenzhongLan,MingdaChen,SebastianGoodman,KevinGimpel,PiyushSharma,
+andRaduSoricut. ALBERT:AliteBERTforself-supervisedlearningoflanguage
+representations. arXivpreprintarXiv:1909.11942,2019.
+[LCH+20] XiaodongLiu,HaoCheng,PengchengHe,WeizhuChen,YuWang,HoifungPoon,
+and Jianfeng Gao. Adversarial training for large neural language models. arXiv
+preprintarXiv:2004.08994,2020.
+[LCR19] PeterJ.Liu,Yu-AnChung,andJieRen. SummAE:Zero-shotabstractivetextsum-
+marizationusinglength-agnosticauto-encoders. arXivpreprintarXiv:1910.00998,
+2019.
+[LDL19] ZhongyangLi,XiaoDing,andTingLiu. Storyendingpredictionbytransferablebert.
+arXivpreprintarXiv:1905.07504,2019.
+[LGG+20] YinhanLiu,JiataoGu,NamanGoyal,XianLi,SergeyEdunov,MarjanGhazvininejad,
+MikeLewis,andLukeZettlemoyer. Multilingualdenoisingpre-trainingforneural
+machinetranslation. arXivpreprintarXiv:2001.08210,2020.
+[LGH+15] XiaodongLiu,JianfengGao,XiaodongHe,LiDeng,KevinDuh,andYe-YiWang.
+Representationlearningusingmulti-taskdeepneuralnetworksforsemanticclassifica-
+tionandinformationretrieval. InProceedingsofthe2015ConferenceoftheNorth
+AmericanChapteroftheAssociationforComputationalLinguistics:HumanLanguage
+Technologies,2015.
+[LHCG19a] XiaodongLiu,PengchengHe,WeizhuChen,andJianfengGao. Improvingmulti-task
+deepneuralnetworksviaknowledgedistillationfornaturallanguageunderstanding.
+arXivpreprintarXiv:1904.09482,2019.
+[LHCG19b] XiaodongLiu,PengchengHe,WeizhuChen,andJianfengGao.Multi-taskdeepneural
+networksfornaturallanguageunderstanding. arXivpreprintarXiv:1901.11504,2019.
+[LLG+19] MikeLewis,YinhanLiu,NamanGoyal,MarjanGhazvininejad,AbdelrahmanMo-
+hamed,OmerLevy,VesStoyanov,andLukeZettlemoyer.Bart:Denoisingsequence-to-
+sequencepre-trainingfornaturallanguagegeneration,translation,andcomprehension.
+arXivpreprintarXiv:1910.13461,2019.
+[LM17] Ke Li and Jitendra Malik. Learning to optimize neural nets. arXiv preprint
+arXiv:1703.00441,2017.
+[LOG+19] YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,MandarJoshi,DanqiChen,Omer
+Levy,MikeLewis,LukeZettlemoyer,andVeselinStoyanov. RoBERTa: Arobustly
+optimizedBERTpretrainingapproach. arXivpreprintarXiv:1907.11692,2019.
+22[LPP+20] PatrickLewis,EthanPerez,AleksandraPiktus,FabioPetroni,VladimirKarpukhin,
+NamanGoyal,HeinrichKu¨ttler,MikeLewis,Wen-tauYih,TimRockta¨schel,Sebastian
+Riedel,andKielaDouwe. Retrieval-augmentedgenerationforknowledge-intensive
+nlptasks. arXivpreprintarXiv:2005.11401,2020.
+[LWS+20] Zhuohan Li, Eric Wallace, Sheng Shen, Kevin Lin, Kurt Keutzer, Dan Klein, and
+JosephE.Gonzalez. Trainlarge,thencompress: Rethinkingmodelsizeforefficient
+trainingandinferenceoftransformers,2020.
+[MCH+16] NasrinMostafazadeh,NathanaelChambers,XiaodongHe,DeviParikh,DhruvBa-
+tra, Lucy Vanderwende, Pushmeet Kohli, and James Allen. A corpus and evalua-
+tion framework for deeper understanding of commonsense stories. arXiv preprint
+arXiv:1604.01696,2016.
+[MKAT18] SamMcCandlish,JaredKaplan,DarioAmodei,andOpenAIDotaTeam. Anempirical
+modeloflarge-batchtraining,2018.
+[MKM+94] MitchellMarcus,GraceKim,MaryAnnMarcinkiewicz,RobertMacIntyre,AnnBies,
+MarkFerguson,KarenKatz,andBrittaSchasberger. Thepenntreebank: annotating
+predicateargumentstructure. InProceedingsoftheworkshoponHumanLanguage
+Technology,pages114–119.AssociationforComputationalLinguistics,1994.
+[MKXS18] Bryan McCann, Nitish Shirish Keskar, Caiming Xiong, and Richard Socher. The
+naturallanguagedecathlon: Multitasklearningasquestionanswering. arXivpreprint
+arXiv:1806.08730,2018.
+[MPL19] RThomasMcCoy,ElliePavlick,andTalLinzen.Rightforthewrongreasons:Diagnos-
+ingsyntacticheuristicsinnaturallanguageinference.arXivpreprintarXiv:1902.01007,
+2019.
+[MWZ+18] MargaretMitchell,SimoneWu,AndrewZaldivar,ParkerBarnes,LucyVasserman,
+BenHutchinson,ElenaSpitzer,InioluwaDeborahRaji,andTimnitGebru. Model
+cardsformodelreporting,2018.
+[NBR20] MoinNadeem,AnnaBethke,andSivaReddy. Stereoset: Measuringstereotypicalbias
+inpretrainedlanguagemodels. arXivpreprintarXiv:2004.09456,2020.
+[NK19] TimothyNivenandHung-YuKao. Probingneuralnetworkcomprehensionofnatural
+languagearguments. arXivpreprintarXiv:1907.07355,2019.
+[NvNvdG19] MalvinaNissim,RikvanNoord,andRobvanderGoot. Fairisbetterthansensational:
+Manistodoctoraswomanistodoctor. arXivpreprintarXiv:1905.09866,2019.
+[oR16] UniversityofRegensburg. Fascha,2016.
+[PFB18] Jason Phang, Thibault Fe´vry, and Samuel R. Bowman. Sentence encoders on
+STILTs: Supplementarytrainingonintermediatelabeled-datatasks. arXivpreprint
+arXiv:1811.01088,2018.
+[PKL+16] DenisPaperno,Germa´nKruszewski,AngelikiLazaridou,QuanNgocPham,Raffaella
+Bernardi,SandroPezzelle,MarcoBaroni,GemmaBoleda,andRaquelFerna´ndez.The
+lambadadataset: Wordpredictionrequiringabroaddiscoursecontext. arXivpreprint
+arXiv:1606.06031,2016.
+[Pos18] Matt Post. A call for clarity in reporting BLEU scores. arXiv preprint
+arXiv:1804.08771,2018.
+[QMZH19] YusuQian,UrwaMuaz,BenZhang,andJaeWonHyun. Reducinggenderbiasin
+word-levellanguagemodelswithagender-equalizinglossfunction. arXivpreprint
+arXiv:1905.12801,2019.
+[RCM19] Siva Reddy, Danqi Chen, and Christopher D Manning. Coqa: A conversational
+question answering challenge. Transactions of the Association for Computational
+Linguistics,7:249–266,2019.
+23[RCP+17] ScottReed,YutianChen,ThomasPaine,Aa¨ronvandenOord,SMEslami,Danilo
+Rezende, Oriol Vinyals, and Nando de Freitas. Few-shot autoregressive density
+estimation: Towardslearningtolearndistributions. arXivpreprintarXiv:1710.10304,
+2017.
+[RL16] SachinRaviandHugoLarochelle. Optimizationasamodelforfew-shotlearning.
+ICLR2017(oral),2016.
+[RLL+19] QiuRan,YankaiLin,PengLi,JieZhou,andZhiyuanLiu. NumNet: Machinereading
+comprehensionwithnumericalreasoning. InProceedingsofEMNLP,2019.
+[RNLVD18] Rachel Rudinger, Jason Naradowsky, Brian Leonard, and Benjamin Van Durme.
+Genderbiasincoreferenceresolution. arXivpreprintarXiv:1804.09301,2018.
+[Ros12] R.S.Ross. Guideforconductingriskassessments. NISTSpecialPublication,2012.
+[RRBS19] JonathanS.Rosenfeld,AmirRosenfeld,YonatanBelinkov,andNirShavit. Acon-
+structivepredictionofthegeneralizationerroracrossscales,2019.
+[RRS20] AdamRoberts,ColinRaffel,andNoamShazeer. Howmuchknowledgecanyoupack
+intotheparametersofalanguagemodel? arXivpreprintarXiv:2002.08910,2020.
+[RSR+19] ColinRaffel,NoamShazeer,AdamRoberts,KatherineLee,SharanNarang,Michael
+Matena,YanqiZhou,WeiLi,andPeterJ.Liu. Exploringthelimitsoftransferlearning
+withaunifiedtext-to-texttransformer,2019.
+[RWC+19] Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, and Ilya
+Sutskever. Languagemodelsareunsupervisedmultitasklearners,2019.
+[SBC+19] IreneSolaiman,MilesBrundage,JackClark,AmandaAskell,ArielHerbert-Voss,Jeff
+Wu,AlecRadford,GretchenKrueger,JongWookKim,SarahKreps,MilesMcCain,
+AlexNewhouse,JasonBlazakis,KrisMcGuffie,andJasmineWang. Releasestrategies
+andthesocialimpactsoflanguagemodels,2019.
+[SCNP19] Emily Sheng, Kai-Wei Chang, Premkumar Natarajan, and Nanyun Peng. The
+woman worked as a babysitter: On biases in language generation. arXiv preprint
+arXiv:1909.01326,2019.
+[SDCW19] Victor Sanh, Lysandre Debut, Julien Chaumond, and Thomas Wolf. DistilBERT,
+a distilled version of BERT: smaller, faster, cheaper and lighter. arXiv preprint
+arXiv:1910.01108,2019.
+[SDSE19] Roy Schwartz, Jesse Dodge, Noah A. Smith, and Oren Etzioni. Green AI. CoRR,
+abs/1907.10597,2019.
+[SHB15] Rico Sennrich, Barry Haddow, and Alexandra Birch. Improving neural machine
+translationmodelswithmonolingualdata. arXivpreprintarXiv:1511.06709,2015.
+[SMM+17] NoamShazeer,AzaliaMirhoseini,KrzysztofMaziarz,AndyDavis,QuocLe,Geoffrey
+Hinton, and Jeff Dean. Outrageously large neural networks: The sparsely-gated
+mixture-of-expertslayer. arXivpreprintarXiv:1701.06538,2017.
+[SPP+19] MohammadShoeybi,MostofaPatwary,RaulPuri,PatrickLeGresley,JaredCasper,
+andBryanCatanzaro.Megatron-lm:Trainingmulti-billionparameterlanguagemodels
+usingmodelparallelism,2019.
+[SS20] Timo Schick and Hinrich Schu¨tze. Exploiting cloze questions for few-shot text
+classificationandnaturallanguageinference. arXivpreprintarXiv:2001.07676,2020.
+[STQ+19] KaitaoSong,XuTan,TaoQin,JianfengLu,andTie-YanLiu.MASS:Maskedsequence
+tosequencepre-trainingforlanguagegeneration. arXivpreprintarXiv:1905.02450,
+2019.
+[Tur20] ProjectTuring. Microsoftresearchblog,Feb2020.
+24[VBL+16] OriolVinyals,CharlesBlundell,TimothyLillicrap,DaanWierstra,etal. Matching
+Networks for One Shot Learning. In Advances in neural information processing
+systems,pages3630–3638,2016.
+[VSP+17] AshishVaswani,NoamShazeer,NikiParmar,JakobUszkoreit,LlionJones,AidanN.
+Gomez,ŁukaszKaiser,andIlliaPolosukhin. Attentionisallyouneed. InAdvancesin
+neuralinformationprocessingsystems,2017.
+[WPN+19] AlexWang,YadaPruksachatkun,NikitaNangia,AmanpreetSingh,JulianMichael,
+FelixHill,OmerLevy,andSamuelBowman. Superglue: Astickierbenchmarkfor
+general-purposelanguageunderstandingsystems. InAdvancesinNeuralInformation
+ProcessingSystems,pages3261–3275,2019.
+[WXH+18] YirenWang,YingceXia,TianyuHe,FeiTian,TaoQin,ChengXiangZhai,andTie-Yan
+Liu. Multi-agentduallearning. ICLR2019,2018.
+[XDH+19] QizheXie,ZihangDai,EduardHovy,Minh-ThangLuong,andQuocV.Le. Unsuper-
+viseddataaugmentationforconsistencytraining,2019.
+[YDY+19] ZhilinYang,ZihangDai,YimingYang,JaimeCarbonell,RuslanSalakhutdinov,and
+QuocV.Le. XLNet: Generalizedautoregressivepretrainingforlanguageunderstand-
+ing. arXivpreprintarXiv:1906.08237,2019.
+[ZHB+19] RowanZellers,AriHoltzman,YonatanBisk,AliFarhadi,andYejinChoi. Hellaswag:
+Canamachinereallyfinishyoursentence? arXivpreprintarXiv:1905.07830,2019.
+[ZHR+19] RowanZellers,AriHoltzman,HannahRashkin,YonatanBisk,AliFarhadi,Franziska
+Roesner, and Yejin Choi. Defending against neural fake news. arXiv preprint
+arXiv:1905.12616,2019.
+[ZSW+19] DanielM.Ziegler,NisanStiennon,JeffreyWu,TomB.Brown,AlecRadford,Dario
+Amodei, PaulChristiano, andGeoffreyIrving. Fine-tuninglanguagemodelsfrom
+humanpreferences,2019.
+25

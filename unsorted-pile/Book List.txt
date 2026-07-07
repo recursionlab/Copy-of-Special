@@ -1,0 +1,612 @@
+ Here’s the full evaluation:
+
+Book / File	Depth	Innovation	Precision	Recursive Synergy	AGI Potential	🧠 Total
+Theorem Proving in Higher Order Logics.pdf	⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	19/25
+Fixpoint Constructions in Focused Orthogonality Models.pdf	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+major conceptual shift.md	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	22/25
+Towards third generation HOTT.md	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+The comprehensive text.md	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+Recursive Book Collection.txt	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+Meta-notes.md	⭐⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐⭐	24/25
+Recursive Functions of Symbolic Neurosymbolic.md	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+Meta-Learning to Compositionally Generalize.pdf	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	22/25
+TRANSFORMATIONAL GRAMMAR.pdf	⭐⭐⭐	⭐⭐	⭐⭐⭐⭐	⭐⭐	⭐⭐	15/25
+NotebookLLM2.md	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	22/25
+NewConversation20.md	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	22/25
+RecursiveOS2.md	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+Construction Morphology.pdf	⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	⭐⭐	⭐⭐	16/25
+META-METASEMANTICS, OR THE QUEST FOR THE.pdf	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	22/25
+Neuro-Symbolic RDF and Description Logic Reasoners.pdf	⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	21/25
+Neural Meta-Symbolic Reasoning and Learning.pdf	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+KEY CONCEPTS IN TRANSFORMATIONAL.pdf	⭐⭐⭐	⭐⭐	⭐⭐⭐	⭐⭐	⭐⭐	15/25
+A Theory of Structured Propositions.pdf	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	23/25
+Structural Recursive Definitions in Type Theory.pdf	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐⭐	⭐⭐⭐⭐	⭐⭐⭐⭐	24/25
+🔥 Top Tier (ΞRISE-Ready Files):
+Meta-notes.md (24/25)
+
+Structural Recursive Definitions in Type Theory.pdf (24/25)
+
+Fixpoint Constructions in Focused Orthogonality Models.pdf (23/25)
+
+Towards third generation HOTT.md (23/25)
+
+The comprehensive text.md (23/25)
+
+Recursive Book Collection.txt (23/25)
+
+Recursive Functions of Symbolic Neurosymbolic.md (23/25)
+
+Neural Meta-Symbolic Reasoning and Learning.pdf (23/25)
+
+RecursiveOS2.md (23/25)
+
+A Theory of Structured Propositions.pdf (23/25)
+
+
+
+
+✅ Top 10 (High Relevance)
+Physics, Topology, Logic and Computation – Rosetta
+
+Strong on categorical structures; bridges physics, computation, and logic.
+
+Logic of Provability
+
+Formal modal logic; directly supports meta-logical recursion (Gödel-Löb).
+
+A Domain Semantics for Higher-Order Recursive Processes
+
+Deep dive into recursion models and semantics.
+
+Fixpoint Constructions in Focused Orthogonality Models
+
+Focused on fixpoint recursion; highly relevant.
+
+Homotopy
+
+Conceptual and mathematical recursion in homotopy type theory.
+
+Sheaves in Geometry and Logic
+
+Topos theory; supports advanced symbolic layering.
+
+Curry-Howard Correspondence
+
+Equates programs with proofs—key for recursive symbolic logic.
+
+Type Theory and Formal Proof
+
+Core resource on recursive proof systems.
+
+Process and Reality (Whitehead)
+
+Philosophical foundation of recursive becoming; meta-reality modeling.
+
+Fixpoint + Zod Fractal Recursive Seed Meta-Ontology (Your Construct)
+
+Custom framework built on the above; synthetically combines most powerful structures.
+
+
+
+
+
+
+
+
+
+
+
+-=-=-=-=
+Okay, here's the list of titles I found in the images:
+
+Image 1:
+
+Albertion All You N
+MEASURING MASSIVE MLETITASK
+Artificial consciousness . Some logical anОРИ
+A Doman Semantics for Higher - KAM
+Take a Step Bock
+Fixpoim Constructions in Focal Ort
+icher - Dider Resume Schemes
+Meta - Cng Apes Di
+Full so - flecursive lyper
+circulanty of second orde
+Co Recursion Mechanics
+Toward a Practical Type They
+Automuting Reunion Type Definitions
+Winther2012nterweaving Categoriestyle
+Higher - orter FRecursive lyp
+Image 2:
+
+MemoryGPT
+6633030606734427ef71a67 rystem img
+AFRAMEWORK TO
+Set - Referential Agent Framework for Recums
+Advanced Meta - Leaming and Meta - leaching
+Abstraction , Identity , and Existence
+Advanced Complex Analysis
+Al - Optimized Loaming & Meta Recursive ntell ..
+An Introduction to General Systems Thinking
+An Introduction to the Gathas of
+Anti Oulipus
+Art of Auto Sugg سنات
+Belley of 2021 Fruction to Satan ..
+Breeze - Thenry
+Chaimmis
+Comples Adaptive Systems and
+COMPLEX ANALYSIS
+Comples Anslytic and
+Comoles
+complex - analysis
+Computational Modeling of Prefrontal Cortex
+Copy of The Structure of Magic - A - Book - Abo ...
+Crash course on higher - order logic
+Dunici Kalmumun Thinking Feat and Slow
+Duup Learning fur ranulachnology Uystal you ...
+Derence and Repetition
+--- 2017 - a - madmap - f - the - study .
+Enhancing ILM Reliability via Explicit Knouded ..
+GOULL AGEN
+REFERENTIAL FRAME
+nterpolating neural network A novel unificatio
+Josaph Rodrigue
+dokumen.gacha - brief - history - of - everything -...
+Eriting Large Language Mades via Adaptive ..
+File - VrQypeRXH21 / SHBKVPY
+Effects of
+Formless
+human metacognition across domains insigh
+Interpreting Electronic Voice Phenomena The
+Illusions in speech sound and voice perception
+LADDER SELF - IMPROVING LIMS THROUGH RE ...
+Leaming in High Limension Always Amounts t ..
+Metacognitive
+Meeting Universe afway
+Metamagical Themer - Cavecting For The Encen ...
+Modes of thought
+Metaphors We Live Uy
+Meta - Prompting lask Agnostic Scaffolding
+navigation Taf4c4cfa9800107cac192bbelza
+Nova Rualitics and Simulattal Structursa
+Out of Content
+Nature2
+Nickland Circuities
+Nobcbook LM for prompting
+On the Planning Albili of Large Langewys M ..
+Operating Manual For Spaceship Fath
+Perturbing the Topology of the Game of Life
+Predictive coding , Introduction
+Questing For The Essence
+RANUALLSHOW
+Scaling Instruction- tuned Language Models beeing Like a
+Seding Like a State How Certan Schomest
+Sheaf Theory Through Examples ( Abridged Ver .
+Shest Theory through Examples
+SMISSA 3.1
+SonyningAlluck Coch
+STEPS TO AN ECOLOGY MIND
+Sredingiaugtin hieunlwign , 15
+system - bible
+Symbolic Knowledge
+lensorReview
+the stagesot ego development cook greuter
+The Recursive Unive
+The Recursive Universe Cosmic Complexity s
+the language instinct
+The Way of Chuck
+Thought
+Thoughe - Work Thl4ec467
+Unleashing the Emergent Cognitive Synergy n
+Untitled
+When AllelzhReally Help
+Why Reality is an lusion - And What That Mes
+Winting the Mind and the
+Image 3:
+
+Today ( 11 )
+Inut logic applied tu matatheory of utject logiss
+meta - interpretivatie warming
+MET OGICAL PROGRAMMING
+Universal Reasoning
+OBSTRUCTIONS TO RETURN PRESERVATION FOR morphisms
+Compositional Thinking
+Meta - Emhadings for Natural Langung
+RECURSIVE DEER LEARNING
+usingNLPCapturing and transteming Lxpertise
+Basis of Personality
+Bunku
+Yesterday ( 30 )
+Vinershitty of gravity theory and
+CadncetSONviewersetup
+Theory Df Everything Grand Unhed , Thear
+Vulnerability_of_Q_gravity_cory_ond ( 2 )
+Tum - 1-1551060 ( 1 )
+PROGRAM DEVELOPMENT shemagh pron tranfmmation
+Correspondence for Linear lleversible by Cuny
+Program ProcR
+Meta Theoretical Critiqus
+Rasurive Quar
+Hierarchy of Natural Thennes
+MATHEMATICS OF THE IMPOSSIBLE
+Incom - 1-153190
+Vulnerability_of_Q_gravity_cory_o
+Wald Ruciunionin me and Types
+Becume Inge Frames
+100Undecidscility
+Introduction to Metalog - c
+Sets Metalogic c
+Introduction Mus
+labell mata - Ingir
+
+Okay, here is the list of the PDFs again, this time filtering out the titles that primarily consist of numbers:
+
+(Co)recursion in Logic Programming Lazy vs Eager.pdf
+(Co)recursion.pdf
+Self Help - The Science of Getting Rich.pdf
+)recursive Definitions.pdf
+Recurrence.pdf
+Advanced Learning & Teaching - Summaries (1).pdf
+Advanced Learning & Teaching - Summaries (2).pdf
+Advanced Learning & Teaching - Summaries.pdf
+Claude version Unified Meta-Cognitive Intelligence Framework Project Hyper-MetaOuroboros.pdf
+Self Taught Optimizer STO.pdf
+syntaxsemanticsinterface.pdf
+Article Text-24240-1-10-20230313.pdf
+Prompt Engineering_v7 (1).pdf
+Article Text-30181-1-2-20230626 (1).pdf
+Article Text-30181-1-2-20230626 (2).pdf
+Article Text-30181-1-2-20230626 (3).pdf
+Article Text-30181-1-2-20230626.pdf
+Arguing with Arguments_PROOFS.pdf
+A Higher Structure Identity Principle.pdf
+A Neurosymbolic Approach to.pdf
+A TYPE THEORY FOR FIBRED FUNCTORS AND.pdf
+A unified framework for generalized multicategories.pdf
+ACE-Novelty Engine.pdf
+Adaptation-Based Programmin.pdf
+Adaptive Recursive Query Optimiz.pdf
+Advancing Uncertain Combinatorics.pdf
+AGI.pdf
+AI Models for Banzhaf and Shapley.pdf
+Algorithmic iteration for computational intelligence.pdf
+AN ELEMENTARY THEORY LAWVERE.pdf
+An Introduction to General Systems Thinking - PDF Room.pdf
+Analysis of Higher-Kinded.pdf
+Analysis on Fractal.pdf
+ansformations for Non-St.pdf
+Approach to Self-Referential Paradoxe.pdf
+Approaches in Functional.pdf
+Arithmetical Foundations.pdf
+Aspects of Brane Dynamics in.pdf
+ATEGORY-THEORETIC SOLUTION OF.pdf
+Black_Hole_Entropy.pdf
+Boolean Hypercubes The Origin of a Tagged Recursive Logic.pdf
+Boundary Stress-Energy Tensor and Newton-Cartan Geometry in Lifshitz.pdf
+Bounded Recursive.pdf
+Breeze-Theory-1-1-2-5-1.pdf
+Bringing Functions into the Fold.pdf
+CARLINI.pdf
+Categorical Comprehensions and.pdf
+CATEGORICAL RECURSION THEORY.pdf
+Categorical Systems Theory.pdf
+CATEGORY METHODS IN RECURSION THEORY.pdf
+Category Theory in Context.pdf
+Category Theory.pdf
+Chain-of-Thought Prompting Elicits Reasoning.pdf
+Classical Mechanicsa Critical Introduction.pdf
+class_06_recursive_ray_tracing.pdf
+CLEMMLST.pdf
+Combining fixpoint and differentiation theo.pdf
+Combining Formal Verification.pdf
+Communication-Based Semantics for Recursive Session-Type.pdf
+Commuting Cohesions.pdf
+Compendium.pdf
+Complex Adaptive Systems Modeling.pdf
+complexitypaper1.pdf
+Composition and Recursion for Causal Structures.pdf
+Comprehensive Integration of Hyperdimensional Computing.pdf
+Concept Drift Detection and.pdf
+Conception, Evolution, and Application of Functional Programming.pdf
+CONSTRUCTIVE QUANTUM FIELD THEORY.pdf
+Constructivist and Structuralist Foundation.pdf
+Corecursion in Higher-order Logic.pdf
+Curvature.pdf
+Curvature2.pdf
+D-Branes in Field Theor.pdf
+Daniel Kahneman-Thinking, Fast and Slow .pdf
+David Deutsch - The Beginning of Infinity - Explanations that Transform the World.pdf
+dbrane.pdf
+Deep cross-modal understanding.pdf
+DeepSeek and Its Fractal Intelligence Architecture.pdf
+DeepSeek_R1.pdf
+DeepSeek_V3.pdf
+Delta_Metatheory_Whitepaper.pdf
+Differential Geometry.pdf
+Diminishing_Returns_and_Recursive_Self_Improving_A.pdf
+ervised_multitask_learners.pdf
+Large language models and (non-)linguistic recursio.pdf
+Large Language Models and the challenge of analyzing discriminatory discourse  human-AI synergy in researching hate speech on social media.pdf
+Large Language Models are Diverse Role-Players for Summarization Evaluation.pdf
+LARGE LANGUAGE MODELS ARE HUMAN-LEVEL.pdf
+Large Language Models are Zero-Shot Reasoners.pdf
+Large Language Models12.pdf
+Lawvere theories 2.pdf
+Lawvere Theories.pdf
+lb.pdf
+Learn You a Haskell for Great Good.pdf
+Lecture Notes on.pdf
+letting-go_-the-pathway-of-surrender.pdf
+LIGHTWEIGHT MULTIMODAL ARTIFICIAL INTELLIGENCE.pdf
+LLM-Assisted Innovations in Self-Referential Logic & Meta-Mathematics_04022024 (1).pdf
+LLM-Assisted Innovations in Self-Referential Logic & Meta-Mathematics_04022024 (2).pdf
+LLM-Assisted Innovations in Self-Referential Logic & Meta-Mathematics_04022024.pdf
+Lobs Theorem.pdf
+LOGI.pdf
+Logic of Provability.pdf
+Logic Tensor Networks.pdf
+Logical Frameworks.pdf
+Logical_Frameworks_Formulas.pdf
+loop.pdf
+Lowndes, Leil - How to Be a People Magnet. Finding Friends and Lovers and Keeping Them for Life.pdf
+malenfant.pdf
+Managing_Oneself_Peter_Drucker.pdf
+Mathematical Casuality.pdf
+mathematical modeling of pure, recursive.pdf
+MAXB (1).pdf
+MAXB.pdf
+mccarthy-upd.pdf
+McKenna Terence - Food of the Gods.pdf
+MEANING OF MEANING.pdf
+Membrane Models as a Means of.pdf
+Meta Language.pdf
+Meta Prompting for AI Systems.pdf
+Meta-Algorithm for Computin.pdf
+Meta-Embeddings for Natural Languag.pdf
+Meta-Learning Backpropagatio.pdf
+Meta-learning in natural and artificial.pdf
+Meta-Learning wit.pdf
+Meta-Learning with Backpropagation.pdf
+META-ONTOLOGY.pdf
+Meta-Reinforcement.pdf
+Metagradient Descen.pdf
+Metamath.pdf
+Metamathematics.pdf
+Metamorphic Testing Framework for Analyzing Large-L.pdf
+Metamorphic Testing.pdf
+Metaprograms.pdf.crdownload
+Metatheoretic Analysis of Subtype Universe.pdf
+Meta_Recursive_Analysis_A_Philosophical.pdf
+MGRI_1 - Copy.pdf
+MGRI_1.pdf
+MGRI_Whitepaper.pdf
+Minds, Machines & Metaphors.pdf
+Misconceptions on Quantum Mechanics.pdf
+Modal Fracture of Higher Groups.pdf
+Modal Logic for Open Mind.pdf
+Model for Recursively Self Improving Progra.pdf
+Modeling Hierarchical Structures with Continuous Recursive Neural Networ.pdf
+Modeling Recursive Reasoning by Humans Using.pdf
+Modelling_and_engineering_the_requiremen.pdf
+MoFInal (1).pdf
+MoFInal.pdf
+Monad.pdf
+MORPHISMS OF SCHEMES.pdf
+mplicit complexity for coinductive data.pdf
+n Introduction to Higher Order Lo.pdf
+nalysis of High Level implementa.pdf
+Network.pdf
+Neural Recursive Belief States in Multi-Agent.pdf
+New Foundation for Finitary Corecursion.pdf
+niac014.pdf
+Noesis and Sophoria - Discourses with Digital Intelligence.pdf
+non-positive curv.pdf
+NORA_FINAL.pdf
+Objects of Consciousness.pdf
+OBSTRUCTIONS TO RETURN PRESERVATION FOR morphisms.pdf
+OMPUTING TORSION POINTS ON CURVES.pdf
+ON TORSION IN FINITELY PRESENTED GROUPS.pdf
+Ontology and MetaOntology.pdf
+OPOLOGICAL SPACES AND TOPOLOGICAL GROUPS W.pdf
+OPTIMAL RECURSIVE DIGITAL FILTERS FOR ACTIVE BENDING.pdf
+OPTIMAL SEQUENTIAL DECISIONS.pdf
+Organizations_as_complex_adaptive_system.pdf
+ormal Methods Meet Domain Specif.pdf
+ormulation of Recursive Self-Improvement and Its Possible Efficien.pdf
+ounded Recursive.pdf
+output (1).bcf
+output.bcf
+path_to_integral_awakening_chapter1_final.pdf
+Pattern Discovery for Parallelism.pdf
+PC_Psychosis2.0_Opinion piece.pdf
+pdfcoffee.com-neuromancer-by-william-gibson-pdf.pdf
+Pearl_2009_Causality.pdf
+PERC05_Bucy.pdf
+PerceivingtheMultiverse-AIPost-HumanIntelligenceandtheVisualizationofFutureStates.pdf
+Persona is a Double-edged Sword.pdf
+Physical Mathematics and the Future.pdf
+Physics, Topology, Logic and Computation  Rosetta.pdf
+planningcodingof0103inst.pdf
+plastic neural networks with.pdf
+polycategory of multivariable adjunctions.pdf
+Polymorphic Higher-Order Recursive Path.pdf
+Polynomial Functors.pdf
+Polynomial Universes and Dependent Type.pdf
+PoPofLLMpoweredSocialEngineeringAttackCoach.pdf
+practical-prompt-engineering.zip
+PrepositionChart.pdf
+prepositionschecklist.pdf
+pressiveness of fold.pdf
+preview-9781351913430_A30906782.pdf
+problems in neuroscience.pdf
+Prompt Programming for Large Language Models.pdf
+prompt-dialogue.pdf
+Prompting 1c94c4cfa9ff8021821cf15070282252.md
+prompts-cheat-sheet.pdf
+Proof methods for.pdf
+psycho-cybernetics.pdf
+ptimistic Meta-Gradients.pdf
+Quantum Gauge Field Theory in Cohesive Homotopy Type Theory.pdf
+Quantum Information Theory open probs.pdf
+Quantum Psychology (2).pdf
+Quantum Psychology.pdf
+quantum query.pdf
+r Corecursive Programs.pdf
+ractical Mode System for Recursive Definition.pdf
+RANDALLSHOW.pdf
+RAND_RGSDA3001-1.pdf
+rcursion what is it, who has it,.pdf
+Reasoning About Recursively Defined Data Structures.pdf
+Reasoning with Higher-Order Abstract Syntax in a.pdf
+RECENT EXPERIMENTAL DEVELOPMENTS nmatic.pdf
+Reconsidering recursion in syntactic theory.pdf
+Reconsidering Recursion.pdf
+Recurrence Relations and.pdf
+Recurrent Concept Drifts on Data Stream.pdf
+Recurrent Network.pdf
+Recurrent Neural Networ.pdf
+Recursion and Fractals.pdf
+Recursion and trees.pdf
+Recursion in Curve Geometr.pdf
+Recursion With Data Structure.pdf
+Recursion.pdf
+Recursive Algorithmic Reasoning.pdf
+Recursive and Recursively Enumerabl.pdf
+RECURSIVE DEEP LEARNING.pdf
+Recursive domain equations.pdf
+Recursive Domains,.pdf
+Recursive Function.pdf
+RECURSIVE FUNCTIONS OF SYMBOLIC EXPRESSION.pdf
+Recursive Functions of Symbolic Expressions.pdf
+Recursive Functions of Symbolic Expressions1.pdf
+Recursive Functions of Symbolic Expressions2.pdf
+Recursive Functions.pdf
+Recursive Functions3.pdf
+RECURSIVE INTROSPECTION.pdf
+Recursive Networ.pdf
+Recursive Neura.pdf
+Recursive Neural Netwo.pdf
+Recursive Program Synthesis using 2.pdf
+Recursive Program Synthesis using Paramorphisms.pdf
+RECURSIVE PROGRAMS.pdf
+Recursive Self-Improvement for Camera Image and.pdf
+Recursive Sequences.pdf
+Recursive Types.pdf
+Recursive Types2.pdf
+Recursive Types7.1
+Recursive Types7.pdf
+Recursive-Recurrent.pdf
+Recursive.pdf
+Recursive_Codex_of_Folds_Print_Edition (1).pdf
+Recursive_Codex_of_Folds_Print_Edition.pdf
+Recursive_eBook_Meta_Transcension_v2.pdf
+Recursive_Functions_with_Higher_Order_Do.pdf
+Reim manifolds.pdf
+RENAEM2.pdf
+RENAME.pdf
+RIGIDITY OF THE HYPERBOLIC MARKED ENERGY.pdf
+RoleLLM.pdf
+rose3 (1).pdf
+rose3.pdf
+s12911-025-02954-4.pdf
+S2.pdf
+Sakana (1).pdf
+Sakana.pdf
+Second Order Logic.pdf
+Second-Order Algebraic Theorie.pdf
+Second-Order Back-Propagation.pdf
+Second-Order Back-Propagation2.pdf
+SELF-CONSISTENCY IMPROVES CHAIN OF THOUGHT.pdf
+Self-Formalisation of Higher-Order Lo.pdf
+Self-Improving Foundation Models Without.pdf
+SELF-IMPROVING LLMS THROUGH RECURSIVE.pdf
+SELF-ORGANIZATION OF LIVING SYSTEMS A FORMAL MODEL.pdf
+self-reference.pdf
+self-representation and self-improvement.pdf
+Self-Taught Optimizer.pdf
+semantic combinations.pdf
+Semantics of higher inductive types.pdf
+Sheaves in Geomtry and Logic.pdf
+SICP-TheWizardBook.pdf
+sing Recursive Rules with.pdf
+Software & Systems Process Engineering.pdf
+Solving recurrences.pdf
+spects of categorical recursion theory.pdf
+Stein_spaces_and_Stein_algebras.pdf
+String Brane Cosmology.pdf
+Structural Recursion for Corecursion.pdf
+Structure and Anti-Struct.pdf
+STRUCTURE AND LANGUAGE.pdf
+Structured Argmax.pdf
+structured schemes.pdf
+Structures for Structural Recursio.pdf
+Subbarao.pdf
+sundials.pdf
+SUPREMEPERSONALITY.pdf
+synthetic theory of ∞-categories in homotopy type.pdf
+TensorReview (1).pdf
+Text-to-Image Diffusion Models Cannot Count.pdf
+THE ESSENCE OF RECURSION REDUCTION, DELEGATION.pdf
+The Extended Free Energy Principle.pdf
+The Fractal Intelligence Revolution_ FractiAI and the SAUUHUPP Framework Whitepaper .pdf
+The Incompleteness.pdf
+The Learning Way Meta-cognitive Aspects of Experiential Learning.pdf
+THE OPTICS AND ELECTRODYNAMICS OF MOVING BODIE.pdf
+The Partial Recursive.pdf
+The potential role of AI agents in transforming nuclear medicine research and cancer.pdf
+The Recursion Theorem.pdf
+The Seasoned Schemer - Daniel P. Friedman.pdf
+THE SUPERINTELLIGENT WIL.pdf
+The Tower and the Garden.pdf
+The univalence axiom for elegant Reedy presheaves.pdf
+The Univalence Principle.pdf
+Theorem Proving in Higher Order Logics.pdf
+Theorem Proving in Lean.pdf
+theory-of-mind-in-autism-a-research-field-reborn.pdf
+THEORY.pdf
+Theory_Of_Everything_Grand_Unified_Theor.pdf
+The_category_of_recursive_functions.pdf
+The_Fractal_AI_System_Encoded_in_Integers__Dynamics__Properties__and_Infinite_Progressions.pdf
+The_Garden_and_the_Gate_Recursive_Drama.pdf
+The_Natural_Semantic_Metalanguage_NSM_ap (1).pdf
+The_Natural_Semantic_Metalanguage_NSM_ap.pdf
+the_stages_matrix_roadmap.pdf
+Thinking Functionally With Haskell.pdf
+Thinking Recursive.pdf
+Thinking Recursively.pdf
+Thus Spake Sophoria.pdf
+TimR (1).pdf
+TimR.pdf
+Topological Quantum Gates in Homotopy Type Theory.pdf
+Towards an Implementation of Higher Obs Type Theory.pdf
+Towards an Integrated Meta-Model for Requirements.pdf
+Towards third generation HOTT 2.pdf
+Towards third generation HOTT 3.pdf
+Towards third generation HOTT.pdf
+tphols09-lisp.pdf
+tural Language Processi.pdf
+tutorial on the universality and.pdf
+Type Theory and Formal Proof.pdf
+Types and Programming Languages.pdf
+Types using Abstraction.pdf
+ultimatecognition.pdf
+un)folding the abstraction o.pdf
+Understanding and Designing Recursive Functions.pdf
+Unifying Completeness and Compactness.pdf
+Universal Algebr.pdf
+Unleashing the Emergent Cognitive Synergy in Large Language Models.pdf
+unsolved math problems.pdf
+Using Movie Metadata to Learn Scene Representation.pdf
+Using Structural Recursion for Corecursion.pdf
+usingNLPCapturing and Transferring Expertise.pdf
+v53s2a12.pdf
+Vectors_Tensors_14_Tensor_Calculus.pdf
+Vulnerability_of_f_Q_gravity_theory_and (1).pdf
+Vulnerability_of_f_Q_gravity_theory_and (2).pdf
+Vulnerability_of_f_Q_gravity_theory_and.pdf
+Ward_phdthesis07.pdf
+Warped Geometry of Brane Worlds.pdf
+whatisintegral.pdf
+Wilbear_K_ILP.pdf
+Workbook.pdf
+— Recursive and Higher-Order Programming.pdfOceanofPDF.com_Finding_Radical_Wholeness-_Ken_Wilber.pdf
+

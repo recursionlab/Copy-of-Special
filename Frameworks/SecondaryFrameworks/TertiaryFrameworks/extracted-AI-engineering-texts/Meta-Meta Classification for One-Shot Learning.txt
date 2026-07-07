@@ -1,0 +1,831 @@
+Meta-Meta Classification for One-Shot Learning
+ArkabandhuChowdhury1 DipakChaudhari1 SwaratChaudhuri2 ChrisJermaine1
+Abstract Further,themeta-metaclassifieralsolearnshowtoexamine
+anewlearningproblemandselectwhichoftheklearners
+We present a new approach, called meta-meta
+shouldbeusedtosolvethatparticularlearningproblem.
+classification, tolearninginsmall-datasettings.
+In this approach, one uses a large set of learn- Wecallthemethodmeta-metaclassificationtodistinguish
+ingproblemstodesignanensembleoflearners, it from meta-classification, a term commonly used in en-
+whereeachlearnerhashighbiasandlowvariance semblemethods(Dietterich,2000). Inensembling,ameta-
+andisskilledatsolvingaspecifictypeoflearning classifier is a classifier that aggregates the output from a
+problem. Themeta-metaclassifierlearnshowto familyoflearnedscoringfunctions. Forexample,inbag-
+examineagivenlearningproblemandcombine ging (Breiman, 1996), a meta-classifier may average the
+the various learners to solve the problem. The scoresoutputfromafamilyofscoringfunctions. Inmore
+meta-metalearningapproachisespeciallysuited sophisticated methods, the meta-classifier may itself be
+tosolvingfew-shotlearningtasks,asitiseasier trainedsothatitlearnstoproduceanaccurateoutputfrom
+tolearntoclassifyanewlearningproblemwith asetoflessaccuratescoringfunctions.
+littledatathanitistoapplyalearningalgorithm
+Incontrast,bytrainingoveracorpusoflearningproblems
+toasmalldataset. Weevaluatetheapproachona
+ratherthanasingleproblem,ameta-metaclassifierdesigns
+one-shot,one-class-versus-allclassificationtask
+a set of learners, while at the same time learning how to
+andshowthatitisabletooutperformtraditional
+examineanewproblemandchoosewhichlearnersarebest
+meta-learningaswellasensemblingapproaches.
+to solve that problem. Ultimately, given a new learning
+problem,theoutputofthemeta-metaclassifierisaproblem-
+specificmeta-classifierdefinedoverthesetofscoringfunc-
+1.Introduction tionsproducedbythelearners. Notethatwhileameta-meta
+classifierlearnshowtoproduceameta-classifier,itisnot
+Meta-learning, often defined informally as “learning to
+itselfameta-classifier.
+learn” (Thrun & Pratt, 1998; Rendell et al., 1987), is a
+compellingapproachforsolvingverysmall-datalearning Meta-meta classification is particularly natural for very
+problems, such as one-shot or few-shot learning (Fei-Fei small-datalearningproblems. Theunderlyingassumption
+etal.,2006). Onecangenerateadatasetthatconsistsofa hereisthatitiseasiertoclassifyanewlearningproblem
+largenumberoflearningproblems,whereeachproblemhas withlittledatathanitistosolvethenewlearningproblem
+justafewtrainingexamples,andthenusethatsettolearn with little data. Intuitively, thismay be the case: learned
+howtosolvelearningproblemswithjustafewexamples. scoringfunctionsaresuccessfullyusedallthetimetolook
+Thiscontrastswithcompetingapproachessuchastransfer ataparticularobjectandpredictitslabel.Itdoesnotseemto
+learning(Torrey&Shavlik,2010),whereonesolvesoneor beinherentlymoredifficulttolookatasingleobjectandits
+morelearningproblems,andthenadaptthosesolutionstoa label(orsmallsetoflabeledobjectsinthecaseoffew-shot
+new,small-datalearningproblem. Meta-learninglearnsthe learning)andidentifywhichlearnersmayapplytosolving
+learningprocess,ratherthanhowtore-purposeanexisting theproblem. Ifitispossibletolookatarestrictednumber
+learner. of training examples and choose an appropriately biased,
+low-variancelearnerthatbestappliestothelearningtask,
+Inthispaper,weintroduceanewapproachtometa-learning,
+thenthevariancereductionrealizedbychoosingalearner
+called meta-meta classification. Here, we use a large set
+thatishighlybiasedfortheproblemmayresultinverylow
+oflearningproblemstodesignasetofkdifferentlearners,
+error,evenonhighlydata-restrictedproblems.
+each of which has high bias and low variance, so that it
+is skilled at solving a specific type of learning problem.
+Ourcontributions.Wedefineanewmeta-learningstrategy
+1Department of Computer Science, Rice University calledmeta-metaclassification,inwhichameta-metaclassi-
+2DepartmentofComputerScience,UniversityofTexas,Austin. fieristrainedtorecognizethetypeoflearningtaskathand,
+0202
+nuJ
+41
+]GL.sc[
+4v38080.4002:viXraMeta-MetaClassificationforOne-ShotLearning
+gatescoringfunctionisconstructedwithoutexamininghow
+well the individual scoring functions output by the learn-
+ers perform on the training set (or on a test set). Instead,
+themeta-metaclassifierlearnsthroughexperiencehowthe
+learnersshouldbecombinedfordifferenttypesofproblems.
+Thismakesmeta-metaclassificationparticularlyattractive
+forfew-shotlearningproblems,asthereisnoneedtohave
+enoughdatatotesttheaccuracyoftheoutputofthelearners.
+Ameta-metaclassifierhastwoparts: asetoflearners,and
+ameta-aggregationfunction.
+Thelearners. Inclassicalsupervisedlearning,wehavea
+single scoring function and a learning algorithm. But in
+meta-metaclassification,weinsteadassumeanensembleof
+klearners,fromwhichwewishtobuildanaggregatescoring
+Figure1.Anaggregatescoringfunctionrealizedviameta-meta
+function. The ith learner consists of a scoring function
+classification.Themeta-metaclassifierg(.)usesthetrainingset
+f :X×Y →R,aswellasatrainingalgorithmT .
+D
+P
+toselectfromamongthekparameterizedlearnersf 1,T1(DP), i,θ if i,θ iT
+f 2,T2(DP),andsoon,torealizeanaggregatescoringfunctiong∗. LetDbethesetofallmulti-setsdrawnfromX×Y. The
+trainingalgorithmT : D → Θf mapsasetoftraining
+i,θT i
+i
+examplesdrawnfromX×Y toaparticularvalueforθf.As
+andtousethatrecognitiontochooseabiased,low-variance i
+istypical,thescoringfunctionf isparameterizedonthe
+learnerappropriateforthetask. Weshowhowthisstrategy i,θf
+i
+can be used to learn a highly accurate aggregate scoring parametersetθf chosenfromparameterspaceΘf bythe
+i i
+function,evenforone-shotlearningproblems. Forexam- trainingalgorithm.Moreatypically,thetrainingalgorithmis
+ple,onaone-shot,one-class-versus-allclassificationtask itselfparameterizedonaparametersetθT. Thisparameter
+i
+definedovertheImageNetcorpus,meta-metaclassification set can contain any parameters that control the learning
+isabletoachievegreaterthan82%testaccuracy,compared process: thelearningrate,thenumberoflearningiterations,
+tolessthan61%testaccuracyforthebaselinemeta-learning thesetofparameterstoinitializethelearningalgorithm,etc.
+approach,andlessthan67%foracomparatively-sizeden-
+sembleofmeta-learners. Themeta-aggregationfunction. Thegoalistolearn,by
+lookingatasetoflearningproblems,howtoexamineanew
+problem,andcombinethoseklearnerstocreateaproblem-
+2.BackgroundandProblemDefinition
+specificmeta-classifierg∗. Themeta-aggregationfunction
+2.1.Meta-MetaClassification: Overview isgiventhistask.
+Forafunctionf : X ×X ×... → R,letf(x ,...,x ) :
+Meta-metaclassificationisanapproachtosupervisedlearn- 1 2 1 m
+X ,X ,... → Rdenotethefunctionresultingfrom
+ingthatisparticularlyrelevanttotheproblemofone-shot m+1 m+2
+curryingf withrespecttothefirstminputs,andtheneval-
+orfew-shotlearning,asitreliesonlearningasetoflearners
+uatingtheresultingcurriedfunctionat(x ,...,x ). Then
+designedspecificallytohavehighinductivebiasasawayto 1 m
+f (x ) : Y → Ristheresultofapplyingthe
+preventover-fitting,aswellashowtoapplythoselearners i,T i,θiT(Dtrn) tst
+whenanewlearningproblemisencountered. training algorithm in learner i—parameterized with θT—
+i
+totrainingsetD , andthen“pre-loading”theresulting
+Specifically,forinput(feature)domainX andoutput(label) trn
+scoringfunctionwithx .
+domainY,ameta-metaclassifiertakesasinputatraining test
+set (a multi-set drawn from X ×Y), and then returns an Ameta-aggregationfunctionexaminesD ,andthencon-
+trn
+aggregatescoringfunctiong∗ :X×Y →Rthatcombines ditionedonthatD ,combineseachofthekscoringfunc-
+trn
+theoutputofthelearners(inthecontextofensemble-based tionsf tocreateanew,moreaccurateaggregate
+learning, thisaggregatescoringfunctionissometimesre-
+i,T i,θiT(Dtrn)
+scoringfunction.
+ferredtoasameta-classifier). Asinallformsofsupervised
+learning,thegoalistoproduceanaggregatescoringfunc- Formally,ameta-aggregationfunctionisafunction:
+tionthatgivesrelativelyhighvaluestopairsfromX ×Y
+g :D×(Y →R)k →(Y →R)
+thattendtooccurtogether. θg
+Incontrasttoclassicalensembleapproaches(suchasstack- Byallowingthemeta-aggregationfunctiontoexaminethe
+ing(Wolpert,1992)),inmeta-metaclassification,theaggre- set D and aggregate the scoring functions created by
+trnMeta-MetaClassificationforOne-ShotLearning
+the k learners, we obtain the aggregate scoring function task.Thekeydifference,however,isthatneuralarchitecture
+g∗ (D ,x ,y )≡ searchtypicallyassumeslargen,sothatthemeta-metaclas-
+(cid:104)θg,θ 1T,θ 2T,...,θ kT(cid:105) trn tst tst
+sifieristrivial. Whenevaluatingalearner,simplyseehow
+(cid:18) accuratethelearnerisonaholdoutset. Ifthelearnedmodel
+g D ,f (x ),
+θg trn 1,T 1,θ1T(Dtrn) tst isaccurateontheholdoutset,thelearnerisagoodchoice.
+Inmeta-metaclassification,theassumptionisthatthereis
+f (x ),...,
+2,T 2,θ2T(Dtrn) tst littledataavailabletoevaluatetheaccuracyofaconstructed
+(cid:19) classifier,andsothemeta-metaclassifiergisintroducedas
+f (x ) (y ).
+k,T k,θkT(Dtrn) tst tst analternativetoanaccuracytestoveraholdoutset.
+Thereisanobviousrelationshipbetweenmeta-metaclassi-
+Adepictionofhowthelearnersandthemeta-aggregation
+ficationandboosting,bagging(Quinlanetal.,1996),and
+functiontogetherproduceanaggregatescoringfunctiong∗
+otherensemblemethods. Theaggregatescoringfunction
+isgiveninFigure1.
+enabledbythemeta-metaclassifieriseffectivelycontrolling
+theuseofanensembleoflearners. Inensemblemethods,
+2.2.Intuition: WhyMeta-MetaClassification?
+thefunctionthataggregatestheoutputfromanensembleof
+If the training set D is large, it is unclear that there learnersisoftencalledameta-classifier.However,thediffer-
+trn
+is much benefit to meta-meta classification. For large enceisthatameta-metaclassifieristrainedhowtoproduce
+n=|D |,wemaychooseageneral-purposelearnerwith atask-specificmeta-classifier,itisnotitselfameta-classifier.
+trn
+smallinductivebiasthatworkswellregardlessoftheprob- Bylookingatalargenumberoflearningproblems,themeta-
+lemathand. However,ifnissmall—n=1inthecaseof metaclassifierlearnshowtoselectanappropriate,high-bias,
+one-shotlearning—theremaybeasignificantbenefittothe low-variancelearnersfromasetoflearners,fewofwhich
+introductionofasetoflearnersandameta-metaclassifier. areusefulforanyparticularclassificationtask.
+Ifsufficientinformationabouttheproblem-generatingdis-
+Meta-metaclassificationisrelatedtoothermeta-learning
+tributionPisavailablethroughpastexperience,thatwemay
+approaches, forexample, (Finnetal.,2017), astheyalso
+learnahigh-qualitymeta-metaclassifier. Afterlearningthe
+assume a distribution of learning tasks, and apply meta-
+meta-metaclassifier,tinytrainingsetD maygiveenough
+trn learningtotrytosolvetheone-shotlearningproblem. The
+informationastotheexactnatureoftheclassificationtask
+key difference is that Finn et al.’s approach can be seen
+thatthemeta-aggregationfunctioncanaccuratelyselectan
+astryingtodesignasinglelearner(scoringfunctionplus
+appropriatelearner. Thislearnerwillideallyhavehighin-
+training algorithm) that works well for small-sized D ,
+P
+ductivebias,andbetailoredtothespecificlearningproblem.
+foranydata-generatingP sampledaccordingtoP,rather
+Atthesametime,itwillhopefullyhavelowvariance,and
+thanattemptingtomatchthepresentlearningtaskwithan
+willbeaccurate,evenwiththelearnerhasbeentrainedon
+appropriateclassifier.
+verysmallD .
+trn
+In fact, this is the benefit of meta-meta classification: it 3.LearningaMeta-MetaClassifier
+allows for the use of a set of highly biased, low variance
+learnerseachofwhichcoversasmallsubsetofthesetof 3.1.Background
+classificationproblemsthatareexpectedlyencountered.
+AssumeauniverseofprobabilitydistributionsP,eachde-
+Forthistowork,akeyassumptionisthatthetaskofrecog- finedoverthedomainX×Y,andadistributionPdefined
+nizingwhichtypeoflearningproblemwearefacedwith overthisuniverse. HencePisadistributionof distributions.
+islessdata-intensivethanthetaskofactuallysolvingthe Now,considerthefollowinghierarchicalstochasticprocess
+learningproblem. Hence,facedwithlimitedtrainingdata, forgeneratingatriple(D trn,x tst,y tst)fromP:
+weusethatdatatofirstdeterminewhichtypeoflearning
+problemwearefacedwith,andthenuseahigh-biaslearner 1. SampleP ∼P
+thathasbeendesignedtoperformwellonthatspecificclass
+2. SampleD ={(x ,y )} ∼P
+ofproblem. trn i i i=1...n
+3. Sample(x ,y )∼P
+tst tst
+2.3.RelationshiptoOtherApproaches
+Here, D is a training data set, and (x ,y ) is a test
+Meta-metaclassificationisrelatedtoseveralotherideasin trn tst tst
+pair.
+machinelearning.Forexample,considerneuralarchitecture
+search(Zoph&Le,2016;Phametal.,2018)andrelated Assumesomelossfunction(cid:96) : (Y → R)×Y → R. That
+ideas. Bothapproacheseffectivelyappealtoameta-meta is,(cid:96)takesasanargumentascoringfunctiondefinedover
+classifierthatattemptstochoosethebestlearnerforagiven domainY,a“true”valuefortheoutputselectedfromY,andMeta-MetaClassificationforOne-ShotLearning
+Algorithm1End-to-EndGradientDescent parametersθ aswellaseachoftheθT parametersforthe
+g i
+Meta-Learn(P,k,b,n ,n ) variouslearners. Assumingmeta-learningrateα,werepeat-
+trn tst
+//P: Distributionofdistributionstolearnfrom edly sample (D trn,x tst,y tst) ∼ P and for each sample,
+//k: #oflearners applythefollowingupdaterule:
+//b: Meta-learningbatchsize(#ofproblems)
+θ =θ−α∇(cid:96)(g∗(D ,x ),y )(θ)
+//n : #oftraininginstancesinalearningproblem θ trn tst tst
+trn
+//n : #oftestinstancestoevaluateascoringfunction
+tst Notethatitiseasilypossibletoextendthistotrainingal-
+Initializeθ =(cid:104)θ ,θT,θT,...,θT(cid:105)←rand()
+g 1 2 k gorithmsthatperformmorethanasinglegradientupdate;
+whilelossdecreasesdo
+this merely requires expanding the expression computed
+forj =1tobdo
+by T for an appropriate number of gradient steps. In
+SampleP ∼P i,θ iT
+practice,however,onlyasmallnumberofgradientupdates
+SampleD ={(x ,y )} ∼P
+trn,j i i i=1...ntrn willbeusedinasmall-datasetting;alargenumberofsteps
+SampleD ={(x ,y )} ∼P
+tst,j i i i=1...ntst willtypicallyresultinover-fitting.
+endfor
+θ ←θ− α (cid:80)b (cid:80) Also,inpractice,itmaymakesensetoback-propagatethe
+b×ntst j=1 (xtst,ytst)∈Dtst,j
+∇(cid:96)(g θ∗(D trn,j,x tst),y tst)(θ) meta-lossfrommorethanasingle(x tst,y txt)testpair,as
+endwhile moretestpairsmaygiveamorestableestimateofthemeta-
+returnθ lossanddecreasetime-until-convergence.
+Finally, there is nothing preventing the use of a batch of
+learningproblemsP ,P ,...duringeachiterationofgradi-
+scoreshowaccuratelythescoresreflectthe“true”output. 1 2
+entdescent. Again,thismayresultinamorestablealgo-
+Generally, any loss function can be used for (cid:96): squared
+rithmthattakeslesstimetoconverge.
+errorifY isthesetofrealnumbers,cross-entropyifY isa
+setofcategories,etc. Forexample,forascoringfunction Thefullalgorithmforend-to-endgradientdescent,which
+f :Y →R,thesquarederrorlossfunctionis: usesabatchoflearningproblemsaswellasanarbitrarily-
+sizedtestsetforback-propagationisinAlgorithm1.
+(cid:0) (cid:1)2
+(cid:96) (f,y)= y−argmax f(yˆ)
+l2 yˆ
+3.3.Example: ClusteringPlusGradientDescent
+Thegoalwhenlearningameta-metaclassifieristochoose
+Unfortunately,thealgorithmfromtheprevioussubsection
+(cid:104)θ ,θT,θT,...,θT(cid:105)fromtheparameterspaceΘ ×ΘT ×
+g 1 2 k g 1 maynotworkwellinpractice. Notethatwhilethemeta-
+ΘT ×...×ΘT soastominimizetheexpectedlossofthe
+2 k metaclassifierisbeingtrainedinasupervisedmanner—the
+meta-metaclassifier(orthe“meta-loss”):
+goalistolearnameta-metaclassifierthatcangenerateanac-
+E (cid:104) (cid:96)(cid:16) g∗ (D ,x ),y (cid:17)(cid:105) curatemeta-classifier,inoneimportantsense,thealgorithm
+(Dtrn,xtst,ytst)∼P (cid:104)θg,θ 1T,θ 2T,...,θ kT(cid:105) trn tst tst isunsupervised.
+Ultimately, the meta-aggregation function g must look
+Therearemanypossibleinstantiationsofthisidea. Wenow θg
+ataspecifictrainingsetD anddeterminewhichofthe
+brieflydescribeacoupleofthem. trn
+learnersismostappropriatefortheunderlyingproblem. If,
+atthetimethatg isbeinglearned,thelearnersthemselves
+3.2.Example: End-to-EndGradientDescent θg
+arebeinglearned,thismaybeviewedasanunsupervised
+Assumethateachoftheklearnersutilizesgradientdescent, task;itisunclearhowtosegmentthepossibleproblemsin
+andthatg isdifferentiablewithrespecttoθ . Further,as- P intocategoriessothatareasonablelearnerorlearnerscan
+g
+sumethatT performsonegradientupdateatlearningrate bedesignedforeachcategory.
+i
+λusingθT astheinitializationofthegradientdescent,so
+i Inpractice,unsupervisedlearningtasksarenotoriouslysen-
+thatΘf =ΘT and:1
+i i sitivetoinitialization. Fewmachinelearningpractitioners
+λ (cid:88) runningak-meansalgorithmwouldsampletheinitialmeans
+T
+i,θ
+iT(D trn)=θ iT −
+n
+∇(cid:96)(f
+i,θ
+if(x),y)(θ iT). fromaNormal((cid:126)0,I)distribution,forexample,asthiswould
+(x,y)∈DT likely produce terrible results. Instead, the initial means
+maybesampledfromthedatasettobeclustered.
+Then,lettingθ =(cid:104)θ ,θT,θT,...,θT(cid:105)wecanrunagradient
+g 1 2 k
+descent algorithm to learn the meta-aggregation function Unfortunately,learningameta-metaclassifierconsistingof
+a number of neural network learners via full gradient de-
+1Here,∇(cid:96)(f i,θf(x),y)(θ iT)denotes“thegradientoftheith scent(Algorithm1),startingwithatypical,randomneural-
+i
+lossfunctionwithrespecttoparametersetθf,evaluatedatθT.” network initialization for individual learning parameters
+i iMeta-MetaClassificationforOne-ShotLearning
+Algorithm2Three-Step-Meta-Learning
+Meta-Learn(P,h,k,b,n ,n )
+trn tst
+//P: Distributionofdistributionstolearnfrom
+//h: Embeddingfunctionforprobleminstance
+//k: #oflearners
+//b: Meta-learningbatchsize(#ofproblems)
+//n : #oftraininginstancesinalearningproblem
+trn
+//n : #oftestinstancestoevaluateascoringfunction
+tst
+Initializeθ =(cid:104)θ ,θT,θT,...,θT(cid:105)←rand()
+g 1 2 k
+//Clusterasetofprobleminstances
+Q={}
+form=1tobigdo
+SampleP ∼P;
+Q=Q∪{h({(x ,y )} ∼P)}
+i i i=1...ntrn
+endfor
+Runk-meansonQtoobtainµ ,µ ,...,µ
+1 2 k
+//Createandpartitionasetoftrainingdistributions
+P ={}forj =1tok
+j
+form=1tobigdo
+SampleP ∼P;
+D ={(x ,y )} ∼P
+i i i=1...ntrn
+AddP toP wherej =argmin ||µ −h(D)||
+j j j 2
+endfor
+//Learneachofthetrainingalgorithms Figure2.Learningameta-metaclassifierutilizingapre-clustering
+forj =1tokdo oflearningproblems.
+whilelossdecreasesdo
+forl=1tobdo
+(cid:104)θT,θT,...,θT(cid:105),isakintoinitializingak-meansalgorithm
+SampleP ∼P 1 2 k
+j poorly. Inpractice,allθT valueswillbeterrible,butone
+SampleD ={(x ,y )} ∼P i
+trn,l i i i=1...ntrn willbeslightlylessterriblethantheothers,andthemeta-
+SampleD ={(x ,y )} ∼P
+tst,l i i i=1...ntst aggregationfunctionwilllearntoroutemostproblemsto
+endfor
+the corresponding learner. As a result, the other learners
+θT ←θT − α (cid:80)b (cid:80)
+j j (cid:18)b×ntst i=1 (xtst,ytst) (cid:19)∈Dtst,i are starved of training data and ignored, and the learned
+∇(cid:96) f (x ,y (cid:0) θT(cid:1) solution is equivalent to what would have been returned
+j,T j,θjT(Dtrn) tst tst j
+fromtheMAMLmethod(Finnetal.,2017).
+endwhile
+endfor One way around this is to sample a large number of dis-
+tributionsfromPandexplicitlyclusterthosedistributions
+//Now,learng
+asaseparatestep. Thisrequireshavingsomewaytoclus-
+whilelossdecreasesdo
+terdistributionsofproblems;weassumesomeembedding
+forj =1tobdo
+problem-specific embedding function that is able to map
+SampleP ∼P
+problemdistributions(possiblynon-deterministically)into
+SampleD ={(x ,y )} ∼P
+trn,j i i i=1...ntrn ahigh-dimensionalspace,wheretheycanbeclusteredusing
+SampleD ={(x ,y )} ∼P
+tst,j i i i=1...ntst ak-meansalgorithm(herekisthenumberoflearnersthat
+endfor
+aretobemeta-learned).
+θ ←θ − α (cid:80)b (cid:80)
+g (cid:18)g (cid:18)b×ntst j=1 (xtst,ytst)∈Dtst,j
+A procedure that uses such an explicit clustering step is
+∇(cid:96) g D ,f (x ),
+θg trn 1,T 1,θ1T(Dtrn) tst depictedinAlgorithm2. Theprocedureisdepictedpicto-
+rially in Figure 2. After first producing the k clusters of
+f (x ),...,
+2,T 2,θ2T(Dtrn) tst problemdistributions,oneleanerismeta-learnedperdistri-
+(cid:19) (cid:19) butioncluster. Then,inafinalstep,theproceduretrainsthe
+f (x ) (y ) (θ )
+k,T k,θkT(Dtrn) tst tst g meta-aggregationfunctionsothatitisabletocombinethe
+endwhile outputofthelearners.
+returnθ
+Finally,wepointoutthatAlgorithm1andAlgorithm2canMeta-MetaClassificationforOne-ShotLearning
+beusedtogether. Algorithm2couldbeusedtoproducea layers. Asinput,thisnetworkaccepts:
+high-quality initialization that is refined using Algorithm
+1; the combined procedure is likely to outperform either 1. f (x ,−1)foriin{1...k}(thatis,the“no”score
+i,θf tst
+individualmethodology. i
+eachlearnergivestothetestimage)
+4.ExperimentalEvaluation 2. f i,θf(x tst,+1) for i in {1...k} (the “yes” score that
+i
+eachlearnergivestothetestimage)
+4.1.One-vs-AllOne-ShotImageClassification
+3. The512-dimensionaloutputofaResNetnetwork(He
+Thefirstapplicationweconsiderisopen-worldclassifica-
+etal.,2016),wherethefinalclassificationlayershave
+tion,wherethegoalistorecognizeasinglepositiveclass
+beendropped,appliedtothepositiveimageinD .
+fromalargenumberofnegativeclasses,somewithouttrain- trn
+Thisencodingallowsthemeta-aggregationfunctionto
+ingexamples.Thisisone-vs-all(OvA)orone-vs-rest(OvR)
+classifytheclassificationproblem.
+classification(Perronninetal.,2012). Hence,weevaluate
+theutilityofmeta-metaclassificationforaseriesofone-shot
+imageclassificationtasks,wherethegoalistorecognize— Here,θ g consistsoftheweightsusedinthefully-connected
+givenasingleexample—membersofasingleclasswhich neuralnetwork,aswellastheResNetnetworkusedtoen-
+aremixedinwithanumberofother,“background”classes. codeD trn.
+Wewishtoanswertwokeyquestions. First,doesincreasing
+When using the three-step training process, we sample
+k (thenumberoflearners)actuallyincreaseclassification
+a training set from the distribution, and our embedding
+accuracy? Second, does meta-meta classification outper-
+functionhpushesthepositivetraininginstanceinthatset
+form a simple ensemble of meta-learners? That is, does
+through a pre-trained ResNet network. We pre-trained a
+thebiasedensemblingofmeta-metaclassificationoutper-
+modifiedResNet-152classifierontheclassesreservedfor
+formthesimpletacticofjustusinganumberofindependent
+meta-learning and used the penultimate layer for feature
+meta-learners?
+extraction. Wechangedthenumberofoutputchannelsof
+Meta-learning relies on being able to generate a distribu- theconvolutionsfrom[64,128,256,512]to[64,64,128,
+tionoflearningproblems. Togeneratealearningproblem, 256]andblockexpansionfrom4to2. Thiswasdonejust
+wesample51classesfromtheclassesavailableformeta- todecreasetheextractedfeaturesizefromtheusual2048to
+learning, and one is randomly designated as a “posi tive” 512.
+class. ThetrainingsetD trn isgeneratedbysamplingone Finally,eachθT isthestartingparametersofthegradient
+i
+imagefromtheselectedpositiveclass,and50imagesfrom
+descentusedbytheithlearner. Hence,inthisinstantiation
+the 50 negative classes (some negative classes may have
+ofmeta-metaclassification,wearelearningasetofMAML
+multiplesamples,andsomemaynotberepresentedinthe
+learners(Finnetal.,2017).
+sampleset),andtestsetD issimilarlygeneratedbysam-
+tst
+pling 50 images from the positive class, and 50 from the AdditionalOne-ShotLearningProblems. Wetestthree
+negativeclasses. additionalone-shotlearningproblems.
+Weconsiderseveraldifferentimageclassificationtasks,but (1) Meta-learn on ImageNet ILSVRC-2012, test on the
+the first is to learn to classify images from the ImageNet CUB-2011 Birds data set (Welinder et al., 2010). In this
+database. WeusetheILSVRC-2012dataset(Russakovsky task,meta-learningisperformedexactlyasabove,on900
+etal.,2015),themostpopularflavorofImageNetdata. We classesselectedfromtheImageNetILSVRC-2012dataset.
+holdback10%ofthe1000ILSVRC-2012classesfortesting, However, the testing distribution is different. Each posi-
+and90%oftheclassesareavailableformeta-learning. tiveclassfortestingisselectedfromamongtheCUB-2011
+Birds data set, and the negative classes areselected from
+Eachf istheconvolutionalnetworkarchitectureusedby
+i amongthe100classesheldbackfromtheILSVRC-2012
+(Finn et al., 2017), which has 4 modules with a 3 × 3
+dataset. Thegoalistoperformcross-domaintesting.
+convolutionsand32filters,aReLUnonlinearity,and2×2
+max-pooling. Thescoringfunctionisrealizedusingafully (2)Meta-learnon87classesfromtheAircraftdataset(Maji
+connected layer after the convolutions, and the last layer et al., 2013), test on 15 classes. During testing, one of
+isfedintoasoftmax. EachθT istheinitialsetofweights the15testclassesischosenasthepositiveclass,theother
+i
+usedwhentrainingtheithnetwork. Duringtraining,five 14classesarethenegativeclasses. Onetrainingimageis
+iterationsofgradientdescentareperformed. availablefromthepositiveclass,and50fromthe14negative
+classes. Thegoalistoperformfine-grainedtesting.
+The meta-aggregation function g is realized by a simple,
+fully-connectedneuralnetworkwithtwo256-neuronhidden (3)Meta-learnon1200charactersfromtheOmniglotdata
+set(Lakeetal.,2015),teston423characters.Duringtesting,Meta-MetaClassificationforOne-ShotLearning
+Table1.Experimentalresults.The95%confidenceintervalofobservedtestaccuracy,computedover10,000problemsisgiven.kdenotes
+thenumberofmodelstrained.
+k WHOLEDATA WHOLEDATA MM-CLASSIFIER NEAREST META-META
+HARDBAGGING SOFTBAGGING ONWHOLEDATA CLUSTER CLASSIFIER
+IMAGENETILSVRC-2012RESULTS
+2 61.87±0.22 62.27±0.24 62.79±0.22 61.71±0.25 66.26±0.20
+4 62.48±0.23 61.61±0.24 63.74±0.23 69.53±0.22 74.02±0.17
+8 62.82±0.24 62.40±0.25 64.28±0.23 74.45±0.21 77.92±0.17
+16 63.12±0.24 63.34±0.25 66.11±0.24 74.70±0.22 82.49±0.16
+CROSS-DOMAINRESULTS(META-LEARNINGONILSVRC-2012,TESTONCUB-2011)
+2 63.60±0.22 64.38±0.25 64.63±0.25 71.53±0.20 70.87±0.20
+4 66.36±0.22 66.27±0.23 66.99±0.23 69.76±0.22 72.44±0.17
+8 66.94±0.24 67.04±0.25 67.52±0.25 74.29±0.15 77.98±0.14
+16 67.21±0.25 67.72±0.26 69.61±0.26 84.04±0.12 85.67±0.11
+AIRCRAFTDATASETRESULTS
+2 65.39±0.31 65.66±0.30 69.57±0.24 68.88±0.31 70.65±0.26
+4 70.62±0.27 71.03±0.26 73.00±0.21 71.72±0.28 76.05±0.23
+8 71.84±0.26 72.23±0.27 75.93±0.19 73.35±0.27 78.61±0.23
+OMNIGLOTDATASETRESULTS
+2 71.24±0.35 70.69±0.29 73.26±0.35 73.57±0.33 78.70±0.31
+4 73.83±0.35 77.32±0.29 79.16±0.21 77.07±0.28 85.27±0.18
+8 77.70±0.31 77.61±0.28 85.25±0.20 80.15±0.27 90.87±0.15
+16 79.38±0.28 79.56±0.31 88.04±0.18 82.02±0.26 92.07±0.14
+aletterfromthetestingsetisselectedasthepositiveclass, three-stepmeta-learning,withthefinalclassifierreplaced
+and 50 other test letters are selected as negative classes. withasimplenearestneighborclassifierontheResNetfea-
+Again,oneimagefromthepositiveclassisavailable,and tures. (5) Meta-meta classifier: this is the full three-step
+50imagesoftheotherlettersareavailable. meta-learning.
+CompetitiveMethodsTested. Toevaluatetheefficacyof Results. Foreachdatasetandeachofthefivecompetitive
+ourideas,wecomparemeta-metaclassificationagainsten- methods,wetestavarietyofdifferentkvalues(2,4,8,16,
+semblesofmeta-learners. Inourexperiments,theindividual thoughduetothesmallnumberofclassesintheAircraft
+learnersintheensembleareMAMLlearners(Finnetal., data set, we omit the size-16 model there). In each case,
+2017). WhileanumberofimprovementstoMAMLhave werandomlygenerate10,000learningproblemstoevaluate
+beensuggestedinthelastcoupleofyears(severalofwhich eachmethod,andthemethodisscoredusingaccuracyon50
+aredescribedintheRelatedWorksectionofthispaper),we positiveand50negativeexamples. Fortheevaluation,we
+useMAMLasacomparisonpointbecauseourmeta-meta usefiveiterationsofgradientdescent. Allresults(including
+classifier is effectively learning a set of MAML models. averageaccuracy,95%confidenceintervalwidth)aregiven
+Thisfacilitateanapples-to-applescomparison,thoughwe inTable1.Forcomparison,asingleMAMLmodelachieved
+notethatMAML(bothinmeta-metaclassification,andin 60.78%accruacyonImageNetILSVRC-2012,62.37%ac-
+theensemble)couldbereplacedwithanyreasonablealter- curacyonthecross-domainbirdrecognitionproblem,and
+native. 64.92%and65.95%accuracyontheaircraftandOmniglot
+problems.
+Overall, we evaluate the following five classifiers: (1)
+Whole-data hard bagging: this is hard bagging over an Discussion. Acrossallofthelearningtasks,themeta-meta
+ensembleofMAMLmodelsalltrainedontheentiredata classifierconsistentlyhadthebestaccuracy—oftenconsid-
+set. (2) Whole-data soft bagging: soft bagging over an erablyhigherthantheotheroptions,andmuchhigherthan
+ensembleofMAMLmodels. (3)Meta-metaclassifieron asingleMAMLmodel. Forexample,ontheILSVRC-2012
+wholedata:herewefirstlearnasetofMAMLmodels,each dataset,ameta-metaclassifierwith16classesobtainsmore
+onthewholedata,butthenlearnameta-metaclassifier(step than82%accuracy,comparedtojustunder61%accuracy
+threeofthree-stepmeta-learning)ontheMAMLmodels. withasingleMAMLmodel.
+Thisisusefulfortestingtheutilityofsegmentingthedata.
+(4)Nearestcluster: thisisessentiallythefirsttwostepsofMeta-MetaClassificationforOne-ShotLearning
+4.2.5-wayOne-ShotImageClassification tion. Matching Networks (Vinyals et al., 2016) combine
+both embedding and classification to form an end-to-end
+Whilemeta-metaclassificationisdesignedforOvAorOvR
+differentiable nearest neighbours classifier. Prototypical
+classification,itcaneasilybeadaptedto5-wayclassifica-
+Networks(Snelletal.,2017)applyaninductivebiasinthe
+tion,whichismorecommonlystudiedinthemeta-learning
+formofclassprototypeswithoutfullcontextembeddings.
+literature. This is done by treating a 5-way classifica-
+tionproblemasfivedifferentOvAclassificationproblems Secondarememory-augmentedmethods(Munkhdalai&Yu,
+(Bishop,2006). Thatis,givena5-way,one-shotclassifica- 2017;Mishraetal.,2017;Duanetal.,2016;Wangetal.,
+tionproblem,wetrainthemeta-metaclassifierfivetimes, 2018;Santoroetal.,2016;Oreshkinetal.,2018)thatlearn
+wherewecyclethroughthefiveclasses,witheachclassin toadjustmodelstatesusingmemory-augmentedrecurrent
+turnservingasthe“one”,andtheotherfourclassesserving networks. For example, (Santoro et al., 2016) represents
+asthe“all”. Then,whenitistimetoclassifyatestimage, entriesfromasamplesetinanexternalmemory,AdaResNet
+we choose class associated with the classifier giving the (Munkhdalaietal.,2017)usesmemoryandthesampleset
+highestpositivescore. toproduceconditionallyshiftedneuroncoefficientsforthe
+queryset,andSNAIL(Mishraetal.,2017)usesanexplicit
+Totesttheutilityofmeta-metaclassificationfor5-wayclas-
+attentionmechanismtoleveragespecificinformationfrom
+sification, we follow the procedure in (Finn et al., 2017)
+pastexperience.
+with the ILSVRC-2012 data set. We randomly sample
+one image each from five randomly sampled classes as Third are optimization based methods (Finn et al., 2017;
+thesupportdatafortraining,andrandomlysample15im- 2018; Yoon et al., 2018; Lee & Choi, 2018; Grant et al.,
+ageseachfromthoseclassesasquerydatafortesting. We 2018;Nichol&Schulman,2018;Rusuetal.,2018;Rothfuss
+sample600suchproblemsfromourtestsplit,andmeasure etal.,2018;Ravi&Larochelle,2016;Zhangetal.,2018)
+the accuracy as well as 95% confidence interval. On the that learn a network initialization that can quickly adapt
+ILSVRC-2012dataset,16-clustermeta-metaclassification tonewtaskswithinadistributionoftaskswithaveryfew
+obtained57.23±1.72%accuracy,whereasMAMLgaveus stepsofregulargradientdescent. MAML(Finnetal.,2017)
+49.64±1.07%accuracy,foranetgainof+7.59%compared backpropagatesthemeta-lossthroughaninnerlearningloop,
+to MAML. Comparing with the results presented in (Tri- Reptile(Nichol&Schulman,2018)incorporatesanL2loss
+antafillouetal.,2019)whichalsotested5-wayclassification thatupdatesthemeta-modelparameterstowardsthetask-
+accuracyonILSVRC-2012,+7.59%netgainbeatsthetwo specificmodels,and(Lee&Choi,2018)learnsalayer-wise
+bestmeta-learningmethodstested:Proto-MAML(proposed subspacewheregradient-basedadaptationisdone.However,
+in(Triantafillouetal.,2019);+4.02%)andProto-Net(pro- sinceallofthesemeta-learnerssampleataskfromatask-
+posedin(Snelletal.,2017),+4.99%). Wealsotestedmeta- distributiontolearntheinitialparameters,theycanbeprone
+metaclassificationfor5-wayclassificationontheAircraft tooverfitting(Mishraetal.,2017).
+dataset,andobtained57.12±1.86%accuracycomparedto
+MAML’s51.35±1.1%,foranetgainof+5.77%. 6.Conclusion
+Wehaveexploredanewtypeofmeta-learning,calledmeta-
+5.RelatedWork
+metaclassification. Theideainmeta-metaclassificationis
+Meta-meta classification broadly falls under the meta- tolearnasetoflearnerstailoredtodifferentproblemtypes,
+learningor“learningtolearn”paradigm(Hinton&Plaut, as well as a function called a “meta-meta classifier” that
+1987;Thrun&Pratt,1998;Bengioetal.,1992)whichhas is able to look at a particular problem and decide how to
+beenshowntoproducepromisingresultsonfew-shotclassi- combinethelearnerstosolvethatproblem. Thus,ameta-
+ficationproblems. Meta-learningmethodscanbedivided metaclassifieritselfmeta-learnstoproduceameta-classifier
+intothreecategories. overtheoutputofthelearners. Meta-metaclassificationis
+predicatedontheassumptionthatitiseasiertoclassifya
+Firstaremetric-basedmethods(Kochetal.,2015;Hadsell
+problem(andchooseanappropriatesetoflearners)thanitis
+etal.,2006;Fink,2005;Schroffetal.,2015;Shyametal.,
+tolearntosolvetheproblemwithlittledata.Wehaveshown
+2017; Snell et al., 2017; Goldberger et al., 2005; Vinyals
+throughaseriesofexperimentsthatmeta-metaclassification
+et al., 2016; Taigman et al., 2015) which aim to learn a
+canhavemuchhigheraccuracythanastandardmeta-learner
+similarityfunctionoradistancemetricbetweenapairofdif-
+orevenanensambleofsuchmeta-learners.
+ferentsamples.NeighborhoodComponentsAnalysis(NCA)
+(Goldbergeretal.,2005)learnsaMahalanobisdistanceto
+maximizeK-nearest-neighbors(KNN)leave-one-outaccu-
+racy. Siamesenetworks(Kochetal.,2015)useapairwise
+verification loss to perform nearest-neighbours classifica-Meta-MetaClassificationforOne-ShotLearning
+References Hinton,G.E.andPlaut,D.C. Usingfastweightstodeblur
+oldmemories. InProceedingsoftheninthannualcon-
+Bengio,S.,Bengio,Y.,Cloutier,J.,andGecsei,J. Onthe
+ference of the Cognitive Science Society, pp. 177–186,
+optimizationofasynapticlearningrule.InPreprintsConf.
+1987.
+OptimalityinArtificialandBiologicalNeuralNetworks,
+pp.6–8.Univ.ofTexas,1992. Koch,G.,Zemel,R.,andSalakhutdinov,R. Siameseneural
+networksforone-shotimagerecognition. InICMLdeep
+Bishop,C.M. Patternrecognitionandmachinelearning.
+learningworkshop,volume2,2015.
+springer,2006.
+Lake, B. M., Salakhutdinov, R., and Tenenbaum, J. B.
+Breiman,L. Baggingpredictors. Machinelearning,24(2):
+Human-levelconceptlearningthroughprobabilisticpro-
+123–140,1996.
+graminduction. Science,350(6266):1332–1338,2015.
+Dietterich,T.G. Ensemblemethodsinmachinelearning.
+Lee, Y. and Choi, S. Gradient-based meta-learning with
+InInternationalworkshoponmultipleclassifiersystems,
+learnedlayerwisemetricandsubspace. arXivpreprint
+pp.1–15.Springer,2000.
+arXiv:1801.05558,2018.
+Duan,Y.,Schulman,J.,Chen,X.,Bartlett,P.L.,Sutskever,
+Maji,S.,Kannala,J.,Rahtu,E.,Blaschko,M.,andVedaldi,
+I., and Abbeel, P. Rl $ˆ 2$: Fast reinforcement learn-
+A.Fine-grainedvisualclassificationofaircraft.Technical
+ing via slow reinforcement learning. arXiv preprint
+report,2013.
+arXiv:1611.02779,2016.
+Mishra, N., Rohaninejad, M., Chen, X., and Abbeel, P.
+Fei-Fei,L.,Fergus,R.,andPerona,P. One-shotlearningof
+A simple neural attentive meta-learner. arXiv preprint
+objectcategories. IEEEtransactionsonpatternanalysis
+arXiv:1707.03141,2017.
+andmachineintelligence,28(4):594–611,2006.
+Munkhdalai, T. and Yu, H. Meta networks. In Proceed-
+Fink, M. Objectclassificationfromasingleexampleuti-
+ings of the 34th International Conference on Machine
+lizing class relevance metrics. In Advances in neural
+Learning-Volume70,pp.2554–2563.JMLR.org,2017.
+informationprocessingsystems,pp.449–456,2005.
+Munkhdalai,T.,Yuan,X.,Mehri,S.,andTrischler,A.Rapid
+Finn,C.,Abbeel,P.,andLevine,S. Model-agnosticmeta-
+adaptation with conditionally shifted neurons. arXiv
+learningforfastadaptationofdeepnetworks. InProceed-
+preprintarXiv:1712.09926,2017.
+ings of the 34th International Conference on Machine
+Learning-Volume70,pp.1126–1135.JMLR.org,2017.
+Nichol,A.andSchulman,J. Reptile: ascalablemetalearn-
+ing algorithm. arXiv preprint arXiv:1803.02999, 2:2,
+Finn, C., Xu, K., and Levine, S. Probabilistic model-
+2018.
+agnostic meta-learning. In Advances in Neural Infor-
+mationProcessingSystems,pp.9516–9527,2018.
+Oreshkin,B.,Lo´pez,P.R.,andLacoste,A. Tadam:Taskde-
+pendentadaptivemetricforimprovedfew-shotlearning.
+Goldberger,J.,Hinton,G.E.,Roweis,S.T.,andSalakhut-
+InAdvancesinNeuralInformationProcessingSystems,
+dinov, R. R. Neighbourhood components analysis. In
+pp.721–731,2018.
+Advancesinneuralinformationprocessingsystems,pp.
+513–520,2005.
+Perronnin, F., Akata, Z., Harchaoui, Z., and Schmid, C.
+Towardsgoodpracticeinlarge-scalelearningforimage
+Grant,E.,Finn,C.,Levine,S.,Darrell,T.,andGriffiths,T.
+classification. In 2012 IEEE Conference on Computer
+Recastinggradient-basedmeta-learningashierarchical
+Vision and Pattern Recognition, pp. 3482–3489. IEEE,
+bayes. arXivpreprintarXiv:1801.08930,2018.
+2012.
+Hadsell, R., Chopra, S., and LeCun, Y. Dimensionality
+Pham,H.,Guan,M.Y.,Zoph,B.,Le,Q.V.,andDean,J.
+reduction by learning an invariant mapping. In 2006
+Efficientneuralarchitecturesearchviaparametersharing.
+IEEEComputerSocietyConferenceonComputerVision
+arXivpreprintarXiv:1802.03268,2018.
+andPatternRecognition(CVPR’06),volume2,pp.1735–
+1742.IEEE,2006.
+Quinlan, J. R. et al. Bagging, boosting, and c4. 5. In
+AAAI/IAAI,Vol.1,pp.725–730,1996.
+He,K.,Zhang,X.,Ren,S.,andSun,J. Deepresiduallearn-
+ingforimagerecognition. InProceedingsoftheIEEE
+Ravi, S. and Larochelle, H. Optimization as a model for
+conferenceoncomputervisionandpatternrecognition,
+few-shotlearning. 2016.
+pp.770–778,2016.Meta-MetaClassificationforOne-ShotLearning
+Rendell, L. A., Sheshu, R., and Tcheng, D. K. Layered Thrun,S.andPratt,L. Learningtolearn: Introductionand
+concept-learninganddynamicallyvariablebiasmanage- overview. InLearningtolearn,pp.3–17.Springer,1998.
+ment. InIJCAI,pp.308–314,1987.
+Torrey,L.andShavlik,J. Transferlearning. InHandbook
+Rothfuss, J., Lee, D., Clavera, I., Asfour, T., andAbbeel, ofresearchonmachinelearningapplicationsandtrends:
+P. Promp: Proximalmeta-policysearch. arXivpreprint algorithms,methods,andtechniques,pp.242–264.IGI
+arXiv:1810.06784,2018. Global,2010.
+Russakovsky,O.,Deng,J.,Su,H.,Krause,J.,Satheesh,S., Triantafillou,E.,Zhu,T.,Dumoulin,V.,Lamblin,P.,Evci,
+Ma,S.,Huang,Z.,Karpathy,A.,Khosla,A.,Bernstein, U.,Xu,K.,Goroshin,R.,Gelada,C.,Swersky,K.,Man-
+M.,Berg,A.C.,andFei-Fei,L. ImageNetLargeScale zagol, P.-A., et al. Meta-dataset: A dataset of datasets
+VisualRecognitionChallenge. InternationalJournalof forlearningtolearnfromfewexamples. arXivpreprint
+Computer Vision (IJCV), 115(3):211–252, 2015. doi: arXiv:1903.03096,2019.
+10.1007/s11263-015-0816-y.
+Vinyals,O.,Blundell,C.,Lillicrap,T.,Wierstra,D.,etal.
+Rusu, A. A., Rao, D., Sygnowski, J., Vinyals, O., Pas- Matchingnetworksforoneshotlearning. InAdvancesin
+canu, R., Osindero, S., and Hadsell, R. Meta-learning neuralinformationprocessingsystems,pp.3630–3638,
+with latent embedding optimization. arXiv preprint 2016.
+arXiv:1807.05960,2018.
+Wang, J. X., Kurth-Nelson, Z., Kumaran, D., Tirumala,
+Santoro,A.,Bartunov,S.,Botvinick,M.,Wierstra,D.,and D.,Soyer,H.,Leibo,J.Z.,Hassabis,D.,andBotvinick,
+Lillicrap,T. Meta-learningwithmemory-augmentedneu- M. Prefrontalcortexasameta-reinforcementlearning
+ral networks. In International conference on machine system. Natureneuroscience,21(6):860,2018.
+learning,pp.1842–1850,2016.
+Welinder, P., Branson, S., Mita, T., Wah, C., Schroff, F.,
+Schroff,F.,Kalenichenko,D.,andPhilbin,J. Facenet: A Belongie,S.,andPerona,P. Caltech-UCSDBirds200.
+unifiedembeddingforfacerecognitionandclustering. In TechnicalReportCNS-TR-2010-001,CaliforniaInstitute
+ProceedingsoftheIEEEconferenceoncomputervision ofTechnology,2010.
+andpatternrecognition,pp.815–823,2015.
+Wolpert,D.H. Stackedgeneralization. Neuralnetworks,5
+Shyam,P.,Gupta,S.,andDukkipati,A. Attentiverecurrent (2):241–259,1992.
+comparators. In Proceedings of the 34th International
+Yoon,J.,Kim,T.,Dia,O.,Kim,S.,Bengio,Y.,andAhn,S.
+ConferenceonMachineLearning-Volume70,pp.3173–
+Bayesianmodel-agnosticmeta-learning. InAdvancesin
+3181.JMLR.org,2017.
+NeuralInformationProcessingSystems,pp.7332–7342,
+Snell,J.,Swersky,K.,andZemel,R. Prototypicalnetworks 2018.
+forfew-shotlearning. InAdvancesinNeuralInformation
+Zhang,R.,Che,T.,Ghahramani,Z.,Bengio,Y.,andSong,Y.
+ProcessingSystems,pp.4077–4087,2017.
+Metagan: Anadversarialapproachtofew-shotlearning.
+Taigman, Y., Yang, M., Ranzato, M., and Wolf, L. Web- InAdvancesinNeuralInformationProcessingSystems,
+scaletrainingforfaceidentification.InProceedingsofthe pp.2365–2374,2018.
+IEEEconferenceoncomputervisionandpatternrecogni-
+Zoph, B. and Le, Q. V. Neural architecture search with
+tion,pp.2746–2754,2015.
+reinforcementlearning.arXivpreprintarXiv:1611.01578,
+2016.Meta-MetaClassificationforOne-ShotLearning
+Appendix examplesperclass(FigureA1(c)). Randomlychosen1200
+charactersareusedfortrainingand423classesareusedfor
+A.BroaderImpact
+testing.
+One-shotclassificationisanimportantbutdifficultproblem,
+Aircraft. (Majietal.,2013)Adatasetofimagesofaircrafts
+withmanyapplicationsinscienceandtechnology. Forex-
+spanning 102 model variants, with 100 images per class
+ample,considertheproblemofsearchingadatabaseofbrain
+(FigureA1(d)). Randomlychosen87classesareusedfor
+images,tofindimageswithaparticulartypeofbrainlesion,
+trainingand15classesareusedfortesting.
+whereonlyafew(orone)imagesofthedesiredinjuryare
+available. Ourproposedmethodcouldeasilybeusedinthis Notethatineachdataset,thevalidationsetisincludedin
+case. Notethatthisexampleapplicationisanexampleof thetrainingsplit.
+“one-vs-all,open-world,one-shotclassification”,whichis
+Data Processing. All images apart from those from Om-
+under-studied(ornever-beforestudied),andwhichwecon-
+niglotareresizedinto84x84resolution. Omniglotimages
+siderinthispaper. Almostallpriorworkconsidersn-way
+are resized into 28x28 resolution and color-inverted for
+classification(forn=5). Ournewmethodperformsvery
+fastertraining.
+wellonthisproblem,comparedtotheobviousalternatives.
+Foranotherparticularapplication,considerthetaskofrec-
+ognizingoneanimalspecies(forwhichonlyonepositive
+image is available) from among a set of images taken by
+an automated wildlife camera. A set of negative training
+images may be available, but the set of negative classes
+cannotbecontrolled. Or,considerrecognizingaparticular
+vessel(boat)fromamongalargesetofsatelliteimagesof
+vesselsintheopenocean. Inouropinion,theseareasmean-
+ingfulasthemorecommon5-wayclassificationtaskseenin
+mostfew-shotlearningpapers. Ourwork(andfuturework) (a) ILSVRC-2012 (b) CUB-2011Birds
+on this sort of one-vs-all problem could greatly increase
+therangeofproblemsamenabletoone-shotclassification.
+However, as with any classification algorithm, especially
+insmalldataregime,ourmeta-metaclassifierrunstherisk
+ofmisclassificationincriticalapplications,liketheabove
+exampleofrecognizingaparticulartypeofbrainlesion. In
+thosecases,itismoreimportanttomeasuretheprecision
+and/orrecall(dependingupontheproblem)ratherthanthe
+classificationaccuracyanduseaconfidenceintervaltoapply
+ourmodelwithcaution. (c) Omniglot (d) Aircraft
+B.DataSets FigureA1.Trainingexamplessampledfromthedatasetsusedin
+ourexperiments.
+Inour experiments, wehaveused fourpubliclyavailable
+data sets. A short description of these data sets is given
+below. C.Samplingone-shotprobleminstances
+ILSVRC-2012.(Russakovskyetal.,2015)Adatasetofnat- Letthetrainingsplitofn mtrnclassesformeta-trainingbe
+uralimagesof1000diversecategories,themostcommonly calledS mtrnandtestsplitofn mtstclassesformeta-testing
+usedImagenetdataset,primarilyreleasedfor‘LargeScale becalledS mtst. Meta-learningreliesonadistributionof
+VisualRecognitionChallenge’(FigureA1(a)). Randomly learningproblemswhicharesampledasfollows.
+chosen900classesareusedfortrainingandtheremaining
+Meta-training. WesampleoneclassfromS anddes-
+mtrn
+100classesareusedfortesting. ignate it as a “positive” class, called C<pos>. Then we
+mtrn
+CUB-200-2011. (Welinderetal.,2010)Adatasetforfine- sample 50 “negative” classes, called C<neg> , from the
+mtrn,trn
+grainedclassificationof200differentbirdspecies,anex- remaining(n mtrn-1)classesofS mtrn.Now,thesupportset
+tendedversionoftheCUB-200dataset(FigureA1(b)). All ortrainingset,D trn,isgeneratedbysamplingoneimage
+200classesareusedforcross-domaintesting. from the selected positive class, and 50 images from the
+50negativeclasses. Thesamplingfromnegativeclassesis
+Omniglot. (Lakeetal.,2015)Adatasetofimagesof1623
+donewithreplacement,sosomenegativeclassesmayhave
+handwrittencharactersfrom50differentalphabets,with20
+multiplesamples,andsomemaynotberepresentedinD .
+trnMeta-MetaClassificationforOne-ShotLearning
+Forthequerysetortestset,D ,weusethesamepositive number of output channels of the convolutions from [64,
+tst
+class and again sample 50 “negative” classes, C<neg> , 128,256,512]to[64,64,128,256]andblockexpansion
+mtrn,tst
+fromtheremaining(n -1)classesofS . ThenD from4to2. ForMAML,weusethecommonly-usedfour-
+mtrn mtrn tst
+isgeneratedbysampling50imagesfromthepositiveclass, layerconvolutionalnetwork(Finnetal.,2017). Whilewe
+and50imagesfromthenegativeclasseswithreplacement. acknowledgethatthemeta-learnershaveshownimproved
+NotethatC<pos>isasingleclasswhereasC<neg> and performancewithresnet-18architecture(Triantafillouetal.,
+mtrn mtrn,trn
+C<neg> aresetsof50classes. 2019),wekeepthebasicfour-layerconvnetforconsistency
+mtrn,tst
+inourmethodaswellasthecomparingmethods. Sincewe
+So, in total, we sample 151 images which constitute one
+design our method as a binary classifier, we avoid batch-
+learningproblemformeta-trainingasfollows:
+normalization. Thisisbecausewhiledoingthetestingdur-
+D : 1fromC<pos>,50fromC<neg> ingmeta-learning,batch-normalizationcanlearntodistin-
+trn mtrn mtrn,trn
+D : 50fromC<pos>,50fromC<neg> . guishthenegativeimagesfromthepositiveoneswithout
+tst mtrn mtrn,tst
+training,providednegativeimagescomefrommultipleneg-
+Meta-testing. Samplinglearningproblemsformeta-testing ativeclasses.
+is exactly the same as for meta-training, only difference
+Inordertorealizethemeta-aggregationfunction, weuse
+beingweuseS insteadofS data.So,herealso,we
+mtst mtrn
+a fully connected feed forward network with two hidden
+sample151imageswhichconstituteonelearningproblem
+layersof256units. Theinputtothemeta-aggregatoristhe
+formeta-testingasfollows:
+concatenation of the 512 dimensional pretrained ResNet-
+D trn: 1fromC m<p tso ts>,50fromC m<n tse tg ,t> rn 152featurevectorofthe‘positive’supportimageandthe
+D tst: 50fromC m<p tso ts>,50fromC m<n tse tg ,t> st. binarylogitsofthecorresponding‘negative’queryimages
+comingfromindividuallearners. Weusedropoutwithprob-
+NotethatwhenwerunMAMLonclusters,foreachcluster,
+ability0.9fortheinputlayerand0.6forthehiddenlayers
+thepositiveimagecomesfromthatparticularclusterandall
+duringtraining.
+otherimagescomefromtheentiremeta-trainingset,S .
+mtrn
+Finally,wetunethelearningratescheduleandweightdecay
+D.ArchitectureandHyperparameters andweuseADAMoptimizertotrainallthemodels. Other
+details and the complete set of hyperparameters used are
+For pretraining a feature extractor, we use a modified includedinthesourcecode.
+ResNet-152(Heetal.,2016)modelwherewechangethe

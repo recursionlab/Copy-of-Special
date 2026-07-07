@@ -1,0 +1,1348 @@
+PublishedasaconferencepaperatICLR2024
+LARGE LANGUAGE MODELS AS ANALOGICAL REASONERS
+MichihiroYasunaga,1,2 XinyunChen,1 YujiaLi,1 PanupongPasupat,1 JureLeskovec,2
+PercyLiang,2 EdH.Chi,1 DennyZhou1
+1GoogleDeepMind 2StanfordUniversity
+myasu@cs.stanford.edu, {xinyunchen,dennyzhou}@google.com
+ABSTRACT
+Chain-of-thought (CoT) prompting for language models demonstrates impressive
+performance across reasoning tasks, but typically needs labeled exemplars of the
+reasoningprocess.Inthiswork,weintroduceanewpromptingapproach,analogical
+prompting,designedtoautomaticallyguidethereasoningprocessoflargelanguage
+models.Inspiredbyanalogicalreasoning,acognitiveprocessinwhichhumansdraw
+fromrelevantpastexperiencestotacklenewproblems,ourapproachpromptslanguage
+modelstoself-generaterelevantexemplarsorknowledgeinthecontext,beforeproceed-
+ingtosolvethegivenproblem.Thismethodpresentsseveraladvantages:itobviatesthe
+needforlabelingorretrievingexemplars,offeringgeneralityandconvenience;itcan
+alsotailorthegeneratedexemplarsandknowledgetoeachproblem,offeringadaptability.
+Experimentalresultsshowthatourapproachoutperforms0-shotCoTandmanualfew-
+shotCoTinavarietyofreasoningtasks,includingmathproblemsolvinginGSM8K
+andMATH,codegenerationinCodeforces,andotherreasoningtasksinBIG-Bench.
+1 INTRODUCTION
+Largelanguagemodels(LLMs)demonstratestrongperformanceacrossvarioustasks(Brownetal.,2020;
+Chowdheryetal.,2022;Liangetal.,2022;Qinetal.,2023).Recently,chain-of-thought(CoT)prompting
+hasdemonstratedLLMs’abilitiestotacklecomplextasks,suchassolvingmathproblems,byprompting
+them to generate intermediate reasoning steps (Wei et al., 2022b; Kojima et al., 2022). For instance,
+commonmethodslikefew-shotCoT(Weietal.2022b;Figure1,middle)makeLLMsgeneratereasoning
+stepsbyofferingafewexemplarsofquestion–rationale–answertriplets;0-shotCoT(Kojimaetal.2022;
+Figure1,left)aimsforthesameobjectivebyofferinginstructionslike“thinkstepbystep.”Thesestudies
+highlighttheimportanceofdevisingeffectivemethodstoguideLLMstoreason.
+However,theexistingCoTparadigmfacestwokeychallenges:providingrelevantguidanceorexemplars
+of reasoning, and minimizing the need for manual labeling. Specifically, 0-shot CoT offers generic
+reasoningguidance,whichmaynotsufficeforcomplextaskslikecodegeneration(§6). Few-shotCoT
+providesmoredetailedguidancebutdemandslabeledexemplarsofthereasoningprocess,whichcanbe
+costlytoobtainforeverytask. Thisraisesaresearchquestion: canweachievethebestofbothworlds
+andautomatethegenerationofrelevantexemplarstoguideLLMs’reasoningprocess?
+Inthiswork,weproposeanalogicalprompting,anewpromptingapproachthatautomaticallyguides
+thereasoningprocessofLLMs.Ourinspirationcomesfromanalogicalreasoninginpsychology,aconcept
+wherehumansdrawfromrelevantpastexperiencestotacklenewproblems(Vosniadou&Ortony,1989).
+Forinstance,whenfacedwithanewmathproblem(e.g.,findingtheareaofasquaregivenfourpoints
+inacoordinatesystem;Figure1),humansoftenthinkabout“doIknowarelatedproblem?”(Polya,2004)
+andrecallhowtheysolvedrelatedproblemsinthepast(e.g.,findingtheareaofasquarewithaknown
+sidelength)toderiveinsightsforsolvingthenewproblem.Theyalsorecallhigh-levelknowledge,such
+astheneedtofindthesidelengthtocalculateasquare’sarea.OurideaistopromptLLMstomimicthis
+reasoningprocesstoeffectivelysolvenewproblems.
+Concretely,givenaproblemtosolve,wepromptLLMstoself-generaterelevantexemplarsinthecontext,
+using instructions like “# Recall relevant problems and solutions:...”, and then proceed to
+solvetheoriginalproblem(Figure1,2).Simultaneously,wecanalsopromptLLMstogeneratehigh-level
+knowledgethatcomplementsspecificexemplars,usinginstructionslike“# Provide a tutorial:...”
+(Figure3).Thisprovesparticularlyusefulforcomplextaskslikecodegeneration(see§6).Notably,our
+methodcanoperateinasingleprompt,generatingknowledge,exemplars,andasolutiontotheinitial
+1
+4202
+raM
+9
+]GL.sc[
+3v41710.0132:viXraPublishedasaconferencepaperatICLR2024
+0-shot Few-shot CoT Analogical Prompting (Ours)
+Model Input Model Input Model Input
+Q: What is the area of the square Q: Roger has 5 tennis balls. He Q: What is the area of the square with the four vertices at
+with the four vertices at (-2, 2), (2, buys 2 more cans of tennis balls. (-2, 2), (2, -2), (-2, -6), and (-6, -2)?
+-2), (-2, -6), and (-6, -2)? Each can has 3 tennis balls. How
+# Instruction:
+many tennis balls does he have?
+## Recall relevant exemplars:
+0-shot CoT A: Roger started with 5 balls. 2 ## Solve the initial problem:
+cans of 3 balls each is 6 balls.
+The answer is 5 + 6 = 11.
+Model Input
+… Model Output
+Q: What is the area of the square
+# Relevant exemplars:
+with the four vertices at (-2, 2), (2, Q: What is the area of the square Q: What is the area of the square with a side length of 5?
+-2), (-2, -6), and (-6, -2)? with the four vertices at (-2, 2), (2, A: The area of a square is found by squaring the length of its
+Think step by step. -2), (-2, -6), and (-6, -2)? side. So, the area of this square is 5^2 = 25. …
+# Solve the initial problem:
+To find the area of the square, we need to find the side
+● Generic guidance of reasoning ● Need labeled exemplars of reasoning length. The length is … \sqrt{(2 - (-2))^2 + (-2 - 2)^2} =
+\sqrt{32}. So, the area of the square is (\sqrt{32})^2 = 32.
+● Exemplars are automatically generated ✓
+and tailored to each problem
+Figure1: Overviewofourapproach,analogicalprompting. Left: Existingmethodsforprompting
+LLMtoreasonareeithergeneric(0-shotCoT)ordemandlabeledexemplars(few-shotCoT). Right:Given
+aproblem,ourmethodpromptsLLMstoself-generaterelevantexemplarsbeforesolvingtheproblem.
+Thiseliminatestheneedforlabelingandalsotailorstheexemplarstoeachindividualproblem.SeeFigure3
+forasamplepromptwheretheLLMself-generatesbothknowledgeandexemplars.
+problemend-to-endinonepass. TheunderlyingideahereisthatmodernLLMshavealreadyacquired
+knowledgeofvariousproblemsduringtraining. Explicitlypromptingthemtorecallrelevantproblems
+andsolutionsinthecontextguidesLLMstoperformin-contextlearningtosolvenewproblems.
+Ourproposedapproachoffersseveraladvantages.Itself-generatesexemplarsandobviatestheneedfor
+manuallylabelingreasoningexemplarsforeachtask,addressingthechallengesfacedby0-shotandfew-shot
+CoT.Furthermore,theself-generatedexemplarsaretailoredtoindividualproblems,suchas‘geometry’or
+‘probability’,ratherthangeneric‘mathproblems’.Thiscansimplifythecomplexityassociatedwithrecent
+CoTtechniquesthatretrieverelevantexemplarsfromexternaldata(Zhangetal.,2022b;Shumetal.,2023).
+Weevaluatetheproposedapproachinvariousreasoning-intensivetasks,includingmathematicalproblem
+solving in GSM8K (Cobbe et al., 2021) and MATH (Hendrycks et al., 2021b), code generation in
+Codeforces,andotherreasoningtasksinBIG-Bench(Srivastavaetal.,2022).WeuseseveralbaseLLMs:
+GPT-3.5,GPT-4(OpenAI,2023;Ouyangetal.,2022),andPaLM2(Aniletal.,2023). Experimental
+resultsshowthatourapproachoutperforms0-shotCoTandfew-shotCoTacrossarangeoftasksandbase
+LLMs,achievinganaverageaccuracygainof+4%.Notably,ourapproachimprovesperformanceontasks
+involvingdiversetypesofreasoning,suchasMATH(includingalgebra,probability,geometry,etc.)and
+Codeforces(involvingdynamicprogramming,graphalgorithms,etc.).Thisresultsuggeststheeffectiveness
+ofgeneratingtailoredexemplarsforindividualproblemstoguidethereasoningprocessofLLMs.
+2 RELATED WORKS
+2.1 LARGELANGUAGEMODELSANDPROMPTING
+Alanguagemodelestimatesprobabilitiesovertext. Recentresearchhasscaledupthesemodelsfrom
+millions(Devlinetal.,2019)tobillionsofparameters(Brownetal.,2020)andexpandedtrainingdata
+toincludewebtextsandinstructiondata(Gaoetal.,2020;Ouyangetal.,2022;Chungetal.,2022).These
+advanceshavemadelargelanguagemodelsproficientinvariousNLPtasks.
+LLMswithbillionsofparametersdemonstratein-contextlearningandfew-shotlearningabilities(Brown
+et al., 2020; Liu et al., 2022; Su et al., 2022; Mishra et al., 2022; Wei et al., 2022a; Yasunaga et al.,
+2023; Shi et al., 2023). They use input prompts (instructions or a few exemplars) to guide LLMs to
+generatedesiredresponsesfortasks,markingtheadventofthepromptingera. Ourapproachharnesses
+thein-contextlearningabilitiesofLLMstoguidetheirreasoningprocessusingself-generatedexemplars.
+Closelyrelatedtooursareworksthatperformself-generationinLLMprompting(Sunetal.,2022;Heetal.,
+2023;Kimetal.,2022;Lietal.,2022a).Forinstance,Sunetal.(2022)promptsLLMstoreciterelevant
+factsincontextforopen-domainquestionanswering.Ourideaofself-generatingexemplarsisrelatedto
+recitation,butfocusesonrecallingproblem-solvingandreasoningprocessesratherthanfactualknowledge.
+2PublishedasaconferencepaperatICLR2024
+2.2 CHAIN-OF-THOUGHTPROMPTING
+Chain-of-thought(CoT;Weietal.2022b)isapromptingstrategythatguidesLLMstoproduceintermediate
+reasoningstepstowardsafinalanswer,enhancingproblem-solvingperformance.Commoninstancesof
+CoTinclude0-shotCoT(Kojimaetal.,2022)andfew-shotCoTWeietal.(2022b).
+0-shotCoTpromptsLLMswithageneralinstructionlike“thinkstepbystep”toproduceintermediaterea-
+soningsteps.Few-shotCoTachievesstrongerperformancebyprovidingmultipleexemplarsofreasoning
+process(question–rationale–answer),leveragingLLMs’in-contextlearningabilities.However,itrequires
+labeledexemplars.OurapproachtacklesthischallengebypromptingLLMstoself-generateexemplars.
+Withinfew-shotCoT,theoriginalapproachemploysafixedsetoflabeledexemplarsforalltestproblems.
+Recentworkexploresretrieval-basedCoT,whichaimstoobtainmorerelevantexemplarsfromexternal
+data for each problem (Zhang et al., 2022b; Shum et al., 2023). While our work shares the goal of
+providingrelevantexemplars,insteadofretrieval,wemakeLLMsself-generateexemplars.Self-generation
+offersseveraladvantages:itissimpler,asitdoesnotrequireexternaldataretrieval,anditismoreversatile,
+asitcanproducenotonlyspecificexemplarsbutalsobroaderinsightsorknowledgethatcomplement
+them. Empirically, ourgeneration-basedCoToutperformsretrieval-basedCoT,especiallywithlarger
+baseLLMs,whileretrieval-basedCoTexcelswithsmallerbaseLLMs(§6).
+Finally,thereareothertechniquesforenhancingCoT,suchasself-consistency(Wangetal.,2022)and
+least-to-most(Zhouetal.,2022).Ourworkcancomplementandintegratewiththeseefforts.
+Pleasesee§Aforadditionalrelatedworks.
+3 PRELIMINARIES
+Wefocusonproblem-solvingtasks,wheretheobjectiveistoproduceasolutionyforagivenproblem
+statementx,suchasmathematicalquestionsorcodegenerationspecifications.Thesolutionmayinclude
+boththeintermediatereasoningstepsorrationalerandthefinalanswera.
+Apromptingmethodϕisafunctionthatmapsaproblemstatementxintoaspecifictextualinputϕ(x)
+foranLLM,whichthengeneratesasolutionyˆ=LLM(ϕ(x)).Forinstance,
+• In0-shotprompting,ϕdirectlyyieldsx.
+• In0-shotCoT,ϕsupplementsxwithageneralinstruction,suchas“[x] think step by step”.
+• Infew-shotCoT,ϕsupplementsxwithseverallabeledexemplars,{(x,r,a)}K ,suchas“[x ]
+i i i i=1 1
+[r ][a ]...[x ][r ][a ] [x]”.
+1 1 K K K
+OuraimistodesignapromptingmethodϕthatenhancestheaccuracyofsolutionsLLMsgenerate.
+4 APPROACH
+Weintroduceanalogicalprompting,anewpromptingapproachthatautomaticallyprovidesexemplars
+toguideLLMs’reasoningprocess.Inspiredbyhowhumansrecallrelevantpastexperienceswhentackling
+new problems, our approach makes LLMs self-generate relevant exemplars or knowledge in context,
+before proceeding to solve the problem (Figure 1, right). We present two techniques to achieve this:
+self-generatedexemplars(§4.1)andself-generatedknowledge+exemplars(§4.2).
+4.1 SELF-GENERATEDEXEMPLARS
+OurapproachisbasedontheideathatmodernLLMspossessabroadrangeofproblem-solvingknowledge
+acquiredduringtraining.Explicitlypromptingthemtorecallorgeneraterelevantproblemsandsolutions
+incontextaidsLLMstoperformin-contextlearningtosolvenewproblems.
+Specifically,givenatargetproblemtosolvex,ourpromptaugmentsitwithinstructionslike:
+# Problem: [x]
+# Relevant problems: Recall three relevant and distinct problems. For each
+problem, describe it and explain the solution.
+# Solve the initial problem:
+3PublishedasaconferencepaperatICLR2024
+Foraconcreteexample,seeFigure2.TheLLMfirstgeneratesseveral(K)relevantexemplarsintheformof
+question-rationale-answersequences(“# Relevant problems:”partoftheinstruction).Thenthemodel
+proceedstosolvetheinitialproblem,leveragingtherecalledexemplarsinthecontext(“# Solve the ini-
+tial problem:”partoftheinstruction).Notethatalltheseinstructionsareprovidedwithinasingleprompt,
+allowingtheLLMtogeneraterelevantproblemsandsolutiontotheinitialprobleminonecontinuouspass.
+Using‘#’symbolsintheprompt(e.g.,‘# Relevant Problems’)helpsLLMsstructuretheresponsebetter.
+Belowarekeytechnicaldecisionswemade:
+• Generatingrelevantanddiverseexemplarsisimportant: Toachievethis,weexplicitlyincludean
+instructionintheprompt,suchas“generateproblemsthataredistinctfromeachother”(e.g.,Figure
+2). ThisstepiscrucialassomeLLMshaveatendencytorepetitivelygenerateidenticalproblems,
+whichcanbemisleadingwhensolvingthetargetproblem.
+• Single-pass vs. independent exemplar generation: An alternative approach is to independently
+generateexemplarsbyseparatelysamplingthemfromtheLLMandthenre-prompttheLLMwith
+alltheexemplars. Whilethismethoddoeswork,ourcurrentsingle-passpromptapproachachieves
+comparableperformanceandoffersgreaterconvenience,eliminatingtheneedformultipleprompts.
+Consequently,wehavechosentoadoptthesingle-passmethod.
+• Thenumberofexemplarstogenerate(K):Throughexperimentation,wehavefoundthatgenerating
+K=3to5exemplarsworksthebest(moredetailsin§6.5).
+Ourapproachofferstwoadvantages.Itoffersdetailedexemplarsofreasoningwithoutmanuallabeling,
+addressingthechallengesin0-shotandfew-shotCoT.Thegeneratedexemplarsaretailoredtoindividual
+problems(e.g.,‘geometry’or‘probability’),offeringmorerelevantguidancethantraditionalfew-shot
+CoT,whichusesfixedexemplars(e.g.,generalmathproblems;Figure1,middle).
+4.2 SELF-GENERATEDKNOWLEDGE+EXEMPLARS
+Whilegeneratingexemplarsisuseful,incomplextaskslikecodegeneration,LLMsmayoverlyrelyon
+thelow-levelexemplarsandfailtogeneralizewhensolvingthetargetproblems.Toaddressthischallenge,
+wealsoallowLLMstoself-generatehigh-leveltakeawaysthatcomplementstheexemplars,whichwerefer
+toas“knowledge.”Specifically,weenhancethepromptwithanadditionalinstructionlikethefollowing.
+Foraconcreteexample,seeFigure3.
+# Tutorial: Identify core concepts in the problem and provide a tutorial.
+Onetechnicalconsiderationiswhethertogenerateknowledgebeforeorafterexemplars.Wefoundthat
+generatingknowledgebeforeexemplarsyieldssuperiorresults(Table7).Bygeneratingknowledgefirst,
+LLMsidentifythecoreconceptsoftheproblem.This,inturn,helpsLLMsgenerateexemplarsthatalign
+morecloselyintermsofthefundamentalproblem-solvingapproachesratherthansurface-levellexical
+similarities.Forfurtherdiscussion,pleasereferto§6.2.
+5 EXPERIMENTAL SETUP
+5.1 TASKS
+Weevaluatetheproposedapproachindiversereasoning-intensivetasks,includingmathematicalproblem
+solving,codegeneration,andotherreasoningtaskslikelogicalandtemporalreasoning.
+Mathematicalproblemsolving. Weusepopularbenchmarks,GSM8K(Cobbeetal.,2021),comprising
+elementarymathwordproblems,andMATH(Hendrycksetal.,2021b),consistingofadvancedmath
+problemsfromhighschoolmathcompetitions.Foreachproblem,weobtainanoutputfromLLMsusing
+atemperatureof0,andreporttheaccuracy.
+Code generation. Code generation involves synthesizing programs to solve algorithmic problems.
+Competitiveprogrammingisespeciallychallenging,requiringreasoningaboutvariousalgorithmslike
+dynamicprogrammingandgraphs(Lietal.,2022b;Kulaletal.,2019;Yasunaga&Liang,2020).
+Asabenchmark,wecollectedcompetitiveprogrammingproblemsfromcodeforces.com(detailsin§B).
+Wefocusonlevel-Aproblemspublishedin2023topreventtestsetcontamination(Magar&Schwartz,
+2022). Eachproblemcomprisesaproblemstatement,whichservesasinputtoLLMs,andasetoftest
+casestoassessgeneratedcode.Thecorrectnessofcodeisdeterminedbywhetheritpassesalltestcases.
+4PublishedasaconferencepaperatICLR2024
+Our Prompt: Self-generate Exemplars + Lessons Our Prompt: Self-generate Exemplars
+Your goal is to write Python3 code to solve competitive programming problems. Given a problem, provide a lesson about the core concepts in Your task is to tackle mathematical problems. When presented with a math problem, recall relevant problems as examples. Afterward,
+it and provide other relevant problems. Then solve the original problem. proceed to solve the initial problem.
+# Problem: # Problem:
+You are given a sequence a_1, a_2, …, a_n. Each element of a is 1 or 2. Find out if an integer k exists so that the following conditions are An airline serves a dinner to all the passengers on an airplane. They get their choice of steak or fish. Three steak meals and three
+met. 1 ≤ k ≤ n-1, and a_1 ⋅ a_2 … a_k = a_{k+1} … a_n. If there exist multiple k that satisfy the given condition, print the smallest. fish meals are set aside for the six-member crew. If the meals are distributed to the crew members randomly, what is the probability
+that both pilots get the fish?
+# Instruction:
+## Algorithms: # Instructions:
+Identify the core concepts or algorithms used to solve the problem. ## Relevant Problems:
+Recall three examples of math problems that are relevant to the initial problem. Your problems should be distinct from each other and
+## Tutorial: from the initial problem (e.g., involving different numbers and names). For each problem:
+Write a tutorial about these algorithms. - After "Q: ", describe the problem
+- After "A: ", explain the solution and enclose the ultimate answer in \boxed{}.
+## Example Problems:
+Provide three examples of relevant competitive programming problems that involve these algorithms. For each problem, describe the problem, ## Solve the Initial Problem:
+explain the solution in detail, and then write the correct Python3 code. Q: Copy and paste the initial problem here.
+A: Explain the solution and enclose the ultimate answer in \boxed{} here.
+## Python3 code to solve the original problem:
+- Explanation of the solution:
+- Python3 code to solve the problem:
+Output by GPT3.5-turbo
+Self-generated Exemplars
+Relevant Problems:
+Output by GPT3.5-turbo Q: In a bag, there are 5 red balls and 3 blue balls. If two balls are drawn at random without replacement, what is the probability
+Self-generated Lessons that both balls are red?
+## Algorithms: The core algorithm for solving this problem is the prefix product algorithm. A: The total number of balls is 8. The probability of drawing a red ball on the first draw is 5/8. After one red ball is drawn, there
+are 4 red balls left out of 7 total balls. Therefore, the probability of drawing a second red ball is 4/7. The probability of both
+## Tutorial: The prefix product algorithm is used to calculate the product of all the elements in a prefix of an array. The algorithm works events happening is the product of the individual probabilities, so the probability of drawing two red balls is (5/8) * (4/7) =
+by initializing a variable "prefix" to 1, and then iterating through the array from left to right. At each iteration, the current element is \boxed{\frac{5}{14}}.
+multiplied with the prefix, and the result is stored in the prefix variable. This way, the prefix variable keeps track of the product of all
+the elements in the prefix of the array. The time complexity of this algorithm is O(n), where n is the size of the input array. ...... Q: A box contains 10 red marbles and 5 blue marbles. If three marbles are drawn at random without replacement, what is the probability
+that all three marbles are red?
+## Example Problems: Self-generated Exemplars A: The total number of marbles is 15. The probability of drawing a red marble on the first draw is 10/15. After one red marble is
+1. Problem: Given an array of integers, find the product of all the elements in each subarray of size k. drawn, there are 9 red marbles left out of 14 total marbles. Therefore, the probability of drawing a second red marble is 9/14. After
+Solution: We can use the prefix product algorithm to solve this problem. We initialize a prefix variable to 1, and then iterate through two red marbles are drawn, there are 8 red marbles left out of 13 total marbles. Therefore, the probability of drawing a third red
+the array from left to right. At each iteration, we multiply the current element with the prefix, ...... marble is 8/13. The probability of all three events happening is the product of the individual probabilities, so the probability of
+drawing three red marbles is (10/15) * (9/14) * (8/13) = \boxed{\frac{24}{91}}.
+def product_of_subarrays(arr, k):
+prefix = 1 Q: A bag contains 4 green marbles, 3 red marbles, and 2 blue marbles. If two marbles are drawn at random without replacement, what is
+result = [] the probability that both marbles are green?
+for i in range(len(arr)): A: The total number of marbles is 9. The probability of drawing a green marble on the first draw is 4/9. After one green marble is
+prefix = prefix * arr[i] drawn, there are 3 green marbles left out of 8 total marbles. Therefore, the probability of drawing a second green marble is 3/8. The
+if i >= k-1: probability of both events happening is the product of the individual probabilities, so the probability of drawing two green marbles
+result.append(prefix) is (4/9) * (3/8) = \boxed{\frac{1}{6}}.
+prefix = prefix // arr[i-k+1]
+return result Let's solve the following math problem:
+An airline serves a dinner to all the passengers on an airplane. They get their choice of steak or fish. Three steak meals and three
+2. Problem: Given an array of integers, find the longest subarray with a product less than or equal to a given target. fish meals are set aside for the six-member crew. If the meals are distributed to the crew members randomly, what is the probability
+Solution: ...... that both pilots get the fish?
+A: There are a total of 6 crew members, so the probability of the first pilot getting the fish is 3/6. After one fish meal is given to
+3. Problem: Given an array of integers, find the smallest k such that the product of all the elements in the prefix of the array is equal to the first pilot, there are 2 fish meals left out of 5 total meals. Therefore, the probability of the second pilot getting the fish is
+the product of all the elements in the suffix of the array. 2/5. The probability of both events happening is the product of the individual probabilities, so the probability that both pilots get
+Solution: ...... the fish is (3/6) * (2/5) = \boxed{\frac{1}{5}}.
+## Python3 code to solve the original problem:
+Explanation of the solution: Figure2:Actualexampleofourprompt(top)andLLMoutput(bottom)forMATHtask.Top:Ourprompt
+- Initialize prefix and suffix variables to 1, and k to -1.
+- Calculate the product of all the elements in the sequence using the prefix product algorithm. supplementstheproblemstatementwithinstructionstogeneraterelevantexemplarsandthensolvethe
+- Iterate through the sequence from right to left.
+problem.Bottom:ExemplarsgeneratedbyGPT3.5-turboareindeedrelevanttotheproblem,focusingon
+- Update the prefix and suffix variables.
+- If the prefix is equal to the suffix, update k to the current index. probability.Itthenaccuratelysolvestheproblem.See§D.1forthecompletepromptandoutput.Using‘#’
+- Print the value of k.
+symbolsintheprompt(e.g.,‘# Relevant Problems’)helpsLLMsstructuretheresponsebetter.
+t = int(input())
+for _ in range(t):
+n = int(input()) Inlinewithexistingworkoncodegeneration(Lietal.,2022b;Chenetal.,2023),wereporttheAcc@1
+arr = list(map(int, input().split()))
+prefix, suffix = 1, 1 andAcc@10metrics.Acc@kmeasureswhetheratleastoneoftheksampledmodeloutputsiscorrect.
+k = -1 Foreachproblem,wesample10outputsfromLLMs,usingatemperatureof0.7.
+for i in range(n):
+prefix = prefix * arr[i]
+for i in range(n-1, 0, -1): Otherreasoningtasks. WefurtherevaluateonvariousreasoningtasksinBIG-Bench(Srivastavaetal.,
+prefix = prefix // arr[i]
+2022;Suzgunetal.,2022):wordsorting,logicaldeductionfiveobjects,temporalsequences,reasoning
+suffix = suffix * arr[i]
+if prefix == suffix: aboutcoloredobjects,andformalfallacies.Thesetasksarediverseandmaynothavededicatedtraining
+k = i
+print(k) data,sotheyalignwellwithourapproachofself-generatingcustomexemplars. Foreachproblem,we
+obtainanoutputfromLLMsusingatemperatureof0,andreporttheaccuracy.
+5.2 MODELS
+WeexperimentwithseveralbaseLLMs: GPT-3.5-turbo,GPT-4(OpenAI,2023;Ouyangetal.,2022)
+(accessedinJune–September2023),andPaLM2-L(Aniletal.,2023).
+5.3 METHODSTOCOMPARE
+Wecomparethefollowingpromptingmethods,includingours.
+0-shotand0-shotCoT. Thesemethods,likeours,donotuselabeledexemplars.Weaimtoshowthat
+ourmethodoffersmoretailoredguidanceforLLMreasoningandyieldssuperiortaskperformance.
+5PublishedasaconferencepaperatICLR2024
+Our Prompt: Self-generate Exemplars + Knowledge Our Prompt: Self-generate Exemplars
+Your goal is to write Python3 code to solve competitive programming problems. Given a problem, explain the core concepts in it and provide Your task is to tackle mathematical problems. When presented with a math problem, recall relevant problems as examples. Afterward,
+other relevant problems. Then solve the original problem. proceed to solve the initial problem.
+# Problem: # Problem:
+You are given a sequence a_1, a_2, …, a_n. Each element of a is 1 or 2. Find out if an integer k exists so that the following conditions are An airline serves a dinner to all the passengers on an airplane. They get their choice of steak or fish. Three steak meals and three
+met. 1 ≤ k ≤ n-1, and a_1 ⋅ a_2 … a_k = a_{k+1} … a_n. If there exist multiple k that satisfy the given condition, print the smallest. fish meals are set aside for the six-member crew. If the meals are distributed to the crew members randomly, what is the probability
+that both pilots get the fish?
+# Instruction:
+## Algorithms: # Instructions:
+Identify the core concepts or algorithms used to solve the problem. ## Relevant Problems:
+Recall three examples of math problems that are relevant to the initial problem. Your problems should be distinct from each other and
+## Tutorial: from the initial problem (e.g., involving different numbers and names). For each problem:
+Write a tutorial about these algorithms. - After "Q: ", describe the problem
+- After "A: ", explain the solution and enclose the ultimate answer in \boxed{}.
+## Example Problems:
+Provide three examples of relevant competitive programming problems that involve these algorithms. For each problem, describe the problem, ## Solve the Initial Problem:
+explain the solution in detail, and then write the correct Python3 code. Q: Copy and paste the initial problem here.
+A: Explain the solution and enclose the ultimate answer in \boxed{} here.
+## Python3 code to solve the original problem:
+- Explanation of the solution:
+- Python3 code to solve the problem:
+Output by GPT3.5-turbo
+Self-generated Exemplars
+Relevant Problems:
+Output by GPT3.5-turbo Q: In a bag, there are 5 red balls and 3 blue balls. If two balls are drawn at random without replacement, what is the probability
+Self-generated Knowledge that both balls are red?
+## Algorithms: The core algorithm for solving this problem is the prefix product algorithm. A: The total number of balls is 8. The probability of drawing a red ball on the first draw is 5/8. After one red ball is drawn, there
+are 4 red balls left out of 7 total balls. Therefore, the probability of drawing a second red ball is 4/7. The probability of both
+## Tutorial: The prefix product algorithm is used to calculate the product of all the elements in a prefix of an array. The algorithm works events happening is the product of the individual probabilities, so the probability of drawing two red balls is (5/8) * (4/7) =
+by initializing a variable "prefix" to 1, and then iterating through the array from left to right. At each iteration, the current element is \boxed{\frac{5}{14}}.
+multiplied with the prefix, and the result is stored in the prefix variable. This way, the prefix variable keeps track of the product of all
+the elements in the prefix of the array. The time complexity of this algorithm is O(n), where n is the size of the input array. ...... Q: A box contains 10 red marbles and 5 blue marbles. If three marbles are drawn at random without replacement, what is the probability
+that all three marbles are red?
+## Example Problems: Self-generated Exemplars A: The total number of marbles is 15. The probability of drawing a red marble on the first draw is 10/15. After one red marble is
+1. Problem: Given an array of integers, find the product of all the elements in each subarray of size k. drawn, there are 9 red marbles left out of 14 total marbles. Therefore, the probability of drawing a second red marble is 9/14. After
+Solution: We can use the prefix product algorithm to solve this problem. We initialize a prefix variable to 1, and then iterate through two red marbles are drawn, there are 8 red marbles left out of 13 total marbles. Therefore, the probability of drawing a third red
+the array from left to right. At each iteration, we multiply the current element with the prefix, ...... marble is 8/13. The probability of all three events happening is the product of the individual probabilities, so the probability of
+drawing three red marbles is (10/15) * (9/14) * (8/13) = \boxed{\frac{24}{91}}.
+def product_of_subarrays(arr, k):
+prefix = 1 Q: A bag contains 4 green marbles, 3 red marbles, and 2 blue marbles. If two marbles are drawn at random without replacement, what is
+result = [] the probability that both marbles are green?
+for i in range(len(arr)): A: The total number of marbles is 9. The probability of drawing a green marble on the first draw is 4/9. After one green marble is
+prefix = prefix * arr[i] drawn, there are 3 green marbles left out of 8 total marbles. Therefore, the probability of drawing a second green marble is 3/8. The
+if i >= k-1: probability of both events happening is the product of the individual probabilities, so the probability of drawing two green marbles
+result.append(prefix) is (4/9) * (3/8) = \boxed{\frac{1}{6}}.
+prefix = prefix // arr[i-k+1]
+return result Let's solve the following math problem:
+An airline serves a dinner to all the passengers on an airplane. They get their choice of steak or fish. Three steak meals and three
+2. Problem: Given an array of integers, find the longest subarray with a product less than or equal to a given target. fish meals are set aside for the six-member crew. If the meals are distributed to the crew members randomly, what is the probability
+Solution: ...... that both pilots get the fish?
+A: There are a total of 6 crew members, so the probability of the first pilot getting the fish is 3/6. After one fish meal is given to
+3. Problem: Given an array of integers, find the smallest k such that the product of all the elements in the prefix of the array is equal to the first pilot, there are 2 fish meals left out of 5 total meals. Therefore, the probability of the second pilot getting the fish is
+the product of all the elements in the suffix of the array. 2/5. The probability of both events happening is the product of the individual probabilities, so the probability that both pilots get
+Solution: ...... the fish is (3/6) * (2/5) = \boxed{\frac{1}{5}}.
+## Python3 code to solve the original problem:
+Explanation of the solution:
+- Initialize prefix and suffix variables to 1, and k to -1.
+- Calculate the product of all the elements in the sequence using the prefix product algorithm.
+- Iterate through the sequence from right to left.
+- Update the prefix and suffix variables.
+- If the prefix is equal to the suffix, update k to the current index.
+- Print the value of k.
+t = int(input())
+for _ in range(t):
+n = int(input())
+arr = list(map(int, input().split()))
+prefix, suffix = 1, 1
+k = -1
+for i in range(n):
+prefix = prefix * arr[i]
+for i in range(n-1, 0, -1):
+prefix = prefix // arr[i]
+suffix = suffix * arr[i]
+if prefix == suffix:
+k = i
+print(k)
+Figure3:Actualexampleofourprompt(top)andLLMoutput(bottom)fortheCodeforcestask.Top:Our
+promptsupplementstheproblemstatementwithinstructionstogenerateknowledge(e.g.,tutorialsoncore
+concepts)andrelevantexemplars,followedbysolvingtheoriginalproblem.Bottom:Theknowledge
+andexemplarsgeneratedbyGPT3.5-turboareindeedrelevanttotheproblemtosolve,focusingonthe
+prefixproductalgorithm.ThefinalcodegeneratedbytheLLMeffectivelyappliesthealgorithmtosolve
+theproblem.See§D.3forthecompletepromptandoutput.
+Few-shotCoT. Thisisthestandardfew-shotCoT,usingafixedsetofreasoningexemplarsacrossall
+testproblemswithinadataset.FortheGSM8KandMATHdatasets,astheirtrainingsetsincludesolutions
+labeledwithreasoningsteps,weuseK=5exemplarsfromthesetrainingsets. Fortheotherdatasets,
+weuseK=3manually-annotatedexemplars. Weaimtoshowthatourmethod,whichself-generates
+exemplars,canmatchorsurpassthisbaseline,whichuseslabeledexemplars.
+Few-shotretrievedCoT. Insteadofusingafixedsetofexemplars,foreachtestproblem,wedynamically
+retrieverelevantlabeledproblem-solutionpairsfromthetrainsetforeachtestproblem.Specifically,we
+6PublishedasaconferencepaperatICLR2024
+GSM8KAccuracy MATHAccuracy
+PromptingMethod
+GPT3.5-turbo text-davinci-003 PaLM2 GPT3.5-turbo PaLM2
+0-shot 75.0% 14.8% 60.8% 33.0% 27.1%
+0-shotCoT 75.8% 50.3% 78.2% 33.9% 29.8%
+5-shotCoT 76.7% 54.0% 80.7% 34.9% 34.3%
+Ours:Self-generatedExemplars 77.8% 61.0%† 81.7% 37.3% 34.8%
+Table1:Performanceonmathematicaltasks,GSM8KandMATH.Ourpromptingmethod,whichself-generates
+exemplars,outperformsbaselinessuchas0-shotCoTandfew-shotCoT.†Fortext-davincimodels,weuseanin-context
+demonstrationofhowtogenerateexemplars.Fortheothermodels,wedonot.
+GPT3.5-turbo-16k GPT4
+PromptingMethod
+Acc@1 Acc@10 Acc@1 Acc@10
+0-shot 8% 24% 16% 30%
+0-shotCoT 9% 27% 16% 29%
+3-shotCoT 11% 27% 17% 31%
+Ours:Self-generatedExemplars 13% 25% 17% 32%
+Ours:Self-generatedKnowledge+Exemplars 15% 29% 19% 37%
+Table2: PerformanceonCodeforcescodegenerationtask.Ourpromptingmethodoutperformsbaselinessuchas
+0-shotCoTandfew-shotCoT.Moreover,self-generatingknowledgeprovidesadditionalgainsoverself-generating
+exemplars,demonstratingitsusefulnessforthechallengingCodeforcestask.
+Word Logicaldeduction Temporal Reasoningabout Formal
+PromptingMethod
+sorting fiveobjects sequences coloredobjects fallacies
+0-shot 66.8% 30.0% 40.4% 50.4% 53.6%
+0-shotCoT 67.6% 35.2% 44.8% 61.6% 55.6%
+3-shotCoT 68.4% 36.4% 58.0% 62.0% 55.6%
+Ours:Self-generatedExemplars 75.2% 41.6% 57.6% 68.0% 58.8%
+Table3:PerformanceonBIG-Benchreasoningtasksinaccuracy.GPT3.5-turboisusedasthebaseLLM.Across
+diversetasks,ourmethodoutperformsbaselines(0-shotCoT)andiscompetitivewithmanual3-shotCoT.
+useSentence-BERT(Reimers&Gurevych,2019)toencodeeachproblemstatement.Foreachproblem
+inthetestset,weretrievethetopK=5similarproblemsfromthetrainingsetbasedoncosinesimilarity.
+Ourmethod. WeletLLMsself-generateK=5exemplarsforGSM8KandK=3exemplarsforMATH
+andBIG-Benchtasks.ForCodeforces,weself-generatebothknowledgeandK=3exemplars.
+6 RESULTS
+6.1 MAINRESULTS
+Mathematicalproblemsolving. Table1presentsresultsforGSM8KandMATHtasks.Ourprompting
+method,whichself-generatesexemplars,outperformsbaselinessuchas0-shotCoTandfew-shotCoT.
+Theimprovementoverfew-shotCoTisnotablefortheMATHtask,whichinvolvesarangeofreasoning
+types,includingalgebra,probability,andgeometry. Thisalignswithourapproachofcraftingtailored
+exemplarsforeachproblem.
+Figure1and2providequalitativeexamplesofGPT3.5-turbooutputsgeneratedusingourprompt. In
+bothexamples,theLLMindeedgeneratesrelevantexemplars(geometryproblemsinFigure1.probability
+problemsinFigure2),andsubsequentlyproducescorrectsolutions.Incontrast,inthestandardfew-shot
+CoT(Figure1,middle),theexemplarsaremath-related(e.g.,algebra)butmaynotalwaysmatchthetest
+problem(e.g.,geometry),asthedatasetcontainsdiversetestproblems.
+Codegeneration. Table2presentsresultsforCodeforcestask. Ourpromptingmethodoutperforms
+baselinessuchas0-shotCoTandfew-shotCoTinbothGPT3.5-turboandGPT4.Moreover,self-generating
+knowledge provides additional performance boost over self-generating exemplars, demonstrating its
+usefulnessforthechallengingCodeforcestask. Withourpromptingmethod, GPT3.5-turboachieves
+competitiveperformancewithGPT4,witha15%Acc@1comparedtoGPT4’s16%Acc@1.
+Figure3(morecompleteversionin§D.3)providesaqualitativeexampleofGPT3.5-turbooutputgenerated
+using our prompt. The knowledge and exemplars generated by GPT3.5-turbo are indeed relevant to
+7PublishedasaconferencepaperatICLR2024
+(←scaledown) (scaleup→)
+PromptingMethod
+text-curie-001 text-davinci-001 text-davinci-002 text-davinci-003
+0-shot 2% 6% 13% 14%
+0-shotCoT 2% 6% 22% 50%
+5-shot(fixed)CoT 2% 10% 43% 54%
+5-shotretrievedCoT 3% 11% 47% 57%
+Ours:Self-generatedExemplars 2% 9% 48% 61%
+Table4: PerformanceanalysisusingGSM8Ktask.Acrossvariedscales/strengthsofbaseLLMs(increasing
+fromlefttoright),ourpromptingmethodoutperforms0-shotCoTandstandardfew-shotCoTwithfixedexemplars.
+Self-generatedexemplarsvs.retrievedexemplars:ourmethod,withself-generatedexemplars,performsbetterwith
+larger-scaleLLMs,whilefew-shotCoTwithretrievedexemplarsperformsbetterwithsmaller-scaleLLMs.
+theproblemtosolve,focusingontheprefixproductalgorithm. ThefinalcodegeneratedbytheLLM
+effectivelyappliesthealgorithmtosolvetheproblem.Incontrast,inthe0-shotCoTbaseline,theLLM
+outputdoesnotrecallrelevantexemplarsandfailstoemploytheprefixproductalgorithm,resultingin
+anincorrectsolution(§D.3).
+BIG-Benchreasoningtasks. Table3presentsresultsforBIG-Benchtasks. Ourpromptingmethod
+outperformsbaselineslike0-shotCoT,confirmingitseffectivenessacrossawiderangeoftasks. Our
+methodisalsocompetitivewithmanualfew-shotCoT.§D.4offersGPT3.5-turbooutputexamplesfor
+thedeductivereasoningtask(“BIG-Benchformalfallacies”). Usingourpromptingmethod,theLLM
+generatesrelevantdeductivereasoningexemplars. Conversely,0-shotCoT,withnorelevantexemplars,
+tendstoadoptanincorrectapproachtoaddressthedeductivereasoningproblem.
+6.2 KNOWLEDGECANCOMPLEMENTEXEMPLARS
+GeneratingknowledgealongsideexemplarsisparticularlyusefulinCodeforcestask(Table2), where
+LLMsneedtoapplynontrivialalgorithmsforcodegeneration.Inourqualitativeanalysis,weobservetwo
+concreteadvantagesofgeneratingknowledge:(1)knowledgeactashigh-leveltakeawaysthatcomplement
+low-level exemplars, which prevents LLMs from overly relying on specific exemplars and helps to
+generalizetonewproblems; (2)whengeneratingknowledge,LLMsidentifythecoreconceptsofthe
+problem and produce exemplars that align more closely in fundamental problem-solving approaches
+(e.g.,theprefixproductalgorithminFigure3),ratherthansurface-levellexicalsimilarities(e.g.,without
+knowledge,LLMstendtoproduceexemplarsonpalindromicsequences).
+TheperformancegainsachievedbygeneratingknowledgearelesssignificantinothertaskslikeGSM8K
+andBIG-Bench,however,likelybecausethesetasksarelesscomplex.
+6.3 GENERATINGVSRETRIEVINGEXEMPLARS
+Akeymotivationbehindourideaofself-generatingexemplarsisitsabilitytoofferrelevantexemplars
+forproblemsolving.Analternativeapproachistoretrieverelevantexemplarsfromexternaldata,provided
+thereisalabeleddatasetofexemplars(e.g.,thetrainingsetofGSM8K,whichincludessolutionslabeled
+withreasoningsteps).Whattrade-offsexistbetweenthesetwoapproaches?
+Theadvantageofretrievalliesinitsreliability.Exemplarsretrievedfromalabeleddatasetareinherently
+validandcorrect,unlikegeneratedexemplars,whichlackthisguarantee.Nevertheless,retrievaltypically
+needslabeledexemplarsandinvolvesacomplexadditionalretrievalstep.
+Incontrast,generationismoreself-containedandconvenient,asitdoesnotrelyonexternallabeleddata
+orretrievalsteps. Additionally,generationmayyieldexemplarsbettertailoredtospecifictestproblems
+becauseitcandrawupontheentire(pre-)trainingdatatheLLMhasbeenexposedto. Thedownside
+ofgenerationisthatitmayfailtoproducevalidexemplarsiftheLLMsareweakorhavenotlearned
+problemsrelatedtotheonestobesolved.
+Table4showsempiricalresultsforGSM8Ktask,comparingourself-generatedexemplarsmethod(“Ours”)
+andthefew-shotCoTmethodusingexemplarsretrievedfromtheGSM8Ktrainset(“5-shotretrievedCoT”).
+WeconductedexperimentsusingbaseLLMsofvariousscales,fromtext-curie-001totext-davinci-003,
+wherescalebroadlyindicatestheamountoftrainingdataandparametercountusedbytheLLM.
+OurmethodoutperformstheretrievedCoTwithlarger-scaleLLMs,suchastext-davinci-003. Thisis
+likely because the LLM has effectively learned related tasks during training and can generate useful
+8PublishedasaconferencepaperatICLR2024
+exemplars.Conversely,withsmaller-scaleLLMs,theretrievedCoTperformsbetter,andself-generation
+failstoproduceusefulorvalidexemplars.
+6.4 SCALEOFBASELLMS: ANALOGICALPROMPTINGEXCELSWITHLARGERMODELS
+Table4presentstheresultofusingvaryingscalesandstrengthsofbaseLLMs,rangingfromtext-curie-001
+totext-davinci-001totext-davinci-002andtext-davinci-003(moreparametersandtrainingdata). Our
+promptingmethodsurpassesvanilla0-shotand0-shotCoTacrossallscales. Whenusingsmaller-scale
+LLMs (text-curie-001 and text-davinci-001), few-shot CoT leveraging labeled exemplars exhibits
+superiorperformancecomparedtoours. However,astheLLMsarescaleduptotext-davinci-002and
+text-davinci-003,ourmethodoutperformsfew-shotCoT.ThisisduetotheLLMs’enhancedabilityto
+self-generatemorerelevantandusefulexemplars.
+6.5 NUMBEROFEXEMPLARSTOGENERATE
+#Exemplarsto
+GSM8K MATH
+self-generate
+InTable5, weanalyzetheeffectofvaryingthenumberof
+K=1 76.1 34.8
+self-generatedexemplars(K)inourapproach.WhenK=1, K=2 77.0 36.7
+theLLMunderperformsduetoexcessiverelianceonasingle K=3 77.5 37.3
+exemplargenerated. WhenK≥3, theLLMdemonstrates K=4 77.3 37.0
+K=5 77.8 37.1
+consistentperformance,withthebestresultsobservedatK=3
+or5.Thisobservationalignswiththefindingsinthestandard Table5:Analyzingtheeffectofvaryingthe
+few-shotin-contextlearninginLLMs(Brownetal.,2020). numberofself-generatedexemplars(K)in
+our approach. We assess performance on
+GSM8K and MATH tasks using GPT3.5-
+6.6 QUALITATIVEANALYSIS
+turboasthebaseLLM.
+Wemanuallyanalyzedtheperformanceofourpromptingap-
+proach,basedon50correctlyand50incorrectlysolvedproblemsfromGSM8K+MATH(50%,50%).
+50correctlysolvedproblems:
+• (6/50)Generatedexemplarsareirrelevant
+• (9/50)Generatedexemplarsarerelevantbutcontainincorrectsolutions
+• (35/50)Generatedexemplarsarerelevantandcorrect
+50incorrectlysolvedproblems:
+• (10/50)Generatedexemplarsareirrelevant
+• (12/50)Generatedexemplarsarerelevantbutcontainincorrectsolutions
+• (28/50)Generatedexemplarsarerelevantandcorrect,butLLMfailstosolvethenewproblem:
+– (12/50)Ageneralizationgapbetweentheexemplarsandthenewproblem.
+– (8/50)Overrelianceonspecificexemplars,leadingtomisdirection.
+– (8/50)Otherissues,suchascalculationerrors.
+Thegeneratedexemplarswereoftenrelevantorcorrect.AcommonfailureoccurredwhentheLLMcould
+notsolvethenewproblemduetoageneralizationgap(e.g.,thenewproblemisharderthantheexemplars).
+Thisobservationmotivatesfutureresearchtogenerateexemplarsthatnotonlypossessrelevancebutalso
+facilitategeneralizationforsolvingnewproblems.
+7 CONCLUSION
+We introduced analogical prompting, a new language model prompting approach that self-generates
+relevantreasoningexemplarsforsolvingproblems.Thisapproachprovidesdetailed,customizedexemplars
+forindividualproblemswithoutrequiringlabeleddata,effectivelyaddressingthechallengesfacedby
+existing0-shotCoTandfew-shotCoTpromptingmethods.Experimentalresultsshowthatourapproach
+outperforms0-shotCoTandfew-shotCoTinvariousreasoningtasks,includingmathproblemsolving,
+codegeneration,andotherlogical/temporalreasoningtasks.
+9PublishedasaconferencepaperatICLR2024
+8 LIMITATIONS AND FUTURE RESEARCH
+Onelimitationofourapproachisincreasedinferencecomputation,asourapproachgeneratesmoretokens
+thanvanilla0-shotand0-shotCoTprompting.Comparedtofew-shotCoT,weusefewerinputtokensand
+moreoutputtokens,asexemplarsarecountedasinputinfew-shotCoTandasoutputinourapproach.
+Anotherlimitationisthatself-generationcanfailiftheLLMlackssufficientstrengthorhasnotlearned
+relevantknowledgetothenewproblemstosolve. Conversely,withastrongerLLM,itcandrawupon
+relevantpriorknowledgetotackleslightlymorecomplexproblems. Therefore,ourapproachisbetter
+suitedforstrongerorlarger-scaleLLMs.
+Finally,itisknownthatLLMperformancecanbeinfluencedbyspecificpromptphrasesusedtoquerythe
+model(Jiangetal.,2020),andourworkisalsosubjecttothispromptsensitivity.
+ACKNOWLEDGMENTS
+WethankQianHuang,ChenLiang,AndrewDaiandothercolleaguesatGoogleDeepMind,Stanford
+SNAPandP-Lambdagroupsforvaluablefeedbackonthiswork.
+REFERENCES
+RohanAnil,AndrewMDai,OrhanFirat,MelvinJohnson,DmitryLepikhin,AlexandrePassos,Siamak
+Shakeri,EmanuelTaropa,PaigeBailey,ZhifengChen,etal. Palm2technicalreport. arXivpreprint
+arXiv:2305.10403,2023.
+JacobAustin,AugustusOdena,MaxwellNye,MaartenBosma,HenrykMichalewski,DavidDohan,Ellen
+Jiang,CarrieCai,MichaelTerry,QuocLe,etal. Programsynthesiswithlargelanguagemodels. arXiv
+preprintarXiv:2108.07732,2021.
+Jiang Bian, Bin Gao, and Tie-Yan Liu. Knowledge-powered deep learning for word embedding. In
+MachineLearningandKnowledgeDiscoveryinDatabases:EuropeanConference,ECMLPKDD2014,
+Nancy,France,September15-19,2014.Proceedings,PartI14,pp.132–148.Springer,2014.
+Le´onBottou. Frommachinelearningtomachinereasoning:Anessay. Machinelearning,94:133–149,
+2014.
+TomB.Brown,BenjaminMann,NickRyder,MelanieSubbiah,JaredKaplan,PrafullaDhariwal,Arvind
+Neelakantan,PranavShyam,GirishSastry,AmandaAskell,SandhiniAgarwal,ArielHerbert-Voss,
+Gretchen Krueger, Tom Henighan, Rewon Child, Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+ClemensWinter,ChristopherHesse,MarkChen,EricSigler,MateuszLitwin,ScottGray,Benjamin
+Chess, JackClark, ChristopherBerner, SamMcCandlish, AlecRadford, IlyaSutskever, andDario
+Amodei. Languagemodelsarefew-shotlearners. InHugoLarochelle,Marc’AurelioRanzato,Raia
+Hadsell,Maria-FlorinaBalcan,andHsuan-TienLin(eds.),AdvancesinNeuralInformationProcessing
+Systems 33: Annual Conference on Neural Information Processing Systems 2020, NeurIPS 2020,
+December6-12,2020,virtual,2020. URLhttps://proceedings.neurips.cc/paper/2020/hash/
+1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html.
+TianleCai,XuezhiWang,TengyuMa,XinyunChen,andDennyZhou. Largelanguagemodelsastool
+makers. arXivpreprintarXiv:2305.17126,2023.
+JaimeGCarbonell. Learningbyanalogy:Formulatingandgeneralizingplansfrompastexperience. In
+Machinelearning,pp.137–161.Elsevier,1983.
+MarkChen,JerryTworek,HeewooJun,QimingYuan,HenriquePondedeOliveiraPinto,JaredKaplan,
+HarriEdwards,YuriBurda,NicholasJoseph,GregBrockman,etal. Evaluatinglargelanguagemodels
+trainedoncode. arXivpreprintarXiv:2107.03374,2021.URLhttps://arxiv.org/abs/2107.03374.
+WenhuChen,XueguangMa,XinyiWang,andWilliamWCohen. Programofthoughtsprompting:Disen-
+tanglingcomputationfromreasoningfornumericalreasoningtasks. arXivpreprintarXiv:2211.12588,
+2022.
+10PublishedasaconferencepaperatICLR2024
+XinyunChen,ChangLiu,andDawnSong. Execution-guidedneuralprogramsynthesis. InInternational
+ConferenceonLearningRepresentations,2018.
+XinyunChen,ChenLiang,AdamsWeiYu,DennyZhou,DawnSong,andQuocVLe. Neuralsymbolic
+reader:Scalableintegrationofdistributedandsymbolicrepresentationsforreadingcomprehension. In
+InternationalConferenceonLearningRepresentations,2019.
+XinyunChen,MaxwellLin,NathanaelScha¨rli,andDennyZhou. Teachinglargelanguagemodelsto
+self-debug. arXivpreprintarXiv:2304.05128,2023.
+ZhoujunCheng,TianbaoXie,PengShi,ChengzuLi,RahulNadkarni,YushiHu,CaimingXiong,Dragomir
+Radev,MariOstendorf,LukeZettlemoyer,etal.Bindinglanguagemodelsinsymboliclanguages. arXiv
+preprintarXiv:2210.02875,2022.
+AakankshaChowdhery,SharanNarang,JacobDevlin,MaartenBosma,GauravMishra,AdamRoberts,
+PaulBarham,HyungWonChung,CharlesSutton,SebastianGehrmann,ParkerSchuh,KensenShi,
+SashaTsvyashchenko,JoshuaMaynez,AbhishekRao,ParkerBarnes,YiTay,NoamShazeer,Vin-
+odkumarPrabhakaran,EmilyReif,NanDu,BenHutchinson,ReinerPope,JamesBradbury,Jacob
+Austin,MichaelIsard,GuyGur-Ari,PengchengYin,TojuDuke,AnselmLevskaya,SanjayGhemawat,
+SunipaDev,HenrykMichalewski,XavierGarcia,VedantMisra,KevinRobinson,LiamFedus,Denny
+Zhou,DaphneIppolito,DavidLuan,HyeontaekLim,BarretZoph,AlexanderSpiridonov,RyanSepassi,
+DavidDohan,ShivaniAgrawal,MarkOmernick,AndrewM.Dai,ThanumalayanSankaranarayana
+Pillai,MariePellat,AitorLewkowycz,EricaMoreira,RewonChild,OleksandrPolozov,KatherineLee,
+ZongweiZhou,XuezhiWang,BrennanSaeta,MarkDiaz,OrhanFirat,MicheleCatasta,JasonWei,
+KathyMeier-Hellstern,DouglasEck,JeffDean,SlavPetrov,andNoahFiedel. Palm:Scalinglanguage
+modelingwithpathways,2022. URLhttps://arxiv.org/abs/2204.02311.
+HyungWonChung,LeHou,ShayneLongpre,BarretZoph,YiTay,WilliamFedus,EricLi,XuezhiWang,
+MostafaDehghani,SiddharthaBrahma,etal. Scalinginstruction-finetunedlanguagemodels. arXiv
+preprintarXiv:2210.11416,2022.
+KarlCobbe,VineetKosaraju,MohammadBavarian,MarkChen,HeewooJun,LukaszKaiser,Matthias
+Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse, and John Schulman.
+Trainingverifierstosolvemathwordproblems,2021. URLhttps://arxiv.org/abs/2110.14168.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of deep
+bidirectional transformers for language understanding. In Proceedings of the 2019 Conference of
+the North American Chapter of the Association for Computational Linguistics: Human Language
+Technologies, Volume 1 (Long and Short Papers), pp. 4171–4186, Minneapolis, Minnesota, 2019.
+AssociationforComputationalLinguistics.doi:10.18653/v1/N19-1423.URLhttps://aclanthology.
+org/N19-1423.
+AndrewDrozdov,NathanaelScha¨rli,EkinAkyu¨rek,NathanScales,XinyingSong,XinyunChen,Olivier
+Bousquet,andDennyZhou.Compositionalsemanticparsingwithlargelanguagemodels. arXivpreprint
+arXiv:2209.15003,2022.
+DheeruDua,YizhongWang,PradeepDasigi,GabrielStanovsky,SameerSingh,andMattGardner. Drop:
+Areadingcomprehensionbenchmarkrequiringdiscretereasoningoverparagraphs. arXivpreprint
+arXiv:1903.00161,2019.
+KevinDunbar.Theanalogicalparadox:Whyanalogyissoeasyinnaturalisticsettingsyetsodifficultinthe
+psychologicallaboratory. Theanalogicalmind:Perspectivesfromcognitivescience,pp.313–334,2001.
+YanlinFeng,XinyueChen,BillYuchenLin,PeifengWang,JunYan,andXiangRen. Scalablemulti-
+hoprelationalreasoningforknowledge-awarequestionanswering. InEmpiricalMethodsinNatural
+LanguageProcessing(EMNLP),2020.
+LeoGao,StellaBiderman,SidBlack,LaurenceGolding,TravisHoppe,CharlesFoster,JasonPhang,
+HoraceHe,AnishThite,NoaNabeshima,ShawnPresser,andConnorLeahy. Thepile: An800gb
+datasetofdiversetextforlanguagemodeling. arXivpreprintarXiv: Arxiv-2101.00027,2020. URL
+https://arxiv.org/abs/Arxiv-2101.00027.
+11PublishedasaconferencepaperatICLR2024
+DedreGentner. Structure-mapping:Atheoreticalframeworkforanalogy. Cognitivescience,7(2):155–170,
+1983.
+Dedre Gentner and Keith J Holyoak. Reasoning and learning by analogy: Introduction. American
+psychologist,52(1):32,1997.
+DedreGentnerandArthurBMarkman. Structuremappinginanalogyandsimilarity. Americanpsycholo-
+gist,52(1):45,1997.
+KaviGupta,PeterEbertChristensen,XinyunChen,andDawnSong. Synthesize,executeanddebug:
+Learningtorepairforneuralprogramsynthesis. AdvancesinNeuralInformationProcessingSystems,
+33:17685–17695,2020.
+Shibo Hao, Yi Gu, Haodi Ma, Joshua Jiahua Hong, Zhen Wang, Daisy Zhe Wang, and Zhiting Hu.
+Reasoningwithlanguagemodelisplanningwithworldmodel. arXivpreprintarXiv:2305.14992,2023.
+ZhiweiHe,TianLiang,WenxiangJiao,ZhuoshengZhang,YujiuYang,RuiWang,ZhaopengTu,Shuming
+Shi,andXingWang. Exploringhuman-liketranslationstrategywithlargelanguagemodels. arXiv
+preprintarXiv:2305.04118,2023.
+DanHendrycks,StevenBasart,SauravKadavath,MantasMazeika,AkulArora,EthanGuo,CollinBurns,
+SamirPuranik,HoraceHe,DawnSong,etal.Measuringcodingchallengecompetencewithapps. arXiv
+preprintarXiv:2105.09938,2021a.
+DanHendrycks,CollinBurns,SauravKadavath,AkulArora,StevenBasart,EricTang,DawnSong,and
+JacobSteinhardt. Measuringmathematicalproblemsolvingwiththemathdataset. arXivpreprint
+arXiv:2103.03874,2021b.
+KeithJHolyoak. Analogyandrelationalreasoning. TheOxfordhandbookofthinkingandreasoning,pp.
+234–259,2012.
+XiaoyangHu, ShaneStorks, RichardLLewis, andJoyceChai. In-contextanalogicalreasoningwith
+pre-trainedlanguagemodels. arXivpreprintarXiv:2305.17626,2023.
+ZiqiHuang,HongyuanZhu,YingSun,DongkyuChoi,ChestonTan,andJoo-HweeLim. Adiagnostic
+studyofvisualquestionansweringwithanalogicalreasoning. In2021IEEEInternationalConference
+onImageProcessing(ICIP),pp.2463–2467.IEEE,2021.
+ZhengbaoJiang,FrankFXu,JunAraki,andGrahamNeubig. Howcanweknowwhatlanguagemodels
+know? TransactionsoftheAssociationforComputationalLinguistics,8:423–438,2020.
+JaehunJung,LianhuiQin,SeanWelleck,FaezeBrahman,ChandraBhagavatula,RonanLeBras,andYejin
+Choi. Maieuticprompting:Logicallyconsistentreasoningwithrecursiveexplanations. arXivpreprint
+arXiv:2205.11822,2022.
+OmarKhattab,KeshavSanthanam,XiangLisaLi,DavidHall,PercyLiang,ChristopherPotts,andMatei
+Zaharia.Demonstrate-search-predict:Composingretrievalandlanguagemodelsforknowledge-intensive
+nlp. arXivpreprintarXiv:2212.14024,2022.
+Tushar Khot, Harsh Trivedi, Matthew Finlayson, Yao Fu, Kyle Richardson, Peter Clark, and Ashish
+Sabharwal. Decomposedprompting:Amodularapproachforsolvingcomplextasks. arXivpreprint
+arXiv:2210.02406,2022.
+GeunwooKim,PierreBaldi,andStephenMcAleer. Languagemodelscansolvecomputertasks. arXiv
+preprintarXiv:2303.17491,2023.
+HyuhngJoonKim,HyunsooCho,JunyeobKim,TaeukKim,KangMinYoo,andSang-gooLee. Self-
+generatedin-contextlearning:Leveragingauto-regressivelanguagemodelsasademonstrationgenerator.
+arXivpreprintarXiv:2206.08082,2022.
+TakeshiKojima,ShixiangShaneGu,MachelReid,YutakaMatsuo,andYusukeIwasawa. Largelanguage
+modelsarezero-shotreasoners. InThirty-sixthConferenceonNeuralInformationProcessingSystems
+(NeurIPS2022),2022. URLhttps://arxiv.org/abs/2205.11916.
+12PublishedasaconferencepaperatICLR2024
+SumithKulal,PanupongPasupat,KartikChandra,MinaLee,OdedPadon,AlexAiken,andPercySLiang.
+Spoc:Search-basedpseudocodetocode. AdvancesinNeuralInformationProcessingSystems,32,2019.
+JunlongLi,ZhuoshengZhang,andHaiZhao. Self-promptinglargelanguagemodelsforopen-domainqa.
+arXivpreprintarXiv:2212.08635,2022a.
+YujiaLi,DavidChoi,JunyoungChung,NateKushman,JulianSchrittwieser,Re´miLeblond,TomEccles,
+James Keeling, Felix Gimeno, Agustin Dal Lago, et al. Competition-level code generation with
+alphacode. Science,378(6624):1092–1097,2022b.
+PercyLiang,RishiBommasani,TonyLee,DimitrisTsipras,DilaraSoylu,MichihiroYasunaga,Yian
+Zhang,DeepakNarayanan,YuhuaiWu,AnanyaKumar,etal. Holisticevaluationoflanguagemodels.
+arXivpreprintarXiv:2211.09110,2022.
+Hunter Lightman, Vineet Kosaraju, Yura Burda, Harri Edwards, Bowen Baker, Teddy
+Lee, Jan Leike, John Schulman, and Ilya Sutskever. Improving mathematical rea-
+soning with process supervision. 2023. URL https://openai.com/research/
+improving-mathematical-reasoning-with-process-supervision.
+BillYuchenLin,XinyueChen,JaminChen,andXiangRen. Kagnet:Knowledge-awaregraphnetworks
+forcommonsensereasoning. InEmpiricalMethodsinNaturalLanguageProcessing(EMNLP),2019.
+JiachangLiu,DinghanShen,YizheZhang,WilliamBDolan,LawrenceCarin,andWeizhuChen. What
+makesgoodin-contextexamplesforgpt-3? InProceedingsofDeepLearningInsideOut(DeeLIO
+2022):The3rdWorkshoponKnowledgeExtractionandIntegrationforDeepLearningArchitectures,
+pp.100–114, 2022. doi:10.18653/v1/2022.deelio-1.10. URLhttps://aclanthology.org/2022.
+deelio-1.10.
+InbalMagarandRoySchwartz. Datacontamination:Frommemorizationtoexploitation. arXivpreprint
+arXiv:2203.08242,2022.
+SwaroopMishra, DanielKhashabi, ChittaBaral, andHannanehHajishirzi. Cross-taskgeneralization
+vianaturallanguagecrowdsourcinginstructions. InProceedingsofthe60thAnnualMeetingofthe
+Association for Computational Linguistics (Volume 1: Long Papers), pp. 3470–3487, 2022. doi:
+10.18653/v1/2022.acl-long.244. URLhttps://aclanthology.org/2022.acl-long.244.
+TomMMitchell,JaimeGCarbonell,RyszardSMichalski,andRogersHall. Analogicalreasoninginthe
+contextofacquiringproblemsolvingexpertise. MachineLearning:AGuidetoCurrentResearch,pp.
+85–88,1986.
+MichaelMoor,QianHuang,ShirleyWu,MichihiroYasunaga,YashDalmia,JureLeskovec,CyrilZakka,
+EduardoPontesReis,andPranavRajpurkar. Med-flamingo:amultimodalmedicalfew-shotlearner. In
+MachineLearningforHealth(ML4H),pp.353–367.PMLR,2023.
+OpenAI. Gpt-4technicalreport. 2023.
+LongOuyang,JeffreyWu,XuJiang,DiogoAlmeida,CarrollWainwright,PamelaMishkin,ChongZhang,
+SandhiniAgarwal,KatarinaSlama,AlexRay,etal. Traininglanguagemodelstofollowinstructions
+withhumanfeedback. AdvancesinNeuralInformationProcessingSystems,35:27730–27744,2022.
+JoonSungPark,JosephCO’Brien,CarrieJCai,MeredithRingelMorris,PercyLiang,andMichaelS
+Bernstein.Generativeagents:Interactivesimulacraofhumanbehavior. arXivpreprintarXiv:2304.03442,
+2023.
+GeorgePolya. Howtosolveit:Anewaspectofmathematicalmethod,volume85. Princetonuniversity
+press,2004.
+OfirPress,MuruZhang,SewonMin,LudwigSchmidt,NoahASmith,andMikeLewis. Measuringand
+narrowingthecompositionalitygapinlanguagemodels. arXivpreprintarXiv:2210.03350,2022.
+ChengweiQin,AstonZhang,ZhuoshengZhang,JiaaoChen,MichihiroYasunaga,andDiyiYang. Is
+chatgptageneral-purposenaturallanguageprocessingtasksolver? arXivpreprintarXiv:2302.06476,
+2023.
+13PublishedasaconferencepaperatICLR2024
+NilsReimersandIrynaGurevych. Sentence-BERT:SentenceembeddingsusingSiameseBERT-networks.
+InProceedingsofthe2019ConferenceonEmpiricalMethodsinNaturalLanguageProcessingandthe
+9thInternationalJointConferenceonNaturalLanguageProcessing(EMNLP-IJCNLP),pp.3982–3992,
+HongKong,China,2019.AssociationforComputationalLinguistics.doi:10.18653/v1/D19-1410.URL
+https://aclanthology.org/D19-1410.
+HongyuRen,HanjunDai,BoDai,XinyunChen,MichihiroYasunaga,HaitianSun,DaleSchuurmans,Jure
+Leskovec,andDennyZhou. Lego:Latentexecution-guidedreasoningformulti-hopquestionanswering
+onknowledgegraphs. InInternationalConferenceonMachineLearning(ICML),2021.
+TimoSchick,JaneDwivedi-Yu,RobertoDess`ı,RobertaRaileanu,MariaLomeli,LukeZettlemoyer,Nicola
+Cancedda,andThomasScialom. Toolformer: Languagemodelscanteachthemselvestousetools.
+arXivpreprintarXiv:2302.04761,2023.
+Weijia Shi, Sewon Min, Michihiro Yasunaga, Minjoon Seo, Rich James, Mike Lewis, Luke Zettle-
+moyer,andWen-tauYih. Replug: Retrieval-augmentedblack-boxlanguagemodels. arXivpreprint
+arXiv:2301.12652,2023.
+KaShun Shum, Shizhe Diao, and Tong Zhang. Automatic prompt augmentation and selection with
+chain-of-thoughtfromlabeleddata. arXivpreprintarXiv:2302.12822,2023.
+AarohiSrivastava,AbhinavRastogi,AbhishekRao,AbuAwalMdShoeb,AbubakarAbid,AdamFisch,
+AdamRBrown,AdamSantoro,AdityaGupta,Adria`Garriga-Alonso,etal. Beyondtheimitationgame:
+Quantifyingandextrapolatingthecapabilitiesoflanguagemodels. arXivpreprintarXiv:2206.04615,
+2022.
+HongjinSu,JungoKasai,ChenHenryWu,WeijiaShi,TianluWang,JiayiXin,RuiZhang,MariOstendorf,
+LukeZettlemoyer,NoahASmith,etal. Selectiveannotationmakeslanguagemodelsbetterfew-shot
+learners. arXivpreprintarXiv:2209.01975,2022. URLhttps://arxiv.org/abs/2209.01975.
+ZhiqingSun,XuezhiWang,YiTay,YimingYang,andDennyZhou. Recitation-augmentedlanguage
+models. arXivpreprintarXiv:2210.01296,2022.
+Mirac Suzgun, Nathan Scales, Nathanael Scha¨rli, Sebastian Gehrmann, Yi Tay, Hyung Won Chung,
+AakankshaChowdhery,QuocVLe,EdHChi,DennyZhou,etal. Challengingbig-benchtasksand
+whetherchain-of-thoughtcansolvethem. arXivpreprintarXiv:2210.09261,2022.
+AlonTalmor, JonathanHerzig, NicholasLourie, andJonathanBerant. Commonsenseqa: Aquestion
+answeringchallengetargetingcommonsenseknowledge. arXivpreprintarXiv:1811.00937,2018.
+StellaVosniadouandAndrewOrtony. Similarityandanalogicalreasoning. CambridgeUniversityPress,
+1989.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,SharanNarang,AakankshaChowdhery,
+andDennyZhou. Self-consistencyimproveschainofthoughtreasoninginlanguagemodels. arXiv
+preprintarXiv:2203.11171,2022.
+ThomasBWard,StevenMSmith,andJyotsnaEdVaid. Creativethought:Aninvestigationofconceptual
+structuresandprocesses. AmericanPsychologicalAssociation,1997.
+TaylorWebb,KeithJHolyoak,andHongjingLu. Emergentanalogicalreasoninginlargelanguagemodels.
+NatureHumanBehaviour,pp.1–16,2023.
+JasonWei,MaartenBosma,VincentZhao,KelvinGuu,AdamsWeiYu,BrianLester,NanDu,AndrewM.
+Dai,andQuocVLe. Finetunedlanguagemodelsarezero-shotlearners. InInternationalConferenceon
+LearningRepresentations,2022a. URLhttps://openreview.net/forum?id=gEZrGCozdqR.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,EdChi,QuocLe,andDennyZhou. Chain
+ofthoughtpromptingelicitsreasoninginlargelanguagemodels. InThirty-sixthConferenceonNeural
+InformationProcessingSystems(NeurIPS2022),2022b. URLhttps://arxiv.org/abs/2201.11903.
+Yuhuai Wu, Markus N Rabe, Wenda Li, Jimmy Ba, Roger B Grosse, and Christian Szegedy. Lime:
+Learning inductive bias for primitives of mathematical reasoning. In International Conference on
+MachineLearning,pp.11251–11262.PMLR,2021.
+14PublishedasaconferencepaperatICLR2024
+TianbaoXie,ChenHenryWu,PengShi,RuiqiZhong,TorstenScholak,MichihiroYasunaga,Chien-Sheng
+Wu,MingZhong,PengchengYin,SidaIWang,etal. Unifiedskg:Unifyingandmulti-taskingstructured
+knowledgegroundingwithtext-to-textlanguagemodels. arXivpreprintarXiv:2201.05966,2022.
+ZhilinYang,PengQi,SaizhengZhang,YoshuaBengio,WilliamWCohen,RuslanSalakhutdinov,and
+ChristopherDManning. Hotpotqa:Adatasetfordiverse,explainablemulti-hopquestionanswering.
+arXivpreprintarXiv:1809.09600,2018.
+ShunyuYao,JeffreyZhao,DianYu,NanDu,IzhakShafran,KarthikNarasimhan,andYuanCao. React:
+Synergizingreasoningandactinginlanguagemodels. arXivpreprintarXiv:2210.03629,2022.
+Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran, Thomas L Griffiths, Yuan Cao, and Karthik
+Narasimhan. Treeofthoughts:Deliberateproblemsolvingwithlargelanguagemodels. arXivpreprint
+arXiv:2305.10601,2023.
+Michihiro Yasunaga and Percy Liang. Graph-based, self-supervised program repair from diagnostic
+feedback. InInternationalConferenceonMachineLearning(ICML),pp.10799–10808.PMLR,2020.
+Michihiro Yasunaga and Percy Liang. Break-it-fix-it: Unsupervised learning for program repair. In
+InternationalConferenceonMachineLearning,pp.11941–11952.PMLR,2021.
+Michihiro Yasunaga, Hongyu Ren, Antoine Bosselut, Percy Liang, and Jure Leskovec. QA-GNN:
+Reasoningwithlanguagemodelsandknowledgegraphsforquestionanswering. InNorthAmerican
+ChapteroftheAssociationforComputationalLinguistics(NAACL),2021.
+MichihiroYasunaga,AntoineBosselut,HongyuRen,XikunZhang,ChristopherDManning,PercyS
+Liang,andJureLeskovec. Deepbidirectionallanguage-knowledgegraphpretraining. Advancesin
+NeuralInformationProcessingSystems,35:37309–37323,2022a.
+MichihiroYasunaga,JureLeskovec,andPercyLiang. LinkBERT:Pretraininglanguagemodelswith
+documentlinks. InAssociationforComputationalLinguistics(ACL),2022b.
+MichihiroYasunaga,ArmenAghajanyan,WeijiaShi,RichJames,JureLeskovec,PercyLiang,Mike
+Lewis,LukeZettlemoyer,andWen-tauYih. Retrieval-augmentedmultimodallanguagemodeling. In
+InternationalConferenceonMachineLearning(ICML),2023.
+TaoYu,RuiZhang,KaiYang,MichihiroYasunaga,DongxuWang,ZifanLi,JamesMa,IreneLi,Qingning
+Yao,ShanelleRoman,etal. Spider:Alarge-scalehuman-labeleddatasetforcomplexandcross-domain
+semanticparsingandtext-to-sqltask. arXivpreprintarXiv:1809.08887,2018.
+EricZelikman,QianHuang,GabrielPoesia,NoahDGoodman,andNickHaber. Parsel:Aunifiednatural
+languageframeworkforalgorithmicreasoning. arXivpreprintarXiv:2212.10561,2022.
+HanlinZhang,JianiHuang,ZiyangLi,MayurNaik,andEricXing.Improvedlogicalreasoningoflanguage
+modelsviadifferentiablesymbolicprogramming. arXivpreprintarXiv:2305.03742,2023.
+XikunZhang,AntoineBosselut,MichihiroYasunaga,HongyuRen,PercyLiang,ChristopherDManning,
+andJureLeskovec. Greaselm:Graphreasoningenhancedlanguagemodelsforquestionanswering. In
+InternationalConferenceonLearningRepresentations(ICLR),2022a.
+ZhuoshengZhang,AstonZhang,MuLi,andAlexSmola. Automaticchainofthoughtpromptinginlarge
+languagemodels. arXivpreprintarXiv:2210.03493,2022b.
+WentingZhao,MorGeva,BillYuchenLin,MichihiroYasunaga,AmanMadaan,andTaoYu. Complex
+reasoning in natural language. In Proceedings of the 61st Annual Meeting of the Association for
+ComputationalLinguistics(Volume6: TutorialAbstracts), pp.11–20, Toronto, Canada, July2023.
+Association for Computational Linguistics. doi: 10.18653/v1/2023.acl-tutorials.2. URL https://
+aclanthology.org/2023.acl-tutorials.2.
+AojunZhou,KeWang,ZimuLu,WeikangShi,SichunLuo,ZipengQin,ShaoqingLu,AnyaJia,Linqi
+Song,MingjieZhan,etal. Solvingchallengingmathwordproblemsusinggpt-4codeinterpreterwith
+code-basedself-verification. arXivpreprintarXiv:2308.07921,2023.
+15PublishedasaconferencepaperatICLR2024
+DennyZhou,NathanaelScha¨rli,LeHou,JasonWei,NathanScales,XuezhiWang,DaleSchuurmans,
+OlivierBousquet,QuocLe,andEdChi. Least-to-mostpromptingenablescomplexreasoninginlarge
+language models. arXiv preprint arXiv:2205.10625, 2022. URL https://arxiv.org/abs/2205.
+10625.
+A ADDITIONAL RELATED WORKS
+A.1 LANGUAGEMODELSANDREASONING
+Reasoninginvolvestheapplicationofknowledgetoderivesolutionsfornewproblems,oftenthrougha
+seriesofsteps. Teachinglanguagemodelstoreasonhasbeenalong-standingareaofresearch(Bottou,
+2014;Zhaoetal.,2023;Weietal.,2022b).
+Toassessthereasoningcapabilitiesoflanguagemodels,researchershavecreateddatasetsforvarioustasks
+thatdemandreasoningskills.Thesetasksincludemulti-stepquestionanswering(Yangetal.,2018;Dua
+etal.,2019;Talmoretal.,2018),mathematicalproblem-solving(Cobbeetal.,2021;Hendrycksetal.,
+2021b),andcodegeneration(Yuetal.,2018;Chenetal.,2021;Hendrycksetal.,2021a;Austinetal.,
+2021).Inthisstudy,weevaluateourmethodsusingthesediversedatasets.
+Toteachlanguagemodelstoreasoneffectively,onelineofapproachesinvolvetrainingorfine-tuning
+them. Thiscanincludeusingreasoning-intensivedataduringtraining(Wuetal.,2021;Yasunagaetal.,
+2022b;Lightmanetal.,2023;Mooretal.,2023),retrievingstructuredknowledge(Linetal.,2019;Feng
+etal.,2020;Zhangetal.,2022a;Yasunagaetal.,2021;2022a;Xieetal.,2022),andincorporatingexternal
+modulesforreasoningsuchaslogicandprogramexecution(Chenetal.,2018;2019;Yasunaga&Liang,
+2020;Guptaetal.,2020;Renetal.,2021;Zhangetal.,2023).
+Recently,withtheriseoflargelanguagemodels(LLMs),promptingthemtoengageinreasoninghas
+proveneffectiveandgainedattention.AcommonapproachispromptingLLMstogenerateintermediate
+reasoningsteps,asdemonstratedbythechain-of-thoughtmethod(Weietal.,2022b;Kojimaetal.,2022;
+Zhouetal.,2022;Wangetal.,2022),whichassistsLLMsintacklingcomplexreasoningtasks.Several
+studieshaveextendedthisapproachwithmorestructuredalgorithmsandsearchmethods(Khotetal.,
+2022;Drozdovetal.,2022;Zelikmanetal.,2022;Yaoetal.,2023;Pressetal.,2022;Khattabetal.,2022;
+Jungetal.,2022),aswellaslonger-horizonactionandplanning(Yaoetal.,2022;Haoetal.,2023;Park
+etal.,2023).Anotherlineofworkincorporatestoolsandprogramsintothepromptingprocesstofacilitate
+reasoning(Chenetal.,2023;2022;Caietal.,2023;Chengetal.,2022;Kimetal.,2023;Zhouetal.,2023;
+Schicketal.,2023).
+OurworkcomplementstheseeffortstoenhanceLLMreasoningandisthefirsttodrawinspirationfrom
+humananalogicalreasoningtoimproveLLMprompting.
+A.2 ANALOGICALREASONING
+Analogicalreasoningisacognitiveprocessinwhichhumansrecallrelevantpastexperienceswhenfacing
+newchallenges(Gentner&Holyoak,1997;Gentner,1983;Holyoak,2012).Thisphenomenonhasbeen
+studiedextensivelyinpsychology,revealingitssignificanceinvariouscognitivetaskssuchasproblem-
+solving(Gentner&Markman,1997)andcreativity(Wardetal.,1997). Itisrootedinthecapacityto
+identifystructuralandrelationalsimilaritiesbetweenpastandcurrentsituations,facilitatingknowledge
+transfer(Dunbar,2001).
+Analogicalreasoninghasalsoinfluencedthedevelopmentofartificialintelligenceandmachinelearning
+algorithms(Carbonell,1983;Mitchelletal.,1986)andhasbeenemployedasareasoningbenchmarkfor
+assessingmachinelearningmodels(Bianetal.,2014;Huangetal.,2021).Arecentworkalsoevaluatesthe
+abilityoflanguagemodelstoidentifyanalogies(Webbetal.,2023;Huetal.,2023).
+Ourworkmakesapioneeringeffortofapplyinganalogicalreasoningprinciplestoenhancelanguagemodel
+inference.
+16PublishedasaconferencepaperatICLR2024
+B CODEFORCES DATA COLLECTION
+Wescrapeddatafromcodeforces.com,followingtheprocedureinpriorworks(Lietal.,2022b;Kulaletal.,
+2019;Yasunaga&Liang,2021).WeuseLevel-AproblemsthatwerepublishedbetweenJanuary2023and
+August2023.Eachproblemincludesthefullproblemdescriptionsandtestcasesaccessibleonthewebsite.
+Thetestcasesincludethepublictestcasesfoundontheproblempageandhiddentestcasesmadeavailable
+ontheevaluationresultpagesonceacontestisfinished. Someofthehiddentestcasesweretruncated
+onthewebsiteduetoexcessiveinput/outputlength,andweskippedthose.Weretainedproblemswhose
+problemdescriptionswerewithinthelengthof2000tokensinGPT3.5-turbo,resultingin50problems.
+Becausethisdatasetisrelativelysmall,weconducttheevaluationtwiceandthenreporttheaverageresults.
+C ADDITIONAL RESULTS
+PromptingMethod GSM8K MATH
+Ours:Non-diverseexemplars 75.9% 35.2%
+Ours:Diverseexemplars 77.8% 37.3%
+Table6:Ablationstudyontheeffectofencouragingdiversityinself-generatingexemplars(§4.1).
+PromptingMethod Acc@1 Acc@10
+Ours:Self-generateknowledgeafterexemplars 14% 27%
+Ours:Self-generateknowledgebeforeexemplars 15% 29%
+Table7:AblationstudyontheCodeforcestaskusingGPT3.5-turbo.Self-generatingknowledgebeforeexemplars
+performsslightlybetterthanself-generatingknowledgeafterexemplars(§4.2).
+PromptingMethod GSM8K MATH
+Ours 77.8% 37.3%
+Ours+Self-consistency 85.3% 46.0%
+Table8:Self-consistencycanbeusedtofurtherboosttheperformanceofouranalogicalpromptingapproach.
+D FULL EXAMPLES
+D.1 MATH
+Ourprompt(self-generateexemplars):
+Your task is to tackle mathematical problems. When presented with a math
+problem, recall relevant problems as examples. Afterward, proceed to
+solve the initial problem.
+# Initial Problem:
+An airline serves a dinner to all the passengers on an airplane. They get
+their choice of steak or fish. Three steak meals and three fish
+meals are set aside for the six-member crew. If the meals are
+distributed to the crew members randomly, what is the probability
+that both pilots get the fish?
+# Instructions:
+Make sure to include all of the following points:
+## Relevant Problems:
+Recall three examples of math problems that are relevant to the initial
+problem. Note that your problems should be distinct from each other
+and from the initial problem (e.g., involving different numbers and
+names). For each problem:
+- After "Q: ", describe the problem
+17PublishedasaconferencepaperatICLR2024
+- After "A: ", explain the solution and enclose the ultimate answer in \
+boxed{}.
+## Solve the Initial Problem:
+Say "Let's solve the following math problem." Then formulate your
+response in the following format:
+Q: Copy and paste the initial problem here.
+A: Explain the solution and enclose the ultimate answer in \boxed{} here.
+OutputbyGPT3.5-turbo:
+Relevant Problems:
+Q: In a bag, there are 5 red balls and 3 blue balls. If two balls are
+drawn at random without replacement, what is the probability that
+both balls are red?
+A: The total number of balls is 8. The probability of drawing a red ball
+on the first draw is 5/8. After one red ball is drawn, there are 4
+red balls left out of 7 total balls. Therefore, the probability of
+drawing a second red ball is 4/7. The probability of both events
+happening is the product of the individual probabilities, so the
+probability of drawing two red balls is (5/8) * (4/7) = \boxed{\frac
+{5}{14}}.
+Q: A box contains 10 red marbles and 5 blue marbles. If three marbles are
+drawn at random without replacement, what is the probability that
+all three marbles are red?
+A: The total number of marbles is 15. The probability of drawing a red
+marble on the first draw is 10/15. After one red marble is drawn,
+there are 9 red marbles left out of 14 total marbles. Therefore, the
+probability of drawing a second red marble is 9/14. After two red
+marbles are drawn, there are 8 red marbles left out of 13 total
+marbles. Therefore, the probability of drawing a third red marble is
+8/13. The probability of all three events happening is the product of
+the individual probabilities, so the probability of drawing three
+red marbles is (10/15) * (9/14) * (8/13) = \boxed{\frac{24}{91}}.
+Q: A bag contains 4 green marbles, 3 red marbles, and 2 blue marbles. If
+two marbles are drawn at random without replacement, what is the
+probability that both marbles are green?
+A: The total number of marbles is 9. The probability of drawing a green
+marble on the first draw is 4/9. After one green marble is drawn,
+there are 3 green marbles left out of 8 total marbles. Therefore, the
+probability of drawing a second green marble is 3/8. The probability
+of both events happening is the product of the individual
+probabilities, so the probability of drawing two green marbles is
+(4/9) * (3/8) = \boxed{\frac{1}{6}}.
+Let's solve the following math problem:
+An airline serves a dinner to all the passengers on an airplane. They get
+their choice of steak or fish. Three steak meals and three fish
+meals are set aside for the six-member crew. If the meals are
+distributed to the crew members randomly, what is the probability
+that both pilots get the fish?
+A: There are a total of 6 crew members, so the probability of the first
+pilot getting the fish is 3/6. After one fish meal is given to the
+first pilot, there are 2 fish meals left out of 5 total meals.
+Therefore, the probability of the second pilot getting the fish is
+2/5. The probability of both events happening is the product of the
+individual probabilities, so the probability that both pilots get the
+fish is (3/6) * (2/5) = \boxed{\frac{1}{5}}.
+18PublishedasaconferencepaperatICLR2024
+D.2 GSM8K
+Ourprompt(self-generateexemplars):
+Your task is to tackle mathematical problems. When presented with a math
+problem, recall relevant problems as examples. Afterward, proceed to
+solve the initial problem.
+# Initial Problem:
+Kyle bought last year's best-selling book for $19.50. This is with a 25%
+discount from the original price. What was the original price of the
+book?
+# Instructions:
+Make sure that your response follows the instructions below.
+## Analogous Problems:
+Offer five diverse examples of math problems that are relevant or
+analogous to the initial problem. For each problem, elaborate on the
+solution and conclude with the ultimate answer (enclosed in \boxed{})
+. For each problem:
+- After "Q: ", describe the problem
+- After "A: ", explain the solution and enclose the ultimate answer in \
+boxed{}.
+## Solve the Initial Problem:
+Q: Copy and paste the initial problem here.
+A: Explain the solution and enclose the ultimate answer in \boxed{} here.
+OutputbyGPT3.5-turbo:
+Analogous Problems:
+Q1: A shirt is on sale for 20% off the original price of $40. What is the
+sale price of the shirt?
+A: The original price of the shirt is $40. With a 20% discount, the
+discount amount is 20% of $40, which is 0.20 * $40 = $8. Therefore,
+the sale price of the shirt is $40 - $8 = $32. The answer is $\boxed
+{32}$.
+Q2: A store is offering a 15% discount on all items. If a customer buys a
+pair of shoes for $85, what was the original price of the shoes?
+A: Let's assume the original price of the shoes is $x. With a 15%
+discount, the discount amount is 15% of $x, which is 0.15 * $x = $0
+.15x. The sale price of the shoes is $85, so we can set up the
+equation: $x - $0.15x = $85. Simplifying the equation, we get 0.85x =
+$85. Dividing both sides by 0.85, we find that x = $100. Therefore,
+the original price of the shoes was $\boxed{100}$.
+Q3: A restaurant offers a 10% discount on all meals. If a customer pays
+$45 for a meal, what was the original price of the meal?
+A: Let's assume the original price of the meal is $x. With a 10% discount
+, the discount amount is 10% of $x, which is 0.10 * $x = $0.10x. The
+sale price of the meal is $45, so we can set up the equation: $x - $0
+.10x = $45. Simplifying the equation, we get 0.90x = $45. Dividing
+both sides by 0.90, we find that x = $50. Therefore, the original
+price of the meal was $\boxed{50}$.
+Q4: A laptop is on sale for 30% off the original price of $800. What is
+the sale price of the laptop?
+A: The original price of the laptop is $800. With a 30% discount, the
+discount amount is 30% of $800, which is 0.30 * $800 = $240.
+Therefore, the sale price of the laptop is $800 - $240 = $560. The
+answer is $\boxed{560}$.
+19PublishedasaconferencepaperatICLR2024
+Q5: A toy store is offering a 12% discount on all toys. If a customer
+buys a toy for $22, what was the original price of the toy?
+A: Let's assume the original price of the toy is $x. With a 12% discount,
+the discount amount is 12% of $x, which is 0.12 * $x = $0.12x. The
+sale price of the toy is $22, so we can set up the equation: $x - $0
+.12x = $22. Simplifying the equation, we get 0.88x = $22. Dividing
+both sides by 0.88, we find that x = $25. Therefore, the original
+price of the toy was $\boxed{25}$.
+Solve the Initial Problem:
+Q: Kyle bought last year's best-selling book for $19.50. This is with a
+25% discount from the original price. What was the original price of
+the book?
+A: Let's assume the original price of the book is $x. With a 25% discount
+, the discount amount is 25% of $x, which is 0.25 * $x = $0.25x. The
+sale price of the book is $19.50, so we can set up the equation: $x -
+$0.25x = $19.50. Simplifying the equation, we get 0.75x = $19.50.
+Dividing both sides by 0.75, we find that x = $26. Therefore, the
+original price of the book was $\boxed{26}$.
+D.3 CODEFORCES
+Ourprompt(self-generateexemplarsandknowledge):
+Your goal is to write Python3 code to solve competitive programming
+problems. Given a problem, explain the core concepts in it and
+provide other relevant problems. Then solve the original problem.
+# Problem:
+You are given a sequence a_1, a_2, \ldots, a_n. Each element of a is 1 or
+2. Find out if an integer k exists so that the following conditions
+are met.
+1 \leq k \leq n-1, and a_1 \cdot a_2 \cdot \ldots \cdot a_k = a_{k+1}
+\cdot a_{k+2} \cdot \ldots \cdot a_n, where \cdot denotes a product
+.
+If there exist multiple k that satisfy the given condition, print the
+smallest.
+Input
+Each test contains multiple test cases. The first line contains the
+number of test cases t (1 \le t \le 100). Description of the test
+cases follows.
+The first line of each test case contains one integer n (2 \leq n \leq
+1000).
+The second line of each test case contains n integers a_1, a_2, \ldots,
+a_n (1 \leq a_i \leq 2).
+Output
+For each test case, if there is no such k, print -1.
+Otherwise, print the smallest possible k.
+# Instruction:
+## Algorithms:
+Identify the core concepts or algorithms used to solve the problem.
+## Tutorial:
+Write a useful tutorial about these algorithms.
+## Example Problems:
+Provide three examples of relevant competitive programming problems that
+involve these algorithms. For each problem, describe the problem,
+20PublishedasaconferencepaperatICLR2024
+explain the solution in detail, and then write the correct Python3
+code.
+## Python3 code to solve the original problem:
+Include the following points in your response:
+- Explanation of the solution:
+- Python3 code to solve the problem:
+OutputbyGPT3.5-turbo-16k:
+## Algorithms:
+The core algorithm for solving this problem is the prefix product
+algorithm.
+## Tutorial:
+The prefix product algorithm is used to calculate the product of all the
+elements in a prefix of an array. It is a useful algorithm for
+solving problems that involve calculating the product of all the
+elements in a subarray.
+The algorithm works by initializing a variable "prefix" to 1, and then
+iterating through the array from left to right. At each iteration,
+the current element is multiplied with the prefix, and the result is
+stored in the prefix variable. This way, the prefix variable keeps
+track of the product of all the elements in the prefix of the array.
+Here is the pseudocode for the prefix product algorithm:
+```
+prefix = 1
+for i in range(n):
+prefix = prefix * arr[i]
+```
+The time complexity of this algorithm is O(n), where n is the size of the
+input array.
+## Example Problems:
+1. Problem: Given an array of integers, find the product of all the
+elements in each subarray of size k.
+Solution: We can use the prefix product algorithm to solve this
+problem. We initialize a prefix variable to 1, and then iterate
+through the array from left to right. At each iteration, we
+multiply the current element with the prefix, and store the result
+in the prefix variable. If the index i is greater than or equal
+to k-1, we divide the prefix by the element arr[i-k+1], which
+represents the first element of the subarray of size k starting at
+index i-k+1. The result is the product of all the elements in the
+subarray of size k starting at index i-k+1. We can store these
+results in a new array and return it as the output.
+```python
+def product_of_subarrays(arr, k):
+n = len(arr)
+prefix = 1
+result = []
+for i in range(n):
+prefix = prefix * arr[i]
+if i >= k-1:
+result.append(prefix)
+prefix = prefix // arr[i-k+1]
+return result
+21PublishedasaconferencepaperatICLR2024
+```
+2. Problem: Given an array of integers, find the longest subarray with a
+product less than or equal to a given target.
+Solution: We can use the prefix product algorithm to solve this
+problem. We initialize a prefix variable to 1, and then iterate
+through the array from left to right. At each iteration, we
+multiply the current element with the prefix, and store the result
+in the prefix variable. If the prefix becomes greater than the
+target, we divide the prefix by the first element of the subarray,
+and move the start pointer of the subarray one step forward. We
+update the maximum length of the subarray if necessary.
+```python
+def longest_subarray_with_product_less_than_target(arr, target):
+n = len(arr)
+prefix = 1
+start = 0
+max_length = 0
+for i in range(n):
+prefix = prefix * arr[i]
+while prefix > target and start <= i:
+prefix = prefix // arr[start]
+start += 1
+max_length = max(max_length, i-start+1)
+return max_length
+```
+3. Problem: Given an array of integers, find the smallest k such that the
+product of all the elements in the prefix of the array is equal to
+the product of all the elements in the suffix of the array.
+Solution: We can use the prefix product algorithm to solve this
+problem. We initialize a prefix variable to 1, and then iterate
+through the array from left to right. At each iteration, we
+multiply the current element with the prefix, and store the result
+in the prefix variable. We also initialize a suffix variable to
+1, and then iterate through the array from right to left. At each
+iteration, we multiply the current element with the suffix, and
+store the result in the suffix variable. If the prefix is equal to
+the suffix, we return the current index as the smallest k. If no
+such index is found, we return -1.
+```python
+def smallest_k_with_equal_product(arr):
+n = len(arr)
+prefix = 1
+suffix = 1
+for i in range(n):
+prefix = prefix * arr[i]
+suffix = suffix * arr[n-i-1]
+if prefix == suffix:
+return i+1
+return -1
+```
+## Python3 code to solve the original problem:
+Explanation of the solution:
+- Read the number of test cases.
+22PublishedasaconferencepaperatICLR2024
+- Iterate through each test case.
+- Read the number of elements in the sequence and the sequence itself.
+- Initialize prefix and suffix variables to 1, and k to -1.
+- Calculate the product of all the elements in the sequence using the
+prefix product algorithm.
+- Iterate through the sequence from right to left.
+- Update the prefix and suffix variables.
+- If the prefix is equal to the suffix, update k to the current index
+.
+- Print the value of k.
+```python
+# Read the number of test cases
+t = int(input())
+# Process each test case
+for _ in range(t):
+# Read the test case input
+n = int(input())
+arr = list(map(int, input().split()))
+# Initialize prefix and suffix variables
+prefix = 1
+suffix = 1
+k = -1
+# Calculate prefix product
+for i in range(n):
+prefix = prefix * arr[i]
+# Calculate suffix product and find smallest k
+for i in range(n-1, 0, -1):
+prefix = prefix // arr[i]
+suffix = suffix * arr[i]
+if prefix == suffix:
+k = i
+# Print the result
+print(k)
+```
+BelowisabaselineoutputgeneratedbyGPT3.5-turbo-16kusingvanilla0-shotprompt.Thisoutputdoes
+notrecallanyrelevantexemplarsandfailstoemploytheprefixproductalgorithm,resultinginanincorrect
+solution.
+def smallest_k(t, test_cases):
+results = []
+for i in range(t):
+n = test_cases[i][0]
+a = test_cases[i][1:]
+k = -1
+for j in range(1, n):
+if a[:j] == a[j:]:
+k = j
+break
+results.append(k)
+return results
+t = int(input())
+test_cases = []
+for _ in range(t):
+n = int(input())
+a = list(map(int, input().split()))
+23PublishedasaconferencepaperatICLR2024
+test_cases.append([n] + a)
+output = smallest_k(t, test_cases)
+for o in output:
+print(o)
+D.4 BIG-BENCH: FORMALFALLACIES
+Ourprompt(self-generateexemplars):
+Your task is to tackle reasoning problems. When presented with a problem,
+recall relevant problems as examples. Afterward, proceed to solve
+the initial problem.
+# Initial Problem:
+"Is Siri a stepsister of Mary? Is Susan related to Kate? In large
+families, it is sometimes difficult to keep track of all one's
+relatives. The following argument seeks to clarify some such
+relations: To start with, everyone who is a schoolmate of Mildred is
+a daughter of Jeanette, too. Now, being a daughter of Jeanette is
+sufficient for not being a cousin of Cristi. Therefore, no schoolmate
+of Mildred is a cousin of Cristi." Is the argument, given the
+explicitly stated premises, deductively valid or invalid? Options: -
+valid - invalid
+# Instructions:
+Make sure to include all of the following points:
+## Relevant Problems:
+Recall three examples of problems that are relevant to the initial
+problem. Note that your problems must be distinct from each other and
+from the initial problem. For each problem:
+- After "Q: ", describe the problem
+- After "A: ", explain the solution and enclose the ultimate answer in \
+boxed{}.
+## Solve the Initial Problem:
+Say "Let's solve the following reasoning problem." Then formulate your
+response in the following format:
+Q: Copy and paste the initial problem here.
+A: Explain the solution and enclose the ultimate answer in \boxed{} here.
+OutputbyGPT3.5-turbo:
+Relevant Problems:
+Q: In a certain town, all doctors are required to have a medical degree.
+John is a doctor. Therefore, John must have a medical degree. Is this
+argument valid or invalid?
+A: This argument is valid because it follows the logical form of a
+categorical syllogism, where the first premise establishes a
+universal statement and the second premise applies that statement to
+a specific case. Therefore, the conclusion can be logically deduced.
+\boxed{valid}
+Q: All cats have fur. Fluffy is a cat. Therefore, Fluffy has fur. Is this
+argument valid or invalid?
+A: This argument is valid because it follows the logical form of a
+categorical syllogism, where the first premise establishes a
+universal statement and the second premise applies that statement to
+a specific case. Therefore, the conclusion can be logically deduced.
+\boxed{valid}
+Q: If it is raining, then the ground is wet. The ground is wet. Therefore
+, it must be raining. Is this argument valid or invalid?
+24PublishedasaconferencepaperatICLR2024
+A: This argument is invalid because it commits the fallacy of affirming
+the consequent. Just because the ground is wet does not necessarily
+mean that it is raining, as there could be other factors that caused
+the ground to become wet. \boxed{invalid}
+Solve the Initial Problem:
+Let's solve the following reasoning problem:
+Q: "Is Siri a stepsister of Mary? Is Susan related to Kate? In large
+families, it is sometimes difficult to keep track of all one's
+relatives. The following argument seeks to clarify some such
+relations: To start with, everyone who is a schoolmate of Mildred is
+a daughter of Jeanette, too. Now, being a daughter of Jeanette is
+sufficient for not being a cousin of Cristi. Therefore, no schoolmate
+of Mildred is a cousin of Cristi." Is the argument, given the
+explicitly stated premises, deductively valid or invalid?
+A: The argument is deductively valid. The premises state that everyone
+who is a schoolmate of Mildred is a daughter of Jeanette, and being a
+daughter of Jeanette is sufficient for not being a cousin of Cristi.
+Therefore, it logically follows that no schoolmate of Mildred is a
+cousin of Cristi. \boxed{valid}
+BelowisabaselineoutputgeneratedbyGPT3.5-turbousing0-shotCoTprompt. Thisoutputdoesnot
+recallanyrelevantexemplarsandadoptsanincorrectapproachtoaddressthedeductivereasoningproblem.
+The argument is deductively invalid.
+To determine the validity of the argument, we need to analyze the logical
+structure and see if the conclusion necessarily follows from the
+premises.
+Let's break down the argument:
+1. Everyone who is a schoolmate of Mildred is a daughter of Jeanette.
+2. Being a daughter of Jeanette is sufficient for not being a cousin of
+Cristi.
+Conclusion: No schoolmate of Mildred is a cousin of Cristi.
+The first premise establishes a relationship between being a schoolmate
+of Mildred and being a daughter of Jeanette. However, it does not
+provide any information about the relationship between being a
+schoolmate of Mildred and being a cousin of Cristi.
+The second premise establishes a relationship between being a daughter of
+Jeanette and not being a cousin of Cristi. However, it does not
+provide any information about the relationship between being a
+schoolmate of Mildred and being a cousin of Cristi.
+Therefore, the conclusion that no schoolmate of Mildred is a cousin of
+Cristi cannot be logically derived from the given premises. The
+argument is deductively invalid.
+\boxed{invalid}
+25

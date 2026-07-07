@@ -1,0 +1,19 @@
+index of all items in each folder
+label
+tags
+meta-tags
+description
+
+---
+folders
+Needs-distributed:
+put these correct folders
+
+Needs-scraped:
+overly merged file , cut into smallest files sizes and move into 'Needs-relabeled'
+
+Needs-merged:
+overlapping files and gaps, need to try to form 1 coherent whole with all lines included and move into 'Needs-relabeled'
+
+Needs-relabeled:
+and move into 'Needs-distrubted'

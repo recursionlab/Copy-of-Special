@@ -1,0 +1,1127 @@
+(00:00:00):
+I want you to try and exercise.
+
+(00:00:04):
+Wherever you are right now, just look at the space around you.
+
+(00:00:07):
+The room, the air, the actual distance between you and the wall.
+
+(00:00:11):
+I want you to try and visualize the fundamental scaffolding of that reality it's
+
+(00:00:16):
+hard to do right because you have to ask yourself is the universe smooth like like
+
+(00:00:23):
+a continuous sheet of paper that you can just keep cutting in half forever and ever
+
+(00:00:27):
+or is it chunky yeah chunky like a bucket of microscopic logo bricks where you
+
+(00:00:31):
+eventually hit a bottom layer that just
+
+(00:00:33):
+you know can't be divided anymore and uh while you're picturing that physical space
+
+(00:00:39):
+what if i told you that the abstract numbers we use to measure it like prime
+
+(00:00:42):
+numbers right two three five seven what if they have their own secret physical
+
+(00:00:45):
+shape i mean it sounds completely like science fiction yeah but it is actually the
+
+(00:00:50):
+bleeding edge of where quantum physics meets pure mathematics
+
+(00:00:54):
+we are essentially fundamentally questioning the texture of existence today and
+
+(00:00:59):
+we're finding that the deeper we look the more our you know our traditional ideas
+
+(00:01:03):
+of space and logic and even time they just completely break down which is exactly
+
+(00:01:09):
+what we are going to explore in this deep dive we're looking at research that
+
+(00:01:12):
+blends quantum geometry thermodynamics and number theory to well essentially peel
+
+(00:01:17):
+back the wallpaper of reality it's a big topic it's huge and my goal here is to
+
+(00:01:21):
+basically have us put on
+
+(00:01:23):
+a pair of quantum math goggles so we can see these invisible structures all around us.
+
+(00:01:27):
+And, hey, to you listening, do not worry about the heavy math jargon today.
+
+(00:01:31):
+We're going to translate all this dense physics into some seriously mind-blowing aha moments.
+
+(00:01:36):
+I love that.
+
+(00:01:37):
+Quantum math goggles.
+
+(00:01:39):
+Exactly.
+
+(00:01:40):
+So let's start with the physical fabric of space itself.
+
+(00:01:43):
+I've been looking at Richard J. Szabo's research on quantum torque geometry, and
+
+(00:01:49):
+To even approach the quantum side,
+
+(00:01:50):
+I think we first need to understand how classical physics views the universe.
+
+(00:01:54):
+Like, in classical gauge theory, physicists use this concept called an instanton.
+
+(00:01:59):
+Right,
+
+(00:01:59):
+so think of a classical instanton like a perfectly formed soap bubble just,
+
+(00:02:03):
+you know,
+
+(00:02:03):
+floating in the air.
+
+(00:02:04):
+Okay.
+
+(00:02:05):
+It's a specific field configuration that exists on a four-dimensional manifold,
+
+(00:02:10):
+but the key takeaway for us is that it's perfectly smooth.
+
+(00:02:14):
+like the surface of the bubble.
+
+(00:02:15):
+Exactly.
+
+(00:02:16):
+It is continuous.
+
+(00:02:17):
+In the classical view, reality is fluid.
+
+(00:02:20):
+You can zoom in on that soap bubble infinitely, and it always remains a smooth surface.
+
+(00:02:24):
+There are absolutely no jagged edges.
+
+(00:02:27):
+But Cevabo's research argues that this is an illusion.
+
+(00:02:29):
+When you zoom in all the way down to the absolute,
+
+(00:02:32):
+absolute smallest measurable scale in the universe,
+
+(00:02:34):
+the Planck scale,
+
+(00:02:36):
+that soap bubble
+
+(00:02:40):
+The geometry becomes entirely quantized.
+
+(00:02:47):
+And what is really captivating about Sabo's work is how he maps out this chunky
+
+(00:02:52):
+space-time mathematically.
+
+(00:02:53):
+I mean, he doesn't just wave his hands
+
+(00:02:55):
+and say oh it's made of pixels right he uses a very specific framework called the
+
+(00:02:59):
+melting crystal model in three dimensions to show how space-time actually behaves
+
+(00:03:04):
+and I really had to sit and visualize this one to grasp it because okay let's
+
+(00:03:09):
+unpack this imagine a three-dimensional corner of a room mathematically they call
+
+(00:03:14):
+this the positive octant now pack that corner tightly with a rectangular array of
+
+(00:03:19):
+perfect tiny unit cubes just stacked up stacked all the way up the research
+
+(00:03:23):
+describes these microscopic blocks of space-time literally evaporating or well
+
+(00:03:29):
+melting starting from the outermost corner but it's not random at all they follow a
+
+(00:03:33):
+super rigid melting crystal rule and the mechanism behind that rule is what makes
+
+(00:03:38):
+the whole system actually work a cube can only evaporate if all the cubes sitting
+
+(00:03:42):
+directly on top of it and you know in front of it have already been removed so no
+
+(00:03:46):
+cheating
+
+(00:03:47):
+Right.
+
+(00:03:47):
+You cannot hollow out the middle of the crystal.
+
+(00:03:50):
+The structure has to remain stable,
+
+(00:03:52):
+meaning it melts layer by layer strictly from the outside in.
+
+(00:03:55):
+It's like playing a microscopic three-dimensional game of reverse Jenga or like weird Tetris.
+
+(00:04:01):
+Reverse Jenga is perfect.
+
+(00:04:03):
+Right.
+
+(00:04:04):
+You're pulling blocks away, but you are constrained by this mathematical gravity.
+
+(00:04:08):
+If a block is trapped under another block, it cannot move.
+
+(00:04:11):
+that's a really great way to picture it and mathematically this piling and
+
+(00:04:16):
+evaporating of cubes creates what is known as a three-dimensional young diagram or
+
+(00:04:20):
+a plane partition okay just imagine a 3d bar chart that gets lower and lower as you
+
+(00:04:26):
+move away from the corner of the room
+
+(00:04:28):
+But to tie this back to the physical universe, these aren't just abstract blocks, right?
+
+(00:04:33):
+In topological string theory,
+
+(00:04:34):
+each one of these individual cubes represents a fundamental unit of quantum
+
+(00:04:38):
+geometry.
+
+(00:04:39):
+Yes.
+
+(00:04:39):
+They're specifically called bound states of d-brains.
+
+(00:04:42):
+These are the literal chunky Lego bricks of our reality.
+
+(00:04:46):
+They really are.
+
+(00:04:48):
+Studying how they behave requires understanding the statistical mechanics of the
+
+(00:04:52):
+entire system,
+
+(00:04:53):
+meaning we need to calculate every single possible way these cubes can pile up and
+
+(00:04:58):
+melt.
+
+(00:04:58):
+Which sounds impossible to do by hand.
+
+(00:05:00):
+Oh, it is!
+
+(00:05:01):
+To do that, physicists use something called the McMahon function.
+
+(00:05:04):
+the mcmahon function yeah it is a mathematical generating function so instead of
+
+(00:05:08):
+counting every impossible variation by hand the mcmahon function is essentially a
+
+(00:05:12):
+master formula it automatically generates every valid stable configuration of this
+
+(00:05:18):
+melting crystal okay so we have this 3d crystal made of quantum atoms melting away
+
+(00:05:24):
+according to this mcmahon function but
+
+(00:05:26):
+Zebo doesn't just keep this in three dimensions.
+
+(00:05:28):
+No, he doesn't.
+
+(00:05:29):
+The research zooms out to 2D and 4D spaces.
+
+(00:05:32):
+And this is where I need some help connecting the dots.
+
+(00:05:34):
+Because if spacetime is made of these tiny evaporating blocks,
+
+(00:05:39):
+what happens when we zoom out to the 2D or 4D spaces mentioned in the paper?
+
+(00:05:43):
+Well, this is where we see an incredible underlying unity in physics.
+
+(00:05:47):
+It's beautiful, really.
+
+(00:05:49):
+When you simplify the model down to two dimensions, you no longer have a 3D corner of cubes.
+
+(00:05:54):
+You have a 2D corner of flat squares.
+
+(00:05:56):
+Right.
+
+(00:05:56):
+Makes sense.
+
+(00:05:57):
+And what Sabo shows is that the mathematics governing how these 2D squares stack
+
+(00:06:01):
+and melt maps flawlessly,
+
+(00:06:03):
+and I mean flawlessly,
+
+(00:06:05):
+onto something called the Heisenberg-XXZ ferromagnetic spin chain.
+
+(00:06:10):
+Hold on.
+
+(00:06:11):
+A ferromagnetic spin chain?
+
+(00:06:13):
+That sounds like we're talking about magnetism now, not the fabric of space.
+
+(00:06:17):
+We are!
+
+(00:06:17):
+Wait, really?
+
+(00:06:18):
+Yeah!
+
+(00:06:18):
+It's an integrable model used in statistical mechanics to describe how magnetic materials work.
+
+(00:06:24):
+Think of a line of atoms where the electron of each atom has a spin that points
+
+(00:06:27):
+either up or down.
+
+(00:06:29):
+The way those spins interact and align with each other creates a magnetic cascade.
+
+(00:06:33):
+What Sabo is proving is that the mathematical equations describing that magnetic
+
+(00:06:37):
+cascade are literally identical to the equations describing the geometry of our 2D
+
+(00:06:42):
+melting space crystals.
+
+(00:06:43):
+That is wild.
+
+(00:06:44):
+You're saying that the math dictating how, like, a refrigerator magnet works?
+
+(00:06:48):
+Yep.
+
+(00:06:48):
+Is the exact same rulebook governing the fundamental,
+
+(00:06:51):
+chunky pixels of two-dimensional spacetime?
+
+(00:06:54):
+Exactly.
+
+(00:06:55):
+They're just different physical dialects of the same universal geometry.
+
+(00:06:59):
+It shows us that reality,
+
+(00:07:01):
+at its core is recycling the same fundamental geometric constraints whether it's
+
+(00:07:06):
+building a magnet or building the fabric of the universe itself okay my mind is
+
+(00:07:11):
+already blown so we've established that physical quantum space actual reality is a
+
+(00:07:15):
+discrete melting chunky crystal but this thematic breakdown of dimensions it
+
+(00:07:21):
+doesn't stop with physics we have to pivot to the abstract logic underlying the
+
+(00:07:25):
+universe right moving from the physical to the pure abstract
+
+(00:07:29):
+Yes,
+
+(00:07:29):
+because this second area of research applies physical geometry to something
+
+(00:07:33):
+entirely non-physical.
+
+(00:07:34):
+We're talking about the sequence of prime numbers, 2, 3, 5, 7, 11, and so on.
+
+(00:07:38):
+The indivisible building blocks of mathematics.
+
+(00:07:40):
+Exactly.
+
+(00:07:41):
+So, Douglas F. Watson authored a paper on the spectral geometry of the primes.
+
+(00:07:45):
+Now, from what I understand, spectral geometry is usually a tool for the physical world, right?
+
+(00:07:49):
+Typically, yes.
+
+(00:07:50):
+You analyze how an object vibrates or how heat flows through it,
+
+(00:07:54):
+a measurement they call the heat trace.
+
+(00:07:56):
+It's like hitting a bell with a hammer and figuring out the exact physical shape of
+
+(00:07:59):
+the bell just by listening to the sound waves.
+
+(00:08:02):
+That's a great analogy.
+
+(00:08:03):
+But Watson is hitting the prime numbers with a hammer.
+
+(00:08:05):
+And I have to push back here because I am genuinely stuck on this.
+
+(00:08:09):
+Wait.
+
+(00:08:10):
+Primes don't exist in a physical room like our crystal cubes.
+
+(00:08:13):
+No, they don't.
+
+(00:08:14):
+You can't touch them.
+
+(00:08:15):
+Yeah.
+
+(00:08:15):
+So how do you measure the distance between the number seven and number 13 without
+
+(00:08:19):
+just subtracting them?
+
+(00:08:21):
+I mean, 11 and 13 are right next to each other on a number line.
+
+(00:08:25):
+Are they physically close in this new math?
+
+(00:08:27):
+It's the completely natural question to ask because our human intuition demands a
+
+(00:08:31):
+physical ruler.
+
+(00:08:32):
+We want to see the distance.
+
+(00:08:34):
+But Watson is basically abandoning the traditional number line entirely.
+
+(00:08:39):
+He is constructing what he calls a coherence Hamiltonian directly onto the primes.
+
+(00:08:44):
+In quantum mechanics,
+
+(00:08:45):
+a Hamiltonian is an operator that describes the total energy of a system and how it
+
+(00:08:49):
+evolves.
+
+(00:08:51):
+To build this for primes, Watson doesn't use the physical distance between numbers.
+
+(00:08:55):
+He uses arithmetic dissimilarity.
+
+(00:08:57):
+arithmetic dissimilarity break that down for me give me an example of how two
+
+(00:09:01):
+numbers could be close on a number line but arithmetically far apart okay think
+
+(00:09:06):
+about the number 10 and the number 11 on a standard number line they are immediate
+
+(00:09:10):
+neighbors right but arithmetically they share zero DNA 10 is a composite number
+
+(00:09:15):
+built from the prime factors 2 and 5 11 is prime it is only divisible by one itself
+
+(00:09:20):
+oh I see right so in Watson's framework because they share no fundamental harmonic
+
+(00:09:25):
+resonance
+
+(00:09:26):
+The distance between them is an enormous chasm.
+
+(00:09:29):
+Information cannot easily jump from 10 to 11 because they share no mathematical pathways.
+
+(00:09:34):
+He refers to these abstract distances as divergences.
+
+(00:09:37):
+So the distance is totally synthetic.
+
+(00:09:39):
+It's entirely about how easily information or coherence can propagate from one
+
+(00:09:44):
+number to another based on their mathematical traits.
+
+(00:09:47):
+Exactly.
+
+(00:09:48):
+He's replacing geometric distance with number theoretic dissimilarity.
+
+(00:09:52):
+and Watson explores different kinds of these divergences to map this space like he
+
+(00:09:57):
+uses a logarithmic divergence which looks at the global scale of the numbers and
+
+(00:10:02):
+he's an entropic divergence which mirrors the Jensen Shannon divergence from
+
+(00:10:07):
+information theory
+
+(00:10:08):
+which basically treats the prime numbers not just as dots on a line but as
+
+(00:10:14):
+individual packets of information.
+
+(00:10:15):
+Yes.
+
+(00:10:16):
+By replacing a physical ruler with these divergences,
+
+(00:10:19):
+Watson creates a literal geometric space made out of prime numbers.
+
+(00:10:23):
+And that sets up the critical experiment of the paper.
+
+(00:10:26):
+We have a space made of primes and we have a way to measure the distance between
+
+(00:10:29):
+them using these divergence rules.
+
+(00:10:31):
+So what happens when you try to flow heat or information through this crime space?
+
+(00:10:35):
+This is where we arrive at a genuinely bizarre geometric structure.
+
+(00:10:39):
+I can't wait.
+
+(00:10:39):
+Let's go back to your idea of the heat trace.
+
+(00:10:42):
+If you light a match in a normal empty 3D room,
+
+(00:10:46):
+The heat diffuses outward incredibly fast because it has three full dimensions to expand into.
+
+(00:10:52):
+Right.
+
+(00:10:52):
+It just spreads everywhere.
+
+(00:10:53):
+Right.
+
+(00:10:53):
+But if you put that match inside a narrow 1D pipe,
+
+(00:10:56):
+the heat diffuses much slower because it only has one path to follow.
+
+(00:11:00):
+Exactly.
+
+(00:11:01):
+And by timing how fast the heat decays, you can actually calculate the dimension of the space.
+
+(00:11:06):
+You've just perfectly explained the Laplace-Tarbarian correspondence.
+
+(00:11:09):
+Oh, nice.
+
+(00:11:10):
+Yeah, that is the mathematical bridge Watson uses.
+
+(00:11:12):
+It links the decay of a system's heat trace over time to its physical dimensions.
+
+(00:11:17):
+When Watson measures the heat trace of the crime number network specifically using
+
+(00:11:21):
+something called an unnormalized bilaplation operator,
+
+(00:11:25):
+he finds that the heat doesn't spread out openly at all.
+
+(00:11:28):
+It gets stuck.
+
+(00:11:29):
+It hits extreme bottlenecks.
+
+(00:11:31):
+The heat trace scales proportionally to time to the power of negative one quarter.
+
+(00:11:35):
+Okay, let's translate that math scaling into the actual finding.
+
+(00:11:38):
+What does time to the negative one-quarter mean for the dimensions of prime numbers?
+
+(00:11:42):
+It mathematically dictates that the effective spectral dimension of this prime
+
+(00:11:46):
+space is exactly one-half.
+
+(00:11:49):
+A dimension of one-half.
+
+(00:11:50):
+Yes.
+
+(00:11:50):
+Let's really think about that.
+
+(00:11:52):
+A room is 3D.
+
+(00:11:53):
+A flat piece of paper is 2D.
+
+(00:11:56):
+A single razor-thin line drawn on that paper is 1D.
+
+(00:12:01):
+If the prime numbers exist in a one-half dimension,
+
+(00:12:04):
+it means the space is narrower than a straight line.
+
+(00:12:07):
+It is severely compressed.
+
+(00:12:09):
+Here's where it gets really interesting.
+
+(00:12:10):
+Imagine trying to pour water through a sponge, but the sponge is made of primes.
+
+(00:12:15):
+Right.
+
+(00:12:15):
+And the water just gets trapped because the space is practically half-dimensional.
+
+(00:12:19):
+It's narrower than a single 1-D line.
+
+(00:12:22):
+The primes are locking the information in.
+
+(00:12:24):
+It's like a massive city where 90% of the highways have been randomly deleted,
+
+(00:12:28):
+leaving only a few disconnected dirt roads.
+
+(00:12:30):
+That dirt road analogy is great.
+
+(00:12:32):
+If you try to drive or flow heat across the city,
+
+(00:12:35):
+traffic just hopelessly backs up because the connectivity of the space is
+
+(00:12:38):
+fundamentally broken.
+
+(00:12:39):
+That is exactly it.
+
+(00:12:41):
+The space lacks the fractal connectivity required to let information flow openly.
+
+(00:12:46):
+And to prove that this one half dimension isn't just some mathematical glitch,
+
+(00:12:50):
+Watson uses a control model called the Gaussian Unitary Ensemble, or GUE.
+
+(00:12:55):
+Which is based on random matrix theory, right?
+
+(00:12:57):
+It's essentially a grid of randomly generated numbers often used to model complex
+
+(00:13:02):
+systems like the zeros of the Ryman Zeta function.
+
+(00:13:05):
+Yes.
+
+(00:13:06):
+And when you measure the heat trace for the GUE control model,
+
+(00:13:09):
+it shows a slow decline and a higher plateau.
+
+(00:13:11):
+Because the connections are random, there are always pathways for the heat to find.
+
+(00:13:16):
+It acts like a normal, connected space.
+
+(00:13:18):
+Okay.
+
+(00:13:18):
+But the prime-based Hamiltonians, they show a sharp, highly compressed, sub-Euclidean decay.
+
+(00:13:24):
+Meaning the primes are infinitely more restricted than even a totally random grid of numbers.
+
+(00:13:29):
+But why?
+
+(00:13:30):
+What is actually locking the information in?
+
+(00:13:32):
+It comes down to the very definition of a prime.
+
+(00:13:34):
+Primes are defined by what they were not.
+
+(00:13:36):
+They are not divisible by any other numbers.
+
+(00:13:38):
+Okay, stand alone.
+
+(00:13:39):
+exactly they suffer from multiplicative isolation they don't share factors so they
+
+(00:13:43):
+don't share roads this smart city naturally enforces a suppression of flow the
+
+(00:13:49):
+primes behave as a coherence limited medium they aren't just solitary points they
+
+(00:13:54):
+form a rigid arithmetic network that severely restricts the flow of anything trying
+
+(00:13:59):
+to pass through it and this isn't just abstract math for the sake of math either if
+
+(00:14:03):
+you're listening to
+
+(00:14:06):
+Oh absolutely Modern cryptography relies entirely on multiplying massive prime
+
+(00:14:14):
+numbers together because it is so incredibly difficult to reverse engineer the path
+
+(00:14:20):
+the information literally gets trapped in this restricted half-dimensional dirt
+
+(00:14:24):
+road network
+
+(00:14:25):
+It is the foundation of our digital security,
+
+(00:14:27):
+proven here through the lens of spectral geometry.
+
+(00:14:30):
+And remarkably,
+
+(00:14:31):
+Watson proves this one-half dimensionality from first principles without relying on
+
+(00:14:35):
+any unproven mathematical theories,
+
+(00:14:37):
+not even the famous Raymond hypothesis.
+
+(00:14:40):
+Wow.
+
+(00:14:40):
+My mind is officially bending.
+
+(00:14:42):
+I know, it's a lot.
+
+(00:14:43):
+Physical quantum space melts like a chunky 3D crystal dictated by magnetic math,
+
+(00:14:49):
+and abstract prime numbers live in a trapped,
+
+(00:14:51):
+heavily compressed,
+
+(00:14:52):
+half-dimensional road network.
+
+(00:14:54):
+We've completely broken down the concept of dimension in space and in math,
+
+(00:14:58):
+but there is one final parameter of our reality that we haven't touched yet.
+
+(00:15:03):
+Time.
+
+(00:15:04):
+Time.
+
+(00:15:05):
+The final piece of our research stack comes from a profound concept surrounding the
+
+(00:15:09):
+extended free energy principle.
+
+(00:15:11):
+It fundamentally redefines how we experience the present moment.
+
+(00:15:14):
+We've been dealing with non-traditional dimensions breaking down all day.
+
+(00:15:17):
+How does time break down?
+
+(00:15:19):
+Well, usually we conceptualize the present moment now as a photograph.
+
+(00:15:24):
+We think of it as a zero-dimensional slice of time.
+
+(00:15:26):
+It's an infinitely thin dividing line between the past that has already happened
+
+(00:15:30):
+and the future that hasn't arrived yet.
+
+(00:15:32):
+Right, a frozen snapshot.
+
+(00:15:33):
+But if the physical space we exist in is actually made of chunky quantum blocks and
+
+(00:15:38):
+the logic underpinning it is trapped in a one-half dimension,
+
+(00:15:42):
+a zero-dimensional snapshot of time wouldn't actually contain any information.
+
+(00:15:46):
+It would just be static.
+
+(00:15:47):
+That is the exact problem the extended free energy principle addresses.
+
+(00:15:51):
+It argues that our perception of the present moment cannot be a zero-dimensional slice.
+
+(00:15:56):
+Why not?
+
+(00:15:57):
+Because in biological systems,
+
+(00:16:00):
+to survive and maintain structure,
+
+(00:16:02):
+a system must constantly predict its environment to minimize surprise or free
+
+(00:16:06):
+energy.
+
+(00:16:07):
+You cannot make a prediction from a frozen snapshot.
+
+(00:16:11):
+The brain needs an interval to process the chunkiness of reality.
+
+(00:16:14):
+Therefore, the meidol now acts as a spatiotemporally extended dimension of its own.
+
+(00:16:20):
+It has thickness.
+
+(00:16:21):
+Okay, let me make sure I'm grasping this.
+
+(00:16:23):
+It's like listening to a melody.
+
+(00:16:24):
+If you isolate one single microsecond of a song, you just hear a static frequency.
+
+(00:16:28):
+There's no music.
+
+(00:16:29):
+To actually hear the melody,
+
+(00:16:31):
+your brain has to actively hold on to the lingering note that just played while
+
+(00:16:34):
+simultaneously anticipating the note that it's about to hit.
+
+(00:16:37):
+That thickness, that blend of memory and prediction is the present moment.
+
+(00:16:41):
+That is a beautiful way to phrase it, yes.
+
+(00:16:43):
+The present moment is an extended dimension that blends space and time together
+
+(00:16:47):
+into a continuous lived experience.
+
+(00:16:49):
+Our biology essentially smears over the microscopic chunkiness of the universe to
+
+(00:16:54):
+create a fluid reality we can actually interact with.
+
+(00:16:57):
+So bringing this all together, what does this all mean for you listening right now?
+
+(00:17:03):
+The smooth,
+
+(00:17:04):
+continuous reality we think we are navigating every single day is,
+
+(00:17:08):
+at its core,
+
+(00:17:09):
+a macroscopic illusion.
+
+(00:17:12):
+Underneath us,
+
+(00:17:12):
+at the Planck scale,
+
+(00:17:14):
+the physical universe is a discrete,
+
+(00:17:16):
+melting crystal whose fate is governed by the McMahon function.
+
+(00:17:19):
+And at the foundational level of logic,
+
+(00:17:21):
+the prime numbers don't exist in an open,
+
+(00:17:23):
+free-flowing mathematical space.
+
+(00:17:25):
+No, they don't.
+
+(00:17:26):
+heavily compressed one half dimensional reality where information is trapped by
+
+(00:17:30):
+their multiplicative isolation.
+
+(00:17:32):
+Yet our brains manage to take all that rigid weirdly dimensioned data and process
+
+(00:17:36):
+it through this artificially thick extended dimension of the present moment
+
+(00:17:40):
+allowing us to function without short circuiting.
+
+(00:17:43):
+It really changes how we view our place in the universe.
+
+(00:17:46):
+The rulers we use to measure distance,
+
+(00:17:48):
+the clocks we use to measure time,
+
+(00:17:49):
+our entire intuition,
+
+(00:17:51):
+they are just approximations.
+
+(00:17:53):
+The deeper we dive,
+
+(00:17:54):
+the more we realize the universe is playing a much more complex and much more
+
+(00:17:57):
+heavily restricted game of geometry.
+
+(00:17:59):
+We just had to know how to look for the rules.
+
+(00:18:02):
+I want to leave you with a final thought to mull over today.
+
+(00:18:04):
+We've established that the fundamental numbers that build our logic operate in a
+
+(00:18:09):
+highly restricted,
+
+(00:18:10):
+half-dimensional space.
+
+(00:18:11):
+And we know our physical space is built of discrete, evaporating quantum atoms.
+
+(00:18:17):
+Both our physical reality and our mathematical logic are operating in these
+
+(00:18:20):
+strange,
+
+(00:18:21):
+fragmented,
+
+(00:18:21):
+low-dimensional states.
+
+(00:18:23):
+What hidden higher dimension is your consciousness operating in right now,
+
+(00:18:27):
+as it manages to seamlessly pull all of these broken pieces together into a single
+
+(00:18:32):
+beautiful thought?

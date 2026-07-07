@@ -1,0 +1,1231 @@
+How are Prompts Different in Terms of Sensitivity?
+ShengLu,HendrikSchuff,IrynaGurevych
+UbiquitousKnowledgeProcessingLab(UKPLab)
+DepartmentofComputerScienceandHessianCenterforAI(hessian.AI)
+TechnicalUniversityofDarmstadt
+www.ukp.tu-darmstadt.de
+Abstract thereisnosystematicanalysisofthemacrossvari-
+oustasksandmodels(Ajithetal.,2023). Suchan
+In-contextlearning(ICL)hasbecomeoneof
+analysisiscrucialforpromptengineering,prompt
+the most popular learning paradigms. While
+selection, and gaining a deeper understanding of
+thereisagrowingbodyofliteraturefocusingon
+theworkingmechanismofICL.
+promptengineering,thereisalackofsystem-
+aticanalysiscomparingtheeffectsofprompt Inthispaper,wepresentasystematicandcom-
+techniques across different models and tasks. prehensive analysis of prompts based on the sen-
+To address this, we present a comprehensive sitivity of a function (Hahn et al., 2021). We hy-
+promptanalysisbasedonsensitivity. Ouranal-
+pothesize that certain prompts are more effective
+ysisrevealsthatsensitivityisanunsupervised
+foragiventaskbecausetheydecreasethelevelof
+proxyformodelperformance,asitexhibitsa
+sensitivity. BasedontherecentfindingsthatICL
+strongnegativecorrelationwithaccuracy. We
+use gradient-based saliency scores to empiri- implementsgradientdescentimplicitly(Akyürek
+callydemonstratehowdifferentpromptsaffect etal.,2023;Lietal.,2023;VonOswaldetal.,2023;
+therelevanceofinputtokenstotheoutput,re- Zhangetal.,2023),aneffectivepromptcanbeseen
+sultingindifferentlevelsofsensitivity. Further- as one that facilitates the learning of a new func-
+more, we introduce sensitivity-aware decod-
+tionwithlowersensitivitycomparedtotheoriginal
+ing which incorporates sensitivity estimation
+functionlearntbythemodel. Thesensitivityofa
+asapenaltyterminthestandardgreedydecod-
+functionenablesanovelframeworktoanalyzethe
+ing. Weshowthatthisapproachisparticularly
+helpfulwheninformationintheinputisscarce. effectofdifferentprompts. SeeFigure1formore
+Ourworkprovidesafreshperspectiveonthe details.
+analysisofprompts,andcontributestoabetter
+We did extensive experiments to validate our
+understandingofthemechanismofICL.1
+hypothesis. Wechosefivewidelyusednaturallan-
+guage understanding and common sense reason-
+1 Introduction
+ingtasks. Weselectedmodelswithvaryingsizes
+In-context learning (ICL) has become a popular from three popular families: GPT, LLaMA, and
+learningparadigminnaturallanguageprocessing T5. We tested different prompts, including both
+(NLP) due to the rapid development of large lan- human-designed prompts and prompts generated
+guagemodels(LLMs)(Brownetal.,2020;Dong by an LLM. The results strongly support our hy-
+etal.,2022;Liuetal.,2023). Withcarefullycon- pothesisthatmodelsexhibitdifferentlevelsofsen-
+structed prompts, ICL achieves impressive per- sitivitydependingonthepromptsused,andsensi-
+formance on various tasks (Kojima et al., 2022; tivityisanunsupervisedproxyofperformanceasit
+Lampinen et al., 2022; Wei et al., 2022b; Srivas- hasastrongnegativecorrelationbetweenaccuracy
+tavaetal.,2023). Asaresult,promptengineering, and sensitivity. With the help of gradient-based
+whichaimstofindpromptsthatleadtooptimalper- saliencyscores,wefindthattokensintheprompt
+formance,hasemergedasacrucialresearchtopic (e.g.,instructions)aremorerelevanttotheoutput
+in ICL (White et al., 2023; Zhou et al., 2023b). thantokensintheinputwhereperturbationstook
+Although effort has been made to understand the place,whichexplainshowdifferentpromptslead
+effectiveness of certain prompt techniques (Feng to varying levels of sensitivity. Furthermore, we
+etal.,2023;Gonenetal.,2023;Wangetal.,2023a), introducesensitivity-awaredecoding,whichincor-
+poratessensitivityestimationasapenaltytermin
+1Ourcodeisavailableathttps://github.com/UKPLab/
+naacl2024-prompt-sensitivity. greedydecoding. Weshowthatsensitivity-aware
+4202
+nuJ
+02
+]LC.sc[
+2v03270.1132:viXra(a)datasynthesis (b)sensitivityestimation
+Figure1: (a)WegeneratesyntheticdatafortestinginstancesusingHahnetal.(2021)’sframework. (b)Weperform
+inferencemultipletimesusingtheoriginalandsyntheticdata,andcalculatesensitivitybasedonthepredictions.
+decodingisparticularlyeffectivewhentheprompt containingcompositionalstructuresandlatenttasks
+containsscarceinformation. Ourworkprovidesa (Chan et al., 2022; Hahn and Goyal, 2023; Wies
+freshperspectiveforcomparingtheeffectsofdif- et al., 2023). Empirical evidence shows that ICL
+ferentpromptsandenhancesourunderstandingof implicitly implements gradient descent and con-
+themechanismofICL. structsafunctionatinferencetime(Akyüreketal.,
+Ourcontributionsaresummarizedasfollows: 2023; Li et al., 2023; Zhang et al., 2023), which
+may be related to gradient-based meta-learning
+• We present a systematic and comprehensive
+(Von Oswald et al., 2023). Similarly, Dai et al.
+analysis of prompts based on the sensitivity
+(2023)arguethatTransformersaremeta-optimizers
+ofafunction(Hahnetal.,2021).
+which produce meta-gradients according to the
+• We show that sensitivity is an unsupervised demonstrations through forward pass, and these
+proxyofaccuracyasitexhibitsastrongnega- meta-gradients are applied to the model through
+tivecorrelationwithaccuracy. attention.
+• Weusegradient-basedsaliencyscorestoshow 2.2 Promptengineering
+empiricallywhycertainpromptsleadtolower Prompt engineering is essential to effectively re-
+sensitivity. trievinginformationfromanLLM(Reynoldsand
+McDonell,2021;SchickandSchütze,2021;White
+• Weintroducesensitivity-awaredecodingand
+etal.,2023;Zhouetal.,2023b). AnLLMusually
+showthatitiseffectivewhenthepromptcon-
+requirescarefulpromptengineering,sinceamodel
+tainslimitedinformation.
+maynotunderstandpromptsinthewayahuman
+2 Background does(WebsonandPavlick,2022).
+Inthiswork,wefocusondiscreteprompts,i.e.,
+2.1 In-contextlearning
+prompts that are described in natural language
+In-context learning (ICL) is a popular learning phrases (Liu et al., 2023). We follow Dong et al.
+paradigm that emerged with the advent of LLMs (2022)andcategorizediscretepromptsintohuman-
+(Brownetal.,2020;Liuetal.,2023). Ittypically designed and LM-generated prompts, depending
+involvespromptingtheLLMwithseveraldemon- onwhethertheyarewrittenbyhumansorgenerated
+strations or exemplars in natural language. Com- byalanguagemodel(LM).
+paredtopreviouslearningapproaches,ICLhasa
+2.3 Promptanalysis
+moreinterpretableinterfaceanditismorecompu-
+tationallyefficient(Dongetal.,2022;Zhouetal., Mostoftheexistinganalyticalworkconcentrates
+2023b). ICLhasdemonstratedstrongperformance onunderstandingaparticulartypeofprompt(Feng
+on various natural language tasks (Kojima et al., etal.,2023;Gonenetal.,2023;Wangetal.,2023a).
+2022; Lampinen et al., 2022; Wei et al., 2022a; However,thereisalackofsystematicanalysisthat
+Srivastavaetal.,2023). compares the effects of different prompts across
+Aconsiderableamountofrecentworkfocuses variousmodelsandtasks. Asfarasweareaware,
+on revealing the mechanism of ICL. A line of Ajith et al. (2023) is the only work that presents
+worksuggeststhatICLisfacilitatedwhenthepre- a systematic analysis of prompts. They evaluate
+trainingdistributionhascertainproperties,suchas theeffectofpopularinstructionselectionmethods,whereas our work examines a broader range of SensitivityestimationThesensitivityestimation
+prompts. proposedinHahnetal.(2021)usesthevarianceof
+theoutputs. Weadoptamorestraightforwardalter-
+2.4 Sensitivity
+native,variation-ratio(Freeman,1965),toestimate
+Previous studies have primarily focused on ana- sensitivity. Givenanoriginalinputandnsynthetic
+lyzing sensitivity at the instance level. These in- inputs,sensitivityiscalculatedas
+vestigationsrevealthatICLperformanceishighly
+f
+dependentondemonstrations,suchastheselection s = 1− m , (1)
+n+1
+ofexemplarsandtheorderinwhichtheyarepre-
+sented(Zhaoetal.,2021;Liuetal.,2022a;Luetal.,
+wheref isthefrequencyofthemodeofthen+1
+m
+2022;Ajithetal.,2023;ChangandJia,2023;Chen
+predictions,i.e.,thepredictionfortheoriginalinput
+etal.,2023;Wangetal.,2023b;Sclaretal.,2024).
+plus n predictions for the synthetic inputs. The
+Moreover,Chenetal.(2023)observethatpredic-
+lowersis,thelesssensitiveamodelistoaninput.
+tionssensitivetoperturbationsaremorelikelyto
+Dataset We picked five commonly used natural
+beincorrect.
+languageunderstandingandreasoningtasks: CoLA
+BasedonthetheoryofBooleanfunctionsensi-
+(Warstadtetal.,2019),MultiNLI(Williamsetal.,
+tivity, Hahn et al. (2021) propose sensitivity as a
+2018), RTE (Wang et al., 2019), SST2 (Socher
+theory of complexity for sequence classification
+etal.,2013),andCSQA(Talmoretal.,2019). We
+tasks. The sensitivity of a function quantifies the
+experimented with GSM8K (Cobbe et al., 2021),
+number of disjoint subsets of the input sequence
+a collection of arithmetic reasoning problems, to
+that can be changed in such a way as to change
+assesssensitivityinopen-endedgeneration.
+the output. In the setting of sequence classifica-
+Model We tested models with different architec-
+tion,sensitivitymeasuresthenon-linearityofthe
+tures and sizes selected models from three popu-
+decisionboundary. Low-sensitivitytasksarethose
+lar model families: OpenAI text-davinci-003
+wherelow-sensitivityfunctions,suchaslinearclas-
+(GPT3.5-175B), GPT-JT-6B (Wang and Komat-
+sifiers,aremostsuccessful. High-sensitivitytasks,
+suzaki,2021),LLaMA2-13B-chat,LLaMA2-7B-
+ontheotherhand,requirehigh-sensitivitymethods,
+chat (Touvron et al., 2023b), Flan-T5-11B, and
+whicharemorecomplex. Theamountofinforma-
+Flan-T5-770M(Chungetal.,2022).
+tionintheinputisakeyfactorofsensitivity. Intu-
+PromptTable1showsthepromptsweusedinour
+itively, if a single change in the input completely
+experiments. Weexperimentedwithbothhuman-
+changes the output, it is believed that the input
+designedandLM-generatedprompts. Wedesigned
+doesnotcontainsufficientinformation,resultingin
+base_a and base_b as two baseline prompts.
+highsensitivity. Anoutputismorestableifthere
+Comparedtothesimplestbase_awhichcontains
+isredundantinformationintheinput,whichisan
+plaininput-targetpair,base_bincludesahuman-
+indicatoroflowsensitivity.
+designed instruction. We designed zero_a and
+Sensitivityisanindicatorofbotharchitectural
+zero_btotestanextremecase,wheretheground
+andtaskcomplexity,andthusitisusedasahard-
+truth is included in the prompt. We tested two
+nessmeasureinmanyNLPtasks(Richardsonand
+popular prompts, i.e., context faithful prompting
+Sabharwal,2022;Zhaoetal.,2022;Bhattamishra
+(CFP) (Zhou et al., 2023a) and Chain-of-Thought
+etal.,2023). prompting (CoT) (Wei et al., 2022b).3 For LM-
+generated prompts, we tested automatic prompt
+3 Experimentsettings
+engineer(APE)(Zhouetal.,2023b)andgenerated
+WeuseHahnetal.(2021)’sframeworktogenerate knowledgeprompting(GKP)(Liuetal.,2022b).4 In
+perturbeddata.2 Eachofthesyntheticdataagrees addition,wemapeachoptiontoanindex,sothat
+on the original instance on all indices outside a wecanbettercontroltheformatoftheoutput.
+subset. We notice that the synthetic data for one SeeA.1formoredetailsregardingthesetupof
+particular dataset are noisier (see Table 8 in A.1 experiments.
+foramanualinspectionofthedata). Thisdoesnot
+3CoTpromptingwasonlytestedwiththelargermodels,
+pose an issue because this dataset is our control i.e.,GPT3.5-175B,Flan-T5-11B,andLLaMA2-13B-chat.
+variable. 4APEwasonlytestedonCoLAandRTEusingGPT3.5-
+175Bduetobudgetconstraints.GKPwasonlytestedonCSQA,
+2Seehttps://github.com/m-hahn/sensitivity. andweusedtheknowledgegeneratedbyLiuetal.(2022b).prompt text
+I’mgladIsawanybody.
+base_a
+{target}
+SENTENCE: I’mgladIsawanybody.
+QUESTION: Isthis(0)unacceptable,or(1)
+base_b
+acceptable?
+ANSWER: {target}
+I’mgladIsawanybody.Theansweris0.
+zero_a
+{target}
+SENTENCE: I’mgladIsawanybody.Thean-
+zero_b sweris0.
+ANSWER: {target}
+Bobsaid,“I’mgladIsawanybody.”
+QUESTION: Isthis(0)unacceptable,or(1)ac-
+CFP
+ceptableinBob’sopinion?
+ANSWER: {target}
+SENTENCE: I’mgladIsawanybody.
+QUESTION: Isthis(0)unacceptable,or(1)ac-
+ceptable?
+CoT ANSWER: Let’sthinkstepbystep.Thissen-
+tenceisungrammaticalbecause“anybody”is
+usedastheobjectinanaffirmativeclause.So
+theansweris{target}
+INSTRUCTION:determinewhethereachsen-
+tencewas(1)acceptableor(0)unacceptable
+APE basedonitsstructureandgrammar.
+Figure2: Theaverageaccuracyandsensitivityofeach
+INPUT: I’mgladIsawanybody.
+OUTPUT: {target} modelusingvariouspromptsacrossdifferentdatasets.
+*indicatespromptsthatarenottestedonalldatasets.
+KNOWLEDGE:Electronicmapsarethemod-
+ernversionofpaperatlas.
+INPUT: GoogleMapsandotherhighwayand
+GKP streetGPSserviceshavereplacedwhat? 4.1 Instruction,knowledge,chain-of-thought
+OPTIONS: (0) united states, (1) mexico, (2)
+This section compares the effects of instruction
+countryside,(3)atlas,(4)oceans
+OUTPUT: {target} (human-designedinstructionsinbase_bandLM-
+generatedinstructionsinAPE),reasoningchain(in
+Table1: Examplesofpromptsusedinourexperiments.
+CoT),andknowledge(inGKP).
+Contentsthatarecharacteristictoapromptarebolded.
+Table 2 compares the performance of models
+using base_b and APE. The two prompts lead to
+similaraccuracyandsensitivityonCoLAandRTE,
+4 Results
+suggestingthathuman-designedandLM-generated
+instructionshavesimilareffectsonthemodel. At
+Figure2showstheaverageaccuracyandsensitiv-
+leastforCoLAandRTE,thereisnoneedtogener-
+ity of each model using various prompts across
+ateinstructionsusinganLM.
+differentdatasets.5 ThePearsoncorrelationcoeffi-
+cientshowsastrongnegativecorrelationbetween
+dataset prompt accuracy↑ sensitivity↓
+accuracy and sensitivity (r = −0.8764, p-value
+base_b 0.8235 0.1830
+≪ 0.01). Sensitivity can be viewed as an unsu- CoLA APE 0.8216 0.1960
+pervised proxy of accuracy given such a strong
+base_b 0.6931 0.1377
+RTE
+correlation. APE 0.7509 0.1603
+ItisinterestingtonotethatbothFlan-T5models
+Table2: TheaccuracyandsensitivityofGPT3.5-175B
+failed with zero_a and zero_b. We discuss this
+usingbase_bandAPE.
+furtherinSection4.2.
+Table 3 shows that GKP leads to a higher accu-
+5Due to limited space, we did not include the standard racy and lower sensitivity in most cases. This
+deviationsofthestatisticsinthefollowingplotsandtables.For
+suggests that the effects of instructions and LM-
+moreresults,pleaserefertohttps://github.com/UKPLab/
+naacl2024-prompt-sensitivity. generated knowledge are cumulative, i.e., plac-accuracy↑ sensitivity↓
+model
+base_b GKP base_b GKP
+GPT3.5-175B 0.8000 0.7459 0.3133 0.1982
+GPT-JT-6B 0.2413 0.3202 0.4912 0.4831
+LLaMA2-13B 0.6085 0.6109 0.3257 0.2511
+LLaMA2-7B 0.5276 0.5456 0.3649 0.2804
+Flan-T5-11B 0.8057 0.7697 0.3435 0.2491
+Flan-T5-770M 0.2607 0.7601 0.2345 0.3141
+AVERAGE 0.5082 0.6103 0.3485 0.3082
+Table 3: The accuracy and sensitivity using base_b
+andGKPonCSQA.LLaMA2-13BandLLaMA2-7Bare
+LLaMA2-13B-chatandLLaMA2-7B-chat.
+ingLM-generatedknowledgebeforeinstructions
+yieldsbetterresults.
+Figure3: Theaccuracyandsensitivityofdifferentmod-
+Table 4 shows that CoT leads to a similar accu- elsusingbase_a,base_b,CoT_base_a,andCoT.
+racybuthighersensitivitycomparedtobase_b. As
+showninTable1,instructionsarealsocontainedin
+4.2 WhathappenedtoFlan-T5withzero?
+CoT.UnlikeLM-generatedknowledge,reasoning
+chains do not bring performance gain on top of As shown in Figure 2, unlike other models,
+instructions. bothFlan-T5-11BandFlan-T5-770Mfailedwith
+zero_a and zero_b. We examine the outputs of
+accuracy↑ sensitivity↓
+model Flan-T5-11B closely to investigate this counter-
+base_b CoT base_b CoT intuitivephenomenon,andfindthatFlan-T5-11B
+GPT3.5-175B 0.7549 0.7758 0.1899 0.2636 tendstoproducetextanswersinsteadofnumeric
+LLaMA2-13B 0.5642 0.6179 0.2564 0.2939 indices with zero_a and zero_b (see Figure 8 in
+Flan-T5-11B 0.8134 0.7943 0.2328 0.2509
+A.4). OurobservationssuggestthatFlan-T5mod-
+AVERAGE 0.7108 0.7293 0.2264 0.2695
+elsarenotgoodatmappingthenumericindicesin
+theexamplarstotheiroutputspaces,unlessexplic-
+Table4: TheaccuracyandsensitivityofGPT3.5-175B,
+itly instructed via instructions such as in base_b
+LLaMA2-13B-chat(LLaMA2-13B),andFlan-T5-11B
+usingbase_bandCoTacrossdifferenttasks. andAPE,orintheformofOPTIONS,suchasinGKP.
+Thisconclusionisalsosupportedbytheobserva-
+tionthatFlan-T5modelsfailtoproducenumeric
+WedesignedCoT_base_atoisolatetheeffectof
+indiceswithbase_a(seeTable14inA.4),where
+reasoningchains. CoT_base_aisacombinationof
+explicitinstructionsarealsolacking.
+chain-of-thought and the most basic base_a (see
+Table12inA.3).
+4.3 Theeffectofdecodingstrategies
+Figure 3 shows that CoT_base_a outperforms
+base_a,butitperformsworsethanbase_binmost It has been shown that decoding strategies influ-
+cases. ThissuggeststhatforCoLAandRTE,while ence the quality of LLM generations (Lee et al.,
+reasoningchainsdohelpimproveperformance,it 2022; Wang et al., 2023d). We also observe that
+isnotaseffectiveasinstructions. decoding strategies have an effect on sensitivity.
+WenotethatmodelsusingCoT_base_aperform Figure 4 shows that the overall sensitivity calcu-
+relativelybetteronCoLAthanonRTE.Wespec- lated from predictions obtained using greedy de-
+ulate that this is because the demonstrations in coding is lower than that of those obtained using
+CoT_base_aforCoLAcontainanequivalentofan Top-ksampling(Fanetal.,2018). Astrongnega-
+instruction. SinceCoLAisabinaryclassification tivecorrelationbetweenaccuracyandsensitivityis
+taskwith GRAMMATICAL and UNGRAMMATICAL still observed in this case (r = −0.5507, p-value
+being the labels, a reasoning chain, such as the ≪ 0.01). This is lower than that of Top-k sam-
+one exemplified in Table 12, contain an explicit pling(r = −0.8764,p-value≪ 0.01),suggesting
+labelmapping,whichmayfunctionsimilarlytoan thatTop-ksamplinghasa“magnifying”effecton
+instruction. sensitivity.saliencyscoresbasedonthenormofthegradient
+ofthemodeloutput. Thegradientg foratokenx
+i
+inaninputxiscalculatedasfollows:
+g(x ) = ∇ M(y|x), (2)
+i xi
+where M(y|x) is the logit for the output token y.
+ThesaliencyscoreS(x )isobtainedbytakingthe
+i
+L1normofg(x ):
+i
+S(x ) = ∥g(x )∥ . (3)
+i i L1
+Figure 4: The accuracy and sensitivity of predictions WecalculatethesaliencyscoresusingGPT-JT-
+obtained using greedy decoding and Top-k sampling 6B,GPT-J-6B,Flan-T5-770M,andT5-770M.Fig-
+acrossdifferentmodels. ure 5 gives an example of saliency scores over
+tokens,whichshowsthatthetokensintheprompt
+aremorerelevanttotheoutputthantokensinthe
+In Top-k sampling, the next token is sampled
+input(seeFigure10inA.6formoreexamples).
+from a probability mass redistributed among to-
+Toperformaquantitativeanalysis,wesegment
+kens that have the highest k probabilities. The
+aninstanceintoseveralparts. TakeFigure6asan
+observationthatTop-ksamplingleadstoahigher
+example.
+levelofsensitivityindicatesthatforinstanceswith
+highsensitivity,theoutputprobabilitiesofdifferent
+labelsareclose.
+4.4 Open-endedgeneration
+Measuring (or even defining) sensitivity in open- Figure 6: An example of token segmentation for in-
+endedgenerationcanbechallenging. Twopiecesof stanceswithbase_b.
+generatedtextcanconveythesamemeaningeven
+iftheyvarysignificantlyintermsofwordchoices ForasentenceX,tokenswhereperturbationshap-
+and length. We circumvent this issue by select- penarereferredtoasX orinputtokens(such
+input
+inganopen-endedgenerationtaskwheretheout- as the input in Figure 6), and the rest of the sen-
+putismore“controllable.” Specifically,wechose tenceisreferredtoasX orprompttokens.6
+prompt
+GSM8K,anarithmeticreasoningtaskinwhichthe Wecalculatethemeansaliencyscore,denotedas
+outputsarenumbers(Cobbeetal.,2021). Despite S,forinputtokensandprompttokensrespectively:
+beinganopen-endedgenerationtask,thenumerical
+(cid:80)
+S(x )
+formatoftheoutputsinGSM8Kallowsustouse
+S =
+xi∈X i
+,X ∈ {X ,X },
+input prompt
+variation-ratiotomeasuresensitivity. Ourresults n
+(4)
+reveal that there is also a negative correlation be-
+where n is the number of tokens in X or
+tweenaccuracyandsensitivityintheopen-ended input
+X .
+setting. SeeA.5formoredetails. prompt
+Table5showstheaveragemeansaliencyscores
+5 Gradient-basedsaliencyscores ofinstancesindifferentdatasets. SimilartoFigure
+5,themeansaliencyscoresofinputtokensarecon-
+InlightofrecentstudiesthatlinkICLandimplicit
+sistentlylowerthanthoseforprompttokens. There
+gradient descent (Akyürek et al., 2023; Li et al.,
+is a strong negative correlation between S −S
+p i
+2023;VonOswaldetal.,2023;Zhangetal.,2023), and sensitivity (r = −0.7596, p-value ≪ 0.01).7
+we investigate the relationship between sensitiv-
+Thisexplainswhybase_b, zero_b, andCFPlead
+ity and gradient. We use gradient-based saliency
+tolowerlevelsofsensitivity: perturbationsareonly
+scores,whichrevealtherelevanceofinputtokens
+done to input tokens, which are less relevant to
+tothemodelprediction(Simonyanetal.,2014;Li
+etal.,2016;YinandNeubig,2022). Thehigherthe 6Forthesegmentationofotherprompts, pleasereferto
+Figure9inA.6.
+scoreis,themoreatokenissupposedtocontribute
+7ThePearsoncorrelationcoefficientforS −S andsen-
+p i
+tothemodeloutput. Wecomputegradient-based sitivitywithoutzero_bresultsis−0.5733(p=0.0831).Figure5: SaliencyscoresovertokensofCoLAinstanceswithbase_bobtainedusingGPT-6B-JT.
+theoutputsthanprompttokens. Wealsofindthat S S S S
+input knowledge option prompt
+instructiontunedmodels“focus”moreonprompt
+4.33 2.56 6.37 12.86
+tokensthantheirnon-instructiontunedcounterparts
+(seeTable16inA.6). Table 6: The average mean saliency scores (S) of in-
+put, knowledge, option, and prompt tokens of CSQA
+dataset prompt S S S −S sens.↓
+instanceswithGKPobtainedusingGPT-JT-6B.
+i p p i
+base_b 4.17 12.74 8.57 30.15
+CoLA zero_b 7.65 23.66 16.01 0.00
+CFP 3.75 11.43 7.68 28.39 ThepercentageofS forbase_b(27.2%)is
+input
+base_b 2.68 7.41 4.73 48.84 higherthanthatforGKP(16.6%),whichindicates
+CSQA zero_b 2.25 8.02 5.77 0.00 that input tokens in base_b are relatively more
+CFP 2.37 7.06 4.69 49.94
+relevanttothepredictionsthanthoseinGKP.This
+base_b 3.10 12.79 9.69 43.78 isconsistentwiththeobservationinTable3,that
+MNLI zero_b 3.61 17.18 13.57 3.06
+GKP leads to a lower level of sensitivity in most
+CFP 1.68 6.71 5.03 42.70
+cases.
+base_b 1.95 9.48 7.53 30.61
+RTE zero_b 3.22 18.95 15.73 0.36 We also examine the mean saliency scores of
+CFP 1.53 7.32 5.79 29.82
+groundtruthtokensinzero_b(seeTable17inA.6).
+base_b 3.09 12.59 9.50 28.17 TheresultsshowthatFlan-T5-770M“focuses”less
+SST2 zero_b 4.99 22.32 17.33 0.25
+on ground truth tokens than GPT-JT-6B, which
+CFP 2.77 10.70 7.93 28.83
+explainsthefailureofFlan-T5modelswithzero
+Table 5: The average mean saliency scores of input promptsdiscussedinSection4.2.
+tokens(S i,inpermillage),prompt tokens(S p,inper- Prompt tokens are important in the sense that
+millage) of instances, the difference between the two
+theyprovideinformationsuchasinstructionsand
+scores (∆), and sensitivity (sens., in percentage) ob-
+external knowledge, which are necessary for the
+tainedusingGPT-JT-6B.
+model to produce outputs that the user expects.
+However, it is counter-intuitive that the mean
+ForGKP,weperformamoredetailedsegmenta-
+saliencyscoresforprompttokensaremuchhigher
+tionforabetteranalysis,whichisshowninFigure
+than those for input tokens, as input tokens con-
+7. WesegmentaninstancewithGKPtoknowledge,
+tainessentialinformationaswell. Thisobservation
+input,option,andprompttokens.
+may imply that memory plays an overwhelming
+roleinICL(Chenetal.,2022;Merulloetal.,2023;
+McKennaetal.,2023;ŠtefánikandKadlcˇík,2023;
+Singhetal.,2023)–LLMsweretrainedonsimilar
+instances,sotheydonotneedtorelyoninput to-
+kensinthetestinstancestoomuch. Inthissense,
+Figure 7: An example of token segmentation for in- prompttokensaremorerelevantbecausetheytrig-
+stanceswithGKP. ger memories, and models implicitly infer task
+informationfromthem(ReynoldsandMcDonell,
+Table6showstheaveragemeansaliencyscores 2021;Hendeletal.,2023;Wangetal.,2023c;Wolf
+of tokens in CSQA instances using GKP. Similar etal.,2023). Over-emphasisonprompttokensmay
+to Table 5, input tokens are less relevant to the leadtohallucinationaswell. Arecentstudydiscov-
+predictions. Notethatknowledgetokenshavethe ers that instruction tuning significantly increases
+lowest average mean saliency scores, suggesting sycophancyinLLMs,thattheyfollowuser’sopin-
+that generated knowledge is not very relevant to ionoragreewithuser’sclaimevenwhentheyknow
+thepredictions. itisfalse(Weietal.,2023).GPT-JT-6B LLaMA2-13B-chat LLaMA2-7B-chat Flan-T5-11B Flan-T5-770M
+dataset prompt
+sad greedy sad greedy sad greedy sad greedy sad greedy
+base_a 45.16 38.71 59.20 59.20 52.37 52.56 29.41 29.41 41.75 40.99
+CoLA base_b 48.01 47.82 70.21 70.40 62.62 63.38 77.42 81.59 71.54 71.92
+CFP 38.71 34.91 67.93 67.74 68.31 68.88 77.61 80.65 69.45 69.45
+base_a 26.48 26.56 45.49 46.80 33.20 33.93 57.79 55.82 79.02 83.77
+CSQA base_b 30.74 30.74 61.97 62.13 54.59 55.49 78.85 82.30 24.92 25.41
+CFP 27.70 28.20 60.98 61.72 54.59 54.51 77.30 81.64 22.79 22.87
+base_a 14.90 11.50 9.20 3.40 16.90 17.20 23.50 25.80 9.10 3.70
+MNLI base_b 27.30 27.00 34.30 30.30 37.00 34.10 81.60 82.30 59.80 65.10
+CFP 33.50 34.20 43.90 39.70 39.90 40.40 81.40 82.90 14.60 9.10
+base_a 37.55 31.05 38.99 39.71 34.66 32.85 24.19 23.83 22.38 21.66
+RTE base_b 58.12 58.48 53.07 37.55 62.82 63.18 82.31 87.00 50.54 54.15
+CFP 52.71 50.18 56.32 43.68 56.32 56.32 75.09 85.56 44.77 53.79
+base_a 25.34 27.29 59.98 59.52 61.12 61.47 50.80 50.80 40.14 40.94
+SST2 base_b 76.95 78.44 77.64 77.41 78.10 78.44 90.02 95.64 91.63 91.97
+CFP 53.56 54.13 88.07 88.19 77.06 76.49 91.17 95.87 77.87 78.10
+Table7: Thehighestaccuracyreachedusingsensitivity-awaredecoding(sad)andtheaccuracyofgreedydecoding
+(greedy). Caseswheresensitivity-awaredecodinghasabetteraccuracythangreedydecodingarehighlighted.
+6 Sensitivity-awaredecoding tosolve. Apparently,noneofthemodelswetested
+possesssuchabilities. Therefore,sensitivity-aware
+We showed in Section 4 that sensitivity can be
+decoding,whichhelpsimprovemodelperformance
+viewed as an unsupervised proxy of accuracy. In
+underthis“extremecondition,”ishighlymeaning-
+thissection,wefurthershowthatincludingsensi-
+fulinthepresentcontext.
+tivity in decoding improves model performance.
+However, sensitivity-aware decoding is more
+Specifically, we add sensitivity as a penalty to
+computationallyexpensivecomparedtostandard
+greedydecoding:
+greedydecodingasitrequiresmultipleinference
+yˆ= argmax[αP(y|x)−(1−α)s], (5) passes. This makes it impractical for tasks that
+y∈V demandlowlatency.
+wherexisaninput,V isavocabulary,andyˆisthe
+7 Conclusion
+output. P(y|x) is the probability of an output y
+givenx,andsisasensitivityestimation,calculated Thisworkprovidesanovelperspectiveonprompt
+asthevarianceoftheoutputlogitsofthesynthetic analysis,examiningtheeffectsofpromptsinterms
+dataforx. WereweightP(y|x)andsusingαand of the sensitivity of a function. We conducted a
+(1−α). systematicandcomprehensiveanalysis,andhigh-
+Table 7 summarizes the performance of light how certain prompts are more effective due
+sensitivity-awaredecodingcomparedtogreedyde- to their ability to reduce sensitivity levels. We
+coding. Sensitivity-aware decoding works better showthatsensitivitycanserveasanunsupervised
+on CoLA, MNLI, and RTE, and model-wisely, it proxyofmodelperformance,makingitavaluable
+worksbetterwithGPT-JT-6BandLLaMA2-13B- toolforevaluatingmodelperformancewithoutus-
+chat. Sensitivity-awaredecodingworksmuchbet- ing labeled data or ground truth. By introducing
+ter with base_a than the other prompts. See A.7 sensitivity-awaredecoding,weshowthatincorpo-
+formoreimplementationdetailsandresults. ratingsensitivityingreedydecodingisparticularly
+The results show that penalizing outputs with helpfulincaseswheretheinputislessinformative.
+highsensitivityindecodinghasaneffectonmodel Sincenoneofthemodelswetestedperformswell
+performance. We show that sensitivity-aware de- whenthereislimitedinformationintheinput,we
+coding works better with the most basic prompt, believesensitivity-awaredecodingishighlypracti-
+base_a,thatcontainsplaininput-targetpairs. We calinthecurrentcontext. Ourworknotonlysheds
+believethispromptrepresentsthosetrulychalleng- lightonpromptengineering,butalsoprovidesin-
+ingproblemsinreallifethathavealmostnoclues sightintotheworkingmechanismofICL.
+orhints,andrequireverystrongreasoningabilitiesLimitations Ting-Yun Chang and Robin Jia. 2023. Data curation
+alonecanstabilizein-contextlearning. InProceed-
+Themeasurementofsensitivityiscurrentlyquitere- ingsofthe61stAnnualMeetingoftheAssociationfor
+strictedtoclose-endedgeneration. Itischallenging ComputationalLinguistics(Volume1: LongPapers),
+pages8123–8144,Toronto,Canada.Associationfor
+toextendthisframeworktotaskssuchastextsum-
+ComputationalLinguistics.
+marization. While we demonstrate the effective-
+nessofsensitivity-awaredecoding,itrequiresmul- MingdaChen,JingfeiDu,RamakanthPasunuru,Todor
+tipleinferences,whichmaybeimpracticalfortasks Mihaylov, Srini Iyer, Veselin Stoyanov, and Zor-
+nitsaKozareva.2022. Improvingin-contextfew-shot
+thatrequirelowlatency. Inordertomanagecosts,
+learningviaself-supervisedtraining. InProceedings
+welimitedtheuseofOpenAItext-davinci-003
+ofthe2022ConferenceoftheNorthAmericanChap-
+(GPT3.5-175B) in our experiments. Due to its teroftheAssociationforComputationalLinguistics:
+closedsourcenature,thereproducibilityofthere- HumanLanguageTechnologies,pages3558–3573,
+Seattle,UnitedStates.AssociationforComputational
+sultsrelatedtoGPT3.5-175Bmaybeaconcernas
+Linguistics.
+well.
+Yanda Chen, Chen Zhao, Zhou Yu, Kathleen McKe-
+Acknowledgements own, and He He. 2023. On the relation between
+sensitivity and accuracy in in-context learning. In
+This research work has been funded by the Ger- FindingsoftheAssociationforComputationalLin-
+manFederalMinistryofEducationandResearch guistics: EMNLP2023,pages155–167,Singapore.
+andtheHessianMinistryofHigherEducation,Re- AssociationforComputationalLinguistics.
+search,ScienceandtheArtswithintheirjointsup-
+Hyung Won Chung, Le Hou, Shayne Longpre, Bar-
+portoftheNationalResearchCenterforApplied ret Zoph, Yi Tay, William Fedus, Eric Li, Xuezhi
+CybersecurityATHENE. Wang,MostafaDehghani,SiddharthaBrahma,etal.
+2022. Scalinginstruction-finetunedlanguagemodels.
+arXivpreprintarXiv:2210.11416.
+References
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian,
+AnirudhAjith,ChrisPan,MengzhouXia,AmeetDesh- MarkChen,HeewooJun,LukaszKaiser,Matthias
+pande,andKarthikNarasimhan.2023. Instructeval: Plappert, Jerry Tworek, Jacob Hilton, Reiichiro
+Systematicevaluationofinstructionselectionmeth- Nakano, Christopher Hesse, and John Schulman.
+ods. arXivpreprintarXiv:2307.00259. 2021. Training verifiers to solve math word prob-
+lems. arXivpreprintarXiv:2110.14168.
+Ekin Akyürek, Dale Schuurmans, Jacob Andreas,
+Tengyu Ma, and Denny Zhou. 2023. What learn- DamaiDai,YutaoSun,LiDong,YaruHao,Shuming
+ingalgorithmisin-contextlearning? investigations Ma,ZhifangSui,andFuruWei.2023. WhycanGPT
+with linear models. In The Eleventh International learnin-context? languagemodelssecretlyperform
+ConferenceonLearningRepresentations,ICLR2023, gradientdescentasmeta-optimizers. InFindingsof
+Kigali,Rwanda,May1-5,2023.OpenReview.net. theAssociationforComputationalLinguistics: ACL
+2023,pages4005–4019,Toronto,Canada.Associa-
+SatwikBhattamishra,ArkilPatel,VarunKanade,and tionforComputationalLinguistics.
+PhilBlunsom.2023. Simplicitybiasintransformers
+and their ability to learn sparse Boolean functions. Qingxiu Dong, Lei Li, Damai Dai, Ce Zheng, Zhiy-
+In Proceedings of the 61st Annual Meeting of the ongWu,BaobaoChang,XuSun,JingjingXu,and
+AssociationforComputationalLinguistics(Volume ZhifangSui.2022. Asurveyforin-contextlearning.
+1: LongPapers),pages5767–5791,Toronto,Canada. arXivpreprintarXiv:2301.00234.
+AssociationforComputationalLinguistics.
+Angela Fan, Mike Lewis, and Yann Dauphin. 2018.
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Hierarchicalneuralstorygeneration. InProceedings
+Subbiah,JaredDKaplan,PrafullaDhariwal,Arvind of the 56th Annual Meeting of the Association for
+Neelakantan,PranavShyam,GirishSastry,Amanda ComputationalLinguistics(Volume1: LongPapers),
+Askell,etal.2020. Languagemodelsarefew-shot pages889–898,Melbourne,Australia.Association
+learners. Advancesinneuralinformationprocessing forComputationalLinguistics.
+systems,33:1877–1901.
+GuhaoFeng,BohangZhang,YuntianGu,HaotianYe,
+Stephanie Chan, Adam Santoro, Andrew Lampinen, Di He, and Liwei Wang. 2023. Towards revealing
+JaneWang,AadityaSingh,PierreRichemond,James themysterybehindchainofthought: Atheoretical
+McClelland,andFelixHill.2022. Datadistributional perspective. InAdvancesinNeuralInformationPro-
+propertiesdriveemergentin-contextlearningintrans- cessingSystems36: AnnualConferenceonNeural
+formers. AdvancesinNeuralInformationProcessing InformationProcessingSystems2023,NeurIPS2023,
+Systems,35:18878–18891. NewOrleans,LA,USA,December10-16,2023.LintonCFreeman.1965. Elementaryappliedstatistics: JiachangLiu,DinghanShen,YizheZhang,BillDolan,
+forstudentsinbehavioralscience. NewYork: Wiley. Lawrence Carin, and Weizhu Chen. 2022a. What
+makes good in-context examples for GPT-3? In
+HilaGonen,SriniIyer,TerraBlevins,NoahA.Smith, ProceedingsofDeepLearningInsideOut(DeeLIO
+andLukeZettlemoyer.2023. Demystifyingprompts 2022): The 3rd Workshop on Knowledge Extrac-
+in language models via perplexity estimation. In tionandIntegrationforDeepLearningArchitectures,
+FindingsoftheAssociationforComputationalLin- pages100–114,Dublin,IrelandandOnline.Associa-
+guistics: EMNLP2023,Singapore,December6-10, tionforComputationalLinguistics.
+2023,pages10136–10148.AssociationforComputa-
+tionalLinguistics. JiachengLiu,AlisaLiu,XimingLu,SeanWelleck,Pe-
+terWest,RonanLeBras,YejinChoi,andHannaneh
+Michael Hahn and Navin Goyal. 2023. A theory of Hajishirzi.2022b. Generatedknowledgeprompting
+emergent in-context learning as implicit structure forcommonsensereasoning. InProceedingsofthe
+induction. arXivpreprintarXiv:2303.07971. 60thAnnualMeetingoftheAssociationforCompu-
+tationalLinguistics(Volume1: LongPapers),pages
+MichaelHahn,DanJurafsky,andRichardFutrell.2021. 3154–3169,Dublin,Ireland.AssociationforCompu-
+Sensitivity as a complexity measure for sequence tationalLinguistics.
+classificationtasks. TransactionsoftheAssociation
+forComputationalLinguistics,9:891–908. PengfeiLiu,WeizheYuan,JinlanFu,ZhengbaoJiang,
+Hiroaki Hayashi, and Graham Neubig. 2023. Pre-
+Roee Hendel, Mor Geva, and Amir Globerson. 2023. train, prompt, and predict: A systematic survey of
+In-context learning creates task vectors. In Find- promptingmethodsinnaturallanguageprocessing.
+ingsoftheAssociationforComputationalLinguis- ACMComputingSurveys,55(9):1–35.
+tics:EMNLP2023,Singapore,December6-10,2023,
+pages 9318–9333. Association for Computational YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,
+Linguistics. and Pontus Stenetorp. 2022. Fantastically ordered
+promptsandwheretofindthem: Overcomingfew-
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu- shotpromptordersensitivity. InProceedingsofthe
+takaMatsuo,andYusukeIwasawa.2022. Largelan- 60thAnnualMeetingoftheAssociationforCompu-
+guagemodelsarezero-shotreasoners. InAdvances tationalLinguistics(Volume1: LongPapers),pages
+in Neural Information Processing Systems 35: An- 8086–8098,Dublin,Ireland.AssociationforCompu-
+nualConferenceonNeuralInformationProcessing tationalLinguistics.
+Systems2022,NeurIPS2022,NewOrleans,LA,USA,
+November28-December9,2022. Nick McKenna, Tianyi Li, Liang Cheng, Moham-
+madJavadHosseini,MarkJohnson,andMarkSteed-
+Andrew Lampinen, Ishita Dasgupta, Stephanie Chan, man. 2023. Sources of hallucination by large lan-
+Kory Mathewson, Mh Tessler, Antonia Creswell, guagemodelsoninferencetasks. InFindingsofthe
+JamesMcClelland,JaneWang,andFelixHill.2022. AssociationforComputationalLinguistics: EMNLP
+Canlanguagemodelslearnfromexplanationsincon- 2023,Singapore,December6-10,2023,pages2758–
+text? In Findings of the Association for Computa- 2774.AssociationforComputationalLinguistics.
+tional Linguistics: EMNLP 2022, pages 537–563,
+AbuDhabi,UnitedArabEmirates.Associationfor Jack Merullo, Carsten Eickhoff, and Ellie Pavlick.
+ComputationalLinguistics. 2023. A mechanism for solving relational tasks
+in transformer language models. arXiv preprint
+NayeonLee,WeiPing,PengXu,MostofaPatwary,Pas- arXiv:2305.16130.
+caleNFung,MohammadShoeybi,andBryanCatan-
+zaro. 2022. Factuality enhanced language models LariaReynoldsandKyleMcDonell.2021. Promptpro-
+foropen-endedtextgeneration. AdvancesinNeural gramming for large language models: Beyond the
+InformationProcessingSystems,35:34586–34599. few-shot paradigm. In Extended Abstracts of the
+2021 CHI Conference on Human Factors in Com-
+JiweiLi,XinleiChen,EduardHovy,andDanJurafsky. putingSystems,CHIEA’21,NewYork,NY,USA.
+2016. Visualizingandunderstandingneuralmodels AssociationforComputingMachinery.
+in NLP. In Proceedings of the 2016 Conference
+of the North American Chapter of the Association KyleRichardsonandAshishSabharwal.2022. Pushing
+for Computational Linguistics: Human Language thelimitsofrulereasoningintransformersthrough
+Technologies,pages681–691,SanDiego,California. natural language satisfiability. In Proceedings of
+AssociationforComputationalLinguistics. theAAAIConferenceonArtificialIntelligence,vol-
+ume36,pages11209–11219.
+Yingcong Li, M. Emrullah Ildiz, Dimitris Papail-
+iopoulos, and Samet Oymak. 2023. Transformers TimoSchickandHinrichSchütze.2021. Few-shottext
+as algorithms: Generalization and stability in in- generation with natural language instructions. In
+contextlearning. InProceedingsofthe40thInterna- Proceedings of the 2021 Conference on Empirical
+tionalConferenceonMachineLearning,ICML’23. MethodsinNaturalLanguageProcessing,pages390–
+JMLR.org. 402.MelanieSclar,YejinChoi,YuliaTsvetkov,andAlane Hugo Touvron, Louis Martin, Kevin Stone, Peter Al-
+Suhr.2024. Quantifyinglanguagemodels’sensitiv- bert, Amjad Almahairi, Yasmine Babaei, Nikolay
+itytospuriousfeaturesinpromptdesignor: Howi Bashlykov,SoumyaBatra,PrajjwalBhargava,Shruti
+learned to start worrying about prompt formatting. Bhosale, et al. 2023b. Llama 2: Open founda-
+InTheTwelfthInternationalConferenceonLearning tion and fine-tuned chat models. arXiv preprint
+Representations,ICLR2024,Vienna,Austria,May arXiv:2307.09288.
+7-11,2024.OpenReview.net.
+JohannesVonOswald,EyvindNiklasson,EttoreRan-
+Karen Simonyan, Andrea Vedaldi, and Andrew Zis- dazzo,JoãoSacramento,AlexanderMordvintsev,An-
+serman.2014. Deepinsideconvolutionalnetworks: dreyZhmoginov,andMaxVladymyrov.2023. Trans-
+Visualisingimageclassificationmodelsandsaliency formerslearnin-contextbygradientdescent. InIn-
+maps. In 2nd International Conference on Learn- ternationalConferenceonMachineLearning,pages
+ingRepresentations,ICLR2014,Banff,AB,Canada, 35151–35174.PMLR.
+April14-16,2014,WorkshopTrackProceedings.
+AlexWang,YadaPruksachatkun,NikitaNangia,Aman-
+AadityaK.Singh,StephanieC.Y.Chan,TedMoskovitz, preetSingh,JulianMichael,FelixHill,OmerLevy,
+ErinGrant,AndrewM.Saxe,andFelixHill.2023. andSamuelR.Bowman.2019. Superglue:Astickier
+Thetransientnatureofemergentin-contextlearning benchmarkforgeneral-purposelanguageunderstand-
+intransformers. InAdvancesinNeuralInformation ing systems. In Advances in Neural Information
+ProcessingSystems36: AnnualConferenceonNeu- ProcessingSystems32: AnnualConferenceonNeu-
+ralInformationProcessingSystems2023,NeurIPS ralInformationProcessingSystems2019,NeurIPS
+2023, New Orleans, LA, USA, December 10 - 16, 2019,December8-14,2019,Vancouver,BC,Canada,
+2023. pages3261–3275.
+Ben Wang and Aran Komatsuzaki. 2021. GPT-J-
+Richard Socher, Alex Perelygin, Jean Wu, Jason
+6B: A 6 Billion Parameter Autoregressive Lan-
+Chuang,ChristopherDManning,AndrewYNg,and
+guageModel. https://github.com/kingoflolz/
+ChristopherPotts.2013. Recursivedeepmodelsfor
+mesh-transformer-jax.
+semanticcompositionalityoverasentimenttreebank.
+In Proceedings of the 2013 conference on empiri-
+BoshiWang,SewonMin,XiangDeng,JiamingShen,
+calmethodsinnaturallanguageprocessing,pages
+You Wu, Luke Zettlemoyer, and Huan Sun. 2023a.
+1631–1642.
+Towardsunderstandingchain-of-thoughtprompting:
+Anempiricalstudyofwhatmatters. InProceedings
+Aarohi Srivastava, Abhinav Rastogi, Abhishek Rao,
+of the 61st Annual Meeting of the Association for
+AbuAwalMdShoeb,AbubakarAbid,AdamFisch,
+ComputationalLinguistics(Volume1: LongPapers),
+AdamRBrown,AdamSantoro,AdityaGupta,Adrià
+pages2717–2739,Toronto,Canada.Associationfor
+Garriga-Alonso, et al. 2023. Beyond the imitation
+ComputationalLinguistics.
+game: Quantifying and extrapolating the capabili-
+tiesoflanguagemodels. TransactionsonMachine
+PeiyiWang,LeiLi,LiangChen,DaweiZhu,Binghuai
+LearningResearch,2023.
+Lin,YunboCao,QiLiu,TianyuLiu,andZhifangSui.
+2023b. Largelanguagemodelsarenotfairevaluators.
+Michal Štefánik and Marek Kadlcˇík. 2023. Can in- arXivpreprintarXiv:2305.17926.
+context learners learn a reasoning concept from
+demonstrations? In Proceedings of the 1st Work- Xinyi Wang, Wanrong Zhu, Michael Saxon, Mark
+shoponNaturalLanguageReasoningandStructured
+Steyvers, and William Yang Wang. 2023c. Large
+Explanations (NLRSE), pages 107–115, Toronto, languagemodelsarelatentvariablemodels: Explain-
+Canada.AssociationforComputationalLinguistics. ingandfindinggooddemonstrationsforin-context
+learning. In Advances in Neural Information Pro-
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and cessingSystems36: AnnualConferenceonNeural
+JonathanBerant.2019. CommonsenseQA:Aques- InformationProcessingSystems2023,NeurIPS2023,
+tion answering challenge targeting commonsense NewOrleans,LA,USA,December10-16,2023.
+knowledge. InProceedingsofthe2019Conference
+oftheNorthAmericanChapteroftheAssociationfor XuezhiWang, JasonWei, DaleSchuurmans, QuocV.
+ComputationalLinguistics: HumanLanguageTech- Le,EdH.Chi,SharanNarang,AakankshaChowd-
+nologies,Volume1(LongandShortPapers),pages hery, and Denny Zhou. 2023d. Self-consistency
+4149–4158,Minneapolis,Minnesota.Associationfor improves chain of thought reasoning in language
+ComputationalLinguistics. models. InTheEleventhInternationalConference
+on Learning Representations, ICLR 2023, Kigali,
+HugoTouvron,ThibautLavril,GautierIzacard,Xavier Rwanda,May1-5,2023.OpenReview.net.
+Martinet,Marie-AnneLachaux,TimothéeLacroix,
+BaptisteRozière,NamanGoyal,EricHambro,Faisal AlexWarstadt,AmanpreetSingh,andSamuelRBow-
+Azhar, et al. 2023a. Llama: Open and effi- man.2019. Neuralnetworkacceptabilityjudgments.
+cient foundation language models. arXiv preprint TransactionsoftheAssociationforComputational
+arXiv:2302.13971. Linguistics,7:625–641.Albert Webson and Ellie Pavlick. 2022. Do prompt- XinranZhao,ShikharMurty,andChristopherManning.
+basedmodelsreallyunderstandthemeaningoftheir 2022. Onmeasuringtheintrinsicfew-shothardness
+prompts? InProceedingsofthe2022Conferenceof ofdatasets. InProceedingsofthe2022Conference
+theNorthAmericanChapteroftheAssociationfor onEmpiricalMethodsinNaturalLanguageProcess-
+ComputationalLinguistics: HumanLanguageTech- ing,pages3955–3963,AbuDhabi,UnitedArabEmi-
+nologies, pages 2300–2344, Seattle, United States. rates.AssociationforComputationalLinguistics.
+AssociationforComputationalLinguistics.
+Zihao Zhao, Eric Wallace, Shi Feng, Dan Klein, and
+Jason Wei, Yi Tay, Rishi Bommasani, Colin Raffel, SameerSingh.2021. Calibratebeforeuse: Improv-
+Barret Zoph, Sebastian Borgeaud, Dani Yogatama, ingfew-shotperformanceoflanguagemodels. InIn-
+MaartenBosma,DennyZhou,DonaldMetzler,EdH. ternationalConferenceonMachineLearning,pages
+Chi, Tatsunori Hashimoto, Oriol Vinyals, Percy 12697–12706.PMLR.
+Liang,JeffDean,andWilliamFedus.2022a. Emer-
+gentabilitiesoflargelanguagemodels. Transactions Wenxuan Zhou, Sheng Zhang, Hoifung Poon, and
+onMachineLearningResearch,2022. Muhao Chen. 2023a. Context-faithful prompting
+for large language models. In Findings of the As-
+JasonWei,XuezhiWang,DaleSchuurmans,Maarten sociation for Computational Linguistics: EMNLP
+Bosma,FeiXia,EdChi,QuocVLe,DennyZhou, 2023,Singapore,December6-10,2023,pages14544–
+etal.2022b. Chain-of-thoughtpromptingelicitsrea- 14556.AssociationforComputationalLinguistics.
+soninginlargelanguagemodels. AdvancesinNeural
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han,
+InformationProcessingSystems,35:24824–24837.
+KeiranPaster,SilviuPitis,HarrisChan,andJimmy
+Jerry Wei, Da Huang, Yifeng Lu, Denny Zhou, and Ba.2023b. Largelanguagemodelsarehuman-level
+Quoc V Le. 2023. Simple synthetic data reduces prompt engineers. In The Eleventh International
+sycophancyinlargelanguagemodels. arXivpreprint ConferenceonLearningRepresentations,ICLR2023,
+arXiv:2308.03958. Kigali,Rwanda,May1-5,2023.OpenReview.net.
+JulesWhite,QuchenFu,SamHays,MichaelSandborn,
+CarlosOlea,HenryGilbert,AshrafElnashar,Jesse
+Spencer-Smith, and Douglas C Schmidt. 2023. A
+promptpatterncatalogtoenhancepromptengineer-
+ingwithchatgpt. arXivpreprintarXiv:2302.11382.
+NoamWies,YoavLevine,andAmnonShashua.2023.
+Thelearnabilityofin-contextlearning. InAdvances
+in Neural Information Processing Systems 36: An-
+nualConferenceonNeuralInformationProcessing
+Systems2023,NeurIPS2023,NewOrleans,LA,USA,
+December10-16,2023.
+AdinaWilliams,NikitaNangia,andSamuelBowman.
+2018. A broad-coverage challenge corpus for sen-
+tenceunderstandingthroughinference. InProceed-
+ingsofthe2018ConferenceoftheNorthAmerican
+Chapter of the Association for Computational Lin-
+guistics: Human Language Technologies, Volume
+1 (Long Papers), pages 1112–1122, New Orleans,
+Louisiana.AssociationforComputationalLinguis-
+tics.
+Yotam Wolf, Noam Wies, Yoav Levine, and Amnon
+Shashua. 2023. Fundamental limitations of align-
+ment in large language models. arXiv preprint
+arXiv:2304.11082.
+KayoYinandGrahamNeubig.2022. Interpretinglan-
+guagemodelswithcontrastiveexplanations. InPro-
+ceedingsofthe2022ConferenceonEmpiricalMeth-
+odsinNaturalLanguageProcessing,pages184–198,
+AbuDhabi,UnitedArabEmirates.Associationfor
+ComputationalLinguistics.
+RuiqiZhang,SpencerFrei,andPeterLBartlett.2023.
+Trainedtransformerslearnlinearmodelsin-context.
+arXivpreprintarXiv:2306.09927.A Appendix
+A.1 Moreonexperimentsettings
+Allexperimentsweredoneinthefew-shotsetting.8 Wesettemperature=0.8forallexperiments. Weset
+max_new_tokens=2,exceptforexperimentswithCoT,whereitwassetto64,and128forexperimentswith
+GSM8K.Forlocalmodels,wesetbatch_size=16andseeds=[2266,105,86379],andallexperiments
+wererunoneitheranNVIDIAA100orH100. TheexperimentswithOpenAItext-davinci-003were
+donebetweenJuly8andJuly18,2023.
+We notice that the synthetic data for CSQA are noisier than those for other datasets. We manually
+checkedthesyntheticdataforthefirst50instancesinCSQA(atotalof1220instances). Thereare223
+syntheticdataforthefirst50instances,amongwhich44areconsideredtobenoisy(seeTable8).
+Wedesignedbase_a,base_b,zero_a,andzero_binanintuitiveway. Wedidnotrelyonanyformal
+theories or guidelines related to prompt engineering. Table 9 shows examples of demonstrations with
+differentprompts.
+original synthetic
+Wherewouldyoufindmagazinesalongsidemanyother
+:-WherewouldyouwasteyourSpanish??!?
+printedworks?
+Whereareyoulikelytofindahamburger? primeoverbyELareyou"happy"hamburger?
+Jameswaslookingforagoodplacetobuyfarmland. ei–Whatlookisforagoodplacetobuy–likearestaurant?
+Wheremighthelook?
+<..."Whatmighthelook?
+Balkan Kingdom <Meditation a French speaking North
+InwhatSpanishspeakingNorthAmericancountrycanyou Americancountrycanyouexplainthewayscomponents
+getagreatcupofcoffee? areused?
+///5//Doesinsurancecoveracar,Sears,oracupofcoffee?
+19::Whatdoanimalsdowhenanenemyisspotted?
+Whatdoanimalsdowhenanenemyisapproaching? com...WhatisanenemyofHTML?
+p-0Whatdoyoudowhenanenemymovesin?
+Readingnewspaperoneofmanywaystopracticeyour =-YourWHERE?YourARE.Yourwhat?
+what?
+antissues/Readingnewspaper/Whatisared/aloe?
+Ifyouwantharmony,whatissomethingyoushouldtryto Sept:5Ifyouwanttohaveaprocessthenwhatdoyounow
+dowiththeworld? dowiththesystem?
+=-doesaheifertakeinvaluables?
+Wheredoesaheifer’smasterlive?
+/Jazeeraio"What’saMaru?
+Aside from water and nourishment what does your dog
+/PurityUtahPrisonof2015?
+need?
+///Janetwaswatchingthefilmbecauseshelikedwhat?
+Janetwaswatchingthefilmbecauseshelikedwhat?
+08/Janetwaswatchingthefilm"Shawhat?
+27.9Whatareyouwaitingalongsidewithwhenyou’reina
+Whatareyouwaitingalongsidewithwhenyou’reina jobinterview?
+receptionarea?
+1:⊠⊠hatareyougoingtodowhileonthestreetadaylike
+now?
+Whendrinking:Whenmorecanyoudothenpleasure?
+Whendrinkingboozewhatcanyoudotostaybusy? Whendrinking?Whenbeingakid/Youngman?
+=-BinBakAllah?BernAbdJaTih?
+2,45Afencingthrustwithasharpswordtowardsaperson
+Afencingthrustwithasharpswordtowardsaperson wouldresultinpain?
+wouldresultinwhat?
+VideoAudioAudioAfencingthrustfromtheguitarist/band
+memberwhetherwayortheother?
+8Seehttps://github.com/UKPLab/naacl2024-prompt-sensitivity/tree/main/prompts.original synthetic
+Unlikeaspiderandhismanysightseers,peopleonlyhave ")cardsOfthespiderspiderandhismanysightseers.We
+what? WhoSeeEverything?
+Whatcouldgoontopofwood? {50Whatyoucouldgowrongwiththistitle?
+Theartistwassittingquietlypondering,thensuddenlyhe =- Imagine an artist was sitting quietly pondering, then
+begantopaintwhenwhatstruckhim? takingabreaktopaintwhenwhatstruckhim?
+=—Wherecouldyoufindatoiletmakerwithaslotunder-
+Wherecouldyoufindatoiletthatonlyfriendscanuse?
+neath?
+Whatissomeonewhoisn’tclever,bright,orcompetent 1.Whyarearen⊠⊠clever,bright,orcompetentcalled?
+called?
+s//?Himwhoisn’tclever,?peculiar,?
+(Doweoftenrefertowhacomesoutaswhat?
+Whenwildlifereproduceweoftenrefertowhatcomesout div2:wereyouawareweoftenrefertowhatcomesoutas
+aswhat? what?
+",.."?
+Bluereadmaterialoutsideofhiscomfortzonebecausehe //Blue read material/ text/ flag/ license/ licensing/ gain
+wantedtogainwhat? what?
+Afterhegothiredhehopedforsuccessathiswhat? /2011-2012-2013.Whoishiswhat?
+ned!?⊠?perjuryisinvolvedhere??
+Committingperjuryisaseriouswhat?
+///committingtest?Nowwhat?
+Thelockkeptthesteeringwheelfrommoving,butthethief =–Maybeonelockkeptthesteeringwheelfrommoving,
+stilltookhischancesandbegantoworkonthewhat? butthethiefstillhadthegun.Ifnot,whatwasit?
+Whoisapoliceofficerlikelytoworkfor? based?Doyouconsiderthemlikelytobesustainable?
+PopRSWhereisasubstitutetoanalreadyterminatedsys-
+Whereisadoormatlikelytobeinfrontof?
+temincomparison?
+Heneededmoreinformationtofixit,soheconsultedthe 1. 13Heneededmoreinformationtofixinformation,but
+what? defactowhat?
+%%%Where can you put a picture frame when it’s not
+Wherecanyouputapictureframewhenit’snothung nesting?
+vertically?
+min"Wherecanyoubeifyourwifeoranyotherobjectis
+hungvertically?
+Whatmustsomeonedobeforetheyshop? ///Howmustsomeoneconducttheirworkdaily?
+Table8: Noisysyntheticdataforthefirst50instancesinCSQA.dataset prompt text
+GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+base_a (0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans
+3
+SENTENCE: GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+base_b QUESTION: Isit(0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans?
+ANSWER: 3
+GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+(0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans
+zero_a
+Theansweris3.
+3
+SENTENCE: GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+CSQA zero_b
+OPTIONS: (0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans
+Theansweris3.
+ANSWER: 3
+Bobsaid,"GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?"
+QUESTION: Isit(0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceansinBob’s
+CFP
+opinion?
+ANSWER: 3
+SENTENCE: GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+QUESTION: Isit(0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans?
+CoT ANSWER: Let’sthinkstepbystep.GoogleMapsandotherhighwayandstreetGPSservices
+helppeoplefindtheirlocationandnavigatestreetsandhighways,andatlasisasoftwarethat
+isdesignedtohelpusersnavigate.Sotheansweris3.
+KNOWLEDGE: Electronicmapsarethemodernversionofpaperatlas.
+INPUT: GoogleMapsandotherhighwayandstreetGPSserviceshavereplacedwhat?
+GKP
+OPTIONS: (0)unitedstates,(1)mexico,(2)countryside,(3)atlas,(4)oceans
+OUTPUT: 3
+Hethoughtaboutwaystoachievethislifegoalforalongtime,whichmeansuntilhelearned
+thebasicsoftextediting,whichhappenedathisfirstjobatafirmtradinginplasticbags
+base_a landfilldisposalpermits.
+Hethoughtaboutwaystoachievehislifegoalsforalongtime.
+1
+SENTENCE1:Hethoughtaboutwaystoachievethislifegoalforalongtime,whichmeans
+untilhelearnedthebasicsoftextediting,whichhappenedathisfirstjobatafirmtradingin
+base_b plasticbagslandfilldisposalpermits.
+SENTENCE2: Hethoughtaboutwaystoachievehislifegoalsforalongtime.
+ANSWER: 1
+Hethoughtaboutwaystoachievethislifegoalforalongtime,whichmeansuntilhelearned
+thebasicsoftextediting,whichhappenedathisfirstjobatafirmtradinginplasticbags
+landfilldisposalpermits.
+zero_a
+Hethoughtaboutwaystoachievehislifegoalsforalongtime.
+Theansweris1.
+1
+SENTENCE1:Hethoughtaboutwaystoachievethislifegoalforalongtime,whichmeans
+MNLI untilhelearnedthebasicsoftextediting,whichhappenedathisfirstjobatafirmtradingin
+plasticbagslandfilldisposalpermits.
+zero_b
+SENTENCE2: Hethoughtaboutwaystoachievehislifegoalsforalongtime.
+Theansweris1.
+ANSWER: 1
+Bobsaid,"sentence1is’Hethoughtaboutwaystoachievethislifegoalforalongtime,
+whichmeansuntilhelearnedthebasicsoftextediting,whichhappenedathisfirstjobata
+firmtradinginplasticbagslandfilldisposalpermits,’andsentence2is’Hethoughtabout
+CFP waystoachievehislifegoalsforalongtime.’"
+QUESTION: Arethetwosentences(0)contradiction,(1)entailment,or(2)neutralinBob’s
+opinion?
+ANSWER: 1
+SENTENCE1:Hethoughtaboutwaystoachievethislifegoalforalongtime,whichmeans
+untilhelearnedthebasicsoftextediting,whichhappenedathisfirstjobatafirmtradingin
+plasticbagslandfilldisposalpermits.
+SENTENCE2: Hethoughtaboutwaystoachievehislifegoalsforalongtime.
+CoTdataset prompt text
+QUESTION: Isthis(0)contradiction,(1)entailment,or(2)neutral?
+ANSWER: Let’sthinkstepbystep.Sentence1statesthathethoughtaboutwaystoachieve
+hislifegoalforalongtime,andthenstatesthathelearnedthebasicsoftexteditingathis
+firstjob.Sentence2statesthathethoughtaboutwaystoachievehislifegoalforalongtime.
+Bothsentencesstatethesamething,sotheansweris1.
+The Federal Bureau of Investigation started an independent probe of the circumstances
+shortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsideredindustrial
+base_a espionageaparticularthreattoUSeconomicinterests.
+PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swellbeing.
+0
+SENTENCE1: The Federal Bureau of Investigation started an independent probe of the
+circumstancesshortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsidered
+industrialespionageaparticularthreattoUSeconomicinterests.
+base_b SENTENCE2:PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swell
+being.
+QUESTION: Arethetwosentences(0)entailment,or(1)not_entailment?
+ANSWER: 0
+The Federal Bureau of Investigation started an independent probe of the circumstances
+shortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsideredindustrial
+espionageaparticularthreattoUSeconomicinterests.
+zero_a
+PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swellbeing.
+Theansweris0.
+0
+SENTENCE1: The Federal Bureau of Investigation started an independent probe of the
+circumstancesshortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsidered
+industrialespionageaparticularthreattoUSeconomicinterests.
+zero_b SENTENCE2:PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swell
+being.
+RTE
+Theansweris0.
+ANSWER: 0
+Bobsaid,"sentence1is’TheFederalBureauofInvestigationstartedanindependentprobe
+ofthecircumstancesshortlyaftertheWhiteHousemadeplainthatPresidentBillClinton
+consideredindustrialespionageaparticularthreattoUSeconomicinterests.’,andsentence2
+CFP
+is’PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swellbeing.’"
+QUESTION: Arethetwosentences(0)entailment,or(1)not_entailmentinBob’sopinion?
+ANSWER: 0
+SENTENCE1: The Federal Bureau of Investigation started an independent probe of the
+circumstancesshortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsidered
+industrialespionageaparticularthreattoUSeconomicinterests.
+SENTENCE2:PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swell
+being.
+CoT
+QUESTION: Arethetwosentences(0)entailment,or(1)not_entailment?
+ANSWER: Let’sthinkstepbystep.ThefirstsentenceprovidesinformationaboutPresident
+Clinton’sbelief,whichdirectlyleadstotheFBIconductinganinvestigation.Therefore,the
+secondsentencenecessarilyfollowstheinformationprovidedinthefirstsentence.Sothe
+answeris0.
+INSTRUCTION:determinewhetherthegivenstatementlogicallyfollowsfromthepreceding
+statement,andtheoutputiseither(0)entailmentifthestatementlogicallyfollows,or(1)
+not_entailmentifthestatementdoesnotlogicallyfollow.
+INPUT: TheFederalBureauofInvestigationstartedanindependentprobeofthecircum-
+APE
+stancesshortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsidered
+industrialespionageaparticularthreattoUSeconomicinterests.
+PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swellbeing.
+OUTPUT: 0
+Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyouwouldn’tturn
+base_a downabigbowlofthat,wouldyou?
+0
+SENTENCE: Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyou
+wouldn’tturndownabigbowlofthat,wouldyou?
+base_b
+QUESTION: Isthis(0)negative,or(1)positive?
+ANSWER: 0
+Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyouwouldn’tturn
+downabigbowlofthat,wouldyou?
+zero_a
+SST2dataset prompt text
+Theansweris0.
+0
+SENTENCE: Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyou
+wouldn’tturndownabigbowlofthat,wouldyou?
+zero_b
+Theansweris0.
+ANSWER: 0
+Bobsaid,"Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyou
+wouldn’tturndownabigbowlofthat,wouldyou?"
+CFP
+QUESTION: Isthis(0)negative,or(1)positiveinBob’sopinion?
+ANSWER: 0
+SENTENCE: Noneofthisismeaningfulormemorable,butfrostingisn’t,either,andyou
+wouldn’tturndownabigbowlofthat,wouldyou?
+QUESTION: Isthis(0)negative,or(1)positive?
+CoT
+ANSWER:Let’sthinkstepbystep."Noneofthisismeaningfulormemorable"suggeststhat
+whateverisbeingreferredtoisnotsignificantornoteworthy,indicatinganegativesentiment.
+Sotheansweris0.
+SENTENCE: SallyandBobhavemadeplanstogoonatripattheendoftheyear.Theyboth
+decidetoworkasbabysittersandsavehalfofwhatthey’veearnedfortheirtrip. IfSally
+base_b makes$6perdayandBobmakes$4perday,howmuchmoneywilltheybothhavesavedfor
+theirtripafterayear?
+ANSWER: 1825
+SENTENCE: SallyandBobhavemadeplanstogoonatripattheendoftheyear.Theyboth
+decidetoworkasbabysittersandsavehalfofwhatthey’veearnedfortheirtrip. IfSally
+zero_b makes$6perdayandBobmakes$4perday,howmuchmoneywilltheybothhavesavedfor
+theirtripafterayear?Theansweris1825.
+GSM8K
+ANSWER: 1825
+SENTENCE: SallyandBobhavemadeplanstogoonatripattheendoftheyear.Theyboth
+decidetoworkasbabysittersandsavehalfofwhatthey’veearnedfortheirtrip. IfSally
+makes$6perdayandBobmakes$4perday,howmuchmoneywilltheybothhavesavedfor
+theirtripafterayear?
+CoT ANSWER: Let’sthinkstepbystep.Salysaves1/2*$6/day=3/day.Sinceeachyearhave
+365days,thetotalamountofmoneySallywillsaveinayearis$3/day*365days/year=
+1095/year.Bobsaves1/2*$4/day=2/day.ThetotalamountofmoneyBobwillhavesaved
+inayearis$2/day*365days/year=730/yearIntotal,SallyandBobwouldhavesaved$730
++$1095=1825.Sotheansweris1825.
+Table9: Examplesofdemonstrationswithdifferentprompts. DemonstrationsforCoLAareexemplifiedinTable1,
+sotheyarenotincludedhere.A.2 MoreonLLaMAresults
+LLaMA2modelswerenotavailablewhenwebeganourexperiments. Asaresult,weconductedourinitial
+experimentsusingLLaMA-7B,LLaMA-13B,andLLaMA-30B(Touvronetal.,2023a). Table10showsa
+comparisonbetweenLLaMA2andLLaMAmodels.
+model accuracy↑ sensitivity↓
+LLaMA2-13B-chat 0.6961 0.1883
+LLaMA2-7B-chat 0.6843 0.1951
+LLaMA-30B 0.6835 0.2324
+LLaMA-13B 0.6177 0.2327
+LLaMA-7B 0.6010 0.2457
+Table10: TheaverageaccuracyandsensitivityofLLaMAmodelsacrossdifferenttasks.
+A.3 Moreoninstruction,chain-of-thought,andknowledge
+Table 11 shows the average performance across different models using base_a and base_b. Table 12
+showsexamplesofCoT_base_a.
+dataset prompt accuracy sensitivity accuracy+/- sensitivity+/-
+base_a 0.4215 0.3317
+CoLA 0.2275 0.1125
+base_b 0.6490 0.2192
+base_a 0.4652 0.4107
+CSQA 0.0235 0.0587
+base_b 0.4887 0.3520
+base_a 0.1317 0.4498
+MNLI 0.3258 0.1405
+base_b 0.4575 0.3094
+base_a 0.2332 0.5120
+RTE 0.3487 0.2763
+base_b 0.5819 0.2357
+base_a 0.3841 0.4198
+SST2 0.3992 0.2318
+base_b 0.7833 0.1880
+Table11: Theaverageaccuracyandsensitivityacrossdifferentmodels,andthedifferencebetweentheaccuracy
+(accuracy+/-)andsensitivity(sensitivity+/-)ofmodelsusingbase_aandbase_b.
+dataset text
+I’mgladIsawanybody.
+CoLA Let’sthinkstepbystep.Thissentenceisungrammaticalbecause“anybody”isusedas
+theobjectinanaffirmativeclause.Sotheansweris0.
+TheFederalBureauofInvestigationstartedanindependentprobeofthecircumstances
+shortlyaftertheWhiteHousemadeplainthatPresidentBillClintonconsideredindus-
+trialespionageaparticularthreattoUSeconomicinterests.
+PresidentClintonthinksthatindustrialespionageisathreattoAmerica’swellbeing.
+RTE
+Let’s think step by step. The first sentence provides information about President
+Clinton’sbelief,whichdirectlyleadstotheFBIconductinganinvestigation.Therefore,
+the second sentence follows the information provided in the first sentence. So the
+answeris0.
+Table12: ExamplesofCoT_base_aforCoLAandRTE.
+A.4 MoreonFlan-T5withzero
+Figure8showstheperformanceofFlan-T5-11Busingthezeroprompts. Flan-T5-11Bfailstooutputa
+numericindexonCSQA,MNLI,andRTEinstancesinmostcases. Table13showstheperformanceof
+Flan-T5modelsusingzero_b. Table14showstheoriginalnumberofinstancesineachdatasetandthe
+numberofinstanceswhereFlan-T5modelsoutputanumericindexusingbase_a.Figure 8: The accuracy and sensitivity of Flan-T5-11B on the full dataset using zero_a and zero_b, and the
+accuracyandsensitivityofFlan-T5-11Boninstanceswhereitoutputsanumericindexaswhatisexemplifiedinthe
+prompt. #instancesshowsthenumberofinstancesinadataset(#instances (original))andthenumberof
+instanceswhereFlan-T5-11Boutputsanumericindex(with numeric outputs).
+accuracy↑ sensitivity↓
+dataset
+Flan-T5-11B Flan-T5-770M Flan-T5-11B Flan-T5-770M
+CoLA 0.9620 0.4307 0.0467 0.3970
+CSQA 0.3090 0.7833 0.2668 0.3516
+MNLI 0.7787 0.2397 0.1659 0.4619
+RTE 0.6498 0.1264 0.2366 0.4864
+SST2 0.9881 0.3612 0.0203 0.3624
+AVERAGE 0.7375 0.3883 0.1473 0.4119
+Table13: TheaccuracyandsensitivityofFlan-T5-11BandFlan-T5-770Mondifferenttaskswithzero_b. Flan-T5-
+11BreachescomparableperformancetoGPTandLLaMAmodelsonlyonCoLAandSST2.
+#numeric
+dataset #original
+Flan-T5-11B Flan-T5-770M
+CoLA 527 496 495
+CSQA 1220 806 1218
+MNLI 1000 639 924
+RTE 277 169 208
+SST2 872 848 497
+Table14: Theoriginalnumberofinstancesineachdataset(#original)andthenumberofinstanceswhereFlan-T5-
+11BandFlan-T5-770Moutputanumericindexusingbase_a(#numeric).A.5 Moreonopen-endedgeneration
+GSM8Kisanarithmeticreasoningtaskinwhichtheoutputsarenumbers(Cobbeetal.,2021):
+QUESTION: SallyandBobhavemadeplanstogoonatripattheendoftheyear. Theybothdecidetoworkas
+babysittersandsavehalfofwhatthey’veearnedfortheirtrip.IfSallymakes$6perdayandBobmakes$4perday,
+howmuchmoneywilltheybothhavesavedfortheirtripafterayear?
+ANSWER: 1825
+SeeTable9inA.1formoreexamples. Table15showstheperformanceofLLaMA2-13B-chatandFlan-
+T5-11BonGSM8K.Thereisalsoanegativecorrelationbetweenaccuracyandsensitivityinopen-ended
+generation. Note that Flan-T5-11B again fails to perform using zero_b, which is consistent with the
+resultsinSection4.2.
+model prompt accuracy↑ sensitivity↓
+base_b 0.0612 0.6226
+LLaMA2-13B-chat zero_b 0.9007 0.0015
+CoT 0.2570 0.6115
+base_b 0.0425 0.6635
+Flan-T5-11B zero_b 0.5868 0.2802
+CoT 0.1208 0.6779
+Table15: TheaccuracyandsensitivityofLLaMA2-13B-chatandFlan-T5-11BonGSM8K.
+A.6 Moreongradient-basedsaliencyscores
+Figure9showexamplesoftokensegmentationforinstanceswithzero_bandCFP.Figure10showsthe
+saliency scores over input tokens of CoLA and CSQA instances with zero_b, CFP, and GKP. Table 16
+showstheaveragemeansaliencyscoresofinputtokensandprompttokens,calculatedusingGPT-JT-6B,
+GPT-J-6B, Flan-T5-770M, and T5-770M. Table 17 shows the average mean saliency scores of input
+tokensandgroundtruthtokens(i.e.,tokensin“Theansweris[].”) ofinstanceswithzero_b.
+(a)zero_b (b)CFP
+Figure9: Examplesoftokensegmentationinzero_bandCFP.
+(a)zero_b
+(b)CFP
+(c)GKP
+Figure10: Saliencyscoresoverinputtokensofthe5CoLAandCSQAinstanceswithzero_b,CFP,andGKPusing
+GPT-6B-JT.dataset prompt S S S /S dataset prompt S S S /S
+i p i p i p i p
+base_b 4.17 12.74 32.73 base_b 2.93 8.32 35.22
+CoLA zero_b 7.65 23.66 32.33 CoLA zero_b 4.08 14.34 28.45
+CFP 3.75 11.43 32.81 CFP 2.98 8.35 35.69
+base_b 2.68 7.41 36.17 base_b 1.82 5.01 36.33
+CSQA zero_b 2.25 8.02 28.05 CSQA zero_b 1.44 4.41 32.65
+CFP 2.37 7.06 33.57 CFP 1.91 4.64 41.16
+base_b 3.10 12.79 24.24 base_b 2.82 9.86 28.60
+MNLI zero_b 3.61 17.18 21.01 MNLI zero_b 2.21 10.04 22.01
+CFP 1.68 6.71 25.04 CFP 1.33 5.20 25.58
+base_b 1.95 9.48 20.57 base_b 1.39 6.63 20.97
+RTE zero_b 3.22 18.95 16.99 RTE zero_b 2.01 10.94 18.37
+CFP 1.53 7.32 20.90 CFP 1.08 5.70 18.95
+base_b 3.09 12.59 24.54 base_b 2.31 8.13 28.41
+SST2 zero_b 4.99 22.32 22.36 SST2 zero_b 3.46 15.23 22.72
+CFP 2.77 10.70 25.89 CFP 2.19 6.64 32.98
+AVERAGE - 3.25 12.56 26.48 AVERAGE - 2.26 8.23 28.54
+(a)GPT-JT-6B (b)GPT-J-6B
+dataset prompt S S S /S dataset prompt S S S /S
+i p i p i p i p
+CoLA zero_b 7.31 21.83 33.50 CoLA zero_b 9.56 14.52 65.84
+CSQA zero_b 6.03 10.27 58.69 CSQA zero_b 9.58 10.66 89.93
+MNLI zero_b 8.97 26.15 34.29 MNLI zero_b 8.33 11.75 70.89
+RTE zero_b 6.32 24.81 25.45 RTE zero_b 6.49 12.94 50.17
+SST2 zero_b 6.71 24.04 27.91 SST2 zero_b 7.54 10.44 72.23
+AVERAGE - 7.07 21.42 35.97 AVERAGE - 8.30 12.06 69.81
+(c)Flan-T5-770M (d)T5-770M
+Table16: Theaveragemeansaliencyscoresofinputtokens(S ),prompttokens(S ),andtheratiobetweenthem
+i p
+(S /S ).
+i p
+S S S /S
+dataset i t i t
+GPT-JT-6B Flan-T5-770M GPT-JT-6B Flan-T5-770M GPT-JT-6B Flan-T5-770M
+CoLA 7.65 7.31 12.82 17.12 59.67 42.72
+CSQA 2.25 6.03 13.50 11.60 16.67 51.98
+MNLI 3.61 8.97 13.29 23.94 27.16 37.46
+RTE 3.22 6.32 14.63 22.74 22.01 27.77
+SST2 4.99 6.71 12.60 17.30 39.60 38.79
+AVERAGE 3.25 7.07 13.37 18.54 24.34 38.12
+Table17: Theaveragemeansaliencyscoresofinputtokens(S ),tokensin“Theansweris[].” (S ),andtheratio
+i t
+betweenthem(S /S )ofinstanceswithzero_b.
+i tA.7 Moreonsensitivity-awaredecoding
+Figure11,12,and13showtheperformanceofGPT-JT-6B,LLaMA2-13B-chat,LLaMA2-7B-chat,Flan-
+T5-11B,andFlan-T5-770Musingbase_a,base_b,andCFPwithgreedydecodingandsensitivity-aware
+decoding. Weexperimentedwithdifferentvaluesofα,rangingfrom0.1to0.9. Wedidfiveinferencesto
+estimatesensitivity,sothecomputationalcostsarefivetimeshigherthanthoseofgreedydecoding,which
+onlyinvolvesasingleinference.
+Figure11: Accuracy(%)ofGPT-JT-6Busingbase_a,base_b,andCFPwithgreedydecodingandsensitivity-aware
+decoding(sad).Figure12: Accuracy(%)ofLLaMA2-13B-chatandLLaMA2-7B-chatusingbase_a,base_b,andCFPwithgreedy
+decodingandsensitivity-awaredecoding(sad).Figure13: Accuracy(%)ofFlan-T5-11BandFlan-T5-770Musingbase_a,base_b,andCFPwithgreedydecoding
+andsensitivity-awaredecoding(sad).

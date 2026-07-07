@@ -1,0 +1,15 @@
+
+{
+  "concepts": [
+    {
+      "term": "Autopoiesis",
+      "definition": "Self-creating and self-maintaining systems that reproduce their own components while maintaining structural integrity.",
+      "domain": "systems_theory"
+    },
+    {
+      "term": "Cognitive Load",
+      "definition": "The amount of mental effort used in working memory during learning and problem-solving tasks.",
+      "domain": "psychology"
+    }
+  ]
+}

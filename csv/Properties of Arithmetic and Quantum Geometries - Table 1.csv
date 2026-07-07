@@ -1,0 +1,10 @@
+Geometric System,Domain Type,Effective Spectral Dimension (Inferred),Operator Type,Scaling Behavior,Key Observables,Source,,
+Quantum Toric Geometry / Crystals,Noncommutative spacetime,"0.25, 1.0, 2.0, 3.0, or 4.0","Bi-Laplacian, Hamiltonian, or self-adjoint connections","$t^{-1/4}$ ,  $t^{-1/2}$ ,  $t^{-1}$ , or  $O(p)$  growth","Topological charge, heat trace, entropy, spectral gap, and Donaldson-Thomas invariants","1, 2, 3, 4, 5, 6, 7, 8",,
+Spectral Geometry of the Primes,Prime numbers,0.5 (1/2),"Bi-Laplacian, Hamiltonian, or self-adjoint connections","$t^{-1/4}$ ,  $t^{-1/2}$ , or logarithmic scaling","Heat trace, entropy, topological charge, and Riemann zeta zeros","1, 2, 4, 9, 10, 11, 7, 8, 12",,
+Quantum Toric Geometry (Twisted Hilbert Scale),Noncommutative spacetime,1.0,Canonical diagonal operator  $\tilde{A}$  (Fredholm),Heat trace  $\text{Tr}(e^{-t\,\tilde{A}\,^2}) \sim 1/\sqrt{\pi t}$,"Zeta-regularized determinant, spectral flow, and heat trace",9
+Noncommutative Two-Torus (Quantum Toric),Noncommutative spacetime,2.0,Flat Dirac operator,Heat-kernel asymptotics consistent with ordinary torus,"Metric dimension, heat-kernel asymptotics, and quantum metric",13,,
+Spectral Geometry of the Primes (Accelerated-Growth Class),Prime numbers,2.0,Superlinear elliptic operator,$t^{-1} L(1/t)$,Eigenvalue counting law,8,,
+Precedent-Current-Forthcoming (PCF) Framework,Manifolds,3.0,Hermitian Hilbert-Pólya-type operator,Tripartite norm-based scaling,Spectral product (modular sum) and common modulus,"7, 14",,
+Hyperbolic 3-Manifolds,Manifolds,3.0,Laplace-Beltrami operator,Eigenvalue growth constrained by spectral gaps,"Laplace eigenvalues, spectral gaps, and triple product coefficients",13,,
+Spectral Deligne-Mumford Stacks,Manifolds / Non-localic stacks,Dependent on  $n$ -truncation,Hamiltonian / Derived elliptic curve operators,Postnikov tower convergence,Elliptic cohomology and oriented elliptic curves,1,,
+Fuzzy Spectral Triples,Noncommutative spacetime,Not in source,Finite dimensional Dirac matrix,Super-exponential spectrum decay,Spectral dimension  $d_s(t)$  and spectral variance  $v_s(t)$,13,,

@@ -1,0 +1,538 @@
+P-Tuning: Prompt Tuning Can Be
+Comparable to Fine-tuning Across Scales and Tasks
+XiaoLiu1,2∗,KaixuanJi1∗,YichengFu1∗,WengLamTam1,ZhengxiaoDu1,2,
+ZhilinYang1,3†,JieTang1,2†
+1TsinghuaUniversity,KEG 2BeijingAcademyofArtificialIntelligence(BAAI)
+3ShanghaiQiZhiInstitute
+{liuxiao21,jkx19,fyc19}@mails.tsinghua.edu.cn
+Abstract
+Fine-tuning PrLoemstpetr T eutn ainlg. & P-tuning P-tuning v2
+Prompt tuning, which only tunes continuous
+90
+prompts with a frozen language model, sub-
+80
+stantially reduces per-task storage and mem- 70
+ory usage at training. However, in the con- 60
+text of NLU, prior work reveals that prompt 50
+330M 2B 10B
+tuningdoesnotperformwellfornormal-sized
+pretrainedmodels. Wealsofindthatexisting
+Figure 1: Average scores on RTE, BoolQ and CB of
+methodsofprompttuningcannothandlehard
+SuperGLUEdev. With0.1%task-specificparameters,
+sequence labeling tasks, indicating a lack of
+P-tuningv2canmatchfine-tuningacrosswidescales
+universality. Wepresentanovelempiricalfind-
+ofpre-trainedmodels,whileLesteretal.(2021)&P-
+ingthatproperlyoptimizedprompttuningcan
+tuningcanmakeitconditionallyat10Bscale.
+beuniversallyeffectiveacrossawiderangeof
+modelscalesandNLUtasks.Itmatchestheper- et al., 2020). For example, for sentiment analy-
+formanceoffinetuningwhilehavingonly0.1%-
+sis,wecanconcatenateasample(e.g.,"Amazing
+3% tuned parameters. Our method P-Tuning
+movie!")withaprompt“Thismovieis[MASK]”
+v2isanimplementationofDeepPromptTun-
+andaskthepre-trainedlanguagemodeltopredict
+ing(LiandLiang,2021;QinandEisner,2021)
+theprobabilitiesofmaskedtokenbeing“good”and
+optimizedandadaptedforNLU.Giventheuni-
+versalityandsimplicityofP-Tuningv2,webe- “bad”todecidethesample’slabel. Promptingre-
+lieveitcanserveasanalternativetofinetuning quiresnotrainingatallandstoresonesinglecopy
+andastrongbaselineforfutureresearch.1 of model parameters. However, discrete prompt-
+ing(Shinetal.,2020;Gaoetal.,2020)canleadto
+1 Introduction
+suboptimalperformanceinmanycasescompared
+Pretrainedlanguagemodels(Radfordetal.,2019; tofine-tuning.
+Devlinetal.,2018;Yangetal.,2019;Raffeletal., Prompt tuning2 is an idea of tuning only the
+2019) improve performance on a wide range of continuousprompts. Specifically,Liuetal.(2021);
+natural language understanding (NLU) tasks. A Lester et al. (2021) proposed to add trainable
+widely-usedmethod,fine-tuning,updatestheen- continuous embeddings (also called continuous
+tire set of model parameters for a target task. prompts) to the original sequence of input word
+Whilefine-tuningobtainsgoodperformance,itis embeddings. Onlythecontinuouspromptsareup-
+memory-consumingduringtrainingbecausegradi- dated during training. While prompt tuning im-
+entsandoptimizerstatesforallparametersmustbe proves over prompting on many tasks (Liu et al.,
+stored. Moreover,keepingacopyofmodelparam- 2021;Lesteretal.,2021;Zhongetal.,2021),itstill
+etersforeachtaskduringinferenceisinconvenient underperformsfine-tuningwhenthemodelsizeis
+sincepre-trainedmodelsareusuallylarge. notlarge,specificallylessthan10billionparame-
+Prompting,ontheotherhand,freezesallparam- ters (Lester et al., 2021). Moreover, as shown in
+etersofapre-trainedmodelandusesanaturallan- our experiments, prompt tuning performs poorly
+guageprompttoqueryalanguagemodel(Brown comparedtofine-tuningonseveralhardsequence
+† correspondingto: ZhilinYang(zhiliny@tsinghua.edu.cn) labelingtaskssuchasextractivequestionanswer-
+andJieTang(jietang@tsinghua.edu.cn) ing(Cf. Section4.2).
+∗indicatesequalcontribution.
+1Our code and data are released at https://github. 2Weuse“prompttuning”torefertoaclassofmethodsrather
+com/THUDM/P-tuning-v2. thanaparticularmethod.
+61
+Proceedingsofthe60thAnnualMeetingoftheAssociationforComputationalLinguistics
+Volume2:ShortPapers,pages61-68
+May22-27,2022(cid:13)c2022AssociationforComputationalLinguisticsOur main contribution in this paper is a novel ple, given the input text x ="Amazing movie!",
+empiricalfindingthatproperlyoptimizedprompt the input embedding sequence is formulated as
+tuningcanbecomparabletofine-tuninguniversally [e(x),e("It"),e("is"),e("[MASK]")].
+acrossvariousmodelscalesandNLUtasks. Incon- Lester et al. (2021) and Liu et al. (2021) in-
+trast to observations in prior work, our discovery troduce trainable continuous prompts as a sub-
+reveals the universality and potential of prompt stitution to natural language prompts for NLU
+tuningforNLU. with the parameters of pretrained language mod-
+Technically,ourapproachP-tuningv2isnotcon- elsfrozen. Giventhetrainablecontinuousembed-
+ceptuallynovel. Itcanbeviewedasanoptimized dings [h ,...,h ], the input embedding sequence
+0 i
+andadaptedimplementationofDeepPromptTun- iswrittenas[e(x),h ,...,h ,e("[MASK]")],asil-
+0 i
+ing (Li and Liang, 2021; Qin and Eisner, 2021) lustrated in Figure 2. Prompt tuning has been
+designed for generation and knowledge probing. proved to be comparable to fine-tuning on 10-
+Themostsignificantimprovementoriginatesfrom billion-parametermodelsonsimpleclassification
+applingcontinuouspromptsforeverylayerofthe tasks (Lester et al., 2021; Kim et al., 2021; Liu
+pretrainedmodel,insteadofthemereinputlayer. etal.,2021).
+Deepprompttuningincreasesthecapacityofcon-
+tinuouspromptsandclosesthegaptofine-tuning 3 P-Tuningv2
+acrossvarioussettings,especiallyforsmallmodels
+3.1 LackofUniversality
+and hard tasks. Moreover, we present a series of
+criticaldetailsofoptimizationandimplementation Lester et al. (2021); Liu et al. (2021) have been
+toensurefinetuning-comparableperformance. proved quite effective in many NLP applica-
+Experimental results show that P-tuning v2 tions (Wang et al., 2021a,b; Chen et al., 2021;
+matches the performance of fine-tuning at differ- Zhengetal.,2021;Minetal.,2021),butstillfall
+ent model scales ranging from 300M to 10B pa- shortatreplacingfine-tuningduetolackofuniver-
+rameters and on various hard sequence tagging sality,asdiscussedbelow.
+tasks such as extractive question answering and
+Lack of universality across scales. Lester et al.
+named entity recognition. P-tuning v2 has 0.1%
+(2021)showsthatprompttuningcanbecomparable
+to 3% trainable parameters per task compared to
+tofine-tuningwhenthemodelscalestoover10bil-
+fine-tuning, which substantially reduces training
+lionparameters. However,formedium-sizedmod-
+timememorycostandper-taskstoragecost.
+els(from100Mto1B)thatarewidelyused,prompt
+tuningperformsmuchworsethanfine-tuning.
+2 Preliminaries
+Lackofuniversalityacrosstasks. ThoughLester
+NLU Tasks. In this work, we categorize NLU etal.(2021);Liuetal.(2021)haveshownsuperior-
+challengesintotwofamilies: simpleclassification ityonsomeoftheNLUbenchmarks,theeffective-
+tasks and hard sequence labeling tasks.3 Simple ness of prompt tuning on hard sequence tagging
+classificationtasksinvolveclassificationoverala- tasksisnotverified. Sequencetaggingpredictsase-
+belspace. MostdatasetsfromGLUE(Wangetal., quenceoflabelsforeachinputtoken,whichcanbe
+2018)andSuperGLUE(Wangetal.,2019)arein harderandincompatiblewithverbalizers(Schick
+thiscategory. Hardsequencelabelingtasksinvolve andSchütze,2020). Inourexperiments(Cf. Sec-
+classification over a sequence of tokens, such as tion 4.2 and Table 3), we show that Lester et al.
+named entity recognition and extractive question (2021);Liuetal.(2021)performpoorlyontypical
+answering. sequencetaggingtaskscomparedtofine-tuning.
+Prompt Tuning. Let V be the vocabulary of Considering these challenges, we propose P-
+a language model M and let e be the em- tuning v2, which adapts deep prompt tuning (Li
+bedding layer of M. In the case of discrete and Liang, 2021; Qin and Eisner, 2021) as a uni-
+prompting (Schick and Schütze, 2020), prompt versalsolutionacrossscalesandNLUtasks.
+tokens {"It", "is", "[MASK]"} ⊂ V can be
+3.2 DeepPromptTuning
+used to classify a movie review. For exam-
+In(Lesteretal.,2021)and(Liuetal.,2021),con-
+3Notethatthenotionsof“simple”and“hard”arespecificto
+tinuous prompts are only inserted into the input
+prompttuning,becausewefindsequencelabelingtasksare
+morechallengingforprompttuning. embeddingsequence(Cf. Figure2(a)). Thisleads
+62Optimization Optimization
+Prompt Encoder (Optional) Reparameterization (Optional)
+[CLS] Amazing movie ! [MASK] [CLS] Amazing movie !
+e([CLS]) e(Amazing) e(moive) e(!) h 0 … h i e([MASK]) … e([CLS]) e(Amazing) e(moive) e(!)
+<<<<llllaaaatttteeeexxxxiiiitttt sssshhhhaaaa1111____bbbbaaaasssseeee66664444====""""XXXXIIIIhhhhppppnnnn8888OOOOxxxxNNNNUUUUvvvvhhhhZZZZRRRRMMMM6666eeee2222EEEEnnnnUUUUbbbbWWWWVVVV7777ttttUUUU===="""">>>>AAAAAAAAAAAACCCCxxxxnnnniiiiccccjjjjVVVVHHHHLLLLSSSSssssNNNNAAAAFFFFDDDD2222NNNNrrrr1111ppppffffVVVVZZZZdddduuuuggggkkkkVVVVwwwwVVVVRRRRIIIIRRRRddddFFFFllll000000002222VVVVFFFF2222wwwwqqqq1111llllCCCCSSSSddddttttkkkkPPPPzzzzYYYYjjjjJJJJRRRRSSSShhhhHHHH8888AAAAbbbbffff6666aaaaeeeeIIIIffff6666FFFF99994444ZZZZ5555yyyyCCCCWWWWkkkkQQQQnnnnJJJJDDDDllllzzzz7777jjjj1111nnnn5555tttt7777rrrrppppyyyyHHHHPPPPppppOOOOOOOO8888FFFFqqqqyyyyFFFFxxxxaaaaXXXXlllllllleeeeJJJJqqqqaaaaWWWW11119999YYYY3333OOOOrrrrvvvvLLLL3333TTTTyyyyppppJJJJccccBBBBKKKKwwwwZZZZJJJJGGGGEEEEiiiirrrrnnnn0000vvvvYYYYyyyyGGGGPPPPWWWWVVVVNNNNyyyyGGGGbbbbLLLLrrrrVVVVDDDDAAAAvvvv8888kkkkPPPPWWWW9999ssssffffnnnnKKKKtttt6666++++ZZZZSSSSLLLLjjjjSSSSXXXXwwwwllllJJJJyyyynnnnrrrrRRRRtttt4444wwww5555ggggMMMMeeeeeeeeJJJJKKKKooooyyyy1111HHHHPPPP6666ZZZZUUUUrrrrTTTTttttXXXXRRRRyyyy55554444HHHHrrrrggggEEEEVVVVmmmmNNNNVVVVIIIIyyyyiiii++++4444QQQQRRRR8888JJJJAAAAuuuuSSSSIIIIwwwwBBBBBBBBDDDDEEEEgggg7777hhhhIIIIaaaaOOOOnnnnAAAAxxxxccccOOOOUUUUuuuuKKKK6666mmmmBBBBIIIInnnnCCCCHHHHEEEEddddZZZZ7777hhhhHHHHiiiibbbbQQQQ5555ZZZZTTTTHHHHKKKK8888IIIIggggdddd00003333ddddIIIIuuuu44445555hhhhYYYY9999oooorrrrzzzz0000yyyyrrrrAAAAzzzzoooollllppppFFFFeeeeQQQQ0000ssssYYYYBBBBaaaaRRRRLLLLKKKKEEEE4444TTTTVVVVaaaabbbbaaaaOOOO55559999ppppZZZZssssbbbb99995555TTTT7777WWWWnnnnuuuuttttuuuuEEEE////rrrr7777xxxxiiiiooooiiiiVVVVGGGGBBBBHHHH7777llll22226666WWWW++++VVVV++++ddddqqqqkkkkVVVViiiiggggFFFFNNNNddddAAAA6666eeeeaaaaUUUUssss2222oooo6666ggggLLLLjjjjkkkkuuuuuuuuuuuuqqqqJJJJvvvvbbbbXXXX6666qqqqSSSS5555JJJJAAAASSSSpppp3333CCCCffff4444ooooJJJJwwwwooooJJJJWWWWzzzzPPPPttttttttaaaakkkk++++nnnnaaaaVVVVWWWW88889999HHHHXXXX////TTTTmmmmYYYYppppVVVV++++8888DDDDkkkk5555nnnnhhhhXXXXtttt6666QQQQBBBBuuuuzzzz////HHHHOOOOQQQQ9999aaaaRRRR1111XXXXXXXXqqqqbbbbooooXXXXxxxx5555XXXXaaaammmmRRRRllll1111EEEEXXXXvvvvYYYYxxxxyyyyHHHHNNNN8888wwwwQQQQ11111111NNNNFFFFAAAAkkkk7777yyyyHHHHeeeeMMMMQQQQTTTTnnnnqqqq22226666FFFFVVVVuuuu5555ddddffffeeeeZZZZaaaahhhhWWWWMMMMZZZZhhhhffffffffllllvvvvXXXXwwwwAAAAeeeeVVVV8888kkkkBBBBAAAA====<<<<////llllaaaatttteeeexxxxiiiitttt>>>> … <<<<llllaaaatttteeeexxxxiiiitttt sssshhhhaaaa1111____bbbbaaaasssseeee66664444====""""nnnnWWWWnnnnmmmmffffxxxxjjjj2222cccc++++WWWWFFFFYYYY4444VVVVaaaammmmCCCC6666wwwwCCCC00003333++++UUUUxxxx4444===="""">>>>AAAAAAAAAAAACCCCxxxxnnnniiiiccccjjjjVVVVHHHHLLLLSSSSssssNNNNAAAAFFFFDDDD2222NNNNrrrr1111ppppffffVVVVZZZZdddduuuuggggkkkkVVVVwwwwVVVVRRRRIIIIRRRRddddFFFFllll000000002222VVVVFFFF2222wwwwqqqq1111llllCCCCSSSSddddttttkkkkPPPPzzzzYYYYjjjjJJJJRRRRSSSShhhhHHHH8888AAAAbbbbffff6666aaaaeeeeIIIIffff6666FFFF99994444ZZZZ5555yyyyCCCCWWWWkkkkQQQQnnnnJJJJDDDDllllzzzz7777jjjj1111nnnn5555tttt7777rrrrppppyyyyHHHHPPPPppppOOOOOOOO8888FFFFqqqqyyyyFFFFxxxxaaaaXXXXlllllllleeeeJJJJqqqqaaaaWWWW11119999YYYY3333OOOOrrrrvvvvLLLL3333TTTTyyyyppppJJJJccccBBBBKKKKwwwwZZZZJJJJGGGGEEEEiiiirrrrnnnn0000vvvvYYYYyyyyGGGGPPPPWWWWVVVVNNNNyyyyGGGGbbbbLLLLrrrrVVVVDDDDAAAAvvvv8888kkkkPPPPWWWW9999ssssffffnnnnKKKKtttt6666++++ZZZZSSSSLLLLjjjjSSSSXXXXwwwwllllJJJJyyyynnnnrrrrRRRRtttt4444wwww5555ggggMMMMeeeeeeeeJJJJKKKKooooyyyy1111GGGGPPPP99998888ooooVVVVpppp++++rrrrooooZZZZcccc8888DDDD11114444AAAAKKKKzzzzGGGGooookkkk5555RRRRffffccccooooIIII8888EEEEAAAAXXXXJJJJEEEEYYYYIIIIgggghhhhCCCCYYYYffffwwwwkkkkNNNNHHHHTTTTggggQQQQssssHHHHKKKKXXXXFFFFddddTTTTIIIIkkkkTTTThhhhLLLLiiiiOOOOMMMM9999yyyyjjjjRRRRNNNNqqqqccccsssshhhhhhhhlllleeeeMMMMSSSSOOOO6666TTTTuuuukkkkXXXXcccceeeewwwwMMMMeeee2222VVVVZZZZ6666bbbbVVVVAAAAZZZZ0000SSSS0000iiiittttIIIIaaaaeeeeOOOOAAAANNNNAAAAnnnnllllCCCCccccLLLLqqqqNNNNFFFFvvvvHHHHcccc++++2222ssss2222NNNN++++8888pppp9999ppppTTTT3333WWWW1111CCCCffff999999994444RRRRccccRRRRKKKKjjjjIIIIjjjj9999SSSSzzzzffffLLLL////KKKK9999OOOO1111SSSSIIIIxxxxwwwwKKKKmmmmuuuuggggVVVVNNNNNNNNqqqqWWWWZZZZUUUUddddYYYYFFFFxxxxyyyyXXXXVVVVXXXX1111MMMM3333ttttLLLL1111VVVVJJJJcccckkkkiiiiJJJJUUUU7777hhhhPPPPccccUUUUEEEE44440000MMMMppppZZZZnnnn22222222ttttyyyyXXXXTTTTttttqqqqrrrreeeeeeeejjjjrrrr////ppppTTTTMMMMWWWWqqqqffffWWWWBBBByyyycccc7777yyyyrrrrWWWW9999KKKKAAAA3333ZZZZ////jjjjnnnnAAAAeeeettttoooo6666rrrrrrrrVVVVNNNN2222LLLL44440000rrrrttttzzzzIIIIyyyy6666iiiiDDDD3333ssss44445555DDDDmmmmeeeeYYYYIIIIaaaa6666mmmmiiiiggggSSSSdddd5555DDDDPPPPOOOOIIIIJJJJzzzz1111bbbbddddiiiiqqqq3333ccccuuuuvvvvttttMMMMttttQQQQppppGGGGssss4444ttttvvvvyyyy3333rrrr4444AAAAGGGGzzzzrrrrkkkkEEEEkkkk====<<<<////llllaaaatttteeeexxxxiiiitttt>>>> Layer1 Prompts …
+… … T …ransfo …rmers … … … … Layer2 … Prompts … … … T …ransforme …rs … …
+… …
+LayerN Prompts
+Verbalizer (with LM head) Class Label (with linear head)
+(a) Lester et al. & P-tuning (Frozen, 10-billion-scale, simple tasks) (b) P-tuning v2 (Frozen, most scales, most tasks)
+Figure2: FromLesteretal.(2021)&P-tuningtoP-tuningv2. Orangeblocks(i.e.,h ,...,h )refertotrainable
+0 i
+promptembeddings;blueblocksareembeddingsstoredorcomputedbyfrozenpre-trainedlanguagemodels.
+to two challenges. First, the number of tunable Re- DeepMulti- No
+Method Task
+parametersislimitedduetotheconstraintsofse- param. PT task verb.
+quencelength. Second,theinputembeddingshave P-tuning KP
+LSTM - - -
+(Liuetal.,2021) NLU
+relativelyindirectimpactonmodelpredictions.
+To address these challenges, P-tuning v2 em- PROMPTTUNING NLU - - ✓ -
+(Lesteretal.,2021)
+ploystheideaofdeepprompttuning(LiandLiang,
+PrefixTuning
+2021;QinandEisner,2021). AsillustratedinFig- NLG MLP ✓ - -
+(LiandLiang,2021)
+ure2,promptsindifferentlayersareaddedaspre-
+fix tokens. On one hand, P-tuning v2 have more
+SOFTPROMPTS
+KP - ✓ - -
+(QinandEisner,2021)
+tunable task-specific parameters (from 0.01% to
+P-tuningv2 NLU
+0.1%-3%)toallowmoreper-taskcapacitywhilebe- (Ours) SeqTag(depends) ✓ ✓ ✓
+ingparameter-efficient;ontheotherhand,prompts
+addedtodeeperlayershavemoredirectimpacton Table1: ConceptualcomparisonbetweenP-tuningv2
+modelpredictions(seeanalysisinAppendixB). and existing Prompt Tuning approaches (KP: Knowl-
+edge Probe; SeqTag: Sequence Tagging; Re-param.:
+Reparameterization;Noverb.: Noverbalizer).
+3.3 OptimizationandImplementation
+Thereareafewusefuldetailsofoptimizationand
+usedforfurtherboostperformancebyprovidinga
+implementationforachievingthebestperformance.
+betterinitialization(Guetal.,2021).
+Reparameterization. Priorworksusuallyleverage
+ClassificationHead. Usingalanguagemodeling
+areparameterizationencodersuchasanMLP(Li
+head to predict verbalizers (Schick and Schütze,
+andLiang,2021;Liuetal.,2021)totransformtrain-
+2020)hasbeencentralforprompttuning(Liuetal.,
+ableembeddings. However,forNLU,wediscover
+2021), but we find it unnecessary in a full-data
+that its usefulness depends on tasks and datasets.
+setting and incompatible with sequence labeling.
+Forsomedatasets(e.g.,RTEandCoNLL04),MLP
+P-tuningv2insteadappliesarandomly-initialized
+brings a consistent improvement; for the others,
+classificationheadontopofthetokensasinBERT
+MLPleadstominimalorevennegativeeffectson
+(Devlinetal.,2018)(Cf. Figure2).
+the results (e.g., BoolQ and CoNLL12). See Ap-
+ToclarifyP-tuningv2’smajorcontribution,we
+pendixBformoreanalysis.
+presentaconceptualcomparisontoexistingprompt
+Prompt Length. The prompt length plays a crit-
+tuningapproachesinTable1.
+ical role in P-Tuning v2. We find that different
+NLUtasksusuallyachievetheirbestperformance 4 Experiments
+with different prompt lengths (Cf. Appendix B).
+We conduct extensive experiments over different
+Generally,simpleclassificationtasksprefershorter
+commonly-usedpre-trainedmodelsandNLUtasks
+prompts (less than 20); hard sequence labeling
+to verify the effectiveness of P-tuning v2. In this
+taskspreferlongerones(around100).
+work, all methods except for fine-tuning are con-
+Multi-taskLearning. Multi-tasklearningjointly ducted with frozen language model backbones,
+optimizes multiple tasks with shared continuous which accords with (Lester et al., 2021)’s setting
+prompts before fine-tuning for individual tasks. but differs from (Liu et al., 2021)’s tuned setting.
+Multi-taskisoptionalforP-Tuningv2butcanbe Ratiosoftask-specificparameters(e.g.,0.1%)are
+63BoolQ CB COPA MultiRC(F1a)
+#Size
+FT PT PT-2 FT PT PT-2 FT PT PT-2 FT PT PT-2
+BERT 335M 77.7 67.2 75.8 94.6 80.4 94.6 69.0 55.0 73.0 70.5 59.6 70.6
+large
+RoBERTa 355M 86.9 62.3 84.8 98.2 71.4 100 94.0 63.0 93.0 85.7 59.9 82.5
+large
+GLM 2B 88.3 79.7 87.0 96.4 76.4 96.4 93.0 92.0 91.0 84.1 77.5 84.4
+xlarge
+GLM 10B 88.7 88.8 88.8 98.7 98.2 96.4 98.0 98.0 98.0 88.1 86.1 88.1
+xxlarge
+ReCoRD(F1) RTE WiC WSC
+#Size
+FT PT PT-2 FT PT PT-2 FT PT PT-2 FT PT PT-2
+BERT 335M 70.6 44.2 72.8 70.4 53.5 78.3 74.9 63.0 75.1 68.3 64.4 68.3
+large
+RoBERTa 355M 89.0 46.3 89.3 86.6 58.8 89.5 75.6 56.9 73.4 63.5 64.4 63.5
+large
+GLM 2B 91.8 82.7 91.9 90.3 85.6 90.3 74.1 71.0 72.0 95.2 87.5 92.3
+xlarge
+GLM 10B 94.4 87.8 92.5 93.1 89.9 93.1 75.7 71.8 74.0 95.2 94.2 93.3
+xxlarge
+Table 2: Results on SuperGLUE development set. P-tuning v2 significantly surpasses P-tuning & Lester et al.
+(2021)onmodelssmallerthan10B,andmatchestheperformanceoffine-tuningacrossdifferentmodelscales. (FT:
+fine-tuning;PT:Lesteretal.(2021)&P-tuning;PT-2: P-tuningv2;bold: thebest;underline: thesecondbest).
+CoNLL03 OntoNotes5.0 CoNLL04
+#Size
+FT PT PT-2 MPT-2 FT PT PT-2 MPT-2 FT PT PT-2 MPT-2
+BERT 335M 92.8 81.9 90.2 91.0 89.2 74.6 86.4 86.3 85.6 73.6 84.5 86.6
+large
+RoBERTa 355M 92.6 86.1 92.8 92.8 89.8 80.8 89.8 89.8 88.8 76.2 88.4 90.6
+large
+DeBERTa 750M 93.1 90.2 93.1 93.1 90.4 85.1 90.4 90.5 89.1 82.4 86.5 90.1
+xlarge
+SQuAD1.1dev(EM/F1) SQuAD2.0dev(EM/F1)
+#Size
+FT PT PT-2 MPT-2 FT PT PT-2 MPT-2
+BERT 335M 84.2 91.1 1.0 8.5 77.8 86.0 82.3 89.6 78.7 81.9 50.2 50.2 69.7 73.5 72.7 75.9
+large
+RoBERTa 355M 88.9 94.6 1.2 12.0 88.5 94.4 88.0 94.1 86.5 89.4 50.2 50.2 82.1 85.5 83.4 86.7
+large
+DeBERTa 750M 90.1 95.5 2.4 19.0 90.4 95.7 89.6 95.4 88.3 91.1 50.2 50.2 88.4 91.1 88.1 90.8
+xlarge
+CoNLL12 CoNLL05WSJ CoNLL05Brown
+#Size
+FT PT PT-2 MPT-2 FT PT PT-2 MPT-2 FT PT PT-2 MPT-2
+BERT 335M 84.9 64.5. 83.2 85.1 88.5 76.0 86.3 88.5 82.7 70.0 80.7 83.1
+large
+RoBERTa 355M 86.5 67.2 84.6 86.2 90.2 76.8 89.2 90.0 85.6 70.7 84.3 85.7
+large
+DeBERTa 750M 86.5 74.1 85.7 87.1 91.2 82.3 90.6 91.2 86.9 77.7 86.3 87.0
+xlarge
+Table3: ResultsonNamedEntityRecognition(NER),QuestionAnswering(ExtractiveQA),andSemanticRole
+Labeling(SRL).AllmetricsinNERandSRLaremicro-f1score. (FT:fine-tuning;PT:P-tuning&Lesteretal.
+(2021);PT-2: P-tuningv2;MPT-2: Multi-taskP-tuningv2;bold: thebest;underline: thesecondbest).
+derivedfromcomparingcontinuousprompts’pa- Pre-trainedModels. WeincludeBERT-large(De-
+rameterswithtransformers’parameters. Another vlin et al., 2018), RoBERTa-large (Liu et al.,
+thingtonoticeisthatourexperimentsareallcon- 2019), DeBERTa-xlarge (He et al., 2020), GLM-
+ducted in the fully-supervised setting rather than xlarge/xxlarge (Du et al., 2021) for evaluation.
+few-shotsetting. TheyareallbidirectionalmodelsdesignedforNLU
+tasks, covering a wide range of sizes from about
+NLU Tasks. First, we include datasets from Su- 300Mto10B.
+perGLUE(Wangetal.,2019)totestP-tuningv2’s
+generalNLUability. Additionally,weintroducea
+suiteofsequencelabelingtasks,includingnamed Multitask Learning. For the multi-task setting,
+entity recognition (Sang and De Meulder, 2003; wecombinethetrainingsetsofthedatasetsineach
+Weischedel et al., 2013; Carreras and Màrquez, tasktype(e.g.,combingalltrainingsetsofseman-
+2004),extractiveQuestionAnswering(Rajpurkar tic role labeling). We use separate linear classi-
+etal.,2016),andsemanticrolelabeling(Carreras fiersforeachdatasetwhilesharingthecontinuous
+andMàrquez,2005;Pradhanetal.,2012)). prompts(Cf. AppendixA).
+64SST-2 RTE BoolQ CB
+CLS&linearhead 96.3 88.4 84.8 96.4
+Verbalizer&LMhead 95.8 86.6 84.6 94.6
+Table4: Comparisonbetween[CLS]labelwithlinear
+headandverbalizerwithLMheadonRoBERTa-large.
+4.1 P-tuningv2: AcrossScales (a) RTE (b) BoolQ
+Table2presentsP-tuningv2’sperformancesacross
+Figure3: AblationstudyonpromptdepthusingBERT-
+model scales. In SuperGLUE, performances of large. “[x-y]"referstothelayer-intervalweaddcontin-
+Lesteretal.(2021)andP-tuningatsmallerscales uousprompts(e.g.,“21-24”meansweareaddprompts
+can be quite poor. On the contrary, P-tuning v2 totransformerlayersfrom21to24). Sameamountof
+matchesthefine-tuningperformanceinallthetasks continuouspromptsaddedtodeepertransformerlayers
+(i.e.,moreclosetotheoutputlayer)canyieldabetter
+at a smaller scale. P-tuning v2 even significantly
+performancethanthoseaddedtobeginninglayers.
+outperformsfine-tuningonRTE.
+In terms of larger scales (2B to 10B) with
+BoolQ; “true”, “false” and “neutral” for CB. Re-
+GLM (Du et al., 2021), the gap between Lester
+sultsindicatethatthereisnosignificantdifference
+et al. (2021); Liu et al. (2021) and fine-tuning is
+betweenperformancesofverbalizerand[CLS].
+graduallynarroweddown. On10Bscale,wehave
+a similar observation as Lester et al. (2021) re- Prompt depth. The main difference between
+ports,thatprompttuningbecomescompetitiveto Lesteretal.(2021);(Liuetal.,2021)andP-tuning
+fine-tuning. Thatsaid,P-tuningv2isalwayscom- v2isthemulti-layercontinuousprompts. Tover-
+parable to fine-tuning at all scales but with only ifyitsexactinfluence,givenacertainnumberofk
+0.1%task-specificparametersneededcomparing layers to add prompts, we select them in both as-
+tofine-tuning. cendinganddescendingordertoaddprompts;for
+therestlayers,weleftthemuntouched. Asshown
+4.2 P-tuningv2: AcrossTasks
+in Figure 3, with the same amount of parameters
+FromTable3,weobservethatP-tuningv2canbe (i.e., num of transformer layers to add prompts),
+generallycomparabletofine-tuningonalltasks. P- addingtheminthedescendingorderisalwaysbet-
+tuningandLesteretal.(2021)showmuchpoorer ter than in the ascending order. In the RTE case,
+performance,especiallyonQA,whichmightbethe only adding prompts to layers 17-24 can yield a
+mostchallengingofthethreetasks. Wealsonotice verycloseperformancetoalllayers.
+thattherearesomeabnormalresultsofLesteretal.
+5 Conclusions
+(2021)andP-tuningonSQuAD2.0. Thisisprob-
+ably because SQuAD 2.0 contains unanswerable WepresentP-tuningv2,aprompttuningmethod.
+questions, which causes optimization challenges Despite its relatively limited technical novelty, it
+for single-layer prompt tuning. Multi-task learn- contributes to a novel finding that prompt tuning
+ing generally brings significant improvements to canbecomparabletofine-tuninguniversallyacross
+P-Tuningv2overmosttasksexceptforQA. scales(from330Mto10Bparameters)andtasks.
+With high accuracy and parameter efficiency, P-
+4.3 AblationStudy
+Tuning v2 can be a potential alternative for fine-
+VerbalizerwithLMheadv.s. [CLS]labelwith tuningandastrongbaselineforfuturework.
+linearhead. VerbalizerwithLMheadhasbeena
+ACKNOWLEDGEMENT
+central component in previous prompt tuning ap-
+proaches. However,forP-tuningv2inasupervised Wewouldliketothanktheanonymousreviewers
+setting, it is affordable to tune a linear head with for their suggestions and comments. Jie Tang is
+aboutseveralthousandparameters. Wepresentour supportedbytheNSFCforDistinguishedYoung
+comparisoninTable4,wherewekeepotherhyper- Scholar(61825602)andNSFC(61836013). Kaix-
+parametersandonlychange[CLS]labelwithlinear uanJiissupportedbyTsinghuaUniversityInitia-
+headtoverbalizerwithLMhead. Here,forsimplic- tive Scientific Research Program and DCST Stu-
+ity,weuse“true”and“false”forSST-2,RTEand dentAcademicTrainingProgram.
+65References Xiang Lisa Li and Percy Liang. 2021. Prefix-tuning:
+Optimizingcontinuouspromptsforgeneration. arXiv
+TomBBrown,BenjaminMann,NickRyder,Melanie
+preprintarXiv:2101.00190.
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+Neelakantan,PranavShyam,GirishSastry,Amanda Xiao Liu, Yanan Zheng, Zhengxiao Du, Ming Ding,
+Askell,etal.2020. Languagemodelsarefew-shot Yujie Qian, Zhilin Yang, and Jie Tang. 2021. Gpt
+learners. arXivpreprintarXiv:2005.14165. understands,too. arXiv:2103.10385.
+XavierCarrerasandLluísMàrquez.2004. Introduction
+YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,Man-
+to the CoNLL-2004 shared task: Semantic role la-
+dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,
+beling. InProceedingsoftheEighthConferenceon
+Luke Zettlemoyer, and Veselin Stoyanov. 2019.
+ComputationalNaturalLanguageLearning(CoNLL-
+RoBERTa: A Robustly Optimized BERT Pretrain-
+2004) at HLT-NAACL 2004, pages 89–97, Boston, ingApproach. arXive-prints.
+Massachusetts,USA.AssociationforComputational
+Linguistics. Sewon Min, Mike Lewis, Hannaneh Hajishirzi, and
+Luke Zettlemoyer. 2021. Noisy channel language
+XavierCarrerasandLluísMàrquez.2005. Introduction
+model prompting for few-shot text classification.
+to the CoNLL-2005 shared task: Semantic role la-
+arXivpreprintarXiv:2108.04106.
+beling. InProceedingsoftheNinthConferenceon
+ComputationalNaturalLanguageLearning(CoNLL- SameerPradhan,AlessandroMoschitti,NianwenXue,
+2005),pages152–164,AnnArbor,Michigan.Asso- OlgaUryupina,andYuchenZhang.2012. CoNLL-
+ciationforComputationalLinguistics. 2012sharedtask:Modelingmultilingualunrestricted
+coreference in OntoNotes. In Joint Conference on
+Xiang Chen, Xin Xie, Ningyu Zhang, Jiahuan Yan,
+EMNLPandCoNLL-SharedTask,pages1–40,Jeju
+ShuminDeng,ChuanqiTan,FeiHuang,LuoSi,and
+Island, Korea. Association for Computational Lin-
+HuajunChen.2021. Adaprompt: Adaptiveprompt-
+guistics.
+based finetuning for relation extraction. arXiv
+preprintarXiv:2104.07650. GuanghuiQinandJasonEisner.2021. Learninghow
+toask: Queryinglmswithmixturesofsoftprompts.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+arXivpreprintarXiv:2104.06599.
+KristinaToutanova.2018. Bert: Pre-trainingofdeep
+bidirectionaltransformersforlanguageunderstand-
+AlecRadford,JeffreyWu,RewonChild,DavidLuan,
+ing. arXivpreprintarXiv:1810.04805.
+DarioAmodei,andIlyaSutskever.2019. Language
+modelsareunsupervisedmultitasklearners. OpenAI
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and
+blog,1(8):9.
+KristinaToutanova.2018. Bert: Pre-trainingofdeep
+bidirectionaltransformersforlanguageunderstand-
+ColinRaffel,NoamShazeer,AdamRoberts,Katherine
+ing. arXive-prints.
+Lee,SharanNarang,MichaelMatena,YanqiZhou,
+WeiLi,andPeterJLiu.2019. Exploringthelimits
+Zhengxiao Du, Yujie Qian, Xiao Liu, Ming Ding,
+oftransferlearningwithaunifiedtext-to-texttrans-
+JiezhongQiu,ZhilinYang,andJieTang.2021. All
+former. arXivpreprintarXiv:1910.10683.
+nlptasksaregenerationtasks: Ageneralpretraining
+framework. arXivpreprintarXiv:2103.10360.
+PranavRajpurkar,JianZhang,KonstantinLopyrev,and
+PercyLiang.2016. Squad: 100,000+questionsfor
+Tianyu Gao, Adam Fisch, and Danqi Chen. 2020.
+machinecomprehensionoftext.
+Makingpre-trainedlanguagemodelsbetterfew-shot
+learners. arXivpreprintarXiv:2012.15723.
+ErikFSangandFienDeMeulder.2003. Introduction
+YuxianGu,XuHan,ZhiyuanLiu,andMinlieHuang. totheconll-2003sharedtask:Language-independent
+2021. Ppt: Pre-trainedprompttuningforfew-shot namedentityrecognition. arXivpreprintcs/0306050.
+learning. arXivpreprintarXiv:2109.04332.
+TimoSchickandHinrichSchütze.2020. It’snotjust
+Pengcheng He, Xiaodong Liu, Jianfeng Gao, and size that matters: Small language models are also
+WeizhuChen.2020. Deberta: Decoding-enhanced few-shotlearners. arXivpreprintarXiv:2009.07118.
+bertwithdisentangledattention.
+Taylor Shin, Yasaman Razeghi, Robert L Logan IV,
+Boseop Kim, HyoungSeok Kim, Sang-Woo Lee, EricWallace,andSameerSingh.2020. Autoprompt:
+GichangLee,DonghyunKwak,DongHyeonJeon, Eliciting knowledge from language models with
+SunghyunPark,SungjuKim,SeonhoonKim,Dong- automatically generated prompts. arXiv preprint
+pilSeo, etal.2021. Whatchangescanlarge-scale arXiv:2010.15980.
+language models bring? intensive study on hyper-
+clova: Billions-scale korean generative pretrained AlexWang,YadaPruksachatkun,NikitaNangia,Aman-
+transformers. arXivpreprintarXiv:2109.04650. preetSingh,JulianMichael,FelixHill,OmerLevy,
+andSamuelR.Bowman.2019. SuperGLUE:AStick-
+BrianLester,RamiAl-Rfou,andNoahConstant.2021. ier Benchmark for General-Purpose Language Un-
+The power of scale for parameter-efficient prompt derstandingSystems. InNeurIPS2019,pages3261–
+tuning. arXivpreprintarXiv:2104.08691. 3275.
+66AlexWang,YadaPruksachatkun,NikitaNangia,Aman- A ProblemFormulationonSequence
+preetSingh,JulianMichael,FelixHill,OmerLevy, Tagging
+andSamuelR.Bowman.2019. Superglue:Astickier
+benchmarkforgeneral-purposelanguageunderstand-
+Name entity recognition (NER). NER aims to
+ingsystems. arXive-prints.
+predict all spans of words that represent some
+Alex Wang, Amanpreet Singh, Julian Michael, Felix
+given classes of entity with a sentence. We
+Hill, Omer Levy, and Samuel R. Bowman. 2018.
+adoptedCoNLL03(SangandDeMeulder,2003),
+Glue: Amulti-taskbenchmarkandanalysisplatform
+fornaturallanguageunderstanding. arXive-prints. OntoNotes 5.0 (Weischedel et al., 2013) and
+CoNLL04 (Carreras and Màrquez, 2004). For
+Hongru Wang, Mingyu Cui, Zimo Zhou, Gabriel
+CoNLL03andCoNLL04,wetrainedourmodelon
+PuiCheongFung,andKam-FaiWong.2021a. Topi-
+thestandardtrain-develop-testsplit. ForOntoNotes
+crefine: Jointtopicpredictionanddialogueresponse
+generationformulti-turnend-to-enddialoguesystem. 5.0,weusethesametrain,develop,testsplitas(Xu
+arXivpreprintarXiv:2109.05187. etal.,2021). AllthedatasetsarelabeledinIOB2
+format. We use sequence tagging to solve NER
+Shuo Wang, Zhaopeng Tu, Zhixing Tan, Wenxuan
+Wang, Maosong Sun, and Yang Liu. 2021b. Lan- tasks by assigning labels marking the beginning
+guage models are good translators. arXiv preprint and inside some classes of entity. The language
+arXiv:2106.13627.
+models generate a representation for each token,
+andweusealinearclassifiertopredictthelabels.
+RalphWeischedel,MarthaPalmer,MitchellMarcus,Ed-
+uardHovy,SameerPradhan,LanceRamshaw,Nian- We use the official scripts to evaluate the results.
+wenXue,AnnTaylor,JeffKaufman,MichelleFran- Forthemulti-tasksetting,wecombinethetraining
+chini,etal.2013. Ontonotesrelease5.0ldc2013t19.
+set of the three datasets for pre-training. We use
+LinguisticDataConsortium,Philadelphia,PA,23.
+different linear classifiers for each dataset while
+LuXu,ZhanmingJie,WeiLu,andLidongBing.2021. sharingthecontinuousprompts.
+Betterfeatureintegrationfornamedentityrecogni-
+tion. arXivpreprintarXiv:2104.05316. (Extractive)QuestionAnswering(QA).Extrac-
+tiveQAisdesignedtoextracttheanswerfromthe
+Zhilin Yang, Zihang Dai, Yiming Yang, Jaime Car-
+contextgiventhecontextandaquestion. Weuse
+bonell, Ruslan Salakhutdinov, and Quoc V Le.
+SQuAD (Rajpurkar et al., 2016) 1.1 and 2.0, in
+2019. Xlnet: Generalized autoregressive pretrain-
+ing for language understanding. arXiv preprint whicheachansweriswithinacontinuousspanof
+arXiv:1906.08237. thecontext. Followingtradition,weformulatethe
+problemassequencetaggingbyassigningoneof
+YananZheng,JingZhou,YujieQian,MingDing,Jian
+Li,RuslanSalakhutdinov,JieTang,SebastianRuder, thetwolabels: ‘start’or‘end’toeachtokenandat
+andZhilinYang.2021. Fewnlu: Benchmarkingstate- lastselectingthespanofthemostconfidentstart-
+of-the-artmethodsforfew-shotnaturallanguageun-
+endpairastheextractedanswer. Iftheprobability
+derstanding. arXivpreprintarXiv:2109.12742.
+ofthemostconfidentpairislowerthanathreshold,
+ZexuanZhong,DanFriedman,andDanqiChen.2021. themodelwillassumethequestionunanswerable.
+Factualprobingis[mask]: Learningvs.learningto Forthemulti-tasksetting,ourtrainingsetforpre-
+recall. arXivpreprintarXiv:2104.05240.
+trainingcombinesthetrainingsetsofSQuAD1.1
+and2.0. Whenpre-training,weassumethatallthe
+questions, regardless of their origin, are possibly
+unanswerable.
+SemanticRoleLabeling(SRL).SRLassignsla-
+belstowordsorphrasesinasentencethatindicate
+their semantic roles in the sentence. We evaluate
+P-tuningv2onCoNLL05(CarrerasandMàrquez,
+2005)andCoNLL12(Pradhanetal.,2012). Sincea
+sentencecanhavemultipleverbs,weaddthetarget
+verbtokentotheendofeachsentencetohelprecog-
+nizewhichverbisusedforprediction. Weclassify
+eachwordwithalinearclassifierbasedonthecor-
+respondingsemanticrolerepresentation. Formulti-
+tasksetting,thepre-traintrainingsetisacombina-
+67(a) NLI:RTE (b) NER:CoNLL04 (c) MQA:BoolQ (d) SRL:CoNLL12
+Figure4: AblationstudyonpromptlengthandreparamerizationusingRoBERTa-large. Theconclusioncanbevery
+differentgivencertainNLUtaskanddataset. (MQA:Multiple-choiceQA)
+tionofthetrainingsetofCoNLL05(Carrerasand
+Màrquez,2005),CoNLL12(Pradhanetal.,2012)
+andpropbank-release(acommonextenddataused
+fortrainingSRL).Themulti-tasktrainingstrategy
+issimilartoNER.
+B MoreAblationStudy
+Duetothepagelimit,wepresenthyper-parameters
+andarchitecturedesignsablationsregardingrepa-
+rameterizationandpromptlengthinthissection.
+Embedding v.s. MLP reparameterization. In
+both prefix-tuning (Li and Liang, 2021) and P-
+tuning(Liuetal.,2021),authorsdiscovertherepa-
+rameterization to be useful in improving training
+speed,robustnessandperformance. However,we
+conductexperimentstoshowthatthereparameteri-
+zationeffectisinconsistentacrossdifferentNLU
+tasksanddatasets.
+As shown in Figure 4, in RTE and CoNLL04,
+MLPreparameterizationgenerallyindicatesbetter
+performancethanembeddingforalmostallprompt
+lengths. However, in BoolQ, MLP and embed-
+ding’s results are competitive; in CoNLL12, the
+embeddingconsistentlyoutperformsMLP.
+PromptLength. Promptlengthisyetanotherinflu-
+entialhyper-parameterforP-tuningv2,anditsop-
+timalvaluevariesfromtasktotask. FromFigure4,
+we observe that for simple NLU tasks, usually, a
+shorterpromptisenoughforthebestperformance;
+forhardsequencetasks,usually,alongerprompt
+than100wouldbehelpful.
+Wealsodiscoverthatreparameterizationhasa
+closebondwithoptimalpromptlength. Forexam-
+ple,inRTE,CoNLL04,andBoolQ,MLPreparam-
+eterizationachievesitsoptimalresultearlierthan
+embedding. Thisconclusionmaycontributesome
+thoughtsonP-tuning’soptimizationproperties.
+68

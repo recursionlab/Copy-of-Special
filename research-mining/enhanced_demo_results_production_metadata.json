@@ -1,0 +1,29 @@
+{
+  "export_timestamp": "2025-09-15T10:00:11.784074",
+  "engine_type": "ProductionKnowledgeEngine",
+  "graph_backend_enabled": true,
+  "graph_backend_connected": false,
+  "ecosystem_stats": {
+    "total_concepts": 2,
+    "active_concepts": 2,
+    "high_quality_concepts": 0,
+    "mid_quality_concepts": 2,
+    "refinement_queue_size": 0,
+    "merged_concepts": 0,
+    "conceptual_diversity": 0.0,
+    "relation_count": 0,
+    "contradiction_count": 0,
+    "quality_score": 0.6975,
+    "refinement_success_rate": 0.0,
+    "graph_database": {
+      "connected": false,
+      "stats": {}
+    }
+  },
+  "total_concepts": 2,
+  "quality_distribution": {
+    "HIGH": 0,
+    "MID": 0,
+    "LOW": 0
+  }
+}

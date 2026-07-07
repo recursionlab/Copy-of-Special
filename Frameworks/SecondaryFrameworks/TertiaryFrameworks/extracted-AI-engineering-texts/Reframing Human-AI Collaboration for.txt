@@ -1,0 +1,1548 @@
+Reframing Human-AI Collaboration for
+Generating Free-Text Explanations
+SarahWiegreffe JackHessel SwabhaSwayamdipta
+♣ † †
+MarkRiedl YejinChoi3
+♣ †
+SchoolofInteractiveComputing,GeorgiaInstituteofTechnology
+♣
+AllenInstituteforArtificialIntelligence
+†
+3PaulG.AllenSchoolofComputerScienceandEngineering,UniversityofWashington
+saw@gatech.edu, riedl@cc.gatech.edu, {jackh,swabhas,yejinc}@allenai.org
+Abstract
+Large language models are increasingly capa-
+bleofgeneratingfluent-appearingtextwithrel-
+ativelylittletask-specificsupervision. Butcan
+these models accurately explain classification
+decisions? Weconsiderthetaskofgenerating
+free-textexplanationsusinghuman-writtenex-
+amples in a few-shot manner. We find that
+(1) authoring higher quality prompts results
+T5 / T0
+in higher quality generations; and (2) surpris-
+Filter Model
+ingly, in a head-to-head comparison, crowd-
+workersoftenpreferexplanationsgeneratedby
+GPT-3 to crowdsourced explanations in exist-
+ing datasets. Our human studies also show,
+however,thatwhilemodelsoftenproducefac-
+tual, grammatical, andsufficientexplanations, GPT-3 DaVinci
+they have room to improve along axes such
+asprovidingnovelinformationandsupporting
+the label. We create a pipeline that combines
+GPT-3 with a supervised filter that incorpo-
+rates binary acceptability judgments from hu-
+mansintheloop. Despitetheintrinsicsubjec-
+tivity of acceptability judgments, we demon-
+strate that acceptability is partially correlated
+withvariousfine-grainedattributesofexplana-
+tions. Ourapproachisabletoconsistentlyfil-
+ter GPT-3-generated explanations deemed ac-
+ceptablebyhumans.
+1 Introduction
+Asnaturallanguageunderstandingtaskshavebe-
+comeincreasinglycomplex,thefieldofexplainable
+NLP has embraced explanations written in free-
+form natural language. In contrast to extractive
+explanationsthathighlighttokensintheinput,free-
+text explanations provide a natural interface be-
+tweenmachinecomputationandhumanend-users
+(Hendricksetal.,2016;Camburuetal.,2018). The
+dominantparadigmforproducingfree-textexpla-
+nations is via direct supervision, i.e., training an
+autoregressive,generativelanguagemodeltopre-
+dict human-authored explanations directly (Kim
+et al., 2018; Park et al., 2018; Ehsan et al., 2018;
+Narangetal.,2020;Wiegreffeetal.,2021,i.a.).
+Proceedingsofthe2022ConferenceoftheNorthAmericanChapteroftheAssociationforComputationalLinguistics:
+HumanLanguageTechnologies,pages632-658
+July10-15,2022©2022AssociationforComputationalLinguistics
+erocs
+pot
+noitanalpxE
+gnitarenegrevO
+setadidnaC
+Select-1
+Explanation-Level
+elbatpeccA
+gniretliF
+noitaulavE
+snoitanalpxE
+“Usually a hamburger with friends
+indicates a good time.”
+Acceptability
+Predictions
+Crowdworker
+Acceptability
+Labels
+greedy
+stochastic
+“When eating a hamburger with friends, what is
+one trying to do?” have fun. Explanation: …
+Instance + Explanation Prompt
+Figure 1: Illustration of our overgeneration + filtra-
+tionpipelineforproducinghumanacceptableexplana-
+tionsforCommonsenseQAandSNLI(seeexamplesin
+Table 1). Authors of this work write explanations to
+promptGPT-3,generating5explanationsperinstance.
+Anacceptabilityfilter,trainedonhumanbinaryaccept-
+abilityjudgments,determineswhichofthesegenerated
+explanationsareplausible. Evaluationisperformedat
+boththeexplanationandtheinstancelevel.
+However,collectinghigh-qualitywrittenexpla-
+nationstoserveassupervisionisdifficultandex-
+pensive. More than 70% of existing free-text ex-
+planation datasets are crowdsourced (Wiegreffe
+and Marasovic´, 2021), and even the most metic-
+ulouscrowdsourcingeffortsfrequentlyfailtoelicit
+logicallyconsistentandgrammaticalexplanations
+(Narang et al., 2020). Furthermore, a lack of
+standardizedcrowdsourcingdesignhasresultedin
+highlyvarieddatasets,whicharehardtocompare
+orcombine(Tan,2021).
+632Recent progress in prompting large language totrainafilterthatselectshigh-qualitymachine-
+models (LLMs) provides a potentially promising generatedexplanations;and
+alternate to large-scale crowdsourcing. The in- iii. inareaswhereGPT-3struggles,includinginfor-
+contextlearningparadigm,whereinpowerfullan- mationcontent,supportingthelabel,andoverall
+guagemodelsarepromptedinafew-shotmanner acceptability, our proposed overgenerate-and-
+withjustafewexamples,hasprovensurprisingly filterpipelineimprovesgeneratedexplanations.
+effective across a range of NLP tasks (Radford Wepubliclyreleaseourcodeanddata.1
+etal.,2019;Brownetal.,2020;Shinetal.,2020;
+Schick and Schütze, 2021a, i.a.). In this work 2 GPT-3isCompetitivewith
+we ask: can LLMs also generate reliable expla- CrowdsourcedExplanationDatasets
+nations? In human subjects studies, we find that
+GPT-3 (Brown et al., 2020) can be readily made Weinvestigatethreeresearchquestions:
+to generate explanations via prompting, and sur- 1. AreGPT-3-generatedexplanationspreferableto
+prisingly, humans often prefer GPT-3 generated crowdsourcedonesinexistingdatasets? (§2.1)
+explanationstocrowdsourcedexplanationsinex- 2. CanimprovingpromptqualityimproveGPT-3-
+istingdatasets(§2). generatedexplanations? (§2.2)
+3. Alongwhatfine-graineddimensionsareGPT-3-
+Twoadditionalhumansubjectsstudies,however,
+generatedexplanationspreferred,anddothese
+demonstrate that GPT-3-generated explanations
+correlatewithoverallacceptability? (§2.3)
+stillhavesignificantroomforimprovementalong
+axessuchasprovidingnewinformation(i.e.,avoid-
+Explanation tasks and datasets. We consider
+ing repetition) and supporting the label; human
+twoEnglishtasks: CommonsenseQAandnatural
+subjectsfoundlessthanhalfofgreedily-decoded
+languageinference(NLI),showninTable1. Com-
+GPT-3-generated explanations to be acceptable
+monsenseQA (Talmor et al., 2019) is a multiple
+with100%agreement. Toimproveuponthis,we
+choice task posed over commonsense questions.
+re-frame the role of crowd annotators: instead of
+Crowdsourcedfree-textexplanationsforinstances
+askingthemtowriteexplanationsasinpriorwork,
+in CommonsenseQA are provided in the CoS-E
+we(1)repeatedlyqueryGPT-3togeneratemulti-
+v1.11(Rajanietal.,2019)andECQA(Aggarwal
+plecandidateexplanationsforeachinputinstance,
+etal.,2021)datasets. ECQAexplanationsarecoun-
+and(2)askcrowdworkerstoratetheacceptability
+terfactual, i.e., annotators were instructed to ex-
+ofeachcandidategeneration. Aftershowingthat
+plain not only the correct answer choice but also
+GPT-3canusuallygenerateanexplanationthathu-
+whytheothersareincorrect. ECQAwasreleasedto
+mansunanimouslyfindacceptablewithinasfewas
+addressthequalityissuesofCoS-E(Narangetal.,
+fivequeries(§3),weuseasmallnumberofthese
+2020);forcompleteness,weexperimentwithboth.
+binarycrowdworkerjudgmentstosuperviseanac-
+OursecondtaskisNLI,whichinvolvesinferring
+ceptability filtering model, which can be applied
+whetheragivenhypothesissentenceentails,contra-
+to select high quality candidates among GPT-3’s
+dicts,orisneutraltowardsapremise. Thistaskis
+outputs(Figure1;§4).
+instantiatedwiththeSNLIdataset(Bowmanetal.,
+Despiteintrinsicsubjectivityinacceptabilityrat- 2015)andcrowdsourcedexplanationsfrome-SNLI
+ings, our supervised model improves upon the (Camburu et al., 2018). For each task, we report
+already-competitivefew-shotparadigmbyconsis- resultsonafixed,randomly-sampled250-instance
+tentlyselecting(human-identified)highqualityex- testsetnotobservedduringpromptdesign.
+planations better than strong baselines. Human
+evaluationsrevealthatthefiltrationmodelnotonly Few-shotpromptingforexplanations. Weuse
+improvesacceptability,butalsootheraxeslikesup- GPT-3 Davinci2 (Brown et al., 2020), an autore-
+portingthelabelandprovidingnovelinformation. gressive language model with ~175B parameters
+trainedonalargedatasetoftextscrapedfromthe
+Insummary,ourmainfindingsare:
+internet. Wepromptthemodelwithseveral(ques-
+i. few-shot prompting with GPT-3 produces sur-
+tion,goldanswer,explanation)tripletsfollowedby
+prisingly competitive explanations, providing
+anunexplainedquestion-goldanswerinstancefor
+apromisingalternativetocrowd-authoredfree-
+textexplanationcorpora; 1https://github.com/allenai/few_shot_explanations/
+ii. binaryhumanlabelingcaninsteadbeleveraged 2Non-instructversion,availableinSummer2021.
+633SNLI(Bowmanetal.,2015) Let’sexplainclassificationdecisions.
+Ayoungboywearingatank-topisclimbingatree.
+Premise:Dark-hairedmanwearingawatchandoven
+question:Aboywasshowingoffforagirl.
+mittabouttocooksomemeatinthekitchen.
+true,false,orneither?neither
+Hypothesis:Amaniscookingsomethingtoeat.
+why? Aboymightclimbatreetoshowoffforagirl,
+Label:entailment
+buthealsomightdoitforfunorforotherreasons.
+###
+e-SNLI(Camburuetal.,2018): Meatiscookedina
+Apersononahorsejumpsoverabrokendownairplane.
+kitchen,andisafoodthatyoueat.Usinganovenmitt
+question:Apersonisoutdoors,onahorse.
+impliesyou’reabouttocookwithhotutensils.
+true,false,orneither?true
+GPT-3:Cookingisusuallydonetopreparefoodtoeat.
+why? Horseridingisanactivityalmostalwaysdone
+CommonsenseQA(Talmoretal.,2019) outdoors.Additionally,aplaneisalargeobjectandis
+mostlikelytobefoundoutdoors.
+Question:Whatistheresultofapplyingforjob?
+###
+AnswerChoices:anxietyandfear,increasedworkload,
+Thereisaredtruckbehindthehorses.
+praise,lesssleep,orbeingemployed
+question: Thehorsesarebecomingsuspiciousofmy
+CorrectChoice:beingemployed
+apples.
+true,false,orneither?false
+CoS-E(Rajanietal.,2019):beingemployedapplying
+why?Thepresenceofaredtruckdoesnotimplythere
+forjob
+areapples,nordoesitimplythehorsesaresuspicious.
+ECQA(Aggarwaletal.,2021):Applyingforajobis
+###
+followedbyattendinginterviewwhichresultsinbeing
+Adogcarriesanobjectinthesnow.
+employed.Applyingforajobmaynotresultintheother
+question:Adogisasleepinitsdoghouse.
+options.
+true,false,orneither?false
+GPT-3: Applying for a job can result in being em-
+why?
+ployed,whichisapositiveoutcome.
+Table2:Exampleofapromptwith3trainingexamples
+Table 1: Task-specific instances, along with their
+for SNLI: presented are the premise/hypothesis pairs,
+crowdsourced explanations from the respective
+the gold labels, and the explanations (written by us)
+datasets, shown alongside explanations generated
+thatactasinputtoGPT-3(inpractice,weuse8-24ex-
+greedilybyGPT-3. Inourexperiments,theSNLIGPT-
+amples per prompt). The text generated by the model
+3 explanation was preferred over its corresponding
+actsasthefree-textexplanation.Inthiscase,themodel
+e-SNLI explanation by 2/3 annotators. For Common-
+greedily auto-completes (given 12 examples): “A dog
+senseQA, 3/3 preferred the GPT-3 explanation to the
+cannotcarrysomethingwhileasleep”.
+CoS-Eexplanation,and2/3totheECQAone.
+whichweexpectthemodeltogenerateanexplana- studiesforevaluation.4 Weensureeachexperiment
+tion.3 Weuseatotalof115randomlysampledtrain
+hasasubstantialnumberofdistinctcrowdworkers
+instancestocreateourprompts;eachpromptcon-
+tomitigateindividualannotatorbias(Table17).
+sistsof8-24randomlyselectedexamplesfromthis
+set. Foreachinstance,wegenerateasingleexpla- Wepresentworkerswithadatasetinstance,its
+nationwithgreedydecoding. Moredetailsabout gold label, and two explanations for the instance
+promptconstructionareinAppendixA;example generated under different conditions (“head-to-
+promptsaregiveninTables2and11. head”). We then ask them to make a preferential
+selection, collecting 3 annotations per data point.
+Wereportinter-annotatoragreement(IAA)using
+Crowdsourcingevaluation. Giventhatexisting
+Krippendorff’s α (Krippendorff, 2011). We find
+automaticmetricsoftendonotcorrelatewellwith
+low-to-moderateagreementacrossstudies,indicat-
+humanjudgementsofexplanationquality(Clinciu
+ingthesubjectivenatureofthetask;seeTables3,
+etal.,2021;Kayseretal.,2021),weconducthuman
+4, and 5. Appendix B contains further details on
+qualitycontrol.
+3Weconditiononthegoldlabelasamethodologicalcon-
+troltoensurereliablehumanevaluation.Inpilotstudies,we
+found it hard to avoid bias against explanations when we
+disagreedwiththepredictedlabel.Priorwork(Kayseretal.,
+2021;Marasovic´ etal.,2021)hasremovedthisconfounder 4OurstudieswereconductedontheAmazonMechanical
+byonlyconsideringexplanationsforcorrectly-predictedin- Turkplatform,attheAllenInstituteforAI.Weselectedwork-
+stances, which may overestimate explanation quality. Our erslocatedinAustralia,Canada,NewZealand,theUK,orthe
+methodallowsustoreportresultsonatrulyrepresentative US,withapastHITapprovalrateof>98%and>5000HITs
+sample.Weexperimentwithincorrectvs.correctpredictions approved,andcompensatedthematarateof$15/hour.Each
+inAppendixC,findingthatGPT-3cancompetitivelyexplain workercompletedqualifyingexamsonexplanationevaluation
+goldlabelsforinstancesitpredictedincorrectly. andtheNLItask.
+634PreferredExplanation(%) PreferredExplanation(%)
+Dataset Crowd Tie GPT-3 α Dataset Crowd Tie GPT-3 α
+CoS-E 20.3 34.9 44.8 0.5 CoS-E 7.2 13.9 78.9 0.5
+ECQA 52.7 12.9 34.4 0.2 ECQA 44.5 9.7 45.7 0.4
+e-SNLI 63.6 11.6 24.8 0.3 e-SNLI 49.6 9.7 40.7 0.2
+Table 3: Head-to-head human evaluation for 250 ex- Table 5: Head-to-head human evaluation for 250 ex-
+planations generated by GPT-3 vs. written by crowd- planations generated by GPT-3 vs. written by crowd-
+workers in the datasets, along with Krippendorff’s α workers in the datasets, along with Krippendorff’s α
+for IAA. Results are shown as % preferences. We for IAA. GPT-3 explanations were prompted with ex-
+promptedGPT-3withcrowdexplanationsfromthecor- planationswrittenbytheauthors.
+respondingdatasets.
+erationssimplybyconditioningonhigher-quality
+2.1 AreGPT-3explanationspreferredover
+instances? Tothisend,wereplacethe115crowd-
+crowdsourcedones?
+sourcedexplanationsfromtheoriginaldatasetsfor
+We perform a head-to-head comparison of expla- promptingGPT-3withexplanationscarefullywrit-
+nations generated by GPT-3 with greedy decod- ten by the authors of this paper (see Table 12 for
+ing vs. gold human-written explanations in the examples). Ourpromptsareusedtogenerateadif-
+originaldatasets. Thecrowdsourcedexplanations ferentsetofGPT-3explanationsonthesametest
+serve as a reasonable upper bound for what a su- data.
+pervisedexplanationgenerationmodeltrainedon We perform a head-to-head human evaluation
+themcouldproduce. Table1containsexamplesof of the GPT-3 generations conditioned on the ex-
+GPT-3-preferredexplanations. planationswewrotevs. thoseconditionedonthe
+Results are shown in Table 3. GPT-3 greedily- crowdsourced explanations. Results in Table 4
+decoded explanations are frequently preferred or showthat,forallthreecorpora,generationscondi-
+comparabletocrowdsourcedexplanationsinCoS- tionedonourexplanationsoutperformgenerations
+E,whichisnottoosurprisinggiventhedatasethas conditionedoncrowdsourcedones,illustratingthe
+manyungrammaticalexplanations(Narangetal., importanceofgood-qualitypromptsforGPT-3.
+2020). And,whileECQAande-SNLIexplanations Werepeattheexperimentof§2.1,butwithour
+arestronglypreferredtoGPT-3,therearestillanon- prompts instead of dataset prompts. With this
+trivialnumberofcaseswhereGPT-3explanations change, GPT-3 generations are even more com-
+arecompetitive(47.3%and36.4%,respectively). petitive(Table5). Forallthreedatasets,morethan
+halfthetime,few-shotpromptingresultsinanex-
+2.2 Canimprovingpromptqualityimprove
+planationatleastasgoodasahuman-writtenex-
+GPT-3-generatedexplanations?
+planation. Forsubsequentexperiments,weprompt
+GPT-3withtheauthor-writtenexplanations.
+PreferredGPT-3Explanation(%)
+Dataset CrowdPrompts Tie OurPrompts α 2.3 WhattypesofexplanationsdoesGPT-3
+CoS-E 6.9 13.5 79.6 0.2 generate?
+ECQA 15.9 9.5 74.7 0.3
+e-SNLI 30.8 26.8 42.4 0.5 Pairwiseevaluationscanonlyofferperspectiveon
+therelativequalityofgeneratedexplanations. Are
+Table 4: Head-to-head human evaluation for 250 ex- crowdannotatorssimplycomparingexplanations
+planations generated by GPT-3 prompted with either
+onsurface-levelfeatureslikegrammaticality?
+author-written explanations or crowdsourced explana-
+Tounderstandfiner-grainedcharacteristicsofex-
+tionsfromtheassociateddatasets,alongwithKrippen-
+planations,wedesignasecondhumanstudytocol-
+dorff’sαforIAA.
+lectabsoluteLikert-scalejudgmentsacrossseven
+Giventhatlow-qualitytraininginstancesmayre- axes of quality (with each explanation judged by
+sultinlow-qualitypredictions(especiallyinafew 3annotators). Thefirstthreeaxescapturesurface-
+shotsetting),5 weask: canweimproveGPT-3gen- levelfeatures: generality,grammaticality,andfac-
+tuality. The next three capture richer aspects of
+5Forexample,GPT-3reproducesknowndataartifactsin
+explanation quality: whether new information is
+theCoS-Ecorpuswhenpromptedwithexplanationsfromit,
+suchastherecurringphrase“riversflowtrough(sp)valleys”. introduced(arequirementfornon-vacuousexplana-
+635General Generally True Grammatical Introduced Yes Too Much Acceptable
+1
+GPT-3
+0.5 CoS-E
+Enough
+0 Sometimes/
+Partially True
+-0.5
+-1
+Specific Generally False UngrammaticalNone Introduced No Not Enough Not Acceptable
+1
+GPT-3
+0.5 ECQA
+0
+-0.5
+-1
+1
+GPT-3
+0.5 e-SNLI
+0
+-0.5
+-1
+Generality Factuality Grammar New Info Supports LabelAmount Info* Acceptability
+Figure 2: Absolute evaluation for GPT-3 and crowdsourced explanations for CommonsenseQA via CoS-E (top)
+andECQA(middle)datasets,andforNLIviathee-SNLIdataset(bottom). Thedistributionofmeanscoresof3
+annotatorsforeachinstanceinthetestsetisplotted. AllattributesbesidesFactualityandAmountInfoarebinary.
+*AmountInfoistheonlyattributeforwhichavalueof0ispreferredtoavalueof1.SeeTable18formoredetails.
+tions),whetherexplanationssupportthegoldlabel, senseQA and 0.1 for NLI, demonstrating room
+−
+and whether the amount of information given is forimprovement. Theseaxesarecrucialtoensur-
+sufficient. Finally,weaskforanoveralljudgement ingexplanationsarenotvacuousandareon-topic.
+ofquality: istheexplanationacceptable? Weex- Finally,GPT-3explanationsarejudgedasaccept-
+plainourdesignprocessinAppendixB.3. Results ableathigherratesthanCoS-EorECQAexplana-
+onthecrowdsourcedandGPT-3explanationsfor tions,butnote-SNLIexplanations. Meanscoresof
+bothtasksaregiveninFigure2.6 0.5(CommonsenseQA)and0.0(NLI)indicatethat
+For both tasks, GPT-3 explanations do well in
+GPT-3explanationshaveroomtoimproveoverall.7
+all3surface-levelcategories,withstatisticallysig-
+nificantly greater ratings in generality and gram-
+Correlationbetweenacceptabilityandotherat-
+maticality (and factuality for CommonsenseQA)
+tributes To understand what factors are impor-
+comparedtocrowdsourcedexplanations,anddis-
+tantfortheoverall“acceptability"judgement,we
+tributional means close to 1. In these categories,
+computeSpearmancorrelation(ρ;Spearman,1987)
+thereislittleroomforimprovement.
+betweenacceptabilityandallotherattributes(Ta-
+On the other hand, GPT-3 explanations do not
+ble 6). Each is positively correlated with accept-
+contain as much new information as ECQA and
+ability,thoughwithvaryingdegreesofmagnitude.
+e-SNLIexplanations,indicatingsubstantialroom
+Acceptability is least correlated with “new infor-
+for improvement (mean=0.1 for both tasks com-
+mation,"andmostcorrelatedwithgrammaticality,
+pared to 0.6 for ECQA and 0.2 for SNLI; these
+generality, and the explanation’s support for the
+differencesarestatisticallysignificantatp 0.01).
+≤ label. Overall,theresultsindicatethathumanpref-
+GPT-3explanationsaresubstantiallymoresupport-
+erence for explanations is not fully explained by
+ive of the label vs. CoS-E, but not as supportive
+anyoneattribute,andisnotlimitedtosurface-level
+as ECQA or e-SNLI (all statistically significant
+features.
+at p 0.1). Indeed, the mean rating of GPT-3
+≤
+explanationsforlabelsupportis0.5forCommon-
+7Wedonotevaluateexplanationscounterfactually,which
+6Krippendorff’sαis0.48forCommonsenseQAannota- may explain why ECQA explanations are often labeled as
+tionsand0.31forSNLI;seeTable15. having“toomuchinformation”.SeeAppendixB.1.
+636Attribute ρ n areacceptable. InspiredbyWestetal.(2021),we
+exploretrainingasupervisedfilteronthecollected
+Generality 0.25 3750
+Factuality 0.17 2958 labels. Ourkeyintuitionisthatbyre-framingthe
+Grammar 0.31 3750
+roleofannotatorsfromexplanationauthorstobi-
+NewInfo 0.05 3750
+SupportsLabel 0.22 2943 nary judges, we can alleviate the need to collect
+∗AmountInfo 0.16 1761 alarge-scaleexplanationsdataset—theresultisa
+simpler,cheaper,andeasiercrowdsourcingsetup
+Table6:Spearman’scorrelation(ρ)betweenacceptabil-
+toadminister(§4.1). Namely,wecan(1)aggregate
+ityandotherattributesinFigure2. ForAmountInfo,a
+ratingsovermultipleannotatorstoproducemore
+value of 0 is preferred to a value of 1. All results are
+reliablelabels,(2)usenumericalmetricsofanno-
+statisticallysignificantatp<0.01.
+tatoragreementtoremoveannotatorscontributing
+noisydata,and(3)collectannotationsmorequickly
+3 BeyondGreedyExplanations andcheaplythanaskingannotatorstohand-write
+explanations. Moreover,wefindthatthefiltercan
+While GPT-3 explanations demonstrate strength
+betrainedwitharelativelysmallamountofbinary
+across surface-level features and are surprisingly
+humanjudgments(§4.2). Wedemonstratethatthe
+competitiveinhead-to-headsettings,theycanstill
+trained model is not simply taking advantage of
+be improved. One might imagine a setting with
+surface-levelfeatures(§4.4). Figure1presentsan
+multiple end-users in which we wish to provide
+overviewofourpipeline.
+themostunambiguouslyacceptableexplanation
+as output from a system. When considering the
+4.1 AcceptabilityAnnotations
+data from §2.3, we find that only 46.3% of the
+Wegeneratetrainandvalidationsetsbyrepeating
+greedily-decoded GPT-3-generated explanations
+the procedure of generating 1 greedy and 4 sam-
+forCommonsenseQAand31.5%forNLIarerated
+pledexplanationsfor991and1Kinstances,respec-
+acceptableby3/3annotators.8
+tively,oftheCommonsenseQAandSNLItraining
+Inspired by work in other generation tasks
+sets. Combiningthesewiththeannotatedtestsets
+(Holtzman et al., 2020; Massarelli et al., 2020;
+from previous experiments results in a dataset of
+Holtzmanetal.,2021),wehypothesizethatequally
+1241/1250instancesina72/8/20%train/val/testra-
+ormoreinformativeexplanationscanbegenerated
+tioforeachtask. Weagaincollect3binaryaccept-
+bysamplingstochastically. Wesample4additional
+abilityratingsforeachinstance,resultingin~6200
+generationsfromGPT-3foreachinstancetocom-
+instance-explanationpairsand~19Kindividualan-
+plementthegreedygeneration. Wecrowdsource3
+notationspertask. Table13containsstatistics. To
+acceptabilityannotationsforeachnewexplanation.
+ensurethatmodelstrainedonthesecorporadonot
+Asexpected,sampledexplanationsexhibitlower
+overfittospecificannotators(Gevaetal.,2019),we
+3/3acceptabilitythangreedyexplanations(25.1%
+collectanadditionalsetofjudgmentsforthetest
+forCommonsenseQA;11.3%forSNLI).However,
+set of SNLI from a group of annotators who did
+this results in a surprisingly higher proportion of
+not participate in any of our previous annotation
+instances that have at least one acceptable expla-
+tasks(“Test2”). Figure9andFigure10showthe
+nationinthesetof5. Thegreedyexplanationwas
+userinterface.10
+judgedtobe3/3acceptablein46.3%ofinstances
+Whileweevaluateattest-timewiththeschema
+forCommonsenseQAand31.5%forNLI;thisin-
+that only instances that 3/3 annotators deem ac-
+creases to 79.5% and 51.2%, respectively, when
+ceptable are considered acceptable, preliminary
+sampledexplanationsareincluded.9
+experiments show that treating both 2/3 and 3/3
+agreementinstancesasacceptableduringtraining
+4 ImprovingExplanationGeneration
+performs best on the 3/3 evaluation criterion at
+withAcceptabilityFiltering
+test-time.11 Wealsotrainavariantwhereweran-
+The challenge of overgeneration is that GPT-3 domlyselectoneannotationfromthethreeasthe
+alonecannotdiscernwhichofitsstochasticsamples goldlabel(“withouthumanagreement”).
+8In§4,weshowthatthesearenotupper-boundscausedby 10Krippendorff’sαforallacceptabilityannotationsis0.34
+intrinsicsubjectivity,andthattheycanbeimprovedupon. forCommonsenseQAand0.39forSNLI(seeTable14).
+9AppendixDprovidessimilarresultsforthe2/3accept- 11Ourresultsdon’tsignificantlychangeifa2/3cutoffis
+abilitythreshold. usedattesttimeinstead:AppendixFcontainstheresults.
+6374.2 AcceptabilityFilter “Select-1”Acc@3/3 Expl.-levelAP@3/3
+Dev Test Dev Test
+Concretely,giventheprobleminstance,thegoldla-
+bel,andageneratedexplanation,theacceptability
+Random 26.83.2 30.62.1 27.41.1 31.60.4
+Constant — — 27.9 31.8
+filterpredictswhethertheexplanationisacceptable. NLL 41.8 52.0 42.4 45.6
+We fine-tune two sequence-to-sequence architec- T5-LExpl.-only 40.23.9 49.81.1 43.51.5 50.01.9
+T0-3BExpl.-only 42.61.4 47.31.6 41.12.0 54.11.7
+tures, T5-Large (Raffel et al., 2020) and T0-3B
+T5-Lw/oHA 46.62.3 55.43.2 47.02.3 56.93.6
+(Sanhetal.,2022). Eachmodelistrained5xwith T5-L 46.42.9 55.42.1 45.13.4 58.31.5
+differentrandomseeds. Furthertrainingdetailsare
+T0-3Bw/oHA 48.42.0 57.42.8 44.52.3 59.82.7
+T0-3B 48.60.9 59.91.1 49.71.6 64.01.5
+giveninAppendixE.
+OracleU.B. 78.0 82.0 100.0 100.0
+Baselines. We train an explanation-only base-
+Table 7: Results for acceptability classifiers trained
+line,whichreceivesasinputonlytheexplanation;
+on CommonsenseQA. Subscripts indicate standard er-
+similarbaselineshavebeenproposedforNLI(Po- rorovermodelstrainedwith5differentrandomseeds.
+liaketal.,2018;Gururanganetal.,2018). These “w/o HA” = without human agreement. “Oracle U.B”
+modelsrepresentthehypothesisthatannotatorrat- indicatesupperboundbasedondatasetproperties(§3).
+ingscanbereconstructedwithonlysurfacefeatures
+of the explanation candidates, e.g., grammatical- “Select-1”Acc@3/3 Explanation-levelAP@3/3
+Dev Test Test2 Dev Test Test2
+ity. We also consider a negative log-likelihood
+Random 15.20.7 14.70.1 13.60.3 15.00.6 14.40.3 13.80.2
+(NLL) baseline, which uses GPT-3’s estimated Constant — — — 15.2 14.5 13.7
+NLL 33.0 32.0 31.6 29.9 32.7 28.5
+probabilityastheacceptabilityclassificationscore.
+Expl.-only 30.20.8 30.92.1 27.81.8 30.62.5 30.61.3 25.92.3
+This is a slightly more competitive baseline than w/oHA 38.21.9 38.51.8 36.21.4 49.35.3 48.53.3 52.85.3
+Full 37.80.8 38.70.7 35.01.2 46.83.6 47.63.5 49.54.8
+greedy;greedyusually(butnotalways)produces OracleU.B. 51.0 52.4 46.4 100.0 100.0 100.0
+thehighest-likelihoodexplanation.12
+Table8:ResultsforSNLIexplanationacceptability;all
+modelresultsareonT0-3B.SeeTable7’scaption.
+4.3 Evaluation
+We consider three evaluation settings. The first
+is instance-level (“select-1”), where the system 4.4 Results
+returns 1 explanation selected from the set of 5
+ClassifierperformanceisgiveninTables7-8.
+foreachinstance. Wereturntheexplanationwith
+thehighestmodel-estimatedprobabilityandreport Effectofmodelsize. OnCommonsenseQA,T0-
+instance-levelaccuracy,i.e.,the%ofinstancesfor 3BoutperformsT5-Largeby~2-4%select-1accu-
+whichagoldacceptableexplanationisselected. racyand~5-6%explanation-levelAPacrosssplits.
+We also evaluate at the explanation-level, WeuseT0-3Binsubsequentexperiments.
+wherewetreateachexplanationindependentlyand
+NLL baseline vs. full model. For both tasks
+computemetricsoverthefulldataset. Thisaligns
+on both validation and test sets, T0-3B outper-
+withthebinaryclassificationtrainingofthemod-
+formstheNLLbaselinesubstantially. OnCommon-
+els (cross-entropy on the explanation labels) and
+senseQA,weobservea7-8%gainininstance-level
+issuitedforthesettinginwhichwewanttoreturn
+accuracy,andagainof18%explanation-levelAP
+alloftheacceptableexplanationsperinstance. In
+onthetestset. Thisprovidesstrongevidencethat
+thissetting,wereportaverageprecision(AP),an
+thesupervisedmodelisabletoincorporatebinary
+estimateofareaundertheprecision-recallcurve.
+humanfeedbacktopredictacceptableexplanations
+Finally, we perform an absolute human evalu-
+atalevelmuchhigherthatGPT-3achievesonits
+ation (§2.3) on the subset of instances where the
+own. We present examples where “select-1” pre-
+filtermodeldoesnotselectthegreedyexplanation
+dictionsdifferbetweenNLLandourfiltermodel
+asthebest,i.e.,comparing“select-1”performance
+inTable10andTable16.
+toagreedybaselineontheinstanceswhereitdif-
+fers. Weadditionallyre-performthehead-to-head Explanation only vs. full model. Our results
+comparisonofTable5,replacingthegreedyGPT-3 suggestthatourmodelsareleveragingfeaturein-
+explanationswiththoseselectedbythefilter. teractionsbetweentheinstanceandexplanationto
+maketheirpredictions: withoutinstance-levelcon-
+12AccordingtoGPT-3,asampledexplanationfromtheset
+text,theexplanation-onlybaselinesareonaverage
+of5hasalowerNLLthangreedyforonly2.8%and3.6%of
+instances,respectively,ofourCom.QAandSNLItestsets. morethan5pointsworseacrossmetrics. Though
+638General Generally True Grammatical Introduced Yes Too Much Acceptable
+1
+CoQA Greedy
+0.5 CoQA Filtered
+0 Sometimes/
+Partially True
+Enough
+-0.5
+-1
+Specific Generally False UngrammaticalNone Introduced No Not Enough Not Acceptable
+1
+SNLI Greedy
+0.5 SNLI Filtered
+0
+-0.5
+-1
+Generality Factuality Grammar New Info Supports LabelAmount Info* Acceptability
+Figure 3: Absolute evaluation results in the “select-1” setting for the instances where our best-performing filter
+model does not select the greedy explanation (156 instances for CommonsenseQA (top); 91 for NLI (bottom)).
+SeecaptionofFigure2andtheAppendix-Table20formoredetailsandstatisticalsignificanceresults.
+PreferredExplanation(%) SNLI
+Dataset Gold-Standard Tie GPT-3 α Premise:Anofficerinablackuniformandhatstands
+totheleftofalargestructurewithotherofficersinthe
+CoS-E 2.9 3.6 93.5 0.25
+background.
+ECQA 19.9 10.0 70.1 0.05
+Hypothesis:Anofficerenjoyscoffeeinashop.
+e-SNLI 49.9 6.9 43.2 0.14
+Label:contradiction
+NLL-Predicted Explanation: An officer in a black
+Table 9: A replication of Table 5, except the GPT-3 uniformandhatisnotnecessarilyanofficerenjoying
+explanationsarenowthetop-1ofourfiltersystem. coffeeinashop.
+Filter-Predicted Explanation: An officer in a struc-
+turestandingtoonesideisnotthesameasenjoying
+coffeeinashop.
+theyunder-performsignificantlyrelativetothefull
+CommonsenseQA
+model,explanation-onlybaselinesdofaresurpris-
+ingly well, indicating that shallow features like Question: Wherewouldtherebeanauditoriumwith
+onlyasinglepersonspeaking?
+factualityandgrammaticalitymayrepresentlatent
+Answer choices: theater, park, universitycampus,
+factorsinhumanacceptabilityjudgments. crowd,orlights
+NLL-PredictedExplanation:Anauditoriumisalarge
+Theeffectofmultipletrainingannotations. In roomusedforlectures,andasinglepersonspeakingis
+likelytobealecture.
+somecases,performanceimprovesifthetraining
+Filter-Predicted Explanation: On university or
+instances are labeled with the consensus of three university-likecampuses,theauditoriumsareoftenused
+annotators(vs. thesingularlyannotatedcase“w/o forlecturesorotherUniversityevents,whereasingle
+personmightbespeaking.
+HA"),thoughtheeffectsareinconsistent. Inmost
+cases, using consensus labels results in reduced
+Table 10: Randomly-selected instances that our filter
+varianceacrossrandomseeds. However,thegains model predicts differently than NLL at the “select-1”
+maynotoutweighthe3xannotationsrequired. taskandgotcorrect,butNLLgotincorrect.
+Our model doesn’t overfit to specific annota-
+tors. Theperformanceofourmodelwhenevalu- introducenewinformation,supportthelabel,and
+atedontheNLItestsetlabeledbyseparateanno- containatleastenoughinformationforbothtasks
+tators(“Test2”)iscomparabletotheoriginaltest (in addition to being more acceptable). Interest-
+set(instance-levelaccuracydropsafewpoints,but ingly,greedyexplanationsstillprevailinsurface-
+explanation-levelAPslightlyrises). level features (grammaticality and, in the case of
+CommonsenseQA,factuality; differencesaresta-
+Our model improves generated explanations
+tisticallysignificantwithlowp,seeTable20).13
+alongdesirabletraits. Wepresentourabsolute
+Weadditionallyfindinourhead-to-headstudy
+human evaluation for greedy vs. filtered expla-
+nations from GPT-3 in Figure 3— for both tasks,
+13Krippendorff’sαfortheseexperimentsis0.32forCom-
+explanations filtered by our model more readily monsenseQAand0.33forSNLI.
+639(Table9)that,comparedtoTable5,usingfiltered crowdworkerjudgementsofpromptedexplanation
+GPT-3explanationsinsteadofgreedyincreasesthe plausibility. They find that GPT-3 Davinci out-
+preferenceforGPT-3explanationsby15-24%for performsothersmallerpretrainedmodels,butthat
+both CommonsenseQA datasets. We do not see crowdworkersfindtheseexplanationslessplausi-
+an increase in the SNLI case, which may be due blethanthosefromthedatasets,aligningwithour
+tothefactthatfewerGPT-3explanationschange first experimental result (Table 3). We perform
+afterfiltering(36.4%,comparedto62.4%forCom- a more in-depth study of the fine-grained criteria
+monsenseQA),andGPT-3explanationsforSNLI comprisinghumanacceptability,anddemonstrate
+tend to be less acceptable overall, resulting in a thatwithhigher-qualitypromptsandfiltering,GPT-
+lower upper-bound oracle of instances where an 3’sperformancecanbesignificantlyimproved.
+acceptableexplanationcanbeselected(§3).
+Supervising on human preferences. Prior and
+In summary. We have demonstrated the effec-
+concurrentworkhasusedbinaryjudgementsfrom
+tivenessofmodelingbinarycrowdjudgementsof
+crowdworkerstofitmodelstohumanpreferences
+acceptabilityasameanstoselectcandidatesfrom
+fornon-XAItaskssuchassummarization(Ziegler
+GPT-3 which are deemed acceptable with unan-
+et al., 2020; Stiennon et al., 2020), creating com-
+imous agreement. For the method that does not
+monsenseknowledgebases(Westetal.,2021),and
+leveragehumanagreement,thisisdonewithonly
+buildingnaturallanguageinferencedatasets(Liu
+~5k binary annotations. We additionally demon-
+etal.,2022). Unliketheseworks,weapplyhuman
+stratethatourfilteredexplanationsimproveupon
+preferencemodelingtoincreasethehumanaccept-
+greedygenerationsinfine-grainedcategoriesthat
+abilityofmodel-generatedfree-textexplanations.
+probetheirtopicalrelevanceandmeaningfulcon-
+Westetal.(2021)demonstratethatGPT-3+asuper-
+tent. The gap between our best model and the
+visedacceptabilityfiltercangenerateahigh-quality
+upper-boundoracleindicatesthatthereisstillsub-
+causalknowledgegraph: inadditiontotheirwork
+stantialroomforimprovementinbothtasksettings
+beingconductedinadifferentdomain,oursuccess
+(butespeciallyforSNLI).Futureworkmayinvesti-
+conditions and evaluation metrics differ because
+gatesamplingmoreexplanations,orincorporating
+we must produce a prediction for each instance
+othersourcesofsupervisionsignal.
+(whereastheycansimplydiscardbadgenerations).
+5 RelatedWork
+Free-textexplanationgeneration. Theearliest 6 Conclusion
+neuralfree-textexplanationmodelsdidsoforcom-
+puter vision applications (Hendricks et al., 2016; WedemonstrateGPT-3’scapacitytogeneratefree-
+Parketal.,2018;Kimetal.,2018)andNLI(Cam- textexplanationsforNLPtaskinstancesinafew-
+buruetal.,2018). Thesemethodsreliedonsuper- shotsetting. Wefurtherimprovethiscapabilityvia
+vised datasets to train the explanation generator. anovergenerate+filterapproach,wherethefilter
+Othershaveproposedtogenerateexplanationsor is trained on supervision from human acceptabil-
+clarificationstoimprovetaskperformanceinasu- ity ratings. We hope our results can guide future
+pervised(Rajanietal.,2019;Lampinenetal.,2022) workonfree-textexplanationsvianeuralorneuro-
+orunsupervised(Shwartzetal.,2020)manner. Yor- symbolicsystems(Brahmanetal.,2021;Majumder
+danovetal.(2021)studytransferlearningbetween et al., 2021; Saha et al., 2021). Future work may
+datasetsforfew-shotgeneration. alsofurtherinvestigatethebenefitsofcounterfac-
+LatcinnikandBerant(2020)proposedamethod tualexplanations.
+togeneratefree-textexplanationssupervisedonly Whilehumanrationalesfordecisionmakingare
+on task signal, and Brahman et al. (2021) used not necessarily the same as model rationales, the
+sources of weak supervision to generate expla- goalbehindmodelinghumanacceptabilityisoften
+nations for defeasible inference. Paranjape et al. tobuildtrustwithahumanuser. Thistrustmayor
+(2021) design hand-crafted templates which they maynotbewarranted(Jacovietal.,2021);future
+usewithmask-infillingtoproducecontrastiveex- work would be well-suited to further investigate
+planationsfrompretrainedlanguagemodels. generated explanations for incorrect label predic-
+Concurrentwork(Marasovic´ etal.,2021)stud- tionssuchasinAppendixC,whichcouldmislead
+iestheeffectofpromptformatandmodelsizeon endusers.
+640Acknowledgements cessing(Volume1: LongPapers),pages3050–3065,
+Online.AssociationforComputationalLinguistics.
+We thank Jena Hwang for helpful advice in de-
+Samuel R. Bowman, Gabor Angeli, Christopher Potts,
+signingourhumanuserstudiesandPeterWestfor
+and Christopher D. Manning. 2015. A large anno-
+sharingGPT-3promptingscripts. Wethankother
+tatedcorpusforlearningnaturallanguageinference.
+membersoftheMosaicteamattheAllenInstitute In Proceedings of the 2015 Conference on Empiri-
+forAIforvaluablesuggestions,aswellasbothour calMethodsinNaturalLanguageProcessing,pages
+632–642,Lisbon,Portugal.AssociationforCompu-
+anonymous annotators and reviewers. This work
+tationalLinguistics.
+wasdonewhileSWwasaninternonMosaic.
+FaezeBrahman,VeredShwartz,RachelRudinger,and
+7 Ethics&BroaderImpacts Yejin Choi. 2021. Learning to rationalize for non-
+monotonic reasoning with distant supervision. In
+Proceedings of the 35th AAAI Conference on Arti-
+All datasets used in this work are public, and we
+ficialIntelligence,Online.
+plantoreleasethemachine-generatedexplanations
+andannotationswecollected. Wedonotcollectany Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+personalinformationfromourhumanparticipants. Subbiah, Jared D Kaplan, Prafulla Dhariwal,
+Arvind Neelakantan, Pranav Shyam, Girish Sastry,
+Modelsthatproduceexplanationsinthemeans
+Amanda Askell, Sandhini Agarwal, Ariel Herbert-
+used in our experimental protocol (i.e., by condi- Voss, Gretchen Krueger, Tom Henighan, Rewon
+tioningonthegoldlabels)havethepossibilityto Child, Aditya Ramesh, Daniel Ziegler, Jeffrey Wu,
+causehumanstoplaceunwarrantedtrustinanAI Clemens Winter, Chris Hesse, Mark Chen, Eric
+Sigler,MateuszLitwin,ScottGray,BenjaminChess,
+system. This line of research is complementary
+Jack Clark, Christopher Berner, Sam McCandlish,
+to works investigating the faithfulness of model- Alec Radford, Ilya Sutskever, and Dario Amodei.
+generatedfree-textexplanations(Haseetal.,2020; 2020. Language models are few-shot learners. In
+Wiegreffe et al., 2021). We demonstrate in Ap- AdvancesinNeuralInformationProcessingSystems,
+volume33,pages1877–1901,Online.CurranAsso-
+pendixCthatGPT-3’sexplanationslackreliability
+ciates,Inc.
+becausethemodelcanexplainanswerchoicesthat
+werenotitspredictionequallywell. Thismaybe Oana-Maria Camburu, Tim Rocktäschel, Thomas
+Lukasiewicz, and Phil Blunsom. 2018. e-snli: Nat-
+due in part to the fact that decoding algorithms
+urallanguageinferencewithnaturallanguageexpla-
+forgeneratingpredictionsfromlanguagemodels
+nations. InAdvancesinNeuralInformationProcess-
+aresub-optimal(e.g.,Zhaoetal.,2021;Holtzman ing Systems, volume 31, Montreal, Canada. Curran
+et al., 2021) and GPT-3 may have factual knowl- Associates,Inc.
+edge stored in its parameters about other answer
+Francisco Javier Chiyah Garcia, David A. Robb,
+choicesthatallowittoprovidereasonablyaccept-
+XingkunLiu,AtanasLaskov,PedroPatron,andHe-
+able explanations. Until this phenomenon is bet- len Hastie. 2018. Explainable autonomy: A study
+ter understood, we do not condone using GPT-3- ofexplanationstylesforbuildingclearmentalmod-
+els. In Proceedings of the 11th International Con-
+generatedexplanationsinreal-worlddeployment.
+ferenceonNaturalLanguageGeneration,pages99–
+Lastly, our model of human acceptability is
+108, Tilburg University, The Netherlands. Associa-
+basedontheaggregatejudgementsofparticipants tionforComputationalLinguistics.
+from primarily Western, English-speaking coun-
+Miruna-Adriana Clinciu, Arash Eshghi, and Helen
+tries working on crowdsourcing platforms. The
+Hastie. 2021. A study of automatic metrics for the
+subjectivejudgementsofexplanationacceptability evaluationofnaturallanguageexplanations. InPro-
+mayvarysignificantlyamongdifferentpopulation ceedings of the 16th Conference of the European
+groups. Chapter of the Association for Computational Lin-
+guistics: Main Volume, pages 2376–2387, Online.
+AssociationforComputationalLinguistics.
+References UpolEhsan,BrentHarrison,LarryChan,andMarkO
+Riedl. 2018. Rationalization: A neural machine
+Shourya Aggarwal, Divyanshu Mandowara, Vishwa- translation approach to generating natural language
+jeetAgrawal,DineshKhandelwal,ParagSingla,and explanations. In Proceedings of the 1st AAAI/ACM
+Dinesh Garg. 2021. Explanations for Common- Conference on AI, Ethics, and Society (AIES), New
+senseQA: New Dataset and Models. In Proceed- Orleans,USA.
+ings of the 59th Annual Meeting of the Association
+forComputationalLinguisticsandthe11thInterna- Upol Ehsan, Pradyumna Tambwekar, Larry Chan,
+tional Joint Conference on Natural Language Pro- Brent Harrison, and Mark O Riedl. 2019. Auto-
+641matedrationalegeneration: Atechniqueforexplain- ZhengbaoJiang, FrankF.Xu, JunAraki, andGraham
+ableaianditseffectsonhumanperceptions. InPro- Neubig. 2020. How can we know what language
+ceedingsofthe24thInternationalConferenceonIn- models know? Transactions of the Association for
+telligentUserInterfaces(IUI),pages263–274, Los ComputationalLinguistics,8:423–438.
+Angeles,USA.ACM.
+Maxime Kayser, Oana-Maria Camburu, Leonard
+MorGeva,YoavGoldberg,andJonathanBerant.2019. Salewski, Cornelius Emde, Virginie Do, Zeynep
+Arewemodelingthetaskortheannotator? aninves- Akata, and Thomas Lukasiewicz. 2021. e-vil: A
+tigationofannotatorbiasinnaturallanguageunder- datasetandbenchmarkfornaturallanguageexplana-
+standing datasets. In Proceedings of the 2019 Con- tionsinvision-languagetasks. InProceedingsofthe
+ferenceonEmpiricalMethodsinNaturalLanguage IEEEInternationalConferenceonComputerVision
+Processing and the 9th International Joint Confer- (ICCV),Online.
+ence on Natural Language Processing (EMNLP-
+Been Kim, RajivKhanna, and Oluwasanmi O Koyejo.
+IJCNLP),pages1161–1166,HongKong,China.As-
+2016. Examples are not enough, learn to criti-
+sociationforComputationalLinguistics.
+cize! criticism for interpretability. In Advances in
+NeuralInformationProcessingSystems,volume29,
+Alison Gopnik. 1998. Explanation as orgasm. Minds
+Barcelona,Spain.CurranAssociates,Inc.
+andMachines,8(1):101–118.
+Jinkyu Kim, Anna Rohrbach, Trevor Darrell, John F.
+Suchin Gururangan, Swabha Swayamdipta, Omer
+Canny, and Zeynep Akata. 2018. Textual Explana-
+Levy,RoySchwartz,SamuelBowman,andNoahA.
+tions for Self-Driving Vehicles. In Proceedings of
+Smith. 2018. Annotation artifacts in natural lan-
+the 15th European Conference on Computer Vision
+guage inference data. In Proceedings of the 2018
+(ECCV),Munich,Germany.
+Conference of the North American Chapter of the
+Association for Computational Linguistics: Human
+Diederik P. Kingma and Jimmy Ba. 2015. Adam: A
+Language Technologies, Volume 2 (Short Papers),
+methodforstochasticoptimization. InProceedings
+pages 107–112, New Orleans, Louisiana. Associa- of the 3rd International Conference on Learning
+tionforComputationalLinguistics. Representations(ICLR),SanDiego,USA.
+Peter Hase, Shiyue Zhang, Harry Xie, and Mohit Klaus Krippendorff. 2011. Computing krippendorff’s
+Bansal.2020. Leakage-adjustedsimulatability: Can alpha-reliability.
+modelsgeneratenon-trivialexplanationsoftheirbe-
+havior in natural language? In Findings of the As- Vivian Lai, Samuel Carton, and Chenhao Tan. 2020.
+sociation for Computational Linguistics: EMNLP Harnessingexplanationstobridgeaiandhumans. In
+2020, pages 4351–4367, Online. Association for FairandResponsibleAIWorkshopattheCHICon-
+ComputationalLinguistics. ference on Human Factors in Computing Systems,
+Online.
+Lisa Anne Hendricks, Zeynep Akata, Marcus
+Andrew K Lampinen, Ishita Dasgupta, Stephanie CY
+Rohrbach, Jeff Donahue, Bernt Schiele, and Trevor
+Chan, Kory Matthewson, Michael Henry Tessler,
+Darrell. 2016. Generating visual explanations. In
+Proceedings of the 14th European Conference on Antonia Creswell, James L McClelland, Jane X
+ComputerVision(ECCV),Amsterdam,Netherlands. Wang, and Felix Hill. 2022. Can language models
+learnfromexplanationsincontext? ArXivpreprint
+Ari Holtzman, Jan Buys, Li Du, Maxwell Forbes, arXiv:2204.02329.
+and Yejin Choi. 2020. The curious case of neural
+Veronica Latcinnik and Jonathan Berant. 2020. Ex-
+text degeneration. In Proceedings of the 8th Inter-
+plaining question answering models through text
+national Conference on Learning Representations
+generation. ArXivpreprintarXiv:2004.05569.
+(ICLR),Online.
+DavidBLeake.1991. Goal-basedexplanationevalua-
+AriHoltzman,PeterWest,VeredShwartz,YejinChoi,
+tion. CognitiveScience,15(4):509–545.
+and Luke Zettlemoyer. 2021. Surface form compe-
+tition: Why the highest probability answer isn’t al- Tao Lei, Regina Barzilay, and Tommi Jaakkola. 2016.
+waysright. InProceedingsofthe2021Conference Rationalizingneuralpredictions. InProceedingsof
+onEmpiricalMethodsinNaturalLanguageProcess- the 2016 Conference on Empirical Methods in Nat-
+ing, pages7038–7051, OnlineandPuntaCana, Do- ural Language Processing, pages 107–117, Austin,
+minican Republic. Association for Computational Texas.AssociationforComputationalLinguistics.
+Linguistics.
+Quentin Lhoest, Albert Villanova del Moral, Yacine
+Alon Jacovi, Ana Marasovic´, Tim Miller, and Yoav Jernite, AbhishekThakur, PatrickvonPlaten, Suraj
+Goldberg.2021. Formalizingtrustinartificialintel- Patil,JulienChaumond,MariamaDrame,JulienPlu,
+ligence: Prerequisites, causes and goals of human Lewis Tunstall, Joe Davison, Mario Šaško, Gun-
+trust in ai. In Proceedings of the 4th ACM Confer- jan Chhablani, Bhavitvya Malik, Simon Brandeis,
+enceonFairness,Accountability,andTransparency Teven Le Scao, Victor Sanh, Canwen Xu, Nicolas
+(FAccT),pages624–635,Online. Patry, Angelina McMillan-Major, Philipp Schmid,
+642Sylvain Gugger, Clément Delangue, Théo Matus- EthanPerez,DouweKiela,andKyunghyunCho.2021.
+sière, Lysandre Debut, Stas Bekman, Pierric Cis- True few-shot learning with language models. In
+tac, Thibault Goehringer, Victor Mustar, François AdvancesinNeuralInformationProcessingSystems,
+Lagunas,AlexanderRush,andThomasWolf.2021. volume34,pages11054–11070,Online.CurranAs-
+Datasets: Acommunitylibraryfornaturallanguage sociates,Inc.
+processing. InProceedingsofthe2021Conference
+onEmpiricalMethodsinNaturalLanguageProcess- Adam Poliak, Jason Naradowsky, Aparajita Haldar,
+ing: System Demonstrations, pages 175–184, On- Rachel Rudinger, and Benjamin Van Durme. 2018.
+line and Punta Cana, Dominican Republic. Associ- Hypothesis only baselines in natural language in-
+ationforComputationalLinguistics. ference. In Proceedings of the Seventh Joint Con-
+ference on Lexical and Computational Semantics,
+Alisa Liu, Swabha Swayamdipta, Noah A Smith, and pages 180–191, New Orleans, Louisiana. Associa-
+Yejin Choi. 2022. Wanli: Worker and ai collabora- tionforComputationalLinguistics.
+tion for natural language inference dataset creation.
+ArXivpreprintarXiv:2201.05955. Alec Radford, Jeffrey Wu, Rewon Child, David Luan,
+Dario Amodei, Ilya Sutskever, et al. 2019. Lan-
+Tania Lombrozo. 2007. Simplicity and probabil- guagemodelsareunsupervisedmultitasklearners.
+ity in causal explanation. Cognitive Psychology,
+55(3):232–257. ColinRaffel,NoamShazeer,AdamRoberts,Katherine
+Lee, Sharan Narang, Michael Matena, Yanqi Zhou,
+Yao Lu, Max Bartolo, Alastair Moore, Sebastian WeiLi,andPeterJ.Liu.2020. Exploringthelimits
+Riedel,andPontusStenetorp.2022. Fantasticallyor- of transfer learning with a unified text-to-text trans-
+deredpromptsandwheretofindthem: Overcoming former. TheJournalofMachineLearningResearch,
+few-shot prompt order sensitivity. ArXiv preprint 21(140):1–67.
+arXiv:2104.08786.
+Nazneen Fatema Rajani, Bryan McCann, Caiming
+Bodhisattwa Prasad Majumder, Oana-Maria Cam- Xiong,andRichardSocher.2019. Explainyourself!
+buru, Thomas Lukasiewicz, and Julian McAuley. leveraging language models for commonsense rea-
+2021. Rationale-inspired natural language ex- soning. In Proceedings of the 57th Annual Meet-
+planations with commonsense. ArXiv preprint ing of the Association for Computational Linguis-
+arXiv:2106.13876. tics, pages 4932–4942, Florence, Italy. Association
+forComputationalLinguistics.
+Ana Marasovic´, Iz Beltagy, Doug Downey, and
+Matthew E Peters. 2021. Few-shot self- SwarnadeepSaha,PrateekYadav,LisaBauer,andMo-
+rationalization with natural language prompts. hit Bansal. 2021. ExplaGraphs: An explanation
+ArXivpreprintarXiv:2111.08284. graph generation task for structured commonsense
+reasoning. In Proceedings of the 2021 Conference
+Luca Massarelli, Fabio Petroni, Aleksandra Piktus, onEmpiricalMethodsinNaturalLanguageProcess-
+Myle Ott, Tim Rocktäschel, Vassilis Plachouras, ing, pages7716–7740, OnlineandPuntaCana, Do-
+FabrizioSilvestri,andSebastianRiedel.2020. How minican Republic. Association for Computational
+decoding strategies affect the verifiability of gener- Linguistics.
+atedtext. InFindingsoftheAssociationforCompu-
+tationalLinguistics: EMNLP2020,pages223–235, Victor Sanh, Albert Webson, Colin Raffel, Stephen H
+Online.AssociationforComputationalLinguistics. Bach, Lintang Sutawika, Zaid Alyafeai, Antoine
+Chaffin,ArnaudStiegler,TevenLeScao,ArunRaja,
+Sharan Narang, Colin Raffel, Katherine Lee, Adam et al. 2022. Multitask prompted training enables
+Roberts, NoahFiedel, andKarishmaMalkan.2020. zero-shottaskgeneralization. InProceedingsofthe
+WT5?! training text-to-text models to explain their 10th International Conference on Learning Repre-
+predictions. ArXivpreprintarXiv:2004.14546. sentations(ICLR),Online.
+Bhargavi Paranjape, Julian Michael, Marjan Timo Schick and Hinrich Schütze. 2021a. Exploiting
+Ghazvininejad, Hannaneh Hajishirzi, and Luke cloze-questions for few-shot text classification and
+Zettlemoyer. 2021. Prompting contrastive explana- natural language inference. In Proceedings of the
+tionsforcommonsensereasoningtasks. InFindings 16thConferenceoftheEuropeanChapteroftheAs-
+of the Association for Computational Linguistics: sociation for Computational Linguistics: Main Vol-
+ACL-IJCNLP 2021, pages 4179–4192, Online. ume, pages 255–269, Online. Association for Com-
+AssociationforComputationalLinguistics. putationalLinguistics.
+Dong Huk Park, Lisa Anne Hendricks, Zeynep Akata, TimoSchickandHinrichSchütze.2021b. It’snotjust
+Anna Rohrbach, Bernt Schiele, Trevor Darrell, and size that matters: Small language models are also
+Marcus Rohrbach. 2018. Multimodal explanations: few-shotlearners. InProceedingsofthe2021Con-
+Justifying decisions and pointing to the evidence. ferenceoftheNorthAmericanChapteroftheAsso-
+In Proceedings of the IEEE Conference on Com- ciationforComputationalLinguistics: HumanLan-
+puterVisionandPatternRecognition(CVPR),pages guage Technologies, pages 2339–2352, Online. As-
+8779–8788,SaltLakeCity,USA. sociationforComputationalLinguistics.
+643Noam Shazeer and Mitchell Stern. 2018. Adafactor: SarahWiegreffeandAnaMarasovic´.2021. Teachme
+Adaptivelearningrateswithsublinearmemorycost. toexplain: Areviewofdatasetsforexplainablenat-
+InProceedingsofthe35thInternationalConference urallanguageprocessing. InAdvancesinNeuralIn-
+on Machine Learning (ICML), pages 4596–4604, formation Processing Systems Datasets and Bench-
+Stockholm,Sweden.PMLR. marksTrack,volume34,Online.
+Taylor Shin, Yasaman Razeghi, Robert L. Logan IV, Sarah Wiegreffe, Ana Marasovic´, and Noah A. Smith.
+EricWallace,andSameerSingh.2020. AutoPrompt: 2021. Measuring association between labels and
+Eliciting Knowledge from Language Models with free-textrationales. InProceedingsofthe2021Con-
+Automatically Generated Prompts. In Proceed- ferenceonEmpiricalMethodsinNaturalLanguage
+ings of the 2020 Conference on Empirical Methods Processing, pages 10266–10284, Online and Punta
+in Natural Language Processing (EMNLP), pages Cana,DominicanRepublic.AssociationforCompu-
+4222–4235, Online. Association for Computational tationalLinguistics.
+Linguistics.
+Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+Vered Shwartz, Peter West, Ronan Le Bras, Chandra Chaumond, ClementDelangue, AnthonyMoi, Pier-
+Bhagavatula, and Yejin Choi. 2020. Unsupervised ric Cistac, Tim Rault, Remi Louf, Morgan Funtow-
+commonsensequestionansweringwithself-talk. In icz, Joe Davison, Sam Shleifer, Patrick von Platen,
+Proceedings of the 2020 Conference on Empirical Clara Ma, Yacine Jernite, Julien Plu, Canwen Xu,
+MethodsinNaturalLanguageProcessing(EMNLP), Teven Le Scao, Sylvain Gugger, Mariama Drame,
+pages4615–4629,Online.AssociationforComputa- Quentin Lhoest, and Alexander Rush. 2020. Trans-
+tionalLinguistics. formers: State-of-the-art natural language process-
+ing. InProceedingsofthe2020ConferenceonEm-
+CharlesSpearman.1987. Theproofandmeasurement pirical Methods in Natural Language Processing:
+of association between two things. The American SystemDemonstrations,pages38–45,Online.Asso-
+JournalofPsychology,100(3/4):441–471. ciationforComputationalLinguistics.
+Nisan Stiennon, Long Ouyang, Jeffrey Wu, Daniel Yordan Yordanov, Vid Kocijan, Thomas Lukasiewicz,
+Ziegler, Ryan Lowe, Chelsea Voss, Alec Radford, and Oana-Maria Camburu. 2021. Few-shot out-of-
+DarioAmodei,andPaulFChristiano.2020. Learn- domain transfer learning of natural language expla-
+ing to summarize from human feedback. In Ad- nations. InNeurIPSWorkshoponDeepGenerative
+vances in Neural Information Processing Systems, ModelsandDownstreamApplications.
+volume33,pages3008–3021,Online.CurranAsso-
+Jeffrey C Zemla, Steven Sloman, Christos Bechlivani-
+ciates,Inc.
+dis,andDavidALagnado.2017. Evaluatingevery-
+Justin Sulik, Jeroen van Paridon, and Gary Lupyan. day explanations. Psychonomic Bulletin & Review,
+2021. Explanationsinthewild. 24(5):1488–1500.
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and TonyZZhao, EricWallace, ShiFeng, DanKlein, and
+Jonathan Berant. 2019. CommonsenseQA: A ques- SameerSingh.2021. Calibratebeforeuse: Improv-
+tion answering challenge targeting commonsense ing few-shot performance of language models. In
+knowledge. InProceedingsofthe2019Conference Proceedingsofthe38thInternationalConferenceon
+of the North American Chapter of the Association MachineLearning(ICML),Online.
+for Computational Linguistics: Human Language
+DanielMZiegler,NisanStiennon,JeffreyWu,TomB
+Technologies, Volume 1 (Long and Short Papers),
+Brown, Alec Radford, Dario Amodei, Paul Chris-
+pages4149–4158,Minneapolis,Minnesota.Associ-
+tiano, and Geoffrey Irving. 2020. Fine-tuning lan-
+ationforComputationalLinguistics.
+guage models from human preferences. ArXiv
+preprintarXiv:1909.08593.
+Chenhao Tan. 2021. On the diversity and lim-
+its of human explanations. ArXiv preprint
+arXiv:2106.11988.
+A PromptConstruction
+PauliVirtanen,RalfGommers,TravisEOliphant,Matt
+FollowingPerezetal.(2021),weavoidprompttun-
+Haberland, Tyler Reddy, David Cournapeau, Ev-
+geni Burovski, Pearu Peterson, Warren Weckesser, ingonthefulltraininganddevelopmentsetsofthe
+JonathanBright,etal.2020. Scipy1.0: Fundamen- datasetsstudied,inordertoensurethatourmethods
+tal algorithms for scientific computing in python.
+representatruefew-shotsetting. Todeveloptheini-
+NatureMethods,17(3):261–272.
+tialpromptdesign,weexperimentedwithnomore
+PeterWest,ChandraBhagavatula,JackHessel,JenaD than 10 different layouts in the GPT-3 Sandbox
+Hwang, Liwei Jiang, Ronan Le Bras, Ximing platformusing15trainingexamplesontheCoS-E
+Lu, Sean Welleck, and Yejin Choi. 2021. Sym-
+and e-SNLI datasets. For subsequent prompt de-
+bolicknowledgedistillation: fromgenerallanguage
+sign,weagainusedthese15trainingexamplesfor
+models to commonsense models. ArXiv preprint
+arXiv:2110.07178. each dataset from which we sampled 6 prompts,
+644Let’sexplainclassificationdecisions. valueshavenotbeenstandardized,twoprominent
+question:Whenrememberingatragedyinthepast,what papers, Schick and Schütze (2021b) and Brown
+domanypeoplefeel?
+etal.(2020),use32and64promptexamples,re-
+pain,depression,knowing,knowledge,ornostalgia?
+depression spectively. Duetothe2049-tokenlimitoftheOpe-
+why? Rememberingapasttradedycanresurfacefeel-
+nAI GPT-3 API and the fact that the addition of
+ings that arose in response to that tragedy. Because
+explanations elongates each prompt instance, we
+tragediesarenotpositiveevents,it’spossiblethatsad-
+nessanddepressioncouldarisefromrememberingit. find the maximum number of examples the API
+###
+can accommodate is 24 for CoS-E, e-SNLI, and
+question:Whatdopeopledosometimeswhentheyfind
+agooddeal? ourhandwrittenexplanationsand16forECQA.
+racecars,murdereachother,believeingod,fighteach Thefocusofthisworkisnotonfindingtheopti-
+other,orfeardeath?
+malprompt,butondevelopingageneralstrategy
+fighteachother
+why? Mallssometimeshavesales, e.g., onblackfri- forfew-shotexplanationgenerationthatcouldbe
+day, when they offer good deals; however, the items successful when no additional (large) validation
+aresometimesinlimitedsupply, whichcancauseal-
+set for tuning is available. Therefore, to provide
+tercationsbetweenfolks,eachtryingtobuythesame
+item. asrobustofanexpectedperformanceestimateas
+### possible, we do not tune the additional hyperpa-
+question:Whatdoessomeonewhohasagreedforen-
+rameters, instead sampling them to approximate
+ergydo?
+buyfood,lie,get,causebusinessestogrow,orwin? performance.14 Namely,whilepriorworkusesone
+buyfood
+fixedpromptforallinstancesandvariestherandom
+why?Whenconsumed,foodprovidesenergyandsatis-
+fiesthegreedforit. seed, we approximate the same expected perfor-
+### mancebysamplinganewsetofpromptsforeach
+question:Immediatelyafterpeeing,aperson’sbladder
+instance. Wealsosamplethenumberofprompts
+iswhat?
+full,empty,filled,stretchable,orcollapsed? for each instance (and shuffle their order) from
+empty thevalues 8,16,24 forCommonsenseQAexper-
+why? { }
+iments, 8,16 for experiments using ECQA ex-
+{ }
+planations,and 12,18,24 forSNLIexperiments
+Table 11: Example of a prompt with 3 training exam- { }
+(to maintain label balance). To overcome label
+ples for CommonsenseQA: presented are the question
+and answer choices, the gold labels, and the explana- biasinpromptordering,fortaskswithdistinctan-
+tions(writtenbyus)thatactasinputtoGPT-3(inprac- swerchoicesperinstance(CommonsenseQA),we
+tice,weuse8-24examplesperprompt).Thetextgener- shuffletheanswerchoices. Fortaskswithfixedan-
+atedbythemodelactsasthefree-textexplanation. In
+swerchoices(SNLI),wesampleanequalnumber
+this case, the model greedily auto-completes (given 8
+of prompt instances for each label (so number of
+examples): “Afterpeeing,thebladderisempty.”
+promptinstancesisamultipleof3).
+Table 12 shows a few non-cherry-picked ex-
+amples of our handwritten explanations used as
+alongwithafixed100-example“developmentset”
+promptsrelativetothedatasets.
+randomlydrawnfromthetrainingset. Wepreserve
+the“few-shot”approachbyusingamaximumof B CrowdsourcingDetails
+these same 115 instances to develop our prompt-
+We discuss shared details of the study designs in
+ingmethods. Forthese115examples,theauthors
+§B.1. We discuss the head-to-head interface in
+of this paper manually wrote high-quality expla-
+§B.2, the absolute interface in §B.3, and the ac-
+nationstobeusedaspromptexamples(Table12).
+ceptability interface in §B.4. Finally, we present
+AspresentedinTable2,wefoundthatstructuring
+detailsonqualitycontrolandpaymentin§B.5and
+SNLI as a question-answering task achieved the
+annotatorstatisticsin§B.6.
+bestperformance, similarlytoZhaoetal.(2021).
+We provide an example of our SNLI prompt in
+B.1 SharedInterfaceDetails
+Table2andCommonsenseQAinTable11.
+For all three human subjects study designs de-
+In-contextlearningmethodshavebeenshownto
+signs, we show the user the input instance (e.g.,
+have high variance based on hyperparameters in-
+cludingexampleorder,numberofexamplesgiven,
+14Perezetal.(2021)showthatperformingcross-validation
+ortuningviamaximumdescriptionlengthoverasmallvalida-
+andwhichexamplesaregiven(Jiangetal.,2020;
+tionsetdoesnotsignificantlyoutperformrandomsamplingof
+Zhao et al., 2021; Lu et al., 2022). While these thesevalues.
+645SNLI(Bowmanetal.,2015) larlyofnotefortheCommonsenseQAtaskwhich
+Premise: A person on a horse jumps over a broken has different answer choices per instance. Some
+downairplane. instancesinCommonsenseQAhavemultiplecor-
+Hypothesis:Apersonistraininghishorseforacompe-
+rect or very similar answer choices, due to noise
+tition.
+Label:neutral in the dataset and the fact that the wrong answer
+OurExplanation:Whileitispossiblethatjumpinga choices were deliberately collected to make the
+horseoveranobstacleispartofatrainingroutinefor
+taskchallenging. We(theauthors)againfoundwe
+acompetition,itisalsopossiblethatthehorserideis
+beingdoneforpleasure,notnecessarilyforacompetion struggled to accurately judge explanation quality
+(sp). whenwedisagreedwiththeselectedanswerchoice
+e-SNLI Explanation: the person is not necessarily
+orfoundmultipleanswerchoicestobecorrect. To
+traininghishorse
+removethispossibleconfounder,weinstructpar-
+Premise:Childrensmilingandwavingatcamera
+Hypothesis:Therearechildrenpresent ticipantstopretendthegoldlabeliscorrectevenif
+Label:entailment theydisagreewithit,andmakethiseasierbyhid-
+OurExplanation: Sincethechildrenarepartofthe
+ingtheotheranswerchoices. Thismayresultina
+eventofsmilingatthecamera,theyarepresentatthe
+eventunderdiscussion. slightbiasinjudgementsagainsttheECQAdataset
+e-SNLIExplanation:Thechildrenmustbepresentto duetoitsuniquecounterfactualnature,thoughour
+seethemsmilingandwaving.
+goalwasnottostudythebenefitsanddownsides
+ofcounterfactualexplanationsinthiswork.
+CommonsenseQA(Talmoretal.,2019)
+Question:Acatcan’ttalk,butacatcanwhat? B.2 Head-to-HeadInterfaceDetails
+Answer choices: sleep all day, meow, shed fur, see
+king,livemanyyears We show the user the task input and gold label,
+OurExplanation:Acatcanmeowasawaytovocal-
+andaskthemtoselectwhichoftwoexplanations
+ize.
+best explains the answer. We instruct workers to
+CoS-E Explanation: the cat is a small carnivorous
+mammal consider the gold label to be correct even if they
+ECQAExplanation: Acatcanmeowbutcannotsee
+disagreewithit(CommonsenseQAinstancescan
+the king. Meowing is how a cat communicates and
+notbysleepingallday,sheddingfurorbylivingmany be subjective) and to ignore minor grammar and
+years. spelling mistakes such as improper upper-casing.
+Question:"Thereare10applesonanappletree.Three Figures5and6showtheevaluationinterface.
+falloff.NowthereareXapples."Whatisthisanexam-
+pleof?
+B.3 AbsoluteInterfaceDetails
+Answerchoices: park, coloringbook, gardencenter,
+mathproblem,gravity Figures7and8showtheabsoluteevaluationinter-
+OurExplanation:Amathproblemisusuallyposedas
+face(minustheacceptabilityattribute,whichiscol-
+aquestionthatrequiressomeoperationsuchassubtrac-
+tionoradditiontoanswer. lectedinaseparaterunofthestudy). Ourinterface
+CoS-EExplanation:webmathisdesignedtohelpyou isinspiredbypriorworkfrompsychologyandthe
+solve
+socialsciences(Leake,1991;Gopnik,1998;Lom-
+ECQAExplanation:Mathproblemisanarithmetical
+problemofaddition,subtraction,multiplicationordivi- brozo, 2007; Zemla et al., 2017; Chiyah Garcia
+sion. So“Thereare10applesonanappletree. Three etal.,2018;Clinciuetal.,2021;Suliketal.,2021).
+falloff. NowthereareXapples.” isamathproblem.
+Weiteratedover3-4versionsofthequestionsand
+Alltheotheroptionsaren’tproblemstobeexamplesof
+thegivenquestion. UIdesignuntilwehadoptimizedagreementrates
+asmuchaspossible. Ourresultingtwo-partevalua-
+Table 12: Examples of explanations used as prompts
+tionconsistsof7questions:
+fromvarioussources,includingourhandwrittenexpla-
+nations. CorrectanswersforCommonsenseQAareun- Part 1: Context-Independent Evaluation We
+derlined.
+firstassesstheexplanationinisolation,i.e.,these
+questionsarepresentedtotheuserwithoutreveal-
+ingthequestion/contextthattheexplanationisat-
+premise+hypothesis)andthegoldlabelinaddition
+temptingtoaddress:
+to the explanation(s). We explain our motivation
+1. Howfactualisthisstatement? (generallyfalse,
+forusingthegoldlabelasamethodologicalcontrol
+sometimes or partially true, generally true, or
+in§2.
+needmoreinformationtojudge). Thisquestion
+Forasimilarreason,wedonotshowtheother isdesignedtotestbothgenerality(cantheexpla-
+incorrectlabelchoicestotheuser,whichisparticu- nation’struthfulnessbeascertainedorismorein-
+646formationneeded?) andfactuality,whichaligns theextenttowhichtheprovidednovelinforma-
+with“compatibilitywithreceiver’sexistingbe- tionisadequateorsufficient(Kimetal.,2016;
+liefs”andthatthebestexplanationisthe“most Leietal.,2016;Ehsanetal.,2019).16
+likely”explanationfromthereceiver/user’sper- 4. Istheexplanationacceptable? (yesorno)The
+spective(Lombrozo,2007;Zemlaetal.,2017; finalquestionisdesignedtoassessannotators’
+Sulik et al., 2021). Generality is coded based overalljudgementoftheexplanationasawhole.
+on whether a truthfulness answer is selected
+WeonlyaskQuestion2iftheanswertoQuestion1
+(consideredtobegeneral)orwhetherthe“need
+is“yes”andQuestion3iftheanswertoQuestion
+more information to judge” choice is selected
+2isyes,becausetheyregardthenewfacts,infor-
+(considerednottobegeneral).
+mation, or reasoning. We found that most prior
+2. Isthisstatementgrammatical? (yesorno)This
+work tends to lump added-value, relevance, and
+questionisdesignedtotestforclarity,aligning
+adequacy judgements into one “informativeness”
+withcharacteristicssuchascoherence(Leietal.,
+judgement(Clinciuetal.,2021),whichwefeltwas
+2016)andhuman-likenessandunderstandability
+toocoursetoallowformeaningfulerroranalysis.
+(Ehsanetal.,2019).
+B.4 AcceptabilityInterfaceDetails
+Part 2: Context-Dependent Evaluation We
+next show the user the question (premise and hy- Figures 9 and 10 show the binary acceptability
+pothesisforSNLI)andgoldanswerthattheexpla- interfaceusedtocollecttrainingandtestdatafor
+nationwasconditionedon. Wethenask: theovergenerationfiltermodel.
+Spearman’s rank-order correlation coefficients
+1. Doestheexplanationprovidenewfacts, infor-
+(Table6)arecomputedusingscipy(Virtanenetal.,
+mationorreasoningnotstatedinthequestion
+2020)onthe250testexplanationsfromthe5data
+and answer? (yes or no) In our preliminary
+sourcesinFigure2. Eachinstanceisannotatedby
+experiments,wefoundsomeexplanationssim-
+3 annotators for a total of 3750 datapoints (some
+ply restate the question declaratively with the
+criteriaareonlyevaluatedconditionally,resulting
+answerfilledin. Thisquestionaddressesthedis-
+inlesstotalannotations–seeAppendixB.3). Sta-
+tinctionbetween“validity”and“utility”(Leake,
+tisticalsignificanceiscomputedusingthebuilt-in
+1991): anexplanationcanbevalid(i.e.,arestate-
+two-sidednon-parametrictest.
+ment of the question with the answer filled-in
+might be correct), but not useful; utility is de-
+B.5 QualityControlandPayment
+fined by whether an explanation “satisfies an
+WeuseAmazonMechanicalTurk(AMT),andcal-
+explainer’s need for information”. And while
+culatepayonarateof$15/hour. Everyfewbatches,
+utilityisbestunderstoodinthecontextofreal-
+wechecktoensurethatthemediantimetakenper-
+worldapplications(Laietal.,2020),wenonethe-
+annotatoramountstoapproximatelythispayrate.
+less aim to identify vacuous explanations that
+While annotators do tend to speed up the more
+donotprovidenewinformation.
+HITswereleased, first-roundmediantimeswere
+2. Isthenewinformationrelevanttojustifyingthe
+approximately30secondsperhead-to-headevalu-
+answer? (yes or no) New information, if pro-
+ationHIT(thuspaidat$0.12each),1minuteper
+vided,“shouldbecompatiblewithourexisting
+absoluteevaluationHIT(thuspaidat$0.25each),
+beliefs, and consistent with the evidence and
+and35-39secondsperacceptabilityHIT(5expla-
+with itself” (Zemla et al., 2017). This ques-
+nations;paidat$0.20each).
+tionisdesignedtotestwhethertheinformation
+WerequireannotatorstobelocatedineitherAus-
+providedsupportsthelabel. Thespecificinter-
+tralia,Canada,NewZealand,theUnitedKingdom,
+pretationof“relevance”ispurposefullyleftto
+theannotator.15 ortheUnitedStates,asaproxyforEnglishcompe-
+tency.17 WerequireapastHITapprovalrateof>
+3. How much information does the explanation
+havetojustifytheanswer? (notenough,enough,
+16Inpractice, wedonotfindTurkersusethe“toomuch
+or too much) This question is designed to test information”optionoften,exceptinthecaseofECQAdataset
+explanations.Weincludedtheoptionbecausesuccinctnessis
+15This decision is inspired by prior work in psychology, anoft-citedexplanatoryvirtue(Lombrozo,2007;Zemlaetal.,
+which finds that explanations are only good “to the extent 2017;ChiyahGarciaetal.,2018).
+thatpeoplefind[them]satisfying”(Gopnik,1998;Suliketal., 17We realize this is a broad assumption and likely sub-
+2021). optimal. However, colleagues have found that broadening
+64798%and>5000HITsapproved. Wedonotallow Dataset Split #InstancesbyAgreement Total
+annotatorstoparticipatewhowerepreviouslyona 0/3 1/3 2/3 3/3
+blocklistfromourpastAMTstudies. Com.QA Train 932 1078 1194 1296 4500
+Annotatorsmustcompleteaqualifyingexamin Dev 105 91 132 127 455
+Test 298 227 328 397 1250
+order to participate in the main annotation tasks.
+Thequalifyingexamconsistsof3HITsinthesame SNLI Train 2372 805 621 702 4500
+Dev 272 87 65 76 500
+format as the main absolute evaluation task for
+Test 678 225 166 181 1250
+CommonsenseQA We pay $2.25 for the qualify-
+Test2 666 234 179 171 1250
+ing exam. There are 9-18 questions in total (3-6
+questionsperHIT),someofwhichareonlyanswer- Table13: Statisticsofouracceptabilityannotations.
+ableconditionedonpreviousanswers. Auserwho
+answers“no”toquestion3,forexample,willnot
+be asked to answer questions 4 and 5. Given the
+detailedbreakdownsofinter-annotatoragreement
+challenging and sometimes ambiguous nature of
+forsomeexperimentsareinTables14and15.
+someofthequestions,forthefirstrunofthequali-
+ficationexam,wemanuallyawardedqualifications
+byinspectingtheannotators’answers. Scoresfor
+the first run compared to our answers (out of 17 C AbsoluteEvaluationbyLabel
+annotatorsattempting)rangedfrom5to14outof Accuracy
+18. Themedianaccuracywas11outof18,andwe
+find that awarding the qualification to those with
+CanGPT-3produceconvincingexplanationseven
+scoresatorabovethemedianalignscloselywith
+forinstancesitcannotpredictcorrectly? Thishas
+our manual inspection. We thus use this score to
+implicationsformodel-generatedexplanationsbe-
+assignqualificationsinfutureiterations.
+ing“rightfortherightreasons”. Toproducelabel
+Because it is necessary that annotators under-
+predictions,wefollowthesamepromptformatas
+standthetaskbeforetheycanevaluateexplanation
+in Tables 2 and 11, removing the WHY? token
+quality(WiegreffeandMarasovic´,2021),fortasks
+and the gold explanations so that the model gen-
+that are more difficult, i.e., NLI, we additionally
+eratesalabelprediction instead. GPT-3achieves
+requireannotatorstopass(scoreof7orabove)a
+50.8% accuracy on CommonsenseQA compared
+task-specificqualificationexamwith8questions,
+to a20% random baseline, and 46% accuracy on
+paidat$1.25.
+SNLIcomparedtoa33.33%randombaseline.18
+Inordertotrackqualitythroughoutevaluation,
+wecomputeinter-annotatoragreementusingKrip- Figure4presentsabsoluteevaluationresultsbro-
+pendorff’s α and use a hidden built-in Javascript kendownbywhetherGPT-3correctlypredictsthe
+functiontocomputetimeperHITspent. Ifanyan- instance label. The results show little variation
+notatorcompletedthetasksinanunreasonablylow between the correctly-predicted and incorrectly-
+time, or removing their annotations substantially predictedgroupsinmostattributes. Thisindicates
+improvesKrippendorff’sα,weremovetheiranno- thatGPT-3explanationsarenotfaithfulenoughto
+tationsandre-annotatetheirinstances. Weaddition- useinreal-worldapplicationsintheircurrentform.
+allyensurethateachexperimenthasasubstantial
+numberofdistinctcrowdworkerstomitigateindi-
+vidualannotatorbias,reportingthisaswellasthe D 2/3AcceptabilityStatistics
+mean and median number of HITs completed by
+eachinTable17.
+When we treat explanations rated by at least 2/3
+B.6 Statistics annotatorsas“acceptable”,forCommonsenseQA,
+The number of distinct crowd annotators and the 77.9%ofgreedily-decodedexplanationsareaccept-
+medianandmeannumberofHITscompletedfor able; for SNLI, 51.0%. 50.5% of sampled expla-
+eachexperimentcanbefoundinTable17. More nations are acceptable; for SNLI, 23.5%. Out of
+the set of 5 (1 greedy + 4 stochastic), 97.7% of
+thegeographicalrequirementsoftenstillleadsto>90%of
+CommonsenseQAinstanceshaveatleastoneac-
+annotatorsintheUSorCanada,duetoAMT’spaystructure
+beingoptimalinthesecountries. ceptableexplanation,and79.5%ofSNLI.
+648General Generally True Grammatical Introduced Yes Too Much Acceptable
+1
+Predicted Correctly
+0.5 Predicted Incorrectly
+Enough
+0 Sometimes/
+Partially True
+-0.5
+-1
+Specific Generally False UngrammaticalNone Introduced No Not Enough Not Acceptable
+1
+Predicted Correctly
+0.5 Predicted Incorrectly
+0
+-0.5
+-1
+Generality Factuality Grammar New Info Supports Label Amount Info* Acceptability
+Figure 4: Absolute evaluation results for explanations generated by GPT-3 based on whether GPT-3 predicted
+the instance label correctly or not. CommonsenseQA (top) and SNLI (bottom). See caption of Figure 2 and the
+Appendix-Table19formoredetails.
+E FilterModelDetails Dataset Split Krippendorff’sα
+CommonsenseQA Training+Validation 0.32
+We split the 4,955 distinct annotated explana-
+Test 0.40
+tionsforCommonsenseQA(5000forSNLI)into SNLI Training+Validation 0.51
+Test 0.50
+a train/dev set of 4500/455 (4500/500 for SNLI),
+Test2 0.47
+where all 5 explanations for a given instance are
+placed in the same set to avoid leakage. We Table 14: Inter-annotator agreement for acceptability
+present statistics on the label distribution in Ta- AMTstudies.
+ble13. Alongwiththemetricsettingsreportedin
+the paper (“select-1” and explanation-level), we
+amaximum200epochs,performingearlystopping
+computed a metric that is instance-level but con-
+onthevalidationlosswithapatienceof10epochs.
+sidersallexplanationsbycomputingmetricsover
+For T0-3B, we train with a batch size of 50. We
+the5explanationsofaninstanceandthenaverag-
+use AdaFactor (Shazeer and Stern, 2018) with a
+ing across instances, finding in practice that the
+linearwarmupof500steps. Weconductaninitial
+resultsarehighlysimilartotheexplanation-level
+hyperparametersweepoverlearningrate,consid-
+evaluation.
+ering 1E 5,5E 05,5E 06. The learning
+We use Huggingface Datasets (Lhoest et al., − − −
+rate that achieves the best validation loss for the
+2021)andHuggingfaceTransformers(Wolfetal.,
+full-information model and the explanation-only
+2020)forimplementation. Weformatinputstothe
+model is 1E 5, which we use for all training
+models as follows, where expl is one of the five −
+experiments.
+explanationsandthegold_labeliseither0(not
+acceptable)or1(acceptable): F AdditionalFilterResults
+if explanation_only:
+input_string = (f"explanation: {expl}. In the main experiments, at evaluation time, we
+Is this explanation good or bad?") labelledanexplanationasacceptableif3/3anno-
+else:
+tatorsagreedonit. Here, wereportresultsifthis
+input_string = (
+"{question} answer: {gold_label}. " threshold is relaxed to 2/3. Overall, the results
+"explanation: {expl}. " arecomparable: T0-3Boutperformsthebaselines
+Is this explanation good or bad?")
+according to both select-1 accuracy and AP (see
+TheT5-Largemodelistrainedusingalearning Table21andTable22).
+rate of 1E 4 with linear decay, a batch size of
+−
+64,anddefaultvaluesforAdam(KingmaandBa,
+2015),gradientclipping,anddropout. Wetrainfor
+18LowSNLIperformancealignswithpreviousfindingsthat
+GPT-3struggleswithsentence-comparisontasks(Brownetal.,
+2020;Zhaoetal.,2021).
+649AMTStudy Dataset Generality Factuality Grammar NewInfo SupportsLabel AmountInfo Acceptability Aggregate
+GPT-3Greedy Com.QA 0.37 0.32 -0.01 0.09 0.45 0.21 0.28 0.38
+GPT-3Greedy SNLI 0.25 0.57 0.39 -0.01 0.04 0.17 0.52 0.40
+Dataset CoS-E 0.71 0.38 0.36 0.42 0.68 0.08 0.25 0.59
+Dataset ECQA 0.01 0.21 0.30 0.00 0.03 0.25 0.04 0.20
+Dataset e-SNLI 0.37 0.23 0.37 -0.14 -0.12 0.04 0.15 0.19
+GPT-3Filtered Com.QA 0.25 0.18 0.25 0.11 0.27 0.15 0.30 0.32
+GPT-3Filtered SNLI 0.41 0.19 0.07 0.17 0.08 0.13 0.50 0.33
+Table15: Inter-annotatoragreementforabsolute-comparisonAMTstudies,usingKrippendorff’sαcomputedon
+anintervalscalefrom-1to1. Theaggregatescoreiscomputedbytreatingtheannotationsalongeachattributeas
+separateinstancesandcomputingagreementacrosstheentireset.
+SNLI(Bowmanetal.,2015)
+Premise:Therearetwokiltedmen,oneofthemolder
+andisholdingbagpipeswiththeotheronewithadrum.
+Hypothesis:Twokiled(sp)menholdbagpipes
+Label:contradiction
+NLL-PredictedExplanation:Thetwokiltedmenare
+notholdingbagpipes,theyareholdingabagpipeanda
+drum.
+Filter-PredictedExplanation: Justbecausethereare
+kiltedmendoesnotnecessarilymeanthattheyarehold-
+ingbagpipes. Thiscanbeseenfromtheolderkilted
+manisholdingthebagpipesratherthanthekilder(sp)
+one.
+CommonsenseQA(Talmoretal.,2019)
+Question: Thehardcoverswereespeciallytall,sohe
+removedashelfonthewhattomakeroom?
+Answerchoices:holdalcohol,grocerystore,bookcase,
+nightstand,orchestofdrawers
+NLL-PredictedExplanation:Bookcasesaretall,and
+soiftheyarefullofhardcoverbooks,theymightneed
+toberemovedtomakeroomforotherthings.
+Filter-PredictedExplanation: Peoplekeepbookson
+bookshelves,andbookcasesareverycommonlyused
+to hold books. Since hardcover books can be pretty
+tall,ittakesupextraverticalspacewhichwouldrequire
+removalofanuppershelfofthebookcase.
+Table 16: Randomly-selected instances that our filter
+model predicts differently than NLL at the “select-1”
+task,andgotincorrectbutNLLgotcorrect.
+650AMTStudy Task/Dataset #Annotators Median#HITs(Mean)
+GPT-3Greedyw/DatasetPromptsvs.Dataset Com.QA/CoS-E 16 31.5(46.9)
+Com.QA/ECQA 13 35(57.7)
+e-SNLI 12 39(62.5)
+GPT-3Greedy:Author-writtenvs.DatasetPrompts Com.QA/CoS-E 7 84(107.1)
+Com.QA/ECQA 13 49(57.7)
+e-SNLI 8 43.5(93.8)
+GPT-3Greedyw/Author-writtenPromptsvs.Dataset Com.QA/CoS-E 8 90(93.8)
+Com.QA/ECQA 17 27(44.1)
+e-SNLI 8 93(93.8)
+GPT-3Greedy(Absolute) Com.QA 13 51(57.7)
+SNLI 12 14(62.5)
+Dataset(Absolute) CoS-E 14 58(53.6)
+ECQA 19 7(39.5)
+e-SNLI 13 16(57.7)
+Acceptability(TrainingandValidationData) Com.QA(2973HITs) 34 70(87.4)
+SNLI(3000HITs) 14 128.5(214.3)
+Acceptability(TestData) Com.QA 17 32(44.1)
+SNLI 11 26(68.1)
+SNLI(Test2) 7 65(107.1)
+CoS-E 13 48(57.7)
+ECQA 16 38.5(46.9)
+e-SNLI 9 60(83.3)
+GPT-3Filtered(Absolute) Com.QA(468HITs) 10 44.5(46.8)
+SNLI(273HITs) 6 53(45.5)
+Table17: Total#ofannotatorsandmean#HITscompletedper-annotatorforeachAMTstudy(outof750total#
+HITsunlessotherwisespecified=3annotatorsforeachof250testinstances).
+SetofTestExplanations Generality Factuality Grammar NewInfo Supp.Label Amt.Info Accept.
+GPT-3GreedyforCom.QA 0.90.4‡ 0.80.4(247)† 1.00.1‡ 0.10.6 0.50.7(217)‡ 0.10.4(186)‡ 0.50.6
+− ‡
+CoS-E 0.20.9 0.50.5(131) 0.30.7 0.10.8 0.30.9(190) 0.50.5(78) 0.90.4
+− − − − −
+GPT-3GreedyforCom.QA 0.90.4∨ 0.80.4(247)‡ 1.00.1‡ 0.10.6 0.50.7(217) 0.10.4(186) 0.50.6
+− ‡
+ECQA 0.80.4 0.60.4(249) 0.10.7 0.60.5‡ 0.70.5(247)∧ 0.50.5(239)‡ 0.10.6
+GPT-3GreedyforSNLI 0.70.5∧ 0.70.5(246) 1.00.2† 0.10.6 −0.1∗0.6 −0.20.4(203) 0.00.8
+e-SNLI 0.60.6 0.80.4(236) 0.90.4 0.20.5∨ 0.20.5∗‡ 0.10.4(238)∧ 0.70.4‡
+−
+Table18: StatisticsfromthegraphsplottedinFigure2. Mean standarderrorpresented;numbersinparenthesis
+±
+indicatethenumberofdatapoints,ifnot250. ForSNLI,wemodifiedtheevaluationframeworksuchthat“Sup-
+∗
+ports Label” was always answered instead of being conditioned on “New Info”. Statistical significance results
+usingaone-sidedWilcoxonsigned-ranktestatp-valuesof =0.00001, =0.0001, =0.01, =0.1indicates
+‡ † ∨ ∧
+that the median difference between the marked score distribution and the unmarked score distribution is greater
+than0.
+SetofTestExplanations Generality Factuality Grammar NewInfo Supp.Label Amt.Info Accept.
+Com.QAPred.Correctly 0.90.3(127)∨ 0.90.3(126)∨ 1.00.1(127) 0.00.6(127) 0.70.6(108)† −0.10.4(98) 0.50.6(127)
+Com.QAPred.Incorrectly 0.80.4(123) 0.70.5(121) 1.00.1(123) 0.30.6(123)∨ 0.30.8(109) −0.10.4(88) 0.50.7(123)
+SNLIPred.Correctly 0.80.5(115)∧ 0.70.5(112) 1.00.1(115)∧ −0.10.7(115) −0.20.6(115) −0.30.4(83) −0.10.8(115)
+SNLIPred.Incorrectly 0.70.5(135) 0.70.5(134) 1.00.2(135) 0.20.4(135)‡ 0.10.5(135)∨ −0.20.4(120)∧ 0.10.8(135)∧
+Table19: StatisticsfromthegraphsofGPT-3greedyexplanationsplottedinFigure4. SeethecaptionofTable18
+forfurtherdetails.
+SetofTestExplanations Generality Factuality Grammar NewInfo Supp.Label Amt.Info Accept.
+GPT-3GreedyforCom.QA 0.90.4(156) 0.80.4(153)∨ 1.00.1(156)‡ 0.10.6(156) 0.50.7(135) −0.10.5(117) 0.30.7(156)
+GPT-3FilteredforCom.QA 0.90.3(156)∧ 0.70.3(155) 0.80.4(156) 0.70.4(156)‡ 0.90.4(154)‡ 0.20.3(152)‡ 0.60.6(156)∨
+GPT-3GreedyforSNLI 0.80.4(91) 0.60.6(91) 0.90.3(91)‡ 0.00.6(91) −0.2∗0.6(91) −0.20.5(66) −0.50.7(91)
+GPT-3FilteredforSNLI 0.80.5(91) 0.70.4(88) 0.70.4(91) 0.50.6(91)‡ 0.50.5∗(91)‡ 0.00.3(89)† 0.10.8(91)‡
+Table20: StatisticsfromthegraphsplottedinFigure3. SeethecaptionofTable18forfurtherdetails.
+651“Select-1”Acc@2/3 Explanation-levelAP@2/3
+Model/Split Dev Test Dev Test
+↓ →
+Random 57.3 0.4 57.9 0.4 56.2 0.5 58.0 0.9
+Constant — — 56.9 58.0
+NLL 79.1 79.6 77.5 75.0
+T0-3BExpl.-only 77.1 3.5 75.8 1.2 75.6 2.0 77.3 1.4
+T0-3B 86.6 0.9 85.8 0.7 85.6 0.5 87.0 0.8
+OracleUpper-Bound 97.8 97.6 100.0 100.0
+Table 21: Results for acceptability classifiers trained on CommonsenseQA, with “acceptability" defined as: “at
+least2/3annotatorslabelledasacceptable."Subscriptsindicatestandarderrorovermodelstrainedwith5different
+randomseeds. Theoracleupperboundisbasedondatasetproperties(§3).
+“Select-1”Acc@2/3 Explanation-levelAP@2/3
+Model/Split Dev Test Test2 Dev Test Test2
+↓ →
+Random 28.2 0.5 27.8 0.2 28.0 0.1 28.1 0.9 27.6 0.3 28.3 0.6
+Constant — — — 28.2 27.8 28.0
+NLL 51.0 51.2 50.4 47.7 47.5 46.1
+T0-3BExpl.-only 47.0 1.0 50.5 2.1 50.6 2.8 48.9 1.4 45.2 1.5 44.9 2.1
+T0-3B 57.8 1.9 60.3 1.5 59.2 2.3 66.7 3.3 64.7 3.3 67.1 3.6
+OracleUpper-Bound 76.0 81.2 77.6 100.0 100.0 100.0
+Table22: ResultsforacceptabilityclassifierstrainedonSNLIwith“acceptability"definedas: “atleast2/3annota-
+torslabelledasacceptable."Subscriptsindicatestandarderrorovermodelstrainedwith5differentrandomseeds.
+Theoracleupperboundisbasedondatasetproperties(§3).
+652Figure5: Anoverviewoftheuserinterfaceofourhead-to-headcomparisonAMTstudiesforCommonsenseQA.
+Thetopshowstheinstructionsandthebottomtheactualtask. TheExamplestabiscollapsedhere;showninfull
+inFigure6.
+653Figure6:TheExamplestabgivenintheuserinterfaceofourhead-to-headcomparisonAMTstudiesforCommon-
+senseQA.ThefullinterfaceisshowninFigure5.
+654Figure 7: An overview of the user interface template of our absolute comparison AMT studies for Common-
+senseQA.Thetopshowstheinstructionsandthebottomtheactualtask. Onlypart1ofthetaskisshownhere(part
+2appearsoncepart1issubmitted). TheMainExampleandMoreExamplestabsillustratingbothparts1and2are
+collapsedhere;seeFigure8.
+655Figure 8: The Main Example given in the user interface template of our absolute comparison AMT studies for
+CommonsenseQA.Thisformatfollowstheactualtasklayout. ThefullinterfaceisshowninFigure7.
+656Figure9: AnoverviewoftheuserinterfaceofourexplanationacceptabilityAMTstudiesforCommonsenseQA.
+Thetopshowstheinstructionsandthebottomtheactualtask. The"examples"tabiscollapsedhere;showninfull
+inFigure10.
+657Figure 10: The examples given in the user interface of our explanation acceptability AMT studies for Common-
+senseQA.ThefullinterfaceisshowninFigure9.
+658

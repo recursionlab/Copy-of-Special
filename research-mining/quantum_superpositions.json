@@ -1,0 +1,113 @@
+{
+  "superpositions": {
+    "hyper-2f98d5935837": {
+      "concept_id": "hyper-2f98d5935837",
+      "amplitudes": {
+        "literal": {
+          "real": 0.004654034100235758,
+          "imaginary": -0.6324384080419166,
+          "magnitude": 0.6324555320336759,
+          "phase": -1.563437586348724,
+          "probability": 0.4
+        },
+        "metaphorical": {
+          "real": 0.08332459449322067,
+          "imaginary": 0.5413474041246898,
+          "magnitude": 0.5477225575051661,
+          "phase": 1.418074134975583,
+          "probability": 0.29999999999999993
+        },
+        "technical": {
+          "real": 0.011939487618011108,
+          "imaginary": 0.5475924110462264,
+          "magnitude": 0.5477225575051661,
+          "phase": 1.548996177783725,
+          "probability": 0.29999999999999993
+        }
+      },
+      "decoherence_rate": 0.01,
+      "last_measurement": null,
+      "measurement_history": [],
+      "entanglement_effects": {}
+    },
+    "hyper-021c54cf3add": {
+      "concept_id": "hyper-021c54cf3add",
+      "amplitudes": {
+        "literal": {
+          "real": -0.017737131388575376,
+          "imaginary": 0.8325545276408769,
+          "magnitude": 0.8327434462817581,
+          "phase": 1.5920975725613653,
+          "probability": 0.6934616473252193
+        },
+        "metaphorical": {
+          "real": 0.21306903770442584,
+          "imaginary": -0.32843684554127034,
+          "magnitude": 0.39149607448528817,
+          "phase": -0.9953096981977457,
+          "probability": 0.1532691763373903
+        },
+        "technical": {
+          "real": -0.09407913853756684,
+          "imaginary": 0.3800240676975862,
+          "magnitude": 0.3914960744852881,
+          "phase": 1.813478147207985,
+          "probability": 0.15326917633739026
+        }
+      },
+      "decoherence_rate": 0.01,
+      "last_measurement": "literal",
+      "measurement_history": [
+        {
+          "timestamp": "2025-09-14T22:21:10.505983",
+          "measured_state": "literal",
+          "confidence": 0.4,
+          "observer": "quantum_test",
+          "pre_measurement_entropy": 1.5709505944546684
+        }
+      ],
+      "entanglement_effects": {}
+    },
+    "hyper-e35dc5f210c8": {
+      "concept_id": "hyper-e35dc5f210c8",
+      "amplitudes": {
+        "literal": {
+          "real": 0.023226639202976202,
+          "imaginary": 0.6320288943009922,
+          "magnitude": 0.6324555320336759,
+          "phase": 1.5340635256293007,
+          "probability": 0.4
+        },
+        "metaphorical": {
+          "real": -0.32318945556092066,
+          "imaginary": 0.44220874687667094,
+          "magnitude": 0.5477225575051661,
+          "phase": 2.2019301225014662,
+          "probability": 0.29999999999999993
+        },
+        "technical": {
+          "real": -0.09385778047152184,
+          "imaginary": 0.5396209012306321,
+          "magnitude": 0.5477225575051662,
+          "phase": 1.7430063288873467,
+          "probability": 0.3000000000000001
+        }
+      },
+      "decoherence_rate": 0.01,
+      "last_measurement": null,
+      "measurement_history": [],
+      "entanglement_effects": {}
+    }
+  },
+  "decoherence_events": [
+    {
+      "concept_id": "hyper-021c54cf3add",
+      "collapsed_state": "literal",
+      "strength": 0.8,
+      "timestamp": "2025-09-14T22:21:10.505983",
+      "remaining_entropy": 1.195675439656247
+    }
+  ],
+  "interference_patterns": [],
+  "export_timestamp": "2025-09-14T22:21:10.513981"
+}

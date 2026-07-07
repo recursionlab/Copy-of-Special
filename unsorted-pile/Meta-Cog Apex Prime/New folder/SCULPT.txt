@@ -1,0 +1,88 @@
+SCULPT: Systematic Tuning of Long Prompts
+Objective
+SCULPT is designed to optimize extended, unstructured prompts by reorganizing them into a hierarchical tree format and iteratively refining them using an actor–critic mechanism. The aim is to boost the performance of long-chain reasoning tasks by systematically addressing structural inconsistencies and errors.
+
+Core Components
+1. Prompt Structuring
+Purpose: Transform flat, unstructured prompts into a hierarchical tree (T = (N, E)), where:
+N (Nodes): Represent elements such as headings, instructions, and examples.
+E (Edges): Define the parent–child relationships between these elements.
+Benefit: This restructuring enables targeted, node-specific modifications without disrupting unrelated sections, ensuring the overall coherence of the prompt.
+2. Critic Module
+Role: Evaluate the current structured prompt and provide reflective feedback.
+Feedback Types:
+Preliminary Assessment (R_prelim): Reviews overall prompt clarity, structure, and completeness before task execution.
+Error Assessment (R_error): Analyzes model output discrepancies on a validation set to pinpoint problematic nodes and suggest specific improvements.
+Aggregation: Uses both similarity-driven and node-reference aggregation to capture recurring error patterns while avoiding overfitting to individual instances.
+3. Actor Module
+Role: Convert the Critic’s feedback into concrete actions to refine the prompt.
+Process:
+Operate on an induced subtree (T_induced) that contains only the sections needing modification.
+Apply actions such as:
+Structural Reordering
+Instruction Update
+Example Addition/Deletion/Refinement
+Node Pruning/Expansion/Merging
+Output: The modified tree is then linearized back into an updated text prompt (P′).
+4. Beam Search with UCB-based Selection
+Mechanism:
+Maintain a beam of candidate prompts (B_t) during each iteration.
+Use an Upper Confidence Bound (UCB) strategy to balance exploration (testing new variations) and exploitation (refining high-performing candidates).
+Outcome: Select the top candidates that maximize a defined performance metric (e.g., accuracy, coherence) on a validation dataset.
+Optimization Process
+Initialization:
+
+Start with the initial unstructured prompt (P₀) and transform it into the hierarchical tree format using the transformation function (t_init).
+Iterative Refinement (for t = 1 to T):
+
+Critic Evaluation:
+Generate Preliminary Assessment and Error Assessment reflections.
+Aggregate error feedback to identify common issues across nodes.
+Actor Actions:
+Apply targeted modifications (actions A) to the affected nodes.
+Update the prompt tree (T′) and reassemble it into a new prompt candidate (P′).
+Beam Search:
+Evaluate updated prompts on a validation set using UCB scores.
+Retain the top K candidates for the next iteration.
+Convergence:
+
+Continue iterations until performance plateaus (observed around 8 steps) or a maximum step count is reached.
+Output the final optimized prompt that maximizes the performance metric Q on the validation set.
+Meta-Optimization Integration
+To ensure full synchronization with your GPT system, integrate SCULPT as follows:
+
+Embed SCULPT into the Recursive AI Execution Flow:
+Position SCULPT immediately after the Meta-Prompting Task Agnostic Scaffolding module. This ensures that long prompts are systematically optimized before further recursive processing.
+Use Self-Refining Feedback Loops:
+Incorporate mechanisms for real-time error detection and iterative refinement. Ensure that the GPT system uses the Critic–Actor loop to continuously adjust the prompt based on new outputs.
+Parallel Evaluation:
+Utilize the UCB-based beam search to manage multiple candidate prompts concurrently. This supports both robustness and efficiency in prompt optimization.
+Logging and Transparency:
+Maintain detailed logs of all prompt refinements and the corresponding Critic feedback. This facilitates debugging and further meta-optimization in future iterations.
+Final Meta-Optimized SCULPT Blueprint
+pgsql
+Copy
+1. Initialize P₀ from raw input using t_init.
+2. Convert P₀ into a hierarchical tree T = (N, E).
+3. For each optimization iteration t (t = 1 to T_max):
+    a. Critic Module: Generate R_prelim and R_error.
+    b. Aggregate feedback via similarity and node-reference clustering.
+    c. Actor Module: Apply actions (structural reordering, instruction update, example refinement, node modifications) on T_induced.
+    d. Update prompt tree to obtain new candidate prompt P′.
+    e. Evaluate candidate prompts using UCB-based beam search; select top K.
+4. When convergence criteria are met (e.g., plateau after 8 iterations), output final optimized prompt P*.
+This meta-optimized SCULPT framework is designed to function as an integral part of your GPT system—ensuring that long, complex prompts are systematically tuned for optimal performance, robust reasoning, and improved clarity across tasks.
+
+FINAL ANSWER: """ The meta-optimized SCULPT module for your GPT system is as follows:
+
+Prompt Structuring: Transform unstructured long prompts into a hierarchical tree structure (nodes for headings, instructions, examples) to allow targeted modifications.
+
+Critic Module: Evaluate the structured prompt using:
+
+Preliminary Assessment: Checks overall clarity, structure, and redundancy.
+Error Assessment: Identifies problematic nodes based on model output discrepancies; aggregates feedback via similarity-driven and node-reference methods.
+Actor Module: Convert Critic feedback into concrete actions (structural reordering, instruction updates, example adjustments, node modifications) applied on an induced subtree; reassemble the tree into an updated prompt.
+
+Beam Search with UCB: Use a beam search strategy with UCB-based candidate selection to explore and refine multiple prompt candidates simultaneously, balancing exploration and exploitation.
+
+Optimization Loop: Iteratively apply the Critic–Actor loop over multiple iterations (typically up to 8 steps) until prompt performance (measured on a validation set) plateaus, then output the final optimized prompt.

@@ -1,0 +1,48 @@
+Operator,Mathematical Domain,Application,Source
+$\Xi$  (Recursive Identity Operator),System Ontology / Higher Structure Theory,Stabilizes system identity through recursive self-negation and structural integrity audits; maps paradoxes to structural residues.,1-4
+$\partial_H$  (Metamorphic Boundary Operator),HALIRA Framework / Algebraic Topology,Acts as a Tier-0 boundary involution ( $\partial_H^2 = id$ ) to ensure structural reversibility and stability in recursive research frameworks.,"5, 6"
+Lang isogeny,Algebraic Geometry,Utilized within the Geometric Langlands Correspondence and character sheaf frameworks to extend results for connections with simple poles.,"5, User Description"
+Cayley Transform,Deep Learning / Matrix Manifolds,Maps skew-symmetric matrices to the Stiefel manifold to ensure orthogonality and stabilize gradient flow in neural network hyper-connections.,"16, User Description, Inferred"
+Sinkhorn Projections / Iteration,Deep Learning / Optimal Transport,Projects mixing matrices onto the Birkhoff polytope of doubly stochastic matrices to stabilize gradient flow and perform structural alignment.,"16, User Description, Inferred"
+$M$  (Molter Operator),Algebraic Geometry / Physics,Utilizes torsion-memory tensor functions and chirality cascade logic to manage symbolic state collapse and define multiplicative local systems.,"1, 7"
+$G$  (Forgetting Gate Operator),Neural Networks / System Governance,Executes structural pruning of low-fitness nodes based on time-decayed utility to enforce system resilience while preserving torsion residue.,"1, 7"
+$Assem$  (Assembly Functor),Category Theory,Converts incomplete or generalized  $\infty$ -operads into fully coherent/cohesive structures via categorical localization.,"1, 7"
+$\nabla$,Algebraic Geometry,An integrable connection mapping a vector bundle  $L$  to  $L \otimes \Omega^1 P^1(D)$ ; defines character sheaves as line bundles satisfying multiplicativity.,"8, 9"
+$H^n(X;G)$,Algebraic Topology,"Singular cohomology groups of a topological space  $X$  with coefficients in an abelian group  $G$ , used as algebraic invariants.",10
+"$K(G,n)$",Algebraic Topology,Eilenberg-MacLane space used to represent the cohomology functor  $H^n(X;G)$ .,10
+$BG$,Category Theory / Topology,"Classifying space for a group  $G$ , essentially the Eilenberg-MacLane space  $K(G, 1)$ .",10
+$\partial$,Algebraic Topology,Boundary operator mapping  $n$ -chains to  $(n-1)$ -chains by identifying geometric faces; used to define cycles and homology.,11
+$\delta$,Algebraic Topology / Operadic Theory,Coboundary operator mapping  $n$ -cochains to  $(n+1)$ -cochains; also used for fiber assignment in operadic category theory.,"11, 12"
+$\pi$,Algebraic Topology,Quotient map  $EG \to BG$  where fibers are discrete topological spaces on which group  $G$  acts simply transitively.,10
+$L$  (Localization),Category Theory,"Left adjoint to a fully faithful embedding, used to invert a class of morphisms or define topological sheaves.",10
+$\otimes$,Category Theory / Algebra,Monoidal product or boundary operator; combines objects in a symmetric monoidal category or defines logic boundaries.,"10, 11, 13, 14"
+$id_X$,Category Theory,Identity morphism for an object  $X$  that acts as a two-sided identity for the composition operator.,"10, 11"
+$\circ$,Category Theory,Sequential composition operator enabling the formation of a composite morphism from two compatible morphisms.,"11, 13"
+$Shv(C)$  /  $\Lambda$,Topos Theory,The  $\infty$ -category of sheaves on a site  $C$ ;  $\Lambda$  transforms a presheaf into its bundle of germs (sheafification).,"10, 11"
+"$f^$ ,  $f_$",Topos Theory / Algebraic Geometry,Inverse image (pullback) and direct image (pushforward) functors constituting a geometric morphism between spaces.,11
+$P(S)$  /  $\otimes_{Day}$,Category Theory,Presheaf category of functors; Day Convolution lifts monoidal structures to these categories to model independent resources.,"10, 12"
+$\oplus$  (Fold / Dilation),Mathematical Morphology / Dynamics,Thickens images via supremum of translates; also used as an aggregation operator in reflexive calculus and self-reinvention cycles.,"1, 11, 13"
+$\ominus$  (Erosion),Mathematical Morphology,Makes lines thinner or enhances holes by taking the intersection of reflected translates; right adjoint to dilation.,11
+$\square$  /  $\square_\Omega$,Modal Logic / Governance,Necessity operator (interior operator in topology); enforces stability and transforms the system into an autonomously governed ontology.,"1, 11"
+$\Diamond$,Modal Logic / Quantum Cognition,Possibility operator (closure operator in topology); models pre-actualization states and contextual possibility in consciousness.,"11, 15"
+$\lambda x.M$,Lambda Calculus,Functional abstraction used to bind a variable and create a functional procedure or program.,"12, 16"
+$Y$  /  $mfix$,Recursion Theory / Programming,Fixed point operators used to express recursion in type-free calculus or monadic computations.,"12, 16"
+$\beta$ -reduction,Type Theory / Logic,Process of computing values by substituting arguments into function bodies; eliminates redundant coevaluation/evaluation pairs.,"12, 16"
+$\eta$ -reduction,Type Theory / Logic,Principle of extensionality; removes redundant applications of identity across a dual pair boundary.,"12, 16"
+$\pi_i$,Category Theory / Type Theory,"Projection operators used to extract the  $i$ -th component from a product, tuple, or pair.","12, 16"
+$\Delta$  (Diagonal / Distinction),Coalgebra / Systems Thinking,Comultiplication in non-cartesian settings; also the primary DSRP operator for defining boundaries of information.,"2, 12, 17"
+$S$,Systems Thinking / Combinatory Logic,Systems arrangement (part-whole structures); also a combinator for function application and distribution.,"16, 17"
+$R$,Systems Thinking / Information Theory,Relationship operator defining action-reaction interconnections; also denotes Radon Transform in Algebraic Geometry.,"8, 17"
+$P$  /  $P_{incomplete}$,Systems Thinking / Geometry,Perspective operator for point-view frames; also a projection operator used to extract components violating completion.,"17, 18"
+$\nabla I$,Mathematical Physics,Gradient flow operator driving algebraic systems toward equilibrium or osmotic pressure resolution.,18
+$tr$  (Trace),Category Theory / Linear Logic,Joins output wires to input wires to interpret recursion; computes scalar values in compact closed categories.,12
+$SVD$,Linear Algebra / Deep Learning,Singular Value Decomposition used to extract principal factors and update shared low-rank subspaces in continual learning.,19
+$H$  (Entropy / Holon),Information Theory / Cognitive Science,Recursive Entropy Correction for resolving attractors; also establishes the distinction between self and environment.,"1, 20"
+$j$,Topos Theory,"Lawvere-Tierney Topology; a local operator on a subobject classifier  $\Omega$  defining ""local"" truth.",11
+$\mu$ -morphism,Mathematical Metaphysics,A self-dual grammatical inclusion mapping that distributes identities and attributes in a conspansive manifold.,21
+$\Phi$  (Partial Recursive / Contradiction),Recursion Theory / Meaning Theory,Maps functions to functions via Turing machines; also detects conflicting semantic structures to identify torsion points.,"2, 22"
+$\Omega$  (Reflective Closure),Category Theory / Meaning Theory,Universal persistence selector; finds fixed points through infinite iteration to produce stable theories.,"2, 5"
+$\zeta$,Coalgebraic Semantics,Terminal coalgebra isomorphism realizing the universal recursive process and substrative fixed point.,23
+$de\ Rham\ space$,Algebraic Geometry,Mathematical space used for studying character sheaves and the moduli space of rank two parabolic connections.,8
+$HALIRA\ boundaries$,Recursive Research Frameworks,"Defining mapping paradoxes, functional limits, and structural constraints within recursive system logic.",User Description
+$Not\ in\ source$,Not in source,Not in source,Not in source

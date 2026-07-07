@@ -1,0 +1,3192 @@
+LastUpdate: November26,2024
+Fundamental Limits of Prompt Tuning Transformers:
+Universality, Capacity and Efficiency
+JerryYao-ChiehHu†‡∗1 Wei-PoWang♯∗2 AmmarGilani†‡3
+ChenyangLi♭4 ZhaoSong§5 HanLiu†‡♮6
+† CenterforFoundationModelsandGenerativeAI,NorthwesternUniversity,Evanston,IL60208,USA
+‡ DepartmentofComputerScience,NorthwesternUniversity,Evanston,IL60208,USA
+♯ DepartmentofPhysics,NationalTaiwanUniversity,Taipei10617,Taiwan
+♭ MaynoothInternationalSchoolofEngineering,FuzhouUniversity,Fuzhou350108,China
+§ SimonsInstitutefortheTheoryofComputing,UCBerkeley,Berkeley,CA94720,USA
+♮ DepartmentofStatisticsandDataScience,NorthwesternUniversity,Evanston,IL60208,USA
+We investigate the statistical and computational limits of prompt tuning for transformer-based
+foundation models. Our key contributions are prompt tuning on single-head transformers with
+only a single self-attention layer: (i) is universal, and (ii) supports efficient (even nearly-
+linear time) algorithms under the Strong Exponential Time Hypothesis (SETH). Statistically, we
+prove that prompt tuning on such simplest possible transformers are universal approximators for
+sequence-to-sequence Lipschitz functions. In addition, we provide an exponential-in-dL and -in-
+(1/ϵ)lowerboundontherequiredsoft-prompttokensforprompttuningtomemorizeanydataset
+with 1-layer, 1-head transformers. Computationally, we identify a phase transition in the effi-
+ciency of prompt tuning, determined by the norm of the soft-prompt-induced keys and queries,
+and provide an upper bound criterion. Beyond this criterion, no sub-quadratic (efficient) algo-
+rithm for prompt tuning exists under SETH. Within this criterion, we showcase our theory by
+provingtheexistenceofalmost-lineartimeprompttuninginferencealgorithms. Thesefundamen-
+tal limits provide important necessary conditions for designing expressive and efficient prompt
+tuningmethodsforpractitioners.
+1jhu@u.northwestern.edu
+2b09202009@ntu.edu.tw
+3ammargilani2024@u.northwestern.edu
+4lchenyang550@gmail.com
+5magic.linuxkde@gmail.com
+6hanliu@northwestern.edu
+*Theseauthorscontributedequallytothiswork.
+4202
+voN
+52
+]GL.sc[
+1v52561.1142:viXraContents
+1 Introduction 2
+2 Statistical Limits of Prompt Tuning Transformers: Universality and Memory Ca-
+pacity 5
+2.1 PreliminariesandProblemSetup . . . . . . . . . . . . . . . . . . . . . . . . . . 7
+2.2 Any-RankSingle-LayerAttentionisaContextualMappingFunction . . . . . . . 8
+2.3 UniversalityofPromptTuningT 1,1,4 withO((1/ϵ)d(Lp+L))FFNLayers . . . . . 10
+A
+2.4 Width-Depth Tradeoff: Universality of Prompt Tuning T
+1,1,r=O((1/ϵ)d(Lp+L))
+Only
+Needs2FFNLayers . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+2.5 MemoryCapacityofPromptTuning . . . . . . . . . . . . . . . . . . . . . . . . 12
+3 ComputationalLimitsofPromptTuningTransformers 13
+3.1 Preliminaries: StrongExponentialTimeHypothesis(SETH) . . . . . . . . . . . 14
+3.2 EfficiencyCriterionforPromptTuningInference . . . . . . . . . . . . . . . . . 14
+3.3 PromptTuningCanBeasFastasAlmost-LinearTime . . . . . . . . . . . . . . 15
+4 DiscussionandConclusion 15
+A RelatedWorks 19
+B Additional Theoretical Results: Universality of Transformers with 1-Layer, 1-
+HeadAttentionwithAny-RankWeightMatrices 21
+C Background: BoltzmannOperatorandAttentionMechanism 24
+C.1 EssentialPropertiesofBoltzmannOperator . . . . . . . . . . . . . . . . . . . . 24
+C.2 DistancePreservationofBoltzmannOperator . . . . . . . . . . . . . . . . . . . 26
+D ProofsofSection2.2 31
+D.1 ProofsofLemma2.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+E ProofsofSection2.3 38
+E.1 ProofsofLemma2.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+E.2 ProofsofLemma2.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+E.3 ProofsofTheorem2.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+F ProofsofSection2.4 44
+F.1 ProofofLemma2.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+F.2 ProofofTheorem2.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+G ProofsofSection2.5 50
+G.1 ProofofTheorem2.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+H ProofsofComputationalLimitsofPromptTuning(Section3) 51
+H.1 ProofofTheorem3.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+H.2 ProofofTheorem3.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 52
+I LimitationsofPromptTuningTransformers 53
+I.1 DiscussionontheLimitationsofPromptTuning . . . . . . . . . . . . . . . . . . 53
+I.2 ExamplesofPromptTuningFailures . . . . . . . . . . . . . . . . . . . . . . . . 54
+1J SupplementaryProofsforAppendixC 56
+J.1 LemmaC.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56
+J.2 LemmaC.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56
+J.3 LemmaC.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+J.4 LemmaC.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+J.5 LemmaC.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+J.6 LemmaC.6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+J.7 LemmaC.7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+J.8 LemmaC.8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 61
+J.9 LemmaC.9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63
+J.10 LemmaD.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63
+1 Introduction
+We investigate the statistical and computational limits of prompt tuning for transformer-based
+foundationmodels. Thesemodelsaregigantictransformer-basedarchitectures[Bommasanietal.,
+2021], pretrained on vast datasets, are pivotal across multiple fields [Touvron et al., 2023b,a,
+Brown et al., 2020, Floridi and Chiriatti, 2020, Yang et al., 2023, Wu et al., 2023, Nguyen et al.,
+2024, Zhou et al., 2024, 2023, Ji et al., 2021, Thirunavukarasu et al., 2023, Singhal et al., 2023,
+Moor et al., 2023]. Despite their power, the significant cost of pretraining these models often
+makes them prohibitive outside certain industrial labs. Thus, most practitioners resort to fine-
+tuning methods to tailor these models to specific needs [Zheng et al., 2024, Ding et al., 2022].
+However, fine-tuning large models with billions or trillions of parameters is still often resource-
+intensive [Minaee et al., 2024]. Prompt tuning mitigates this by adapting a learnable prompt
+with a limited set of parameters (tokens), preserving the pretrained model weights and allowing
+adaptation to new tasks or data without any retraining [Lester et al., 2021, Liu et al., 2021]. It
+saves substantial computational resources and time. However, despite its empirical successes
+[Gao et al., 2024, Shi and Lipani, 2024, Fu et al., 2024, Chen et al., 2023, Wang et al., 2023b,
+Khattak et al., 2023, Jia et al., 2022, Liu et al., 2022, 2021], the theoretical aspects of prompt
+tuning are still underexplored, relatively [Wang et al., 2023a, Petrov et al., 2024]. This work
+providesatimelytheoreticalanalysisofthestatisticalandcomputationallimitsofprompttuning,
+aimingtoexplainitssuccessesandofferprincipledguidanceforfutureprompttuningmethodsin
+termsofperformanceandcomputationalcost.
+Let X,Y ∈ Rd×L be the input and the corresponding label sequences, respectively. For i ∈ [L],
+wedenoteX ∈ Rd asthei-thtoken(column)ofX. Let[·,·]denotesequentialconcatenation.
+:,i
+Definition 1.1 (Prompt Tuning). Let τ be a pretrained transformer. Let P ∈ Rd×Lp be a length-
+L prompt weight (termed soft-prompt) prepended to input prompt X such that X := [P,X] ∈
+p p
+Rd×(Lp+L). ForanydownstreamtaskwithfinetuningdatasetS = {(X(i),Y(i))} ,theproblem
+i∈[N]
+2ofprompttuningistofindapromptweightP⋆ bysolvingthefollowingoptimizationproblem
+N
+P⋆ := argmin(cid:88) ℓ(cid:16) τ(cid:0) X(i)(cid:1) ,Y(i)(cid:17) , forsomeloss ℓ : Rd×L ×Rd×L → R . (1.1)
+P
+p :,Lp: +
+i=1
+Inthiswork,weaimtostudyDefinition1.1statisticallyandcomputationally.
+Statistically, we explore the expressive power of prompt tuning a transformer of simplest config-
+uration. Formally,weinvestigatewhetheritispossibletoapproximateanysequence-to-sequence
+function f through prompt tuning with a pretrained single-head, single-layer transformer τ such
+that
+(cid:0) (cid:1)
+d τ([P⋆,·]) ,f ≤ ϵ, forsomeϵ > 0, (1.2)
+α :,Lp
+where approximation error ϵ between two functions is d (f ,f ) :=
+α 1 2
+((cid:82) ∥f (X)−f (X)∥αdX)1/α. Here, ∥·∥ denotes entrywise ℓ -norm, i.e., ∥X∥ =
+1 2 α α α α
+((cid:80)d (cid:80)L |X |α)1/α. Specifically, while Wang et al. [2023a, Theorem 1] report the
+i=1 j=1 i,j
+universality of prompt tuning transformers with O((L + L)(1/ϵ)d) attention layers with 2
+p
+heads of hidden dimension7 1 and O((1/ϵ)d(Lp+L)) FFN layers with 4 MLP neurons, we ask the
+followingquestion:
+Question1. Isitpossibletoimprove[Wangetal.,2023a]towardtheuniversalityofprompttuning
+onsingle-headsinglelayerpretrainedtransformers?
+To answer Question 1, we first refine previous results of attention contextual mapping
+(Lemma2.2)andestablishachainingreductionforboundingapproximationerrorofprompttun-
+ing(Section2.3).
+Computationally, we investigate the computational hardness of prompt tuning in transformer-
+basedfoundationmodelsusingfine-grainedcomplexitytheory[Williams,2018]. Weobservethat
+the computational hardness of prompt tuning ties to the quadratic time complexity of the trans-
+former attention heads. Although designing algorithms to bypass this Ω(L2) computation time is
+tempting, to the best of our knowledge, there lacks formal results to support and describe such
+approachesinacomprehensivefashion. Tobridgethisgap,weposebelowquestionsanddevelop
+afoundationaltheorytocharacterizethecomplexityofprompttuningforlargetransformer-based
+models:
+Question2. IsitpossibletoimprovetheΩ(L2)timewithaboundedapproximationerror?
+Question 3. More aggressively, is it possible to do such computations in almost linear time
+L1+o(1)?
+In this work, we answer both Questions 2 and 3 for the forward inference of prompt tuning. To
+answer them, we explore approximate prompt tuning computations with precision guarantees.
+7ForattentionweightsW ,W ,W ∈Rs×d,hiddendimensioniss.
+V K Q
+3To be concrete, let W ,W ,W ∈ Rd×d be attention weights such that Q = W X ∈ Rd×L,
+K Q V V
+K = W X ∈ Rd×L andV = W X ∈ Rd×L. RecalltheAttentionMechanism
+K V
+Z = V Softmax(cid:0) KTQβ(cid:1) = (W X)D−1exp(cid:0) XTWTW Xβ(cid:1) ∈ Rd×L, (1.3)
+V K Q
+with the inverse temperature β > 0 and D :=
+diag(cid:0) exp(cid:0)
+X⊤W⊤W
+Xβ(cid:1)1 (cid:1)
+. Here, exp(·) is
+K Q L
+entry-wiseexponentialfunction. Forsimplicityofpresentation,wesetβ = 1inthiswork.
+Formally, we study the following approximation problem for prompt tuning inference. Let Q =
+p
+W X ∈ Rd×(Lp+L),K = W X ∈ Rd×(Lp+L),andV = W X ∈ Rd×(Lp+L).
+Q p p K p p K p
+Problem 1 (Approximate Prompt Tuning Inference APTI). Let δ
+F
+> 0 and B > 0.
+Given Q ,K ,V ∈ Rd×(L+Lp) with guarantees that max{∥Q ∥ ,∥K ∥ ,∥V ∥ } ≤
+p p p p max p max p max
+B, we aim to study an approximation problem APTI(d,L,L p,B,δ F), aiming to approximate
+(cid:0) (cid:1) (cid:0) (cid:1)
+V Softmax KTQ with a matrix Z(cid:101) such that ∥Z(cid:101) − V Softmax KTQ ∥ ≤ δ . Here,
+p p p p p p max F
+foramatrixM ∈ Ra×b,wewrite∥M∥ := max |M |.
+max i,j i,j
+Inthiswork,weaimtoinvestigatethecomputationallimitsofallpossibleefficientalgorithmsfor
+APTI(d,L,L p,B,δ F)underrealisticsettingδ
+F
+= 1/poly(L).
+Contributions. We study the fundamental limits of prompt tuning. Our contributions are three-
+fold:
+• Universality. We prove that prompt tuning transformers with the simplest configurations —
+single-head, single-layer attention — are universal approximators for Lipschitz sequence-to-
+sequence functions. Additionally, we reduce the required number of FFN layers in the prompt
+tuning transformer to 2. These results improve upon [Wang et al., 2023a], which requires deep
+transformerswithO((L +L)(1/ϵ)d)attentionlayersandO((1/ϵ)d(Lp+L))FFNlayers.
+p
+• Memorization. We show that prompt tuning such simple transformers (1-head, 1-layer atten-
+tionand2FNNlayers)iscapableofcompletememorizationofdatasetswithoutanyassumption
+on the data. Moreover, we establish an exponential-in-dL and -in-(1/ϵ) lower bound on the re-
+quired soft-prompt tokens for any dataset, where d,L are the data dimension and sequence
+length,respectively,andϵistheapproximationerror. Ourresultsimproveuponthoseof[Wang
+etal.,2023a],whichconsiderdatasetswithonlytwo-tokensequencesandfocussolelyonmem-
+orizingthefinaltoken.
+• Efficiency. WeaddressQuestion2byidentifyingaphasetransitionbehaviorinefficiencybased
+on the norm of soft-prompt-induced queries and keys (Theorem 3.1). This establishes an effi-
+ciencycriterionforprompttuninginference,enablingefficient(sub-quadratic)algorithmswhen
+the criterion is met. Additionally, we address Question 3 by pushing the limits of efficiency in
+prompttuningtowardnearly-lineartimeunderthiscriterion(Theorem3.2).
+Organization. Section 2 presents a statistical analysis on prompt tuning’s universality and mem-
+ory capacity. Section 3 explore the computational limits of inference with prompt tuning. The
+4appendixincludestherelatedworks(AppendixA)andthedetailedproofsofthemaintext.
+Notations. We use lower case letters to denote vectors and upper case letters to denote matrices.
+The index set {1,...,I} is denoted by [I], where I ∈ N+. We write ℓ -norm as ∥·∥ . Throughout
+α α
+thispaper,wedenoteinput,labelsequencesasX,Y ∈ Rd×LandpromptsequencesasP ∈ Rd×Lp.
+2 Statistical Limits of Prompt Tuning Transformers: Univer-
+sality and Memory Capacity
+To better understand the expressive power of prompt tuning, we explore its universality (Sec-
+tions2.3and2.4)andmemorycapacity(Section2.5)onatransformerofsimplestconfigurations.
+OverviewofOurResults. LetT h,s,r denotetransformerswithhheads,shiddensize,andrMLP
+neurons, and let ϵ represent the approximation error tolerance. Let X ∈ Rd×L and P ∈ Rd×Lp be
+the input and soft-prompt defined in Definition 1.1, respectively. We answer Question 1 affirma-
+tively,andpresentthreeresultsfortransformermodelswith1-head,1-layerattentionlayers:
+Lemma2.1(1-Head,1-LayerAttentionwithAny-RankWeightMatricesIsContextualMapping,
+Informal Version of Lemma 2.2). A 1-head, 1-layer attention mechanism with weight matrices
+W ,W ,W ofanyrank isabletoassociateeachinputsequencewithauniquelabelsequence.
+K Q V
+Theorem2.1(UniversalityofPromptTuningT 1,1,4TransformerswithO(ϵ−d(Lp+L))FFNLayers,
+Informal Version of Theorem 2.3). Prompt tuning transformers with 1 head, a hidden size of 1,
+and O(ϵ−d(Lp+L)) FFN layers of width 4 are universal approximators for Lipschitz seq-to-seq
+functions.
+Theorem2.2(UniversalityofPromptTuningT 1,1,r=O(ϵ−d(Lp+L)) Transformerswith2FFNLayers
+, Informal Version of Theorem 2.4). Prompt tuning transformers with 1 head, a hidden size of
+1, and 2 FFN layers of width O(ϵ−d(Lp+L)) are universal approximators for Lipschitz seq-to-seq
+functions.
+ComparingwithPriorWorks. Ourresultsimprovepreviousworksinthreeaspects:
+• Any Weight Matrices. While [Kajitsuka and Sato, 2024] show that a self-attention layer with
+rank-1 weight matrices serves is a contextual map, we improve this to weight matrices of any
+rank.
+• Transformerswith1-Head,1-LayerAttention. While[Wangetal.,2023a]showsthatprompt
+tuning on transformers of O((L + L)(1/ϵ)d) attention layers with at least 2 attention heads,
+p
+we achieve the universality of prompt tuning transformers with only single-head-single-layer
+attention.
+• Only 2 FFN Layers. We identify a width-depth tradeoff of universality. While [Wang et al.,
+2023a] achieves prompt tuning universality with transformers of O((1/ϵ)d(Lp+L)) FFN layers,
+5we show that the same universality holds with 1-head, 1-layer transformers of only 2 FFN
+layers.
+Technical Overview. Our proof strategy is to characterize the joint approximation error from
+different components of a transformer block via a chained reduction of piece-wise constant ap-
+proximations.
+• QuantizedFunctionsandPiece-WiseConstantApproximations
+(P1) Piece-Wise Constant Approximation. We consider a class of Lipschitz functions as
+our target functions f , and employ piece-wise constant approximations8. Namely,
+seq2seq
+we first quantize the input and output domain of the target functions and obtain a class
+of quantized target functions. These quantized target functions (denoted by f ) are
+seq2seq
+piece-wiseconstantfunctionsmappinggridsofinputdomaintogridsofoutputdomain.
+(P2) Surrogate Prompt Tuning Transformer. Next, we construct a surrogate function
+h for the transformer. This surrogate function takes prompts (i.e., Z = [P,Z] ∈
+seq2seq p
+Rd×(Lp+L)) as inputs. We approximate each quantized target function f with L -
+seq2seq p
+imputed output of h . Namely, we only use the last L output tokens of h to
+seq2seq seq2seq
+approximate f . This is achieved by associating a unique prompt with each quan-
+seq2seq
+tizedtargetfunction.
+(P3) Prompting Tuning Transformer Approximate h . Then, we construct a trans-
+seq2seq
+former τ on which prompt tuning approximates the surrogate function h with
+seq2seq
+boundederror.
+• ChainedReductionofPiece-WiseConstantApproximations
+– A transformer layer consist of a self-attention layer f(Att) and an FFN layer. We utilize f(Att)
+as a contextual mapping. A (δ,γ)-contextual mapping preserves the correspondence of its
+input-outputpairupto(δ,γ)accuracy(seeDefinition2.6forformaldefinition). Furthermore,
+insteadofjusttoken-wisemanipulation,contextualmappingallowsustocapturethecontext
+ofaninputsequenceasawhole. Thisallowsustoquantifythequalityofamappinginterms
+ofitsabilitytoperformpiece-wiseapproximationuptoanyprecision.
+– Lastly,weuseFFNlayerstomaptheoutputsoff(Att) tothedesiredoutputswithinabounded
+error. This results in a chained reduction of approximation errors; we observe that for each
+step, Error[(P3)] ≥ Error[(P2)] ≥ Error[(P1)]. Therefore, we conclude that prompt tuning
+onthetransformerτ isauniversalapproximatorforourtargetfunctionsf.
+8Apiece-wiseconstantapproximationapproximatesafunctionf byaseriesofconstantvaluesacrossdif-
+seq2seq
+ferentsegmentsofitsdomain. Thistechniqueinvolvesdiscretizingthefunction’sdomainintointervalsandassigning
+a constant value to the function over each interval. Please see [Yun et al., 2020] for utilizing piece-wise constant
+approximationsfortransformer’suniversality.
+62.1 Preliminaries and Problem Setup
+Wefirstpresenttheideaswebuildon.
+LetZ ∈ Rd×L denotetheinputembeddingsofattentionlayerandsdenotethehiddendimension.
+TransformerBlock. Leth-headself-attentionlayerasafunctionf(SA) : Rd×L → Rd×L,
+h
+(cid:88)
+f(SA)(Z) = Z + Wif(Att)(Z,Z) ∈ Rd×L, (2.1)
+O i
+i=1
+whereWi ∈ Rd×s andf(Att) isthesize-sself-attentionmechanismforthei-thhead
+O i
+f(Att)(Z ,Z) = (WiZ)Softmax(cid:2) (Wi Z)⊤(WiZ )(cid:3) ∈ Rs. (2.2)
+i :,k V K Q :,k
+Here,f(Att) : Rd×Rd×L (cid:55)→ Rsactstoken-wise,andWi,Wi ,Wi ∈ Rs×daretheweightmatrices.
+i V K Q
+Next, we define the r-neuron feed-forward layer function as f(FF) ∈ F(FF) : Rd×L (cid:55)→ Rd×L and
+theoutputatk-thtokenis
+f(FF)(Z) = Z +W(2)ReLU(W(1)Z +b(1))+b(2), (2.3)
+:,k :,k :,k
+whereW(1) ∈ Rr×d andW(2) ∈ Rd×r areweightmatrices,andb(1),b(2) ∈ Rr arethebiasterms.
+Definition2.1(TransformerBlock). Wedefineatransformerblockofh-head,s-sizeandr-neuron
+asf(Th,s,r)(Z) = f(FF)(cid:0) f(SA)(Z)(cid:1) : Rd×L (cid:55)→ Rd×L.
+Now,wedefinethetransformernetworksascompositionsoftransformerblocks.
+Definition2.2(TransformerNetworkFunctionClass). LetT h,s,r denotethetransformernetwork
+functionclasswhereeachfunctionτ ∈ T h,s,r consistsoftransformerblocksf(Th,s,r) withhheads
+ofsizesandrMLPhiddenneurons: T h,s,r := {τ : Rd×L (cid:55)→ Rd×L | τ = f(Th,s,r)(f(Th,s,r)(···))}.
+Prompt Tuning Pretrained Transformer Models. In this work, we consider the prompt tuning
+problemDefinition1.1withapretrainedtransformernetworkτ ∈ T h,s,r.
+ProblemSetup. ToanswerQuestion1,wefocusontheuniversalapproximationofprompttuning
+pretrainedtransformermodels. Westartfromstatingthetargetfunctionsofourapproximation.
+Definition2.3(TargetFunctionClass). LetF betheC-Lipschitz(underp-norm)targetfunction
+C
+class of continuous sequence-to-sequence. Let f ∈ F : [0,1]d×L (cid:55)→ [0,1]d×L denote
+seq2seq C
+continuoussequence-to-sequencefunctionsonacompactsetofsequence.
+Explicitly, for any f ∈ F and two input sequences Z,Z′ ∈ Rd×L, we have
+seq2seq C
+∥f (Z)−f (Z′)∥ ≤ C∥Z −Z′∥ . In this work, we adopt f as our approxi-
+seq2seq seq2seq α α seq2seq
+mation target function. Concretely, we investigate whether it is possible to approximate any C-
+Lipschitz sequence-to-sequence function f through prompt tuning with a pretrained single-
+seq2seq
+head, single-layer transformer model. Namely, we reformulate Question 1 into the following
+problem.
+7Problem 2. Is it possible to find a pretrained transformer model τ ∈ T 1,1,r such that, for any
+(cid:0) (cid:1)
+f ∈ F , prompt tuning τ satisfies d τ([P,·]) ,f ≤ ϵ for some ϵ > 0? Here,
+seq2seq C α :,Lp: seq2seq
+d (f ,f ) :=
+(cid:0)(cid:82)
+∥f (Z)−f
+(Z)∥αdZ(cid:1)1/α
+measures the difference between functions f and f
+α 1 2 1 2 α 1 2
+inthetoken-wiseℓ -norm.
+α
+2.2 Any-Rank Single-Layer Attention is a Contextual Mapping Function
+As stated in the previous technical overview, a key element of our proof is the concept of con-
+textual mapping in attention [Kajitsuka and Sato, 2024, Yun et al., 2020]. Contextual mapping
+enablestransformerstomovebeyondsimpletoken-wisemanipulationandcapturethefullcontext
+ofasequence. Throughthis,identicaltokenswithindifferentinputsequencesbecomedistinguish-
+able. In this subsection, we present new results on the contextual mapping property of attention.
+These results allow us to use feed-forward neural networks to map each input sequence to its
+correspondinglabelsequence,therebyachievinguniversalapproximationinSection2.3.
+Background: ContextualMapping. LetZ,Y ∈ Rd×L betheinputembeddingsandoutputlabel
+sequences,respectively. LetZ ∈ Rd bethei-thtoken(column)ofeachZ embeddingsequence.
+:,i
+Definition2.4(Vocabulary). Wedefinethei-thvocabularysetfori ∈ [N]byV(i) = (cid:83) Z(i) ⊂
+k∈[L] :,k
+Rd,andthewholevocabularysetV isdefinedbyV = (cid:83) V(i) ⊂ Rd.
+i∈[N]
+Note that while “vocabulary” typically refers to the tokens’ codomain, here it refers to the set of
+alltokenswithinasinglesequence. Tofacilitateouranalysis,weintroducetheideaofinputtoken
+separationfollowing[KajitsukaandSato,2024,Kimetal.,2022,Yunetal.,2020].
+Definition 2.5 (Tokenwise Separateness). Let Z(1),...,Z(N) ∈ Rd×L be embeddings. Then,
+Z(1),...,Z(N) arecalledtokenwise(γ ,γ ,δ)-separatedifthefollowingconditionshold.
+min max
+(i) Foranyi ∈ [N]andk ∈ [L],∥Z(i)∥ > γ holds.
+:,k min
+(ii) Foranyi ∈ [N]andk ∈ [L],∥Z(i)∥ < γ holds.
+:,k max
+(iii) Foranyi,j ∈ [N]andk,l ∈ [L]ifZ(i) ̸= Z(j),then∥Z(i) −Z(j)∥ > δ holds.
+:,k :,l :,k :,l
+Notethatwhenonlyconditions(ii)and(iii)hold,wedenotethisas(γ,δ)-separateness. Moreover,
+ifonlycondition(iii)holds,wedenoteitas(δ)-separateness.
+To clarify condition (iii), we consider cases where there are repeated tokens between different
+inputsequences. Next,wedefinecontextualmapping. Contextualmappingdescribesafunction’s
+ability to capture the context of each input sequence as a whole and assign a unique ID to each
+inputsequence.
+Definition 2.6 (Contextual Mapping). A function q : Rd×L → Rd×L is said to be a (γ,δ)-
+contextual mapping for a set of embeddings Z(1),...,Z(N) ∈ Rd×L if the following conditions
+hold:
+81. ContextualSensitivityγ. Foranyi ∈ [N]andk ∈ [L],∥q(Z(i)) ∥ < γ holds.
+:,k
+2. ApproximationErrorδ. Foranyi,j ∈ [N]andk,l ∈ [L]suchthatV(i) ̸= V(j) orZ(i) ̸= Z(j) ,
+:,k :,l
+∥q(Z(i)) −q(Z(j)) ∥ > δ holds.
+:,k :,l
+(cid:0) (cid:1)
+Notethatq Z(i) fori ∈ [N]iscalledacontextIDofZ(i).
+Any-Rank Attention is Contextual Mapping. Now we present the result showing that a
+softmax-based1-head,1-layerattentionblockwithany-rankweightmatricesisacontextualmap-
+ping.
+Lemma 2.2 (Any-Rank Attention as a (γ,δ)-Contextual Mapping, modified from Theorem 2 of
+[Kajitsuka and Sato, 2024]). Let Z(1),...,Z(N) ∈ Rd×L be embeddings that are (γ ,γ ,ϵ)-
+min max
+tokenwise separated, with the vocabulary set V = (cid:83) V(i) ⊂ Rd. Additionally, assume no
+i∈[N]
+duplicate word tokens in each sequence, i.e., Z(i) ̸= Z(i) for any i ∈ [N] and k,l ∈ [L].
+:,k :,l
+Then, there exists a 1-layer, single-head attention mechanism with weight matrices W(O) ∈
+Rd×s and W ,W ,W ∈ Rs×d that serves as a (γ,δ)-contextual mapping for the embed-
+V K Q
+dings Z(1),...,Z(N), where: γ = γ + ϵ, and δ = exp(−5ϵ−1|V|4dκγ logL), with
+max 4 max
+κ := γ /γ .
+max min
+ProofSketch. We generalize [Kajitsuka and Sato, 2024, Theorem 2] where all weight matrices
+have to be rank-1. We eliminate the rank-1 requirement by constructing the weight matrices as a
+outer product sum (cid:80)ρu v⊤, where u ∈ Rs,v ∈ Rd. This extends [Kajitsuka and Sato, 2024,
+i i i i i
+Theorem 2] holds for attention with weights of any rank. Please see Appendix D.1 for a detailed
+proof.
+Lemma 2.2 indicates that any-rank self-attention function distinguishes input tokens Z(i) = Z(j)
+:,k :,l
+such that V(i) ̸= V(j). In other words, it distinguishes two identical tokens within a different
+context.
+Remark 2.1 (Comparing with Existing Works). In comparison with [Kajitsuka and Sato, 2024],
+they provide a proof for the case where all self-attention weight matrices W ,W ,W ∈ Rs×d
+V K Q
+arestrictlyrank-1. However,thisisalmostimpossibleinpracticeforanypre-trainedtransformer-
+based models. Here, by considering self-attention weight matrices of rank ρ where 1 ≤ ρ ≤
+min(d,s), we show that single-head, single-layer self-attention with matrices of any rank is a
+contextualmapping,pushingtheuniversalityof(prompttuning)transformerstowardsmoreprac-
+ticalscenarios.
+Next, we utilize Lemma 2.2 to prove the universality and memory capacity of prompt tuning on
+transformernetworkswithsinglelayerself-attention.
+92.3 Universality of Prompt Tuning T 1,1,4 with O((1/ϵ)d(L p+L)) FFN Layers
+A
+In this section, we prove the universality of prompt tuning by showing that there exists a simple
+transformer of single-layer self-attention τ ∈ T 1,1,4 such that for any f ∈ F , prompt
+A seq2seq C
+tuning on τ approximates this function up to some error ϵ > 0. Consider simple transformers
+τ ∈ T 1,1,4 consistingofasingle-head,single-layer,size-oneself-attentionfunctionf(SA) ∈ F(SA),
+A
+andO((1/ϵ)d(Lp+L))feed-forwardlayersf(FF) ∈ F(FF),eachwith4MLPhiddenneurons:
+T 1,1,4 := {τ : Rd×L (cid:55)→ Rd×L | τ = f(FF) ◦...◦f(FF) ◦f(SA) ◦f(FF) ◦...◦f(FF)}. (2.4)
+A ℓ1 1 ℓ2 1
+ProofStrategy. Weemploysachainedreductionofpiece-wiseconstantapproximations:
+(A1) Westartbyquantizingtheinputandoutputdomainoff ∈ F intoaquantizedfunction
+seq2seq C
+f : G (cid:55)→ G where G = {0,δ,2δ,...,1 − δ}d×L. Here, f ,F denote the
+seq2seq δ,L δ,L δ,L seq2seq C
+quantized function and function class. This is basically performing a piece-wise constant
+approximationwithboundederrorδ.
+(A2) Next,weconstructasurrogatequantizedsequence-to-sequencefunction
+h : G → G , whereG = {0,δ,2δ,...,1−δ}d×(Lp+L).
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+Here h takes prompts and embeddings Z = [P,Z] as inputs. Crucially, its L -
+seq2seq p p
+imputedoutputapproximatesanyf ∈ F byusingvarioussoftpromptsP.
+seq2seq C
+(A3) Finally, we show that there exist transformers τ ∈ T 1,1,4 approximating h to any pre-
+A seq2seq
+cision. By simple reduction from h , f and f , we achieve the universality
+seq2seq seq2seq seq2seq
+of prompt tuning on T 1,1,4 with O((1/ϵ)d(Lp+L)) FFN layers, where ϵ is the approximation
+A
+error.
+Remark 2.2. We remark that while (A1) shares some similarity with [Wang et al., 2023a] by the
+nature of quantization approach to transformer’s universality [Yun et al., 2020], (A2) and (A3)
+differssignificantlyintechniquesandresults. Seetheopeningofthissectionforanoverview.
+For (A1) and (A2), we introduce the next lemma, showing the quantized f is approximated
+seq2seq
+byL -imputedversionofsomequantizedsequence-to-sequencefunction
+p
+h : G → G , whereG = {0,δ,2δ,...,1−δ}d×(Lp+L).
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+Lemma2.3(UniversalityofPromptTuningSurrogateFunctionh ). ConsideraC-Lipschitz
+seq2seq
+sequence-to-sequence function class F , where each function f : [0,1]d×L → [0,1]d×L.
+C seq2seq
+There exists a sequence-to-sequence function h : G → G with G =
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+{0,δ,2δ,...,1 − δ}d×(Lp+L) such that, for any f ∈ F , we can find a prompt P ∈ Rd×Lp
+seq2seq C
+10(cid:0) (cid:1)
+that satisfies: d h([P,·]) ,f ≤ ϵ/2, where the prompt sequence length L ≥ Lλ, with
+p :,Lp: seq2seq p
+λ = (2ϵ−1C(dL)1/α)dL.
+ProofSketch. Our proof consists of three steps. Firstly, we approximate each function in F
+C
+by a piece-wise constant function in F . F is constructed by quantizing the input and output
+C C
+domain of F . This gives us a function class of limited size, so that the further discussion is fea-
+C
+sible. Secondly, we construct a quantized prompt set P. We correspond each quantized function
+f(i) ∈ F toapromptP(i) ∈ P. Lastly,webuildasequence-to-sequencefunction
+seq2seq C
+h : G → G with G = {0,δ,2δ,...,1−δ}d×(Lp+L),
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+that takes a soft-prompt P and embeddings Z as input. Most importantly, this function
+h behaves like f(i) when taking the corresponding prompt P(i). Namely, it satisfies
+seq2seq seq2seq
+h ([P(i),·]) = f(i) (·). SeeAppendixE.1foradetailedproof.
+seq2seq :,Lp: seq2seq
+For (A3), we present the next lemma demonstrating that τ ∈ T 1,1,4 approximates h up to
+A seq2seq
+any desired precision. The technical contribution involves using the contextual mapping property
+of any-rank 1-layer, 1-head attention (Lemma 2.2) to preserve the piece-wise constant approxi-
+mation.
+Lemma 2.4 (Transformer τ ∈ T 1,1,4 Approximate h to Any Precision). For any given
+A seq2seq
+quantized sequence-to-sequence function h : G → G with G =
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+{0,δ,2δ,...,1 − δ}d×(Lp+L), there exists a transformer τ ∈ T 1,1,4 with positional embedding
+A
+E ∈ Rd×(Lp+L),suchthatτ = h([P,·]) .
+:,Lp:
+Proof. SeeAppendixE.2foradetailedproof.
+Combiningaboveleadstoourmainresult: universalityofprompttuningaτ ∈ T 1,1,4 transformer.
+A
+Theorem 2.3 (Prompt Tuning τ ∈ T 1,1,4 Transformer is Universal Seq2Seq Approximator). Let
+A
+1 ≤ p < ∞andϵ > 0. There existsatransformerτ ∈ T 1,1,4 withsingle self-attentionlayer, such
+A
+thatforanyf ∈ F thereexistsapromptP ∈ Rd×Lp withd (cid:0) τ([P,·]) ,f (cid:1) ≤ ϵ.
+seq2seq C α :,Lp seq2seq
+ProofSketch. By Lemmas 2.3 and 2.4, we obtain a τ ∈ T 1,1,4, with soft-prompt P ∈ G ,
+A δ,Lp
+(cid:0) (cid:1)
+such that for any f ∈ F , d τ([P,·]) ,f ≤ ϵ. See Appendix E.3 for a detailed
+seq2seq C α :,Lp: seq2seq
+proof.
+Intuitively, Theorem 2.3 indicates that even the simplest transformer with 1-head, 1-layer atten-
+tion has enough expressive power through prompt tuning to approximate any Lipschitz seq2seq
+function.
+112.4 Width-Depth Tradeoff: Universality of Prompt Tuning
+T
+1,1,r=O((1/ϵ)d(Lp+L))
+Only Needs 2 FFN Layers
+In Section 2.3, we achieve the universality of prompt tuning simple transformers with many FFN
+layers. In this section, we explore the possibility of further simplify such transformer block by
+reducingthenumberofFFNlayers. Surprisingly,weshowthat2FFNlayersareenough.
+We start with the required number of FFN layers for τ ∈ T 1,1,4 transformers to achieve univer-
+A
+sality through prompt tuning. For clarity, we denote transformer of 4 MLP neurons by T (i.e.,
+A
+(2.4)).
+Lemma 2.5. (Required Number of FFN Layers) For a transformer τ ∈ T 1,1,4, defined in (2.4),
+A
+tobeauniversalapproximatorthroughprompttuning,itrequiresO((1/ϵ)d(Lp+L))FFNlayers.
+Proof. SeeAppendixF.1foradetailedproof.
+Now, we prove the universality of prompt tuning on another simple transformer block with sig-
+nificantly smaller FFN depth than T 1,1,4 from Section 2.3. This suggests a trade-off between the
+A
+depth and width of the transformer. Let transformers τ ∈ T 1,1,r consist of a single-head, single-
+B
+layer, size-one self-attention f(SA) and 2 feed-forward layers, f(FF) and f(FF) , each with r MLP
+1 2
+hiddenneurons: T 1,1,r := {τ : Rd×L (cid:55)→ Rd×L | τ = f(FF) ◦f(SA) ◦f(FF)}.
+B 2 1
+ProofStrategy. WefollowasimilarproofstrategyasinSection2.3. However,thissectiondiffers
+as we use the construction technique from [Kajitsuka and Sato, 2024] to build a transformer with
+single-head, single-layer, size-one self-attention, and two FFN layers. This outcome is achieved
+bysummingmultipleshiftedReLUfunctionstomaptheinputstothedesiredoutputswithpreci-
+sion guarantees. Additionally, this approach allows for a reduction in the number of FFN layers
+bycompensatingwithanincreaseinthenumberofneuronsintheMLP.
+Theorem 2.4 (Prompt Tuning Transformers with Single-Head, Single-Layer Attention and Two
+Feed-Forward Layers). Let 1 ≤ p < ∞ and ϵ > 0. There exists a transformer τ ∈ T 1,1,r with a
+B
+(cid:0) (cid:1)
+singleself-attentionlayerandr = O (1/ϵ)d(Lp+L) MLPneurons,suchthatforanyf ∈ F ,
+seq2seq C
+thereexistsapromptP ∈ Rd×Lp satisfying: d (cid:0) τ([P,·]) ,f (cid:1) ≤ ϵ.
+p :,Lp seq2seq
+Proof. SeeAppendixF.2foradetailedproof.
+2.5 Memory Capacity of Prompt Tuning
+Based on our universality results, we show the memory capacity of prompt tuning on simple
+transformernetworkswithsingleheadsinglelayerselfattention. Westartwithdefinition.
+12Definition 2.7 (Prompt Tuning Memorization). Given a dataset S = {(X(i),Y(i))}N with
+i=1
+X(i),Y(i) ∈ Rd×L, a pretrained transformer τ ∈ T memorizes S through prompt tuning if there
+existsapromptP ∈ Rd×Lp suchthat: max (cid:13) (cid:13)τ([P,X(i)]) −Y(i)(cid:13) (cid:13) ≤ ϵforalli ∈ [N].
+i∈[N] :,Lp α
+We now prove the existence of a transformer τ ∈ T 1,1,r that memorizes any dataset S through
+B
+prompttuning. Thisresultiseasytoextendtotransformersτ ∈ T 1,1,4.
+A
+Theorem 2.5 (Memorization Capacity of Prompt Tuning). Consider a dataset S =
+{(X(i),Y(i))}N , where X(i),Y(i) ∈ [0,1]d×L. Assume the coresponding embedding sequences
+i=1
+Z(1),...,Z(N) are generated from a C-Lipschitz function. Then, there exists a single-layer,
+single-head attention transformer τ ∈ T 1,1,r with r = O(cid:0) (1/ϵ)d(Lp+L)(cid:1) and a soft-prompt
+B
+P ∈ Rd×Lp such that, for any i ∈ [N]: (cid:13) (cid:13)τ([P,Z(i)]) −Y(i)(cid:13) (cid:13) ≤ ϵ, where L ≥ Lλ, with
+:,Lp α p
+λ =
+(cid:0) 2ϵ−1C(dL)1/α(cid:1)dL
+.
+ProofSketch. We first find the underlying sequence-to-sequence function of the dataset S, which
+(cid:0) (cid:1)
+is f⋆ : [0,1]d×L (cid:55)→ [0,1]d×L, such that for any i ∈ [N], f⋆ Z(i) = Y(i). Next, we
+seq2seq seq2seq
+complete the proof by utilizing the results of Theorem 2.4 to construct a transformer τ ∈ T 1,1,r
+B
+that is capable of approximating f⋆ through prompt tuning. See Appendix G.1 for a detailed
+seq2seq
+proof.
+Remark 2.3. Theorem 2.5 shows that a carefully constructed simple transformer is capable of
+memorizing any dataset through prompt tuning. In contrast, [Wang et al., 2023a, Theorem 3]
+is limited to datasets with only two tokens per example and defines memorization as memoriz-
+ing only the last token. Additionally, we provide a lower bound on the prompt sequence length
+requiredtomemorizeanydataset,basedonitsdimensionsandthedesiredaccuracy.
+Remark 2.4. In [Wang et al., 2023a, Theorem 2], they construct a dataset and prove it to be
+unmemorizablebyprompttuningonatransformerwithsingle-layerself-attention. However,their
+casediffersastheyrequirefull-rankself-attentionweightmatricesandaspecificformforthefeed-
+forward layer. They design the dataset by exploiting the invertibility of the weight matrices and
+usingaweakfeed-forwardlayer,preventingthetransformerfrommappingcontextualembeddings
+to the correct labels. We discuss these limitations in the expressive power of prompt tuning in
+Appendix I. In contrast, we prove that a transformer with single-layer self-attention and weight
+matricesofanyrankiscapableofachievingmemorizationthroughprompttuning.
+3 Computational Limits of Prompt Tuning Transformers
+We analyze the computational limits of inference of prompt tuning Problem 1 using fine-grained
+complexity theory. Specifically, recall that X = [P,X] ∈ Rd×(Lp+L) with Q = W X ∈
+p p Q p
+Rd×(Lp+L), K = W X ∈ Rd×(Lp+L), and V = W X ∈ Rd×(Lp+L). We study approximate
+p K p p K p
+prompttuninginferencewithprecisionguaranteesunderδ = 1/poly(L +L).
+F p
+13Problem 1 (Approximate Prompt Tuning Inference APTI). Let δ
+F
+> 0 and B > 0.
+Given Q ,K ,V ∈ Rd×(L+Lp) with guarantees that max{∥Q ∥ ,∥K ∥ ,∥V ∥ } ≤
+p p p p max p max p max
+B, we aim to study an approximation problem APTI(d,L,L p,B,δ F), aiming to approximate
+(cid:0) (cid:1) (cid:0) (cid:1)
+V Softmax KTQ with a matrix Z(cid:101) such that ∥Z(cid:101) − V Softmax KTQ ∥ ≤ δ . Here,
+p p p p p p max F
+foramatrixM ∈ Ra×b,wewrite∥M∥ := max |M |.
+max i,j i,j
+3.1 Preliminaries: Strong Exponential Time Hypothesis (SETH)
+Our hardness results are built on a common conjecture. Impagliazzo and Paturi [2001] introduce
+the Strong Exponential Time Hypothesis (SETH) as a stronger form of the P ̸= NP conjecture.
+It suggests that our current best SAT algorithms are optimal and is a popular conjecture for prov-
+ing fine-grained lower bounds for a wide variety of algorithmic problems [Cygan et al., 2016,
+Williams,2018].
+Hypothesis 1 (SETH). For every ϵ > 0, there is a positive integer k ≥ 3 such that k-SAT on
+formulaswithnvariablescannotbesolvedinO(2(1−ϵ)n)time,evenbyarandomizedalgorithm.
+Below, we rely on SETH to facilitate the fine-grained reduction for lower bound result (Theo-
+rem3.1).
+3.2 Efficiency Criterion for Prompt Tuning Inference
+WeanswerQuestion2affirmativelybyidentifyingaphasetransitionbehaviorintheefficiencyof
+all possible algorithms for Prompt Tuning Inference problem APTI (Problem 1), based on on the
+normofQ = W X ,K = W X ,andV = W X withX = [P,X] ∈ Rd×(Lp+L).
+p Q p p K p p V p p
+Theorem 3.1 (Norm-Based Efficiency Phase Transition). Let ∥Q ∥ ≤ B, ∥K ∥ ≤ B and
+p max p max
+(cid:112)
+∥V ∥ ≤ B with B = O( log(L +L)). Assuming Hypothesis 1, for every q > 0, there are
+p max p
+constantsC,C ,C > 0suchthat: thereisnoO((L +L)2−q)-time(sub-quadratic)algorithmfor
+a b p
+(cid:112)
+theproblem APTI(L,L p,d = Clog(L
+p
++L),B = C
+b
+log(L
+p
++L),δ
+F
+= (L
+p
++L)−Ca).
+ProofSketch. Our proof strategy involves connecting APIT to the hardness of attention inference
+(ATTC in [Alman and Song, 2023]) via a straightforward reduction. We achieve this by estab-
+lishing a correspondence between APIT and ATTC, then applying a reduction with tighter error
+(cid:12) (cid:12)
+bounds using prompt tuning imputation (i.e., (cid:12)[·]:,L :(cid:12) ≤ ∥·∥ ). See Appendix H.1 for a
+p max max
+detailedproof.
+Remark 3.1. Theorem 3.1 suggests an efficiency threshold for the upper bound of ∥Q ∥ ,
+p max
+(cid:112)
+∥K ∥ , ∥V ∥ : B = O( log(L +L)). Only below this threshold are efficient algorithms
+p max p max p
+forProblem1possible,i.e. solving APIT in(L
+p
++L)2−Ω(1) (sub-quadratic)timeispossible.
+143.3 Prompt Tuning Can Be as Fast as Almost-Linear Time
+We answer Question 3 affirmatively by proving the existence of almost-linear time efficient algo-
+rithmsforPromptTuningInferenceproblemAPTI(Problem1)basedonlow-rankapproximation.
+Theorem 3.2 (Almost-Linear Prompt Tuning Inference). The prompt tuning inference problem
+(cid:112)
+APTI(L,L p,d = O(log(L
+p
++L)),B = o( log(L
+p
++L)),δ
+F
+= 1/poly(L
+p
++L)) can be solved
+intimeT ((L +L),(L +L)o(1),d) = (L +L)1+o(1).
+mat p p p
+ProofSketch. We prove this using low-degree polynomial approximation of transformer atten-
+tion. Consider a matrix A ∈ Rp×q and a function f : R → R. We define f(A) : Rp×q → Rp×q
+as the matrix obtained by applying f to each entry of A. The goal of the polynomial method is
+to identify a low-rank approximation of f(A). This method is effective if A has a low rank and f
+canbecloselyapproximatedbyalow-degreepolynomial,allowingf(A)toalsoberepresentedas
+alow-rankmatrix. Thislow-rankapproximationcanbeefficientlycomputedinnearly-lineartime
+usingitslow-rankdecomposition[Huetal.,2024b,AlmanandSong,2023,AggarwalandAlman,
+2022]. Alman and Song [2023] provide bounds on the polynomial degrees necessary for approx-
+imating softmax attention with low rank. Utilizing these results and the structural properties of
+(cid:13) (cid:13)
+prompt tuning imputation (i.e., (cid:13)[·] (cid:13) ≤ ∥·∥ ), we construct a low-rank approximation
+:,Lp: max max
+fortheprompttuninginferenceproblem APTI. SeeAppendixH.2fordetailedproof.
+Theorem 3.2 provides a formal example of the efficient criterion Theorem 3.1 for APTI us-
+ing low-rank approximation within a controllable approximation error. This is applicable un-
+der Theorem 3.1 when the efficiency criterion is met. Specifically, to achieve nearly-linear
+(L + L)1+o(1) time prompt tuning inference with bounded error ϵ = 1/poly(L + L), we re-
+p p
+(cid:112)
+quireB = o( log(L +L)).
+p
+4 Discussion and Conclusion
+Westudythefundamentallimitsofprompttuningtransformer-basedpretrainedmodels(i.e.,foun-
+dation models) in two aspects: statistical and computational. Statistically, we show the universal-
+ity of prompt tuning transformer models with 1-head, 1-layer attention layers (Theorem 2.3 and
+Theorem 2.4). Recall that d is the token dimension, L is the input sequence length, L is the
+p
+soft-prompt length, and ϵ is the approximation error. Our results significantly relax previous re-
+quirements for thick layers, reducing from (L + L)(1/ϵ)d layers to 1 attention layer, and from
+p
+O((1/ϵ)d(Lp+L)) layers to 2 FFN layers for prompt tuning universality. In addition, we prove the
+memorizationcapacityofprompttuningandderiveanexponential-in-dLand-in-1/ϵlowerbound
+on required soft-prompt tokens (Theorem 2.5). Different from [Wang et al., 2023a] where the
+analysisofcapacityissolelyondatasetsoftwo-tokensequencesandfocusesononlymemorizing
+thelasttoken,wedemonstrateacompletememorizationofprompttuningonanygeneraldataset.
+Computationally, we establish an efficient criterion of all possible prompt tuning inference for
+15the norm of soft-prompt induced keys and queries (Theorem 3.1). In addition, we showcase our
+theorybyprovingtheexistenceofnearly-lineartimeprompttuningalgorithms(Theorem3.2).
+Practical Implications from Statistical Limits (Section 2). We analyze the universality of
+prompt tuning transformers with minimal structures, and its memorization capacity on general
+datasets.
+• Universality(Theorem2.4). Ourresultsshowthattheuniversalityofprompttuningpretrained
+transformer is achievable on as simple as a single-layer, single-head attention transformers.
+Thisdemonstratesthatuniversalityinprompt-tuningisn’tlimitedtolarge,complexfoundation
+models.
+• Width-Depth Tradeoff (Section 2.4). Our results highlight a trade-off in the design choices
+for the depth and width of FFN (MLP) layers: (i) O((1/ϵ)d(L+Lp) FFN layers of width 4 or
+(ii) 2 FFN layers of width O((1/ϵ)d(L+Lp). In practice, (i) and (ii) differ in memory usage,
+parallelization,andoptimizationpreferences,leadingtodistinctapplicationscenarios.
+• Memorization(Section2.5). Ourmemorizationresultsapplytogeneraldatasets,whereasprior
+resultsarelimitedtospecializedcases. Thismakesourresultsgobeyondspecializedtheoretical
+analysisandalignmorewithpracticalapplicationswithasuggestedlongsoft-promptlength.
+Practical Implications from Computational Limits (Section 3). We analyze the O(L2) bottle-
+neck of prompt tuning transformers and provides useful guidance for designing efficient prompt
+tuning (approximation) methods with precision guarantees. Let Q = W X , K = W X , and
+p Q p p K p
+V = W X withX = [P,X] ∈ Rd×(Lp+L). HereLandL aretheinputandsoft-promptlength.
+p V p p p
+• Self- and Cross-Attention. Our computational results apply to both self-attention and
+cross-attention prompt tuning. This is because the norm bound conditions depend on
+max{|Q |,|K |,|V |},whicharevalidforbothself-andcross-attentioninputs.
+p p p
+• NecessaryConditionsforSubquadraticPromptTuning(Theorem3.1). Ourresultsuggests
+proper normalization on soft-prompt and weight matrices are required to ensure subquadratic
+(cid:112)
+prompttuninginference,i.e.,max{∥Q ∥ ,∥K ∥ ,∥V ∥ } ≤ O( log(L +L)).
+p max p max p max p
+• Necessary Conditions for Almost Linear Time Prompt Tuning (Theorem 3.2). Our re-
+sult suggests more strict normalization on soft-prompt and weight matrices are required to
+ensure almost linear time prompt tuning inference, i.e., max{∥Q ∥ ,∥K ∥ ,∥V ∥ } ≤
+p max p max p max
+(cid:112)
+o( log(L +L)).
+p
+Suitablenormalizationsfortheabovecanbeimplementedusingpre-activationlayernormalization
+[Xiong et al., 2020, Wang et al., 2019] to control ∥X ∥ , or outlier-free attention activation
+p max
+functions[Huetal.,2024a]tocontrol∥W ∥ ,∥W ∥ ,∥W ∥ .
+K max Q max V max
+16Limitations. Bytheformalnatureofthiswork,ourresultsdonotleadtopracticalimplementa-
+tions. However,asdiscussedabove,weanticipatethatourfindingswilloffervaluableinsightsfor
+futureprompttuningmethods.
+Moreover, our memorization findings indicate an exponential dependence on the data sequence
+length L, dimension d, and approximation precision 1/ϵ. Although resource-efficient, this ex-
+ponential dependence implies that prompt tuning pretrained transformers may not be an optimal
+methodforencodingormemorizinginformation. Thisleadstotwofundamentalpossibilities:
+• While not investigated in this work, there may be an information-theoretic lower bound that
+highlightsthelimitationsofourcurrentmemorycapacityresultsforprompttuning.
+• If we prove that no upper bound can match this lower bound, it would reveal a fundamental
+limitationofprompttuning: itisnotaninformation-efficientmethod.
+Weplantoinvestigatetheseissuesinfuturework.
+Broader Impact. This theoretical work aims to shed light on the foundations of large
+transformer-basedmodelsandisnotexpectedtohavenegativesocialimpacts.
+Acknowledgments
+JHwouldliketothankJigyasaKumari,DinoFengandAndrewChenforenlighteningdiscussions;
+Weimin Wu, Yi-Chen Lee, Yu-Chao Huang, Maojiang Su, and Hude Liu for collaborations on
+related topics; and the Red Maple Family for their support. The authors also thank the authors of
+[Wangetal.,2023a]fortheirclarifications.
+JH is partially supported by the Walter P. Murphy Fellowship. HL is partially supported by NIH
+R01LM1372201, AbbVie and Dolby. The content is solely the responsibility of the authors and
+doesnotnecessarilyrepresenttheofficialviewsofthefundingagencies.
+17Appendix
+A RelatedWorks 19
+B Additional Theoretical Results: Universality of Transformers with 1-Layer, 1-
+HeadAttentionwithAny-RankWeightMatrices 21
+C Background: BoltzmannOperatorandAttentionMechanism 24
+C.1 EssentialPropertiesofBoltzmannOperator . . . . . . . . . . . . . . . . . . . . 24
+C.2 DistancePreservationofBoltzmannOperator . . . . . . . . . . . . . . . . . . . 26
+D ProofsofSection2.2 31
+D.1 ProofsofLemma2.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 31
+E ProofsofSection2.3 38
+E.1 ProofsofLemma2.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 38
+E.2 ProofsofLemma2.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 40
+E.3 ProofsofTheorem2.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 43
+F ProofsofSection2.4 44
+F.1 ProofofLemma2.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+F.2 ProofofTheorem2.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 44
+G ProofsofSection2.5 50
+G.1 ProofofTheorem2.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 50
+H ProofsofComputationalLimitsofPromptTuning(Section3) 51
+H.1 ProofofTheorem3.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 51
+H.2 ProofofTheorem3.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 52
+I LimitationsofPromptTuningTransformers 53
+I.1 DiscussionontheLimitationsofPromptTuning . . . . . . . . . . . . . . . . . . 53
+I.2 ExamplesofPromptTuningFailures . . . . . . . . . . . . . . . . . . . . . . . . 54
+J SupplementaryProofsforAppendixC 56
+J.1 LemmaC.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56
+J.2 LemmaC.2 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 56
+J.3 LemmaC.3 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 57
+J.4 LemmaC.4 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 58
+J.5 LemmaC.5 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+J.6 LemmaC.6 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 59
+J.7 LemmaC.7 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 60
+J.8 LemmaC.8 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 61
+J.9 LemmaC.9 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63
+J.10 LemmaD.1 . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 63
+18A Related Works
+Context-basedFine-tuningandSoft-promptTuning. Recently,resource-efficientfine-tuning
+strategies [Ding et al., 2023, 2022], such as LoRA [Pan et al., 2024, Hayou et al., 2024, Hu
+et al., 2024c, 2022], emerge as powerful alternatives to conventional full fine-tuning. In con-
+trast,context-basedfine-tuningtechniques,likehard-prompttuning[Wenetal.,2024],in-context
+learning[Xuetal.,2024,Shietal.,2024,Weietal.,2023,Dongetal.,2022,Brownetal.,2020],
+and prefix-tuning [Liang et al., 2024, Li and Liang, 2021], adapt pretrained models to specific
+tasks without modifying underlying model parameters [Brown et al., 2020, Li and Liang, 2021,
+Liu et al., 2022]. One of the most effective methods is soft-prompt tuning [Liu et al., 2023],
+which uses real-valued embeddings to guide model outputs. This approach leverages the expres-
+sivepowerofcontinuousspacestofine-tuneresponses,avoidingextensiveparameterupdatesand
+making it both efficient and less resource-intensive than traditional fine-tuning methods [Lester
+etal.,2021,Liuetal.,2022].
+Universality of Transformers. The universality of transformers refers to their ability to serve
+as universal approximators. This means that transformers theoretically models any sequence-
+to-sequence function to a desired degree of accuracy. Yun et al. [2020] show that transformers
+universally approximate sequence-to-sequence functions by stacking numerous layers of feed-
+forward functions and self-attention functions. In a different approach, Jiang and Li [2023] af-
+firmtheuniversalityoftransformersbyutilizingtheKolmogorov-AlbertrepresentationTheorem.
+Furthermore, Alberti et al. [2023] demonstrate universal approximation for architectures that in-
+corporate non-standard attention mechanisms. Most recently, Kajitsuka and Sato [2024] show
+that transformers with one self-attention layer is a universal approximator. Of independent inter-
+est, recent work by Havrilla and Liao [2024] examines the generalization and approximation of
+transformersunderHöldersmoothnessandlow-dimensionalsubspaceassumptions.
+OurpaperismotivatedbyandbuildsuponworksofYunetal.[2020],KajitsukaandSato[2024].
+Specifically,westudytheuniversalityofprompttuningtransformersusingtheanalysisframework
+byYunetal.[2020]. Furthermore,weextendthecontextualmappingpropertyof1-rankattention
+byKajitsukaandSato[2024]toany-rankattention. Thisallowsustoestablishtheuniversalityof
+prompttuningtransformersinthesimplestconfiguration—single-layer,single-headattention.
+AnalysisonPromptTuning. Prompttuninghasbeensuccessfulinvariousapplications. How-
+ever, the theoretical analysis of it is less developed. Petrov et al. [2023] discuss different kinds of
+context-basedlearning,andexperimentallyshowwhenprompttuningissuccessfulinadaptingto
+new tasks. In this work, we tackle the prompt tuning problem from a theoretical perspective. Oy-
+mak et al. [2023] identify the cases where attention layer with prompt tuning is more expressive
+than a self-attention layer. They utilize prompt tokens dependent to weight matrices. In addition,
+they require weight matrices to be full rank. Conversely, our study explores the expressive power
+of prompt tuning under more general conditions, without relying on such assumptions. Wang
+19et al. [2023a] show the universality of prompt tuning transformers with an increasing number of
+layers in proportion to the input data dimension and the quantization grid. Petrov et al. [2024]
+prove the universality of prompt tuning on transformers with the number of layers linear in the
+input sequence length. Liang et al. [2024] study the convergence guarantee for prompting tuning
+with ultra-long soft-prompt in the Neural Tangent Kernel region (NTK). On the other hand, we
+focus on approximation and computation properties of prompt tuning transformers with single-
+layer-single-headself-attention.
+Our work is most similar to [Wang et al., 2023a], as both quantize the input and output domains
+of sequence-to-sequence functions to establish universality. However, this work differs in three
+aspects. First,whileWangetal.[2023a]requiretransformerswithanumberoflayersproportional
+to the input data dimension and two attention heads, we demonstrate the universality of prompt
+tuning with the simplest transformer: a single-layer, single-head attention transformer. Second,
+we present the first study to show complete data memorization through prompt tuning, providing
+a lower bound on the required soft-prompt tokens for a single-layer, single-head transformer to
+memorize any dataset. Lastly, we provide the first comprehensive analysis of the computational
+limits,provingtheexistenceofnearly-lineartimeprompttuninginferencealgorithms.
+MemoryCapacityofTransformer. Eventhoughtherehasnotbeenmuchanalysisonthemem-
+ory capacity of prompt tuning, there are many work on the memorization of transformers itself.
+Kim et al. [2022] prove 2n self-attention blocks are sufficient for the memorization of finite sam-
+ples, where n denotes the sequence length of data. Mahdavi et al. [2023] show that a multi-head-
+attention with h heads is able to memorize O(hn) examples. Kajitsuka and Sato [2024] prove
+the memorization capacity for a single layer transformer. They demonstrate that for N sequence-
+to-sequence data examples, each with dimension d × n, the number of parameter required for
+memorization is O(nNd + d2). Another area of research introduces a distinct type of mem-
+orycapacityfortransformersbylinkingtransformerattentionmechanismswithdenseassociative
+memory models, specifically modern Hopfield networks [Bietti et al., 2024, Hu et al., 2024a,b,d,
+2023,Wuetal.,2024a,b,Ramsaueretal.,2020].
+The closest work to ours is [Wang et al., 2023a], where they discuss the required prompt tokens
+for prompt tuning on memorizing a special sequence-to-sequence dataset. In the special dataset,
+theexamplesarerequiredtohaveexactlytwotokenseach. Inaddition,theydiscussedthememo-
+rization of only the last token of each data sequence. In contrast, we provide the first analysis on
+generalcaseswhereprompttuningmemorizesthewholesequenceforeachexamplesinageneral
+dataset with no assumption on the data. In addition, our work is the first to provide the lower
+boundonthere-quiredsoft-prompttokensformemorization.
+20B Additional Theoretical Results: Universality of Transform-
+ers with 1-Layer, 1-Head Attention with Any-Rank Weight
+Matrices
+Lemma 2.2 shows that any-rank single-layer, single-head attention is contextual mapping. A
+directconsequenceistheuniversalityoftransformerswith1-layer,1-head,any-rankself-attention
+followingKajitsukaandSato[2024]. Webelievethisresultmaybeofindependentinterest.
+Theorem B.1. Let 1 ≤ α < ∞ and ϵ > 0. For any f ∈ F , there exists a transformer with
+seq2seq C
+single-layer, single-head attention and any-rank weight matrices τ ∈ T 1,1,4 (or τ ∈ T 1,1,r with
+A B
+r = O((1/ϵ)dL))withpositionalembeddingE ∈ Rd×L suchthatd (τ,f ) ≤ ϵ.
+α seq2seq
+ProofSketch. Thisproofisinspiredby[Yunetal.,2020]andsimilartotheproofofLemmaE.2.
+Therearemainlythreesteps:
+1. GivenaninputdataX ∈ Rd×L,wefirstapplypositionalencodingE,whichisgivenas
+ 
+0 1 2 ... L−1
+ 0 1 2 ... L−1 
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L−1
+Thenaseriesoffeed-forwardlayersinthemodifiedTransformernetworkquantizesX +E to
+aquantizedsequenceM ∈ G . Here,wedefinethegrid
+δ,L
+G := [0 : δ : 1−δ]d ×[1 : δ : 2−δ]d ×···×[L−1 : δ : L−δ]d,
+δ,L
+where [a : ε : b] := {a,a + ε,a + 2ε,...,b − ε,b}. Note that with the positional encod-
+ing, our contextual mapping through self-attention won’t be limited to permutation equivalent
+functions.
+2. Next, by utilizing Lemma 2.2, the single self-attention layer in the modified transformer takes
+theinputM andimplementsacontextualmappingq : Rd×L (cid:55)→ Rd×L.
+3. Finally,aseriesoffeed-forwardlayersmapelementsofthecontextualembeddingq(M)tothe
+desiredoutputvalueoff (X).
+seq2seq
+We remark that Step 2 distinguishes us from prior works by utilizing the fact that any-rank atten-
+tion is a contextual mapping Lemma 2.2. This improves the result of [Kajitsuka and Sato, 2024],
+whichrequiresanattentionlayerofrankone.
+ProofofTheoremB.1. First, we apply the positional encoding E ∈ Rd×L on the input sequence
+21X ∈ Rd×L,sothateachtokenhasadifferentdomain. ThepositionalencodingE isgivenas
+ 
+0 1 2 ... L−1
+ 0 1 2 ... L−1 
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L−1
+We next use feed-forward layers f(FF) to implement a quantization map to quantize the input
+X +E intoitsdiscreteversionM ∈ G . ThegridG isdefinedas
+δ,L δ,L
+G := [0 : δ : 1−δ]d ×[1 : δ : 2−δ]d ×···×[L−1 : δ : L−δ]d,
+δ,L
+where [a : ε : b] := {a,a + ε,a + 2ε,...,b − ε,b}. Note that the first column of X + E is in
+[0,1]d,thesecondisin[1,2]d,andsoon. Here,wewritethequantizationmappingas
+[0,1]d ×···×[L−1,L]d (cid:55)→ [0 : δ : 1−δ]d ×···×[L−1 : δ : L−δ]d.
+Inspired by the construction recipe by [Yun et al., 2020], this task is realized by dL/δ feed-
+forward layers. We add dL/δ layers of f(FF) with the following form, for k = 0,δ,...,L−δ and
+i = 1,...,d:
+(cid:40)
+(cid:16) (cid:17) 0 t < 0ort ≥ δ
+Z (cid:55)→ Z +e(i)ϕ
+(cid:0) e(i)(cid:1)T
+Z −kδ1T ,ϕ(t) = , (B.1)
+n
+−t+1 0 ≤ t < δ
+wheree(1) = (1,0,0,...,0) ∈ Rdandϕ(t) ∈ Φisanentrywisefunction,wherethesetofactivation
+functions Φ consists of all piece-wise linear functions with at least one piece being constant and
+at most three pieces. Furthermore, any activation function ϕ ∈ Φ is realized by 4 MLP neurons.
+Eachlayerintheformof(B.1)quantizesX (thei-throw)in[kδ,kδ+δ)tokδ. Wedenoteoutput
+i,:
+afterthefeed-forwardlayersasM ∈ G .
+δ,L
+Next, in order to utilize Lemma 2.2, we observe that the quantized output M from the previous
+step has no duplicate tokens, since each column has a unique domain. Also, we see that M
+(cid:16)√ √ √ (cid:17)
+is token-wise d, d(L−δ), dδ -separated. This is easily observed as we have, for any
+k,l ∈ L,
+√
+∥M ∥ > d,
+:,k
+√
+∥M ∥ < d(L−δ),
+:,k
+√
+∥M −M ∥ > dδ.
+:,k :,l
+22Asaresult,withLemma2.2,wearriveata(Γ,∆)-contextualmappingq : Rd×L (cid:55)→ Rd×L where
+√
+√ dδ √ 3δ
+Γ = d(L−δ)+ = d(L− ),
+4 4
+(cid:0) (cid:1)
+∆ = exp −5|V|4dln(n)L2/δ .
+NowwehavesuccessfullymappedeachinputsequenceX +E touniquecontextualembeddings
+q(M) ∈ Rd×L. Wenextassociateeachuniqueembeddingstoacorrespondingexpectedoutputof
+f (X).
+seq2seq
+We use feed-forward layers to map each token of q(M) to the desired [0,1]d. As in [Yun et al.,
+2020, C.3], with a method similar to (B.1), we need one layer for each unique value of q(M) for
+eachM ∈ G . Thereareintotal(1/δ)dL possibilitiesofM andeachcorrespondstosomeoutput
+δ,L
+(cid:0) (cid:1)
+ofh ([P,·]). SinceweonlyfocusonthelastLtokensofoutput,werequireO L(1/δ)dL =
+seq2seq
+(cid:0) (cid:1)
+O δ−dL layerstomapthesedistinctnumberstoexpectedoutputs.
+This completes the proof for transformers τ ∈ T 1,1,4. The proof for transformers τ ∈ T 1,1,r
+A B
+followsthesamerecipe,andwerefertotheproofofLemmaF.2fordetails.
+23C Background: Boltzmann Operator and Attention Mecha-
+nism
+Here,wepresentsomeauxiliarydefinitionsandlemmastoprepareourproofs.
+To demonstrate that a single-layer self-attention mechanism with matrices of any rank acts as a
+contextualmap,wefollow[KajitsukaandSato,2024,AsadiandLittman,2017]. Specifically,we
+utilizetheconnectionbetweenself-attentionmechanismsandtheBoltzmannoperatorBoltz.
+Inthissection,weintroducenon-originalbutstillnecessaryauxiliarylemmas. Wedefertheproofs
+to Appendix J for completeness. Below, we start with the definition of the Boltzmann operator
+Boltz.
+Boltzmann Operator. Following [Asadi and Littman, 2017, Kajitsuka and Sato, 2024], we as-
+sociatetheSoftmaxfunctionwiththeBoltzmannoperatorBoltzdefinedbelow:
+Definition C.1 (Softmax and Boltz). Let z = (z ,...,z ) ∈ Rn and the function Softmax :
+1 n
+Rn → Rn operate element-wise: Softmax(z) = exp(z )/(cid:80)n exp(z ). Denote p =
+i i j=1 j
+(p ,...,p ) := Softmax(z) ∈ Rn with p = Softmax(z) . The Boltzmann operator Boltz :
+1 n i i
+Rn (cid:55)→ Risdefinedas
+n
+(cid:88)
+Boltz(z) = z⊤Softmax(z) = z⊤p = z p . (C.1)
+i i
+i=1
+To give a brief overview to this section, in Appendix C.1, we first introduced the essential prop-
+erties of Boltz. Next, in Appendix C.2, we utilized these properties to further illustrate the Boltz
+operator’sabilitytomaintaintheseparationbetweeninputs.
+Inthefollowing,wepresenttheessentialpropertiesofBoltzinAppendixC.1.
+C.1 Essential Properties of Boltzmann Operator
+Before characterizing the Boltzmann operator Boltz, we introduce some useful functions and
+essentialpropertiesofBoltzfrom[KajitsukaandSato,2024]tofacilitateourproofs.
+Wefirstrecallthepartitionfunctionandthe(Gibbs)entropyfunctionfromstatisticalphysics,
+n n
+(cid:88) (cid:88)
+Z(z) = exp(z ), and S(p) = − p ln(p ). (C.2)
+i i i
+i=1 i=1
+Then,thenextlemmapresentstherelationbetweentheBoltzmannoperatorBoltz,partitionfunc-
+tionZ andentropyS.
+24Lemma C.1 (Boltz,Z andS). With the definitions given above and a vector z = (z ,...,z ) ∈
+1 n
+Rn,theBoltzmannoperatorBoltzalsotakestheform
+Boltz(z) = −S(p)+lnZ(z).
+Proof. SeeAppendixJ.1foradetailedproof.
+Next,werecallthatBoltzdecreasesmonotonicallywhenthemaximumentryissufficientlydistant
+fromtheotherentries.
+Lemma C.2 (Monotonically Decrease, Lemma 4 of [Kajitsuka and Sato, 2024]). Given a vector
+z = (z ,...,z ) ∈ Rn,theBoltzmannoperatorBoltz(z)monotonicallydecreasesinthedirection
+1 n
+ofz whenmax z −z > lnn+1,thatis,
+i j∈[n] j i
+∂
+Boltz(z) = p (1+lnp +S(p)) < 0.
+i i
+∂z
+i
+Proof. SeeAppendixJ.2foradetailedproof.
+The next lemma shows the concavity of Boltz when the max entry and the rest of the entries are
+distantenough.
+Lemma C.3 (Concave, Lemma 5 of [Kajitsuka and Sato, 2024]). Given a vector z =
+(z ,...,z ) ∈ Rn, the Boltzmann operator Boltz(z) is concave with respect to z when
+1 n i
+max z −z > lnn+3,thatis,
+j∈[n] j i
+∂2
+Boltz(z) < 0.
+∂z2
+i
+Proof. SeeAppendixJ.3foradetailedproof.
+To ease the later calculation and better understand the characteristics of the Boltzmann operator,
+the next lemma shows the bounds of the output of Boltz when given inputs with certain con-
+straints.
+Lemma C.4 (Lower Bound of Boltz with (δ)-Separated Input). Given a tokenwise (δ)-separated
+vectorz = (z ,...,z ) ∈ Rn withn ≥ 2andδ > lnn+1. Alsolettheentriesofz besortedina
+1 n
+decreasingorderwithnoduplicateentry,thatis,foranyi,j ∈ [n],i < j ,
+z −z > δ.
+i j
+25ThenBoltzmannoperatorBoltz(z)islowerboundedby
+Boltz(z) > Boltz(z′)
+wherez′ = (z ,z −δ,...,z −δ).
+1 1 1
+Proof. SeeAppendixJ.4foradetailedproof.
+Next, we present another property of Boltz, which states that when two vectors share the same
+firstnentriesbutdifferindimension,theoutputofBoltzforthelower-dimensionalvectorwillbe
+larger.
+Lemma C.5 (Boltz Value Comparison). Given two tokenwise (δ)-separated vectors z =
+(z ,...,z ) ∈ Rn, z′ = (z′,...,z′ ) ∈ Rm with m > n ≥ 2 and δ > lnn + 1. Also let the
+1 n 1 m
+entries of z,z′ be sorted in a decreasing order with no duplicate entry. In addition, let the first n
+entriesofz′ bez ,thatis,
+(z′,...,z′) = z.
+1 n
+Then,wehave
+Boltz(z) > Boltz(z′).
+Proof. SeeAppendixJ.5foradetailedproof.
+With a solid understanding of Boltz established, we leverage its properties to demonstrate that
+Boltzpreservestheseparationbetweentwodistinctinputtokens.
+C.2 Distance Preservation of Boltzmann Operator
+In this section, by utilizing the above properties, we show that when given well separated input
+tokens,theoutputofBoltzisalsoseparated. Westartbyexaminingspecificcaseswithmorestrin-
+gentconstraintsontheinputs,andsubsequentlyexpandourdiscussiontomoregeneralscenarios.
+Wefirstdiscussthecasewhenthetwoinputvectorhasnosameentries.
+Lemma C.6 (Input of Complete Different Entries, Lemma 7 of [Kajitsuka and Sato, 2024]). Let
+n ≥ 2 and consider two vectors a = (a ,...,a ), b = (b ,...,b ) ∈ Rn. In addition, assume the
+1 n 1 n
+followingconditionshold:
+• Decreasingorderentries: Theentriesofaandbaresortedinstrictlydecreasingorder,
+a > a > ··· > a and b > b > ··· > b .
+1 2 n 1 2 n
+26• Tokenwise(δ)-separateness: Foranyi,j ∈ [n],ifa ̸= b
+i j
+|a −b | > δ,
+i j
+andifi < j,
+a −a > δ,
+i j
+b −b > δ,
+i j
+whereδ ≥ 4lnn.
+• Initialdominance: Thelargestelementinaisstrictlygreaterthanthelargestelementinb,
+a > b .
+1 1
+Undertheseassumptions,wehave
+Boltz(a)−Boltz(b) > (lnn)2e−(a1−b1).
+ProofSketch. To find the lower bound of Boltz(a) − Boltz(b), we first find some lower bound
+of Boltz(a) and some upper bound of Boltz(b) that ease the computation. From Lemma C.4, we
+have that Boltz(a) > Boltz(a′) where a′ = (a ,a −δ,...,a −δ) . In addition, by definition of
+1 1 1
+Boltz the upper bound of Boltz(b) is Boltz(b) ≤ b . As a result, we evaluate Boltz(a′) − b to
+1 1
+completetheproof. SeeAppendixJ.6foradetailedproof.
+Next, we show that when two inputs are different only by one last entry, their Boltz outputs are
+stilldifferentwithacertaindistance.
+Lemma C.7 (Input of One Entry Difference, Lemma 6 of [Kajitsuka and Sato, 2024]). Consider
+n ≥ 2, and two vectors a = (a ,...,a ,a ), b = (b ,...b ,b ) ∈ Rn. In addition, assume
+1 n−1 n 1 n−1 n
+thefollowingconditionshold:
+• Identicalfirstn−1entries: Thefirstn−1entriesofaisthesameasb,
+a = b ∀i ∈ [n−1].
+i i
+• Strictinequalityforlastentry: Thelastentryofaisstrictlygreaterthanthatofb,
+a > b .
+n n
+• Well separated: The last entry a is sufficiently smaller than the maximum of the first n − 1
+n
+27entriesofa,
+max a −a > lnn+3.
+i n
+i∈[n−1]
+ThenthedifferenceofBoltz(a)betweenBoltz(b)islowerboundedas
+ebn
+Boltz(b)−Boltz(a) > (a −b )(δ +a −b −lnn−1)· .
+n n n n (cid:80)n ebi
+i=1
+Proof. SeeAppendixJ.7foradetailedproof.
+Now,weconsideramoregeneralcase,wherethetopk entriesarethesame.
+Lemma C.8 (Input of Matching Top k Entries, Lemma 7 of [Kajitsuka and Sato, 2024]). Let
+n ≥ 2 and consider two vectors a = (a ,...,a ), b = (b ,...,b ) ∈ Rn. In addition, assume the
+1 n 1 n
+followingconditionshold:
+• Decreasingorderentries: Theentriesofaandbaresortedinstrictlydecreasingorder,
+a > a > ··· > a and b > b > ··· > b .
+1 2 n 1 2 n
+• Tokenwise(δ)-separateness: Foranyi,j ∈ [n],ifa ̸= b
+i j
+|a −b | > δ,
+i j
+andifi < j,
+a −a > δ,
+i j
+b −b > δ,
+i j
+whereδ ≥ 4lnn.
+• Identicalfirstk entries: Leta,bhavethesametop-k entriesfork ∈ [n−1],whichis
+(a ,...,a ) = (b ,...,b )
+1 k 1 k
+• (k +1)-thdominance: Thelargestelementinaisstrictlygreaterthanthelargestelementinb,
+a > b .
+k+1 k+1
+Undertheseassumptions,wehave
+|Boltz(a)−Boltz(b)| > ln2(n)·e−(a1−b k+1).
+28ProofSketch. As the top-k entries of a,b are the same, and all entries are (δ)-separated while
+sortedinadecreasingorder,whena > b ,wehave
+k+1 k+1
+Boltz(b) > Boltz(a).
+To understand the intuition behind this, first recognize that Boltz calculates a weighted sum of
+elements, assigning higher weights to larger entries. Additionally, the total sum of all weights
+equals one. Consequently, when all entries are distinct and arranged in descending order, a larger
+(k+1)-thentry,sharesmoreweightfromthetopkgreatestterms,comparedtoasmaller(k+1)-th
+entry. Thisresultsinalowerweightedsum.
+Next, we compute the value of Boltz(b) − Boltz(a). By Lemma C.5, we have that Boltz(a) is
+upperboundedbyBoltz(a ),where
+up
+a = (a ,a ,...,a ,a ).
+up 1 2 k k+1
+Also,similartoLemmaC.4,Boltz(b)islowerboundedbyBoltz(b ),where
+lo
+b = (a ,a ,...,a ,b ,b ,...,b ).
+lo 1 2 k k+1 k+1 k+1
+ComputingBoltz(b )−Boltz(a )iseasierthandirectlycalculatingBoltz(b)−Boltz(a)asweare
+lo up
+abletodecomposeBoltz(b )andutilizeLemmaC.7toarriveatthefinalbound. SeeAppendixJ.8
+lo
+foradetailedproof.
+Finally, by utilizing the results above, we show that the Boltzmann operator is a mapping that
+projectsinputsequencestoscalarvalueswhilepreservingsomedistance.
+Lemma C.9 (Boltz Preserves Distance, Lemma 1 of [Kajitsuka and Sato, 2024]). Given (γ,δ)-
+tokenwise separated vectors z(1),...,z(N) ∈ Rn with no duplicate entries in each vector, that
+is
+z(i) ̸= z(i),
+s t
+wherei ∈ [N]ands,t ∈ [n],s ̸= t. Also,let
+δ ≥ 4lnn.
+Then,theoutputsoftheBoltzmannoperatorare(γ,δ′)-separated:
+(cid:12) (cid:0) (cid:1)(cid:12)
+(cid:12)Boltz z(i) (cid:12) ≤ γ, (C.3)
+(cid:12) (cid:12)Boltz(cid:0) z(i)(cid:1) −Boltz(cid:0) z(j)(cid:1)(cid:12) (cid:12) > δ′ = ln2(n)·e−2γ (C.4)
+foralli,j ∈ [N],i ̸= j.
+29Proof. SeeAppendixJ.9foradetailedproof.
+We have now established that the Boltz operator has the property of preserving the distances
+betweeninputs.
+30D Proofs of Section 2.2
+In this section, by relating Softmax with Boltz, we show that the one layer of single head self-
+attentionwithweightmatricesofanyrankisacontextualmapping.
+Wefirstintroduceahelperlemma.
+LemmaD.1(Lemma13of[Parketal.,2021]). ForanyfinitesubsetX ⊂ Rd,thereexistsatleast
+oneunitvectoru ∈ Rd suchthat
+(cid:114)
+1 8 (cid:12) (cid:12)
+∥x−x′∥ ≤ (cid:12)u⊤(x−x′)(cid:12) ≤ ∥x−x′∥
+|X|2 πd
+foranyx,x′ ∈ X.
+Proof. SeeAppendixJ.10foradetailedproof.
+D.1 Proofs of Lemma 2.2
+WithLemmaD.1,wedevelopamethodtoconfigureweightmatricesofaself-attentionlayer.
+Lemma D.2 (Construction of Weight Matrices). Given a dataset with a (γ ,γ ,ϵ)-separated
+min max
+finitevocabularyV ⊂ Rd,thereexistrank-ρweightmatricesW ,W ∈ Rs×d suchthat
+K Q
+(cid:12) (cid:12)
+(cid:12)(W v )⊤(W v )−(W v )⊤(W v )(cid:12) > δ,
+(cid:12) K a Q c K b Q c (cid:12)
+for any δ > 0, any min(d,s) ≥ ρ ≥ 1, and any v ,v ,v ∈ V with v ̸= v . Specifically, the
+a b c a b
+matricesareconstructedasfollows:
+ρ ρ
+(cid:88) (cid:88)
+W = p q⊤ ∈ Rs×d, W = p′q′⊤ ∈ Rs×d,
+K i i Q j j
+i=1 j=1
+whereforatleastonei,q ,q′ ∈ Rd areunitvectorssatisfyingLemmaD.1,andp ,p′ ∈ Rs satisfy
+i i i i
+(cid:12) (cid:12) δ
+(cid:12)p⊤p′ (cid:12) = 5(|V|+1)4d .
+i i ϵγ
+min
+ProofofLemmaD.2. Webuildourproofupon[KajitsukaandSato,2024].
+We start the proof by applying Lemma D.1 to V ∪{0}. We obtain at least one unit vector q ∈ Rd
+suchthatforanyv ,v ∈ V ∪{0}andv ̸= v ,wehave
+a b a b
+1 (cid:12) (cid:12)
+∥v −v ∥ ≤ (cid:12)q⊤(v −v )(cid:12) ≤ ∥v −v ∥.
+(|V|+1)2d0.5 a b a b a b
+31Bychoosingv = 0,wehavethatforanyv ∈ V
+b c
+1 (cid:12) (cid:12)
+∥v ∥ ≤ (cid:12)q⊤v (cid:12) ≤ ∥v ∥. (D.1)
+(|V|+1)2d0.5 c c c
+Forconvenience,wedenotethesetofallunitvectorq thatsatisfies(D.1)asQ,where
+Q := (cid:110) q ∈ Rd | 1 ∥v ∥ ≤ (cid:12) (cid:12)q⊤v (cid:12) (cid:12) ≤ ∥v ∥(cid:111) .
+(|V|+1)2d0.5 c c c
+Next,wechoosesomearbitraryvectorpairsp ,p′ ∈ Rs thatsatisfy
+i i
+(cid:12) (cid:12) δ
+(cid:12)p⊤p′ (cid:12) = (|V|+1)4d . (D.2)
+i i ϵγ
+min
+Weconstructtheweightmatricesbysetting
+ρ
+(cid:88)
+W = p q⊤ ∈ Rs×d,
+K i i
+i=1
+ρ
+(cid:88)
+W = p′q′⊤ ∈ Rs×d,
+Q j j
+j=1
+whereforatleastonei,p ,p′ satisfies(D.2)andq ,q′ ∈ Q. Wearriveat
+i i i j
+(cid:12) (cid:12)
+(cid:12)(W v )⊤(W v )−(W v )⊤(W v )(cid:12)
+(cid:12) K a Q c K b Q c (cid:12)
+(cid:12) (cid:12)
+=(cid:12)(v −v )⊤(W )⊤(W v )(cid:12)
+(cid:12) a b K Q c (cid:12)
+(cid:12) (cid:32) (cid:33)(cid:32) (cid:33)(cid:12)
+ρ ρ
+(cid:12) (cid:88) (cid:88) (cid:12)
+=(cid:12)(v −v )⊤ q p⊤ p′q′⊤v (cid:12)
+(cid:12) a b i i j j c (cid:12)
+(cid:12) (cid:12)
+i=1 j=1
+(cid:12)(cid:32) (cid:33)(cid:32) (cid:33)(cid:12)
+ρ ρ
+(cid:12) (cid:88) (cid:88) (cid:12)
+=(cid:12) (v −v )⊤q p⊤ p′q′⊤v (cid:12)
+(cid:12) a b i i j j c (cid:12)
+(cid:12) (cid:12)
+i=1 j=1
+(cid:12) (cid:12)
+ρ ρ
+(cid:12)(cid:88)(cid:88) (cid:12)
+=(cid:12) (v −v )⊤q p⊤p′q′⊤v (cid:12)
+(cid:12) a b i i j j c(cid:12)
+(cid:12) (cid:12)
+i=1 j=1
+ρ ρ
+=
+(cid:88)(cid:88)(cid:12)
+(cid:12)(v −v )⊤q
+(cid:12)
+(cid:12)·(cid:12) (cid:12)p⊤p′(cid:12) (cid:12)·(cid:12) (cid:12)q′⊤v (cid:12) (cid:12)
+(cid:12) a b i(cid:12) i j j c
+i=1 j=1
+1 δ 1
+≥ ∥v −v ∥·(|V|+1)4d · ∥v ∥ (cid:0) By(D.1)and(D.2)(cid:1)
+(|V|+1)2d0.5 a b ϵγ (|V|+1)2d0.5 c
+min
+>δ. (cid:0) By(γ ,γ ,ϵ)-separatenessofV(cid:1)
+min max
+32Thiscompletestheproof. Notethattheinequality(D.2)holdsherebecausewhenwesumoverall
+i,j,itwillincludecasesofi = j.
+Now we present the result showing that a softmax-based 1-layer attention block is a contextual
+mapping.
+Lemma D.3 (Lemma 2.2 Restated). Let Z(1),...,Z(N) ∈ Rd×L be embeddings that are
+(γ ,γ ,ϵ)-tokenwise separated, with the vocabulary set V = (cid:83) V(i) ⊂ Rd. Addition-
+min max i∈[N]
+ally, assume no duplicate word tokens in each sequence, i.e., Z(i) ̸= Z(i) for any i ∈ [N] and
+:,k :,l
+k,l ∈ [L]. Then, there exists a 1-layer, single-head attention mechanism with weight matrices
+W(O) ∈ Rd×s and W ,W ,W ∈ Rs×d that serves as a (γ,δ)-contextual mapping for the em-
+V K Q
+beddings Z(1),...,Z(N), where: γ = γ + ϵ, and δ = exp(−5ϵ−1|V|4dκγ logL), with
+max 4 max
+κ := γ /γ .
+max min
+Remark D.1 (Comparing with Existing Works). In comparison with [Kajitsuka and Sato, 2024],
+they provided a proof for the case where all self-attention weight matrices W ,W ,W ∈ Rs×d
+V K Q
+are strictly rank-1. However, this is almost impossible for any pre-trained transformer based
+models. Here, by considering self-attention weight matrices of rank-ρ where min(d,s) ≥ ρ ≥ 1,
+we are able to show that singe-head-single-layer self-attention with matrices of any rank is a
+contextualmapping.
+RemarkD.2. In[KajitsukaandSato,2024],γ andδ arechosenasfollows:
+ϵ 2(lnL)2ϵ2γ (cid:18) (2lnL+3)πdγ2 (cid:19)
+Γ = γ + , ∆ = min exp −(|V|+1)4 max .
+max 4 γ2 (|V|+1)4(2lnL+3)πd 4ϵγ
+max min
+Since the exponential term dominates the polynomial terms, in Lemma 2.2, we simplify ∆ to
+exp(−Θ(ϵ−1|V|4dκγ lnL)).
+max
+ProofSketch. We generalize the results of [Kajitsuka and Sato, 2024, Theorem 2] where all
+weight matrices have to be rank-1. We eliminate the rank-1 requirement, and extend the lemma
+forweightsofanyrankρ. Thisisachievedbyconstructingtheweightmatricesasaouterproduct
+sum(cid:80)ρu v⊤,whereu ∈ Rs,v ∈ Rd. Specifically,wedividetheproofintotwoparts:
+i i i i i
+• We first construct a softmax-based self-attention that maps different input tokens to unique
+contextualembeddings,byconfiguringweightmatricesaccordingtoLemmaD.2.
+• Secondly, for the identical tokens within a different context, we utilize the tokenwise separate-
+ness guaranteed by Lemma D.2 and Lemma C.9 which shows Boltz preserves some separate-
+ness.
+As a result, we prove that the self-attention function distinguishes input embeddings Z(i) = Z(j)
+:,k :,l
+suchthatV(i) ̸= V(j).
+33ProofofLemma2.2. We build our proof upon [Kajitsuka and Sato, 2024]. We construct a self-
+attention layer that is a contextual mapping. There are mainly two things to prove. We first show
+that the attention later we constructed maps different tokens to unique ids. Secondly, we prove
+that the self-attention function distinguishes duplicate input tokens within different context. For
+thefirstpart,weshowthatourself-attentionlayersatisfies:
+(cid:13) (cid:104) (cid:16) (cid:17)(cid:105)(cid:13) ϵ
+∥Ψ∥ = (cid:13)W (cid:0) W Z(i)(cid:1) Softmax (cid:0) W Z(i)(cid:1)⊤ W Z(i) (cid:13) < , (D.3)
+(cid:13) O V K Q :,k (cid:13) 4
+fori ∈ [N]andk ∈ [n]. Sincewith(D.3),itiseasytoshowthat
+(cid:13) (cid:13) (cid:13) (cid:13)
+(cid:13)F(SA)(cid:0) Z(i)(cid:1) −F(SA)(cid:0) Z(j)(cid:1) (cid:13) =(cid:13)Z(i) −Z(j) +(cid:0) Ψ(i) −Ψ(j)(cid:1) (cid:13) (D.4)
+(cid:13) S :,k S :,l(cid:13) (cid:13) :,k :,l (cid:13)
+(cid:13) (cid:13)
+≥(cid:13)Z(i) −Z(j)(cid:13)−(cid:13) (cid:13)Ψ(i) −Ψ(j)(cid:13)
+(cid:13)
+(cid:13) :,k :,l (cid:13)
+(cid:13) (cid:13)
+≥(cid:13)Z(i) −Z(j)(cid:13)−(cid:13) (cid:13)Ψ(i)(cid:13) (cid:13)−(cid:13) (cid:13)Ψ(j)(cid:13)
+(cid:13)
+(cid:13) :,k :,l (cid:13)
+ϵ ϵ ϵ
+>ϵ− − = , (cid:0) Byϵ-separatednessofZ andD.3(cid:1)
+4 4 2
+for any i,j ∈ [N] and k,l ∈ [n] such that Z(i) ̸= Z(j) . Now, we prove (D.3) by utilizing
+:,k :,l
+LemmaD.2. Wedefinetheweightmatricesas
+ρ
+(cid:88)
+W = p q⊤ ∈ Rs×d,
+K i i
+i=1
+ρ
+(cid:88)
+W = p′q′⊤ ∈ Rs×d,
+Q j j
+j=1
+where p ,p′ ∈ Rs and q ,q′ ∈ Rd. In addition, let δ = 4lnn and p ,p′ ∈ Rs be an arbitrary
+i j i j 1 1
+vectorpairthatsatisfies
+(cid:12) (cid:12) δ
+(cid:12)p⊤p′ (cid:12) = (|V|+1)4d . (D.5)
+1 1 ϵγ
+min
+ThenbyLemmaD.2,thereissomeunitvectorq ,q′ suchthatwehave,
+1 1
+(cid:12) (cid:12)
+(cid:12)(W v )⊤(W v )−(W v )⊤(W v )(cid:12) > δ, (D.6)
+(cid:12) K a Q c K b Q c (cid:12)
+for any v ,v ,v ∈ V with v ̸= v . In addition, for the other two weight matrices W ∈ Rd×s
+a b c a b O
+andW ∈ Rs×d,weset
+V
+ρ
+(cid:88)
+W = p′′q′′⊤ ∈ Rs×d, (D.7)
+V i i
+i=1
+34whereq′′ ∈ Rd,q′′ = q andp′′ ∈ Rs issomenonzerovectorthatsatisfies
+1 1 i
+ϵ
+∥W p′′∥ = , (D.8)
+O i 4ργ
+max
+foranyi ∈ [ρ]. Asaresult,wenowboundΨas:
+(cid:13) (cid:104) (cid:16) (cid:17)(cid:105)(cid:13)
+∥Ψ∥ =(cid:13)W (cid:0) W Z(i)(cid:1) Softmax (cid:0) W Z(i)(cid:1)⊤ W Z(i) (cid:13)
+(cid:13) O V K Q :,k (cid:13)
+(cid:13) (cid:13)
+=(cid:13) (cid:13)(cid:88)n
+sk W (cid:0) W Z(i)(cid:1)
+(cid:13)
+(cid:13) (cid:0) Denotesk =Softmax(cid:104)(cid:0) W Z(i)(cid:1)⊤(cid:16) W Z(i)(cid:17)(cid:105) (cid:1)
+(cid:13)
+(cid:13)
+k′ O V :,k′(cid:13)
+(cid:13)
+k′ K Q :,k
+k′
+k′=1
+(cid:88)n (cid:13)
+(cid:0) (cid:1)
+(cid:13)
+= sk (cid:13)W W Z(i) (cid:13)
+k′(cid:13) O V :,k′(cid:13)
+k′=1
+(cid:13) (cid:13)
+≤ max(cid:13)W (cid:0) W Z(i)(cid:1) (cid:13) (cid:0)(cid:80)n sk =1(cid:1)
+k′∈[n](cid:13) O V :,k′(cid:13) k′=1 k′
+(cid:13) (cid:32) (cid:33) (cid:13)
+ρ
+(cid:13) (cid:88) (cid:13)
+= max(cid:13)W p′′q′′⊤ Z(i) (cid:13) (cid:0) ByLemmaD.2(cid:1)
+(cid:13) O i i :,k′(cid:13)
+k′∈[n](cid:13) (cid:13)
+i=1
+ρ
+(cid:88) (cid:12) (cid:12)
+= ∥W p′′∥· max(cid:12)q′′⊤Z(i) (cid:12) (cid:0) By(D.8)(cid:1)
+O i (cid:12) i :,k′(cid:12)
+k′∈[n]
+i=1
+ϵ (cid:13) (cid:13)
+= · max(cid:13)Z(i) (cid:13) (cid:0) By(D.8)and∥q′′∥=1(cid:1)
+4γ
+max
+k′∈[n](cid:13) :,k′(cid:13) i
+ϵ
+< .
+4
+Next, for the second part, we prove that with the weight matrices W ,W ,W ,W configured
+O V K Q
+above, the attention layer distinguishes duplicate input tokens with different context, Z(i) = Z(j)
+:,k :,l
+with V(i) ̸= V(j). We choose any i,j ∈ [N] and k,l ∈ [n] such that Z(i) = Z(j) and V(i) ̸= V(j).
+:,k :,l
+Inaddition,wedefinea(i),a(j) as
+(cid:16) (cid:17)
+a(i) = (cid:0) W Z(i)(cid:1)⊤ W Z(i) ∈ Rn,
+K Q :,k
+(cid:16) (cid:17)
+a(j) = (cid:0) W Z(j)(cid:1)⊤ W Z(j) ∈ Rn.
+K Q :,l
+From(D.6)wehavethata(i) anda(j) aretokenwise(γ,δ)-separatedwhereγ iscomputedby
+(cid:12) (cid:12)
+(cid:12) (cid:12)a(i)(cid:12)
+(cid:12) =(cid:12)
+(cid:12)(cid:16)
+W Z(i)
+(cid:17)⊤(cid:16)
+W
+Z(i)(cid:17)
+(cid:12) (cid:12)
+(cid:12) k′ (cid:12) (cid:12) K :,k′ Q :,k (cid:12)
+(cid:12) (cid:12)
+(cid:12)(cid:32)
+ρ
+(cid:33)⊤(cid:32)
+ρ
+(cid:33)
+(cid:12)
+=(cid:12) (cid:12) (cid:88) p q⊤Z(i) (cid:88) p′q′⊤Z(i) (cid:12) (cid:12)
+(cid:12) i i :,k′ j j :,k (cid:12)
+(cid:12) i=1 j=1 (cid:12)
+35(cid:12)(cid:32) (cid:33)(cid:32) (cid:33)(cid:12)
+ρ ρ
+(cid:12) (cid:88) (cid:88) (cid:12)
+=(cid:12) Z(i)⊤q p⊤ p′q′⊤Z(i) (cid:12)
+(cid:12) :,k′ i i j j :,k (cid:12)
+(cid:12) (cid:12)
+i=1 j=1
+(cid:12) (cid:12)
+ρ ρ
+(cid:12)(cid:88)(cid:88) (cid:12)
+=(cid:12) Z(i)⊤q p⊤p′q′⊤Z(i)(cid:12)
+(cid:12) :,k′ i i j j :,k(cid:12)
+(cid:12) (cid:12)
+i=1 j=1
+ρ ρ
+=
+(cid:88)(cid:88)(cid:12)
+(cid:12)Z(i)⊤q
+(cid:12)
+(cid:12)(cid:12) (cid:12)p⊤p′(cid:12)
+(cid:12)(cid:12) (cid:12)q′⊤Z(i)(cid:12)
+(cid:12)
+(cid:12) :,k′ i(cid:12) i j (cid:12) j :,k(cid:12)
+i=1 j=1
+δ
+≤(|V|+1)4d
+ϵγ
+γ m2 ax. (cid:0) By(D.5)and∥q i∥=(cid:13) (cid:13)q j′(cid:13) (cid:13)=1(cid:1)
+min
+Therefore,
+δγ2
+γ = (|V|+1)4d max.
+ϵγ
+min
+Now, since V(i) ̸= V(j) and there is no duplicate token in Z(i) and Z(j) respectively, we use
+LemmaC.9andobtainthat
+(cid:12) (cid:12)
+(cid:12) (cid:12)Boltz(cid:0) a(i)(cid:1) −Boltz(cid:0) a(j)(cid:1)(cid:12)
+(cid:12)
+=(cid:12)(cid:0) a(i)(cid:1)⊤ Softmax(cid:2) a(i)(cid:3) −(cid:0) a(j)(cid:1)⊤ Softmax(cid:2) a(j)(cid:3)
+(cid:12) (D.9)
+(cid:12) (cid:12)
+>δ′
+=(lnn)2e−2γ.
+AsweassumedZ(i) = Z(j) ,wehave
+:,k :,l
+(cid:12) (cid:12)
+(cid:12)(cid:0) a(i)(cid:1)⊤ Softmax(cid:2) a(i)(cid:3) −(cid:0) a(j)(cid:1)⊤ Softmax(cid:2) a(j)(cid:3)
+(cid:12) (D.10)
+(cid:12) (cid:12)
+(cid:12) (cid:12)
+=(cid:12)
+(cid:12)(cid:16) Z(i)(cid:17)⊤
+(W )⊤W (cid:0) Z(i)Softmax(cid:2) a(i)(cid:3) −Z(j)Softmax(cid:2) a(j)(cid:3)(cid:1)(cid:12) (cid:12)
+(cid:12) :,k Q K (cid:12)
+(cid:12) (cid:32) (cid:33)(cid:32) (cid:33) (cid:12)
+ρ ρ
+=(cid:12) (cid:12)(cid:16) Z(i)(cid:17)⊤ (cid:88)
+q′p′⊤
+(cid:88)
+p q⊤
+(cid:0) Z(i)Softmax(cid:2) a(i)(cid:3) −Z(j)Softmax(cid:2) a(j)(cid:3)(cid:1)(cid:12)
+(cid:12)
+(cid:12) :,k j j i i (cid:12)
+(cid:12) (cid:12)
+j=1 i=1
+(cid:0) (cid:1)
+ByLemmaD.2
+ρ ρ
+=
+(cid:88)(cid:88)(cid:12) (cid:12)q′⊤Z(i)(cid:12)
+(cid:12)·(cid:12)
+(cid:12)p′⊤p
+(cid:12) (cid:12)·(cid:12) (cid:12)(cid:0) q⊤Z(i)(cid:1) Softmax(cid:2) a(i)(cid:3) −(cid:0) q⊤Z(j)(cid:1) Softmax(cid:2) a(j)(cid:3)(cid:12)
+(cid:12)
+(cid:12) j :,k(cid:12) j i i i
+i=1 j=1
+ρ
+(cid:88) πd δ (cid:12)(cid:0) (cid:1) (cid:2) (cid:3) (cid:0) (cid:1) (cid:2) (cid:3)(cid:12)
+≤ γ ·(|V|+1)4 ·(cid:12) q⊤Z(i) Softmax a(i) − q⊤Z(j) Softmax a(j) (cid:12).
+max 8 ϵγ i i
+min
+i=1
+(cid:0) (cid:1)
+By(D.5)
+36Bycombining(D.9)and(D.10),wehave
+ρ
+(cid:88)(cid:12) (cid:12)(cid:0) q⊤Z(i)(cid:1) Softmax(cid:2) a(i)(cid:3) −(cid:0) q⊤Z(j)(cid:1) Softmax(cid:2) a(j)(cid:3)(cid:12)
+(cid:12) >
+δ′ ϵγ min
+. (D.11)
+i i (|V|+1)4dδγ
+max
+i=1
+Nowwearriveatthelowerboundofthedifferencebetweentheself-attentionoutputsofZ(i),Z(j)
+as:
+(cid:13) (cid:13)
+(cid:13)F(SA)(cid:0) Z(i)(cid:1) −F(SA)(cid:0) Z(j)(cid:1)
+(cid:13) (D.12)
+(cid:13) S :,k S :,l(cid:13)
+(cid:13) (cid:0) (cid:1) (cid:2) (cid:3) (cid:0) (cid:1) (cid:2) (cid:3)(cid:13)
+=(cid:13)W W Z(i) Softmax a(i) −W W Z(j) Softmax a(j) (cid:13)
+O V O V
+ρ
+= (cid:88) ∥W p′′∥·(cid:12) (cid:12)(cid:0) q′′⊤Z(i)(cid:1) Softmax(cid:2) a(i)(cid:3) −(cid:0) q′′⊤Z(j)(cid:1) Softmax(cid:2) a(j)(cid:3)(cid:12) (cid:12) (cid:0) W =(cid:80)ρ p′′q′′⊤(cid:1)
+O i i i V i=1 i i
+i=1
+ϵ δ′ ϵγ
+> min . (cid:0) By(D.8)and(D.11)(cid:1)
+4γ (|V|+1)4dδγ
+max max
+where δ = 4lnn and δ′ = ln2(n)e−2γ with γ = (|V| + 1)4dδγ2 /(ϵγ ). Note that we are
+max min
+able to use (D.11) in the last inequality of (D.12) because (D.11) is guaranteed by q , and we set
+1
+q′′ = q whenconstructingW in(D.7).
+1 1 V
+37E Proofs of Section 2.3
+We consider the continuous sequence-to-sequence functions on a compact set of sequence as
+f : [0,1]d×L (cid:55)→ [0,1]d×L. Furthermore, consider the function class of continuous sequence-
+seq2seq
+to-sequence F which is C-Lipschitz in ℓ norm. Explicitly, for any f ∈ F and two input
+C α seq2seq C
+embeddingsZ,Z′,wehave
+∥f (Z)−f (Z′)∥ ≤ C∥Z −Z′∥ .
+seq2seq seq2seq α α
+In addition, we consider simple transformers τ ∈ T 1,1,4 which consist of single-head single-layer
+A
+size-one self-attention f(SA) ∈ F(SA) and ℓ + ℓ feed-forward layers f(FF) ∈ F(FF) each with 4
+1 2
+MLPhiddenneurons:
+T 1,1,4 := {τ : Rd×L (cid:55)→ Rd×L|τ = f(FF) ◦...◦f(FF) ◦f(SA) ◦f(FF) ◦...◦f(FF)}.
+A ℓ1 1 ℓ2 1
+Finally,definetheapproximationerrorforsomegivenfunctionsf ,f as:
+1 2
+(cid:18)(cid:90) (cid:19)1
+α
+d (f ,f ) = ∥f (Z)−f (Z)∥αdZ . (E.1)
+α 1 2 1 2 α
+In this section, we prove the universality of prompt tuning by showing that there exists a simple
+transformerofsingle-layerself-attentionτ ∈ T 1,1,4 suchthatforanyf ∈ F ,prompttuning
+A seq2seq C
+ong approximatesthisfunctionuptosomeerrorϵ > 0.
+The proof follows the construction base recipe of [Yun et al., 2020] and [Wang et al., 2023a].
+We start by quantizing the input and output domain of F such that — for each f ∈ F ,
+C seq2seq C
+we obtain a quantized function f : G (cid:55)→ G where G = {0,δ,2δ,...,1 − δ}d×L.
+seq2seq δ,L δ,L δ,L
+Here, f ,F denote the seq2seq function and quantized function class, respectively. This
+seq2seq C
+is basically performing a piece-wise constant approximation, i.e., the values inside a quantized
+grid assume the same value. Next, we build a surrogate quantized sequence-to-sequence function
+h : G → G with G = {0,δ,2δ,...,1 − δ}d×(Lp+L) that takes the
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+concatenation of prompts P and embeddings Z as inputs. Importantly, we let “the last L tokes”
+of this quantized function h approximates any f ∈ F by taking different prompts P.
+seq2seq seq2seq C
+Finally,weconstructsometransformerτ ∈ T 1,1,4 toapproximateh . Thisleadstoachaining
+A seq2seq
+reduction of approximations, which implies τ ∈ T 1,1,4 approximates f up to any accuracy
+A seq2seq
+ϵ.
+E.1 Proofs of Lemma 2.3
+We start by building quantized sequence-to-sequence functions h : G → G
+seq2seq δ,(Lp+L) δ,(Lp+L)
+with quantized prompts to approximate f . Next, we approximate h with transformer
+seq2seq seq2seq
+functions τ ∈ T 1,1,4. To achieve this, we use the feed-forward layer for quantizing the input and
+A
+output domain of transformers. Also, we utilize self-attention layer as contextual mapping. As a
+38result, we construct a transformer for prompt tuning to approximate any continuous sequence-to-
+sequencefunction.
+First, we introduce the lemma below which shows that, the quantized sequence-to-sequence
+function f is approximated by some sequence-to-sequence function h : G →
+seq2seq seq2seq δ,(Lp+L)
+G whereG = {0,δ,2δ,...,1−δ}d×(Lp+L).
+δ,(Lp+L) δ,(Lp+L)
+LemmaE.1(Lemma2.3Restated). ConsideraC-Lipschitzsequence-to-sequencefunctionclass
+F with functions f : [0,1]d×L → [0,1]d×L. There exist a sequence-to-sequence function
+C seq2seq
+h : G → G with G = {0,δ,2δ,...,1 − δ}d×(Lp+L) where for any
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+f ∈ F , we can find some P ∈ Rd×Lp, such that d (cid:0) h([P,·]) ,f (cid:1) ≤ ϵ/2, where the
+seq2seq C α :,Lp: seq2seq
+(cid:16) (cid:17)dL
+promptsequencelengthL ≥ Lλ,λ = 12C(dL)1 .
+p ϵ α
+ProofofLemmaE.1. WefirstquantizetheinputandoutputsequencedomainofF byquantizing
+C
+[0,1]d×L into a grid space G = {0,δ,2δ,...,1 − δ}d×L. Observe that there are n =
+(cid:0) 1(cid:1)dL
+δ,L δ
+different matricesin the gridspace G . Now, consider allthe possible input tooutput mappings,
+δ,L
+wehavem = nn piece-wiseconstantfunctionsf ∈ F . Wedefinef : G (cid:55)→ G as
+seq2seq C seq2seq δ,L δ,L
+(cid:40)
+f (Z) Z ∈ G
+seq2seq δ,L
+f (Z) = ,
+seq2seq
+f (Z⋆) otherwise
+seq2seq
+where k δ < Z ,Z⋆ ≤ (k +1)δ, while Z⋆ ∈ G and k ∈ {0,1,...,1/δ − 1}. We set
+i,j i,j i,j i,j δ,L i.j
+(cid:110) (cid:111)
+the function class for the quantized space as F = f(1) ,f(2) ,...,f(m) . Then, by
+C seq2seq seq2seq seq2seq
+utilizing the C-Lipschitzness, we have that for any f ∈ F , there is a piece-wise constant
+seq2seq C
+approximationfunctionf ∈ F thatsatisfies
+seq2seq C
+(cid:18)(cid:90) (cid:19)1/α
+d (f ,f ) = (cid:13) (cid:13)f (Z)−f (Z)(cid:13) (cid:13)α dZ (cid:0) By(E.1)(cid:1)
+α seq2seq seq2seq seq2seq seq2seq α
+(cid:18)(cid:90) (cid:19)1/α
+≤ (Cδ)αdL·dZ (cid:0) ByC-Lipschitzness(cid:1)
+1
+=Cδ(dL) .
+α
+Bychoosingδ = δ⋆ suchthatCδ(dL)1 ≤ ϵ/2,wehave
+α
+ϵ
+d (f ,f ) ≤ . (E.2)
+α seq2seq seq2seq
+2
+Next, we quantize the prompts P ∈ Rd×Lp. We consider a set of quantized prompts in grid space
+G = {0,δ,2δ,...,1 − δ}d×Lp. This gives us m =
+(cid:0) 1(cid:1)dLp
+different quantized prompts. We
+δ,Lp p δ
+(cid:8) (cid:9)
+denotethissetofpromptsasP = P(1),P(2),...,P(mp) .
+39(cid:0) (cid:1) 1
+Since there are m = nn = δd1
+L
+δdL functions in F C, the required prompt length L
+p
+to index all
+mfunctionsinF isThisgives
+C
+(cid:18) 1(cid:19)dL
+L ≥L
+p
+δ
+(cid:18)
+1
+(cid:19)dL
+≥L 2C(dL) α1 . (cid:0) SincewechooseδsuchthatCδ(dL)α1 ≤ϵ/2(cid:1)
+ϵ
+Finally, we define some quantized function h : G → G where G =
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+{0,δ,2δ,...,1−δ}d×(Lp+L),andlet
+h (cid:0)(cid:2) P(i),Z(cid:3)(cid:1) = f(i) (Z). (E.3)
+seq2seq :,Lp: seq2seq
+Inaddition,wesetthefirstL columnsofh tobezero,whichis
+p seq2seq
+(cid:0)(cid:2) (cid:3)(cid:1)
+h P(i),Z = 0,
+seq2seq :,:Lp
+forallZ ∈ [0,1]d×L,P ∈ G . Furthermore,let
+δ,Lp
+(cid:40)
+h ([P,Z]) P ∈ P
+h ([P,Z]) = seq2seq :,Lp: ,
+seq2seq :,Lp: h ([P⋆,Z]) otherwise
+seq2seq :,Lp:
+wherek δ < P ,P⋆ ≤ (k +1)δ,whileP⋆ ∈ P andk ∈ {0,1,...,1/δ −1}.
+i,j i,j i,j i,j i.j
+As a result, we show that with a properly chosen grid granularity δ = δ , for any sequence-to-
+1
+sequencefunctionf ∈ F ,webuildaquantizedfunctionhwithpromptP thatapproximates
+seq2seq C
+f witherrorϵ/2,
+seq2seq
+(cid:0) (cid:1) (cid:0) (cid:1)
+d h ([P,·]) ,f = d f ,f ≤ ϵ/2.
+α seq2seq :,Lp: seq2seq α seq2seq seq2seq
+Thiscompletestheproof.
+E.2 Proofs of Lemma 2.4
+Hereweshowτ ∈ T 1,1,4 approximatesthesurrogatequantizedseq2seqfunctionh uptoany
+A seq2seq
+precision. To do this, we utilize Lemma 2.2 to construct a transformer τ ∈ T 1,1,4. Then we show
+A
+thatthistransformerτ approximatesquantizedsequence-to-sequencefunctionsh ([P,·]).
+seq2seq
+Lemma E.2 (Lemma 2.4 Restated). For any given quantized sequence-to-sequence function
+h : G → G with G = {0,δ,2δ,...,1 − δ}d×(Lp+L), there exists a
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+transformerτ ∈ T 1,1,4 withpositionalencodingE ∈ Rd×(Lp+L),suchthatτ = h([P,·]) .
+A :,Lp:
+40ProofSketch. This lemma is inspired by [Wang et al., 2023a, Lemma 2]. There are mainly three
+steps:
+1. Given an input data with prompt [P,Z] ∈ Rd×(Lp+L), we first apply positional encoding E,
+whichisgivenas
+ 
+0 1 2 ... L +L−1
+p
+ 0 1 2 ... L +L−1 
+p
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L +L−1
+p
+Thenaseriesoffeed-forwardlayersinthemodifiedTransformernetworkquantizes[P,Z]+E
+toaquantizedsequenceM ∈ G . Here,wedefinethegrid
+δ,(Lp+L)
+G := [0 : δ : 1−δ]d ×[1 : δ : 2−δ]d ×···×[L +L−1 : δ : L +L−δ]d,
+δ,(Lp+L) p p
+where [a : ε : b] := {a,a + ε,a + 2ε,...,b − ε,b}. Note that with the positional encod-
+ing, our contextual mapping through self-attention won’t be limited to permutation equivalent
+functions.
+2. Next, by utilizing Lemma 2.2, the single self-attention layer in the modified transformer takes
+theinputM andimplementsacontextualmappingq : Rd×(L+Lp) (cid:55)→ Rd×(L+Lp).
+3. Finally,aseriesoffeed-forwardlayersmapelementsofthecontextualembeddingq(M)tothe
+desiredoutputvalueofh ([P,Z]).
+seq2seq
+We remark that Step 2 distinguishes us from prior works by utilizing the fact that any-rank atten-
+tion is a contextual mapping Lemma 2.2. This dramatically improves the result of [Wang et al.,
+2023a],whichrequiresadepthofdL/ϵlayers,tojustasinglelayer.
+ProofofLemmaE.2. First, we apply the positional encoding E ∈ Rd×(Lp+L) on the input se-
+quencewithpromptsequence[P,Z] ∈ Rd×(Lp+L),sothateachtokenhasadifferentdomain. The
+positionalencodingE isgivenas
+ 
+0 1 2 ... L +L−1
+p
+ 0 1 2 ... L +L−1 
+p
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L +L−1
+p
+We next use feed-forward layers f(FF) to implement a quantization map to quantize the input
+[P,Z]+E intoitsdiscreteversionM ∈ G . ThegridG isdefinedas
+δ,(Lp+L) δ,(Lp+L)
+G := [0 : δ : 1−δ]d ×[1 : δ : 2−δ]d ×···×[L +L−1 : δ : L +L−δ]d,
+δ,(Lp+L) p p
+41where [a : ε : b] := {a,a+ε,a+2ε,...,b−ε,b}. Note that the first column of [P,Z]+E is in
+[0,1]d,thesecondisin[1,2]d,andsoon. Here,wewritethequantizationmappingas
+[0,1]d ×···×[L +L−1,L +L]d (cid:55)→ [0 : δ : 1−δ]d ×···×[L +L−1 : δ : L +L−δ]d,
+p p p p
+where [a : ε : b] := {a,a+ε,a+2ε,...,b−ε,b}. Inspired by the construction recipe by [Yun
+etal.,2020],thistaskisrealizedbyd(L +L)/δ feed-forwardlayers. Weaddd(L +L)/δ layers
+p p
+off(FF) withthefollowingform,fork = 0,δ,...,(L +L)−δ andi = 1,...,d:
+p
+(cid:40)
+(cid:16) (cid:17) 0 t < 0ort ≥ δ
+Z (cid:55)→ Z +e(i)ϕ
+(cid:0) e(i)(cid:1)T
+Z −kδ1T ,ϕ(t) = , (E.4)
+n
+−t+1 0 ≤ t < δ
+wheree(1) = (1,0,0,...,0) ∈ Rdandϕ(t) ∈ Φisanentrywisefunction,wherethesetofactivation
+functions Φ consists of all piece-wise linear functions with at least one piece being constant and
+at most three pieces. Furthermore, any activation function ϕ ∈ Φ is realized by 4 MLP neurons.
+Eachlayerintheformof(E.4)quantizesX (thei-throw)in[kδ,kδ+δ)tokδ. Wedenoteoutput
+i,:
+afterthefeed-forwardlayersasM ∈ G .
+δ,(Lp+L)
+Next, in order to utilize Lemma 2.2, we observe that the quantized output M from the previous
+step has no duplicate tokens, since each column has a unique domain. Also, we see that M is
+(cid:16)√ √ √ (cid:17)
+token-wise d, d(L′ −δ), dδ -separatedwhereL′ = L +L. Thisiseasilyobservedaswe
+p
+have,foranyk,l ∈ [L +L],
+p
+√
+∥M ∥ > d,
+:,k
+√
+∥M ∥ < d(L +L−δ),
+:,k p
+√
+∥M −M ∥ > dδ.
+:,k :,l
+As a result, with Lemma 2.2, we arrive at a (Γ,∆)-contextual mapping q : Rd×(Lp+L) (cid:55)→
+Rd×(Lp+L) where
+√
+√ dδ √ 3δ
+Γ = d(L′ −δ)+ = d(L′ − ),
+4 4
+(cid:0) (cid:1)
+∆ = exp −5|V|4dln(n)L′2/δ .
+Nowwehavesuccessfullymappedeachinputsequence[P,Z]+E touniquecontextIDq(M) ∈
+Rd×(Lp+L). We next associate each unique embeddings to a corresponding expected output of
+h([P,·]).
+Finally, we use feed-forward layers to map each token of q(M) to the desired [0,1]d. As in [Yun
+etal.,2020,C.3],withamethodsimilarto(E.4),weneedonelayerforeachuniquevalueofq(M)
+for each M ∈ G . There are in total (1/δ)d(Lp+L) possibilities of M and each corresponds
+δ,(Lp+L)
+42to some output of h ([P,·]). Since we only focus on the last L tokens of output, we require
+seq2seq
+(cid:0) (cid:1) (cid:0) (cid:1)
+O L(1/δ)d(Lp+L) = O δ−d(Lp+L) layerstomapthesedistinctnumberstoexpectedoutputs.
+Thiscompletestheproof.
+E.3 Proofs of Theorem 2.3
+With Lemma E.2, we are able to find a transformer τ ∈ T 1,1,4 such that τ([P,Z]) = h([P,Z]).
+A
+Finally, we arrive at the theorem that shows that a transformer of one single-head self-attention
+layerisauniversalapproximatorforsequence-to-sequencefunctions.
+Theorem E.1 (Theorem 2.3 Restated). Let 1 ≤ p < ∞ and ϵ > 0, there exist a transformer τ ∈
+T 1,1,4withsingleself-attentionlayerandquantizationgranularityδ,suchthatforanyf ∈ F
+A seq2seq C
+thereexistsapromptP ∈ Rd×Lp withd (cid:0) τ([P,·]) ,f (cid:1) ≤ ϵ.
+α :,Lp seq2seq
+ProofofTheorem2.3. Combining Lemma E.1 and Lemma E.2, we arrive at a transformer τ ∈
+T 1,1,4,withpromptP ∈ G ,suchthatforanysequence-to-sequencef ∈ F ,
+A δ,Lp seq2seq C
+(cid:16) (cid:17)
+d τ ([P,·]) ,f
+α :,Lp: seq2seq
+(cid:16) (cid:17) (cid:16) (cid:17)
+≤d τ ([P,·]) ,h ([P,·]) +d h ([P,·]) ,f
+α :,Lp: seq2seq :,Lp: α seq2seq :,Lp: seq2seq
+≤ϵ.
+Thiscompletestheproof.
+43F Proofs of Section 2.4
+F.1 Proof of Lemma 2.5
+For the transformer τ ∈ T 1,1,4 in the previous section Appendix E, we compute the required
+A
+numberofFFNlayers.
+Lemma F.1 (Lemma 2.5 Restated). For a transformer τ ∈ T 1,1,4, as introduced in Section 2.3, to
+A
+beauniversalapproximatorthroughprompttuning,itrequiresO(ϵ−d(Lp+L))ofFFNlayers.
+(cid:0) (cid:1)
+Proof. As shown in the final step of the proof for Lemma E.2, we require O δ−d(Lp+L) layers
+to map these distinct numbers to expected outputs. Recall that in (E.2), we have the relation of
+quantization granularity δ and function approximation error ϵ as Cδ(dL)1 ≤ ϵ/2. We write the
+α
+(cid:16) (cid:17)
+number of feed-forward layers as O 2L(C(dL) α1/ϵ)d(Lp+L) = O(cid:0) ϵ−d(Lp+L)(cid:1) , where C is the
+Lipschitzconstantandα isfromtheℓ -normweuseformeasuringtheapproximationerror.
+α
+F.2 Proof of Theorem 2.4
+In this section, we prove the universality of prompt tuning on another simple transformer archi-
+tecture with a smaller depth than T 1,1,4 from Section 2.3. This provides us a case for trade off
+A
+betweenthedepthandwidthofthetransformer.
+Considertransformersτ ∈ T 1,1,r whichconsistofsingle-headsingle-layersize-oneself-attention
+B
+f(SA) andtwofeed-forwardlayersf(FF),f(FF) eachwithr MLPhiddenneurons:
+1 2
+T 1,1,r := {g : Rd×L (cid:55)→ Rd×L|τ = f(FF) ◦f(SA) ◦f(FF)}.
+B 2 1
+We prove the universality of prompt tuning by showing that there exists a transformer network
+τ ∈ T 1,1,r such that for any f ∈ F , prompt tuning on τ approximates this function up to
+B seq2seq C
+someerrorϵ > 0.
+SimilartotheproofofTheoremE.1,westartbyquantizingtheinputandoutputdomainofF to
+C
+obtainquantizedfunctions
+f : G (cid:55)→ G ,
+seq2seq δ,L δ,L
+where
+G = {0,δ,2δ,...,1−δ}d×L.
+δ,L
+This is basically performing a piece-wise constant approximation. Next, we build a quantized
+44sequence-to-sequencefunction
+h : G → G with G = {0,δ,2δ,...,1−δ}d×(Lp+L),
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+that takes the concatenation of prompts P and embeddings Z as inputs. This quantized function
+h approximatesanyf ∈ F bytakingdifferentpromptsP. Finally,weconstructsome
+seq2seq seq2seq C
+transformerτ ∈ T 1,1,r toapproximateh .
+B seq2seq
+First, we utilize the results from Lemma E.1, which shows that the quantized sequence-to-
+sequencefunctionf isapproximatedbysomesequence-to-sequencefunction
+seq2seq
+h : G → G with G = {0,δ,2δ,...,1−δ}d×(Lp+L).
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+Next, in Lemma F.2, we utilize Lemma 2.2 to construct a transformer τ ∈ T 1,1,r. Then, we use
+B
+thetransformertoapproximatequantizedsequence-to-sequencefunctionsh ([P,·]).
+seq2seq
+LemmaF.2(TransformerConstruction). Foranygivenquantizedsequence-to-sequencefunction
+h : G → G with G = {0,δ,2δ,...,1−δ}d×(Lp+L),
+seq2seq δ,(Lp+L) δ,(Lp+L) δ,(Lp+L)
+thereexistsatransformerτ ∈ T 1,1,r withpositionalembeddingE ∈ Rd×(Lp+L),suchthat
+B
+(cid:0) (cid:1)
+d τ,h([P,·]) ≤ ϵ/2.
+α :,Lp:
+ProofSketch. The proof of this lemma follows a similar idea as Lemma E.2. Nonetheless, by
+applying the construction technique from [Kajitsuka and Sato, 2024], we employ a transformer
+configurationthatutilizesjusttwofeed-forwardlayers.
+Theproofconsistsofthreesteps:
+1. Given an input data with prompt [P,Z] ∈ Rd×(Lp+L), we first apply positional encoding E,
+whichisgivenas
+ 
+0 1 2 ... L +L−1
+p
+ 0 1 2 ... L +L−1 
+p
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L +L−1
+p
+Thenaseriesoffeed-forwardlayersinthemodifiedTransformernetworkquantizes[P,Z]+E
+toaquantizedsequenceM ∈ G . Here,wedefinethegrid
+δ
+G = [δ : δ : 1]d ×[1+δ : δ : 2]d ×···×[L +L−1+δ : δ : L +L]d,
+δ p p
+45where [a : ε : b] := {a,a + ε,a + 2ε,...,b − ε,b}. Note that with the positional encod-
+ing, our contextual mapping through self-attention won’t be limited to permutation equivalent
+functions.
+2. Next, by utilizing Lemma 2.2, the single self-attention layer in the modified transformer takes
+theinputM andimplementsacontextualmappingq : Rd×(L+Lp) (cid:55)→ Rd×(L+Lp).
+3. Finally,aseriesoffeed-forwardlayersmapelementsofthecontextualembeddingq(M)tothe
+desiredoutputvalueofh ([P,Z]).
+seq2seq
+ProofofLemmaF.2. First, we apply the positional encoding E ∈ Rd×(Lp+L) on the input se-
+quence with prompt sequence [P,Z] ∈ Rd×(Lp+L), so that each token of has a different domain.
+ThepositionalencodingE isgivenas
+ 
+0 1 2 ... L +L−1
+p
+ 0 1 2 ... L +L−1 
+p
+E =  
+
+. .
+.
+. .
+.
+. .
+.
+... . .
+.
+  .
+0 1 2 ... L +L−1
+p
+We next use the first feed-forward layer
+f(FF)
+to implement a quantization map to quantize the
+1
+input[P,Z]+E intoitsdiscreteversionM ∈ G . Here,wedefinethegrid
+δ
+G = [δ : δ : 1]d ×[1+δ : δ : 2]d ×···×[L +L−1+δ : δ : L +L]d,
+δ p p
+where [a : ε : b] := {a,a+ε,a+2ε,...,b−ε,b}. Note that the first column of [P,Z]+E is in
+[0,1]d,thesecondisin[1,2]d,andsoon. Here,wewritethequantizationmappingas
+[0,1]d ×···×[L +L−1,L +L]d (cid:55)→ [δ : δ : 1−δ]d ×···×[L +L−1 : δ : L +L]d,
+p p p p
+where [a : ε : b] := {a,a + ε,a + 2ε,...,b − ε,b}. Following [Kajitsuka and Sato, 2024],
+this quantization task is done by constructing the feed-forward layer as a θ-approximated step
+function. Considerarealvaluepiece-wiseconstantfunctionf(Step) : R (cid:55)→ R,foranysmallθ > 0,
+z ∈ R,wehavetheθ-approximationas
+(Lp+L)(1/δ−1)
+(cid:88)
+f(Step)(z) ≈ (ReLU(z/θ−tδ/θ)−ReLU(z/θ−1−tδ/θ))δ (F.1)
+t=0
+46
+0 z < 0
+
+
+
+ δ 0 ≤ z < δ
+= ,
+. .
+. .
+. .
+
+
+
+ L+L L+L −δ ≤ z
+p p
+whichisaseriesofsmallstepfunctions,eachbeginningtheirriseattδ andendingatθ+tδ. Here,
+weshowthefirsttwotermst = 0,1forclarity:
+
+0 z < 0
+
+
+t = 0 : (ReLU(z/θ)−ReLU(z/θ−1))δ = zδ/θ 0 ≤ z < θ ,
+
+
+δ θ ≤ z
+
+0 z < δ
+
+
+t = 1 : (ReLU(z/θ−δ/θ)−ReLU(z/θ−1−δ/θ))δ = zδ/θ δ ≤ z < θ+δ .
+
+
+δ θ+δ ≤ z
+With (F.1), it is straightforward that we extend it to Rd×L. As a result, we have the first feed-
+forwardlayerf(FF)
+as
+1
+(Lp+L)(1/δ−1)
+(cid:88)
+f(FF)(Z) = (ReLU(Z /θ−tδ/θ)−ReLU(Z /θ−1−tδ/θ))δ (F.2)
+1 i,j i,j i,j
+t=0
+≈ f(Step)(Z ),
+i,j
+where i ∈ [d],j ∈ [L + L],0 < δ < 1 and θ > 0. With (F.2), we are able to quantize each
+p
+sequence[P,Z]+E toaquantizedversionM ∈ G .
+δ
+Next, in order to utilize Lemma 2.2, we observe that the quantized input M from the previous
+step has no duplicate tokens, since each column has a unique domain. Also, we see that M is
+(cid:16)√ √ √ (cid:17)
+token-wise d, d(L′ −δ), dδ -separatedwhereL′ = L +L. Thisiseasilyobservedaswe
+p
+have,foranyk,l ∈ [L +L],
+p
+√
+∥M ∥ > d,
+:,k
+√
+∥M ∥ < d(L +L−δ),
+:,k p
+√
+∥M −L ∥ > dδ.
+:,k :,l
+As a result, with Lemma 2.2, the single self-attention layer implements a contextual mapping
+q : Rd×(L+Lp) (cid:55)→ Rd×(L+Lp),wearriveata(Γ,∆)-contextualmappingwhere
+√
+√ dδ √ 3δ
+Γ = d(L′ −δ)+ = d(L′ − ),
+4 4
+47(cid:0) (cid:1)
+∆ = exp −5|V|4dln(n)L′2/δ .
+Nowwehavesuccessfullymappedeachinputsequence[P,Z]+E toauniquecontextIDq(M) ∈
+Rd×(Lp+L). We next associate each unique embeddings to a corresponding expected output of
+h ([P,·]).
+seq2seq
+We associate each unique contextual embeddings to the corresponding output of h([P,·]) using
+the second feed-forward layer
+f(FF)
+. As in [Kajitsuka and Sato, 2024, A.5], this is achieved by
+2
+constructing a bump function f : Rd×(Lp+L) (cid:55)→ Rd×(Lp+L) for each possible output from the
+bump
+last step q(M(i)),i ∈ [(1/δ)d(Lp+L)]. Each bump function f is realized by 3d(L + L) MLP
+bump p
+neurons. Therefore,weneed3d(L +L)(1/δ)d(Lp+L) MLPneuronstoconstructthefeed-forward
+p
+layerf(FF) ,sothateachcontextualembeddingismappedtotheexpectedoutputofh ([P,·]).
+2 seq2seq
+Abumpfunctionf foraquantizedsequenceA ∈ G iswrittenas:
+bump δ
+h([P,A])
+(cid:88)d L (cid:88)p+L
+f (Q) = [ReLU(K(Q −A )−1)−ReLU(K(Q −A ))
+bump i,j i,j i,j i,j
+d(L +L)
+p
+i=1 j=1
++ReLU(K(Q −A )+1)],
+i,j i,j
+where Q ∈ Rd×(Lp+L) is some context ID scalar K > 0. Furthermore, recall that in (E.2), we
+have the relation of quantization granularity δ and function approximation error ϵ as Cδ(dL)1 ≤
+α
+(cid:16) (cid:17)
+ϵ/2. We express the number of neurons in terms of ϵ as O d(L
+p
++L)(C(dL) α1/ϵ)d(Lp+L) =
+(cid:0) (cid:1)
+O ϵ−d(Lp+L) ,whereC istheLipschitzconstantandαisfromtheℓ -normweuseformeasuring
+α
+theapproximationerror.
+Asaresult,bychoosingtheappropriatestepfunctionapproximationθ,wearriveat
+(cid:0) (cid:1)
+d h ([P,·]) ,τ ≤ ϵ/2.
+p seq2seq :,Lp:
+Thiscompletestheproof.
+Finally, we arrive at the theorem that shows that prompt tuning on some transformer with single-
+headsingle-attentionlayerandtwofeed-forwardlayersisauniversalapproximatorforsequence-
+to-sequencefunctions.
+Theorem F.1 (Theorem 2.4 Restated). Let 1 ≤ p < ∞ and ϵ > 0, there exist a transformer
+τ ∈ T 1,1,r with single self-attention layer, r = O(d(L + L)) MLP neurons and quantization
+B p
+48granularityδ,suchthatforanyf ∈ F thereexistsapromptP ∈ Rd×Lp with
+seq2seq C
+(cid:0) (cid:1)
+d τ([P,·]) ,f ≤ ϵ.
+α :,Lp seq2seq
+ProofofTheorem2.4. Combining Lemma E.1 and Lemma F.2, we arrive at a transformer τ ∈
+T 1,1,r,withpromptP ∈ G ,suchthatforanysequence-to-sequencef ∈ F ,
+B δ,Lp seq2seq C
+(cid:16) (cid:17)
+d τ ([P,·]) ,f
+α :,Lp: seq2seq
+(cid:16) (cid:17) (cid:16) (cid:17)
+≤d τ ([P,·]) ,h([P,·]) +d h ([P,·]) ,f
+α :,Lp: :,Lp: α seq2seq :,Lp: seq2seq
+≤ϵ.
+Thiscompletestheproof.
+49G Proofs of Section 2.5
+In this section, we show the memorization capacity of prompt tuning on transformer networks
+with single layer self attention. We now prove that there exist a transformer τ ∈ T 1,1,r, such that
+B
+foranydatasetS,thetransformerτ memorizesS throughprompttuning.
+G.1 Proof of Theorem 2.5
+Theorem G.1 (Theorem 2.5 Restated). Consider a dataset S = {(X(i),Y(i))}N , where
+i=1
+X(i),Y(i) ∈ [0,1]d×L. Assume the coresponding embedding sequences Z(1),...,Z(N) are gener-
+ated from a C-Lipschitz function. Then, there exists a single-layer, single-head attention trans-
+former τ ∈ T 1,1,r with r = O(cid:0) (1/ϵ)d(Lp+L)(cid:1) and a soft-prompt P ∈ Rd×Lp such that, for any
+B
+i ∈ [N]:
+(cid:13) (cid:13)
+(cid:13)τ([P,Z(i)]) −Y(i) (cid:13) ≤ ϵ,
+:,Lp α
+whereL ≥ Lλ,withλ =
+(cid:0) 2ϵ−1C(dL)1/α(cid:1)dL
+.
+p
+ProofSketch. We first find some sequence-to-sequence function f⋆ : [0,1]d×L (cid:55)→ [0,1]d×L,
+seq2seq
+(cid:0) (cid:1)
+such that for any i ∈ [N], f⋆ Z(i) = Y(i). Next, we complete the proof by utilizing the
+seq2seq
+results of Theorem 2.4 to construct a transformer τ ∈ T 1,1,r that is capable of approximating
+B
+f⋆ throughprompttuning.
+seq2seq
+ProofofTheorem2.5. From the sequence-to-sequence function class F , there exist some func-
+C
+(cid:0) (cid:1)
+tionf⋆ : [0,1]d×L (cid:55)→ [0,1]d×L suchthat,f⋆ Z(i) = Y(i) foranyi ∈ [N].
+seq2seq seq2seq
+Next, since we utilize positional encoding, no information would be lost in the quantization step
+of Theorem 2.4. By utilizing the results of Theorem 2.4, we construct a transformer τ ∈ T 1,1,r
+B
+suchthat
+(cid:18)(cid:90) (cid:19)1
+d (cid:0) τ([P,·]) ,f⋆ (cid:1) = (cid:13) (cid:13)τ([P,Z]) −f⋆ (Z)(cid:13) (cid:13)α dZ α ≤ ϵ.
+α :,Lp seq2seq :,Lp seq2seq α
+Asaresult,wearriveat
+(cid:13) (cid:13)
+max(cid:13)τ([P,Z(i)]) −Y(i) (cid:13) ≤ ϵ.
+:,Lp: α
+i∈[N]
+50H Proofs of Computational Limits of Prompt Tuning (Sec-
+tion 3)
+Wefirstintroducesomehelperdefinitionandlemmasfromfine-grainedcomplexitytheory[Alman
+andSong,2023].
+DefinitionH.1(ApproximateAttentionComputationAttC(n,d,B,ϵ ),Definition1.2in[Alman
+a
+and Song, 2023]). Let ϵ > 0 and B > 0 be parameters. Given three matrices Q,K,V ∈ Rn×d,
+a
+withtheguaranteesthat∥Q∥ ≤ B,∥K∥ ≤ B,and∥V∥ ≤ B,AttC(n,d,B,ϵ )outputs
+max max max a
+amatrixT ∈ Rn×d whichisapproximatelyequaltoAtt(Q,K,V) := D−1AV,meaning,
+∥T −D−1AV∥ ≤ ϵ , withA := exp(cid:0) QK⊤(cid:1) andD := diag(A1 )
+max a n
+Here,foramatrixM ∈ Rn×n,wewrite∥M∥ := max |M |.
+max i,j i,j
+Lemma H.1 (Fine-Grained Upper bound, Theorem 1.4 in [Alman and Song, 2023]).
+√
+AAttC(n,d = O(logn),B = o( logn),ϵ = 1/poly(n)) can be solved in time
+a
+T (n,no(1),d) = n1+o(1).
+mat
+LemmaH.2(Fine-GrainedLowerbound,seeTheorem1.3in[AlmanandSong,2023]). Assum-
+ing SETH, for every q > 0, there are constants C,C ,C > 0 such that: there is no O(n2−q) time
+a b √
+algorithmfortheproblemAAttC(n,d = Clogn,B = C logn,ϵ = n−Ca).
+b a
+H.1 Proof of Theorem 3.1
+ProofofTheorem3.1. RecallthePromptTuningInferenceProblem APTI fromProblem1.
+Problem 1 (Approximate Prompt Tuning Inference APTI(d,L,L p,δ F)). Let δ
+F
+> 0 and B > 0.
+Given three Q ,K ,V ∈ Rd×(L+Lp) with guarantees that ∥Q ∥ ≤ B, ∥K ∥ ≤ B and
+p p p p max p max
+∥V p∥
+max
+≤ B, we aim to study an approximation problem APTI(d,L,L p,B,δ F), that approx-
+(cid:0) (cid:1) (cid:13) (cid:0) (cid:1)(cid:13)
+imates V Softmax KTQ with a matrix Z(cid:101) such that (cid:13)Z(cid:101) − V Softmax KTQ (cid:13) ≤ δ ,
+p p p p p p max F
+where,foramatrixM ∈ Ra×b,wewrite∥M∥ := max |M |.
+max i,j i,j
+Werewrite
+(cid:0) (cid:1) (cid:0) (cid:1)
+V Softmax KTQ = VD−1exp KTQ .
+p p p p p
+(cid:13) (cid:13)
+(cid:0) (cid:1)
+By transpose-invariance property of ∥·∥ , we observe (cid:13)Z(cid:101)−V Softmax KTQ (cid:13) ≤ δ is
+max (cid:13) p p p (cid:13) F
+max
+equivalentto∥T −D−1AV∥ withthefollowingidentificationsbetween APIT and ATTC:
+max
+• (L +L) = n,d = d,B = B,δ = ϵ
+p F a
+• Z(cid:101) = T,V = V,K = K,Q = Q
+p p p
+51(cid:13) (cid:13)
+By(cid:13)[·] (cid:13) ≤ ∥·∥ ,wecompletetheproofviaasimplereductionfromfine-grainedupper
+:,Lp: max max
+boundresultLemmaH.1.
+H.2 Proof of Theorem 3.2
+ProofofTheorem3.2. UsingthesameidentificationsasintheproofofTheorem3.1,wecomplete
+theproofwithLemmaH.2.
+52I Limitations of Prompt Tuning Transformers
+In Section 2, we demonstrate that through prompt tuning, even a transformer with the simplest
+architecture can serve as a universal approximator. However, to achieve this, it is necessary to
+construct a specific transformer tailored for the task. In this section, we explore how prompts in-
+fluence the output of a pretrained transformer model. Additionally, we investigate the boundaries
+of prompt tuning on arbitrary pretrained transformer model by analyzing its underlying mecha-
+nisms.
+I.1 Discussion on the Limitations of Prompt Tuning
+Forsimplicity,considerasingle-layertransformerfunctionclasswith1headofsizesandr MLP
+hiddenneurons:
+T 1,s,r := {τ : Rd×L (cid:55)→ Rd×L|τ = f(FF)(cid:0) f(SA)(·)(cid:1) }.
+C
+Thetokenwiseoutputofthetransformerτ withinput[P,X] ∈ Rd×(Lp+L) is
+(cid:0) (cid:1)
+τ ([P,X]) = f(FF) f(Att)([P,X] ,[P,X])+[P,X] ,
+:,i :,i :,i
+where [P,X] is the concatenation of a prompt P ∈ Rd×Lp and a data X ∈ Rd×L. By taking the
+inverseoffeed-forwardfunctionf(FF−1) : Rd (cid:55)→ Rd,wehave
+f(Att)(x,[P,X]) ∈ f(FF−1)(y)−x, (I.1)
+wherex = X andy isthecorrespondinglabeltokenforx.
+:,i
+Next,tobetterunderstandhowthepromptP affecttheoutputofthetransformer,wefocusonthe
+outputtokenoftheattentionlayercorrespondingtosomedatatokenx = X ,
+:,i
+f(Att)(x,[P,X]) (I.2)
+(cid:104) (cid:105)
+=W (W [P,X])Softmax (W [P,X])⊤(W x)
+O V K Q
+ (cid:104) (cid:105) 
+exp (W [P,X] )⊤(W x)
+K :,1 Q
+ 
+.
+ . 
+ . 
+ (cid:104) (cid:0) (cid:1)⊤ (cid:105) 
+exp W [P,X] (W x)
+K :,(L+Lp) Q
+=W (W [P,X])
+O V (cid:104) (cid:105)
+(cid:80)L+Lpexp (W [P,X] )⊤(W x)
+j=1 K :,j Q
+(cid:104) (cid:105)
+(cid:80)L+LpW (W [P,X] )exp (W [P,X] )⊤(W x)
+i=1 O V :,i K :,i Q
+=
+(cid:104) (cid:105)
+(cid:80)L+Lpexp (W [P,X] )⊤(W x)
+j=1 K :,j Q
+53(cid:104) (cid:105) (cid:104) (cid:105)
+(cid:80)Lp exp (W P )⊤(W x) f(Att)(x,P) (cid:80)m exp (W X )⊤(W x) f(Att)(x,X)
+i=1 K :,i Q i=1 K :,i Q
+= +
+(cid:104) (cid:105) (cid:104) (cid:105)
+(cid:80)L+Lpexp (W [P,X] )⊤(W x) (cid:80)L+Lpexp (W [P,X] )⊤(W x)
+j=1 K :,j Q j=1 K :,j Q
+Ψ(P,x) Ψ(X,x)
+= f(Att)(x,P)+ f(Att)(x,X),
+Ψ([P,X],x) Ψ([P,X],x)
+whereΨ(·,·,·)isapositivescalaranddefinedas
+(cid:88) (cid:16) (cid:17)
+Ψ(A,z) = exp (W A )⊤(W z) .
+K :,i Q
+i
+Combining(I.1)and(I.2),wehave
+(cid:18) (cid:19)
+Ψ(P,x) Ψ(X,x)
+f(Att)(x,P)+ f(Att)(x,X) ∈ f(FF)−1(y)−x. (I.3)
+Ψ([P,X],x) Ψ([P,X],x)
+Essentially, with all parameters for the feed-forward and self-attention layers fixed, prompt tun-
+ing finds the prompt P⋆ such that (I.3) holds for each input-label pair (x,y). In (I.3), note that
+while Ψ(·,·,·) are positive scalars, the attention terms f(Att)(·) are vectors. The initial term
+Ψ(P,x) f(Att)(x,P) depends entirely on P, highlighting the strong effect of prompt tuning on
+Ψ([P,X],x)
+shapingthemodel’soutputsbyguidingtheattentionmechanism. Incontrast,P’sinfluenceonthe
+second term Ψ(X,x) f(Att)(x,X) is limited to scaling, preserving the original attention pattern
+Ψ([P,X],x)
+between x and X. Thus, prompt tuning biases the attention function’s output but does not alter
+theintrinsicattentionpatternbetweenxandX.
+This manipulation highlights prompt tuning’s ability to subtly refine and leverage the pretrained
+model’s knowledge without disrupting its core attention dynamics. However, it constrains
+prompt tuning’s expressiveness, as it cannot change the direction of the attention output vector
+f(Att)(x,X). Thus,prompttuningislimitedtorealigninglatentknowledgewithinthemodel,fail-
+ingtolearnnewknowledge,whichwouldrequirealteringthemodel’scoreattentiondynamics.
+In Section 2.5, we discuss the cases where prompt tuning is able to memorize some general data
+set. Here, on the other hand, we also provide an example where prompt tuning on some general
+transformersfailstomemorizesomesimpledataset.
+I.2 Examples of Prompt Tuning Failures
+The memorization ability in Theorem 2.5 is based on some specific transformers we carefully
+constructed for the memorization task. However, as we discussed in Appendix I, there exists
+limitations for prompt tuning on when learning new knowledge. Here, we provide an example
+where prompt tuning on some arbitrary transformers fails to memorize. We first introduce some
+assumptionsontherelationbetweenourtransformeranddataset.
+54(cid:0) (cid:1)
+Assumption I.1. We assume that all output tokens Y(i) are in the range set of f(FF). We
+:,k
+(cid:0) (cid:1)
+assume that W ,W ,W ,W are full rank matrices and that f(SA) X(i) are distinct for i =
+Q K V O
+1,2,...,n.
+Now,weshowthattransformersthroughprompttuningfailstomemorizesomesimpledataset.
+Corollary I.0.1 (Prompt Tuning Fails to Memorize, Theorem 2 of [Wang et al., 2023a]). For
+any pretrained single layer transformer τ ∈ T , there exist a sequence-to-sequence dataset
+(cid:110)(cid:16) (cid:104) (cid:105) (cid:104) (cid:105)(cid:17) (cid:16) (cid:104) (cid:105) (cid:105)(cid:17)
+S = X(1) = x(1),x⋆ ,Y(1) = y(1),y(1) , X(2) = x(2),x⋆ ,Y(2) = [y(2),y(2) }, and
+1 1 2 1 1 2
+we cannot find a prompt P ∈ Rd×Lp with any L > 0 such that τ ([P,x ]) = y holds for any
+p i i
+i = 1,2. Thevectorsx ,x ,x aredenotedpostpositionalencodings.
+0 1 2
+Remark I.1. The most important aspect of this dataset is the shared token x⋆. As shown in
+(cid:0) (cid:1)
+AppendixI.1,tolearnthefirstexample X(1),Y(1) ,weareabletofindapromptP,suchthat
+(cid:32) (cid:0) (cid:1) (cid:33)
+Ψ(P,x⋆) Ψ X(1),x⋆ (cid:16) (cid:17)
+f(Att)(x⋆,P)+ f(Att)(cid:0) x⋆,X(1)(cid:1) ∈ f(FF)−1 y(1) −x⋆.
+Ψ([P,X(1)],x⋆) Ψ([P,X(1)],x⋆) 2
+However, now the vector f(Att)(x⋆,P) is fixed as prompt P has been chosen. This prevents us
+fromfindingaprompttocatertothesecondexample,whichiswrittenas
+(cid:32) (cid:0) (cid:1) (cid:33)
+Ψ(P,x⋆) Ψ X(2),x⋆ (cid:16) (cid:17)
+f(Att)(x⋆,P)+ f(Att)(cid:0) x⋆,X(2)(cid:1) ∈ f(FF)−1 y(2) −x⋆.
+Ψ([P,X(2)],x⋆) Ψ([P,X(2)],x⋆) 2
+Thus,theexpressivepowerofprompttuningislimited.
+55J Supplementary Proofs for Appendix C
+Here we restate some proofs of the properties of Boltzmann operator from [Kajitsuka and Sato,
+2024]forcompleteness.
+J.1 Lemma C.1
+ProofofLemmaC.1. Bytakinglnonp definedinDefinitionC.1,wesee
+i
+n
+(cid:88)
+lnp = z −ln ezj = z −lnZ(z). (J.1)
+i i i
+j=1
+Also,bythedefinitionofBoltz,wehave
+n
+(cid:88)
+Boltz(z) = z p
+i i
+i=1
+n
+(cid:88)
+= p ln(p Z(z)) (cid:0) By(J.1)(cid:1)
+i i
+i=1
+n n
+(cid:88) (cid:88)
+= p lnp + p lnZ(z)
+i i i
+i=1 i=1
+= −S(p)+lnZ(z).
+Thiscompletestheproof.
+J.2 Lemma C.2
+ProofofLemmaC.2. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+Wefirstobservethat
+∂ ∂ (cid:18) ezi (cid:19)
+p = (J.2)
+∂z j i ∂z j (cid:80)n k=1ez k
+δ ezj ((cid:80)n ez k)−eziezj
+= ij k=1
+((cid:80)n ez k)2
+k=1
+δ ezj eziezj
+ij
+= −
+(cid:80)n k=1ez k ((cid:80)n k=1ez k)2
+=p (δ −p ),
+j ij i
+whereδ isthedeltafunction,i.e.,δ = 1onlywheni = j.
+ij ij
+56Nextwehave
+(cid:32) (cid:33)
+n
+∂ ∂ (cid:88)
+Boltz(z) = z p
+j j
+∂z ∂z
+i i
+j=1
+n n
+(cid:88) ∂z (cid:88) ∂p
+j j
+= p + z
+j j
+∂z ∂z
+i i
+j=1 j=1
+n
+(cid:88)
+=p + z p (δ −p ) (cid:0) By(J.2)(cid:1)
+i j i ji j
+j=1
+=p (1+z −Boltz(z)) (cid:0) By(C.1)(cid:1)
+i i
+=p (1+z +S(p)−lnZ(z)). (cid:0) ByLemmaC.1(cid:1)
+i i
+Sincep > 0,weonlyneedtofocusonthesecondterm
+i
+1+z +S(p)−lnZ(z) < 0.
+i
+Thismeans
+z < lnZ(z)−S(p)−1
+i
+Byusingmax z ≤ lnZ(z)[BoydandVandenberghe,2004,p.72]andS(p) ≤ lnn,wehave
+j∈[n] j
+that,when
+z < lnZ(z)−S(p)−1,
+i
+issatisfied,theBoltzmannoperatorBoltz(z)monotonicallydecreasesinthedirectionofz .
+i
+J.3 Lemma C.3
+ProofofLemmaC.3. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+Observethat
+(cid:32) (cid:33)
+n
+∂S(p) ∂ (cid:88)
+= − p lnp (J.3)
+j j
+∂z ∂z
+i i
+j=1
+n
+(cid:88) ∂p ∂
+j
+= − lnp +p lnp
+j j j
+∂z ∂z
+i i
+j=1
+n
+(cid:88)
+= − p (δ −p )lnp +p (δ −p ) (cid:0) By(J.2)(cid:1)
+i ji j j i ji j
+j=1
+57n
+(cid:88)
+= −p [δ (lnp +1)−p lnp −p ]
+i ji j j j j
+j=1
+= −p (lnp +1+S(p)−1) (cid:0) Byδ =1,S(p)=(cid:80) p lnp ,(cid:80) p =1(cid:1)
+i i ii j j j
+= −p (lnp +S(p)).
+i i
+Now,weprovetheconcavitybytakingthederivativeonceagainfromLemmaC.2,whichis
+∂2 ∂
+Boltz(z) = p (1+lnp +S(p)) (cid:0) ByLemmaC.2(cid:1)
+∂z2 ∂z i i
+i i
+∂p ∂
+i
+= ·(1+lnp +S(p))+p · (1+lnp +S(p))
+i i i
+∂z ∂z
+i i
+(cid:20) (cid:21)
+p (1−p )
+i i
+=p (1−p )(1+lnp +S(p))+p −p (lnp +S(p))
+i i i i i i
+p
+i
+(cid:0) (cid:1)
+By(J.2)and(J.3)
+=p [(1−2p )(lnp +S(p)+1)+1]
+i i i
+=p [(1−2p )(z −lnZ(z)+S(p)+1)+1] (cid:0) By(J.1)(cid:1)
+i i i
+Sincep > 0,weanalyzethesecondterm. Considerp < 1,wehave
+i i 2
+−1
+z −lnZ(z)+S(p)+1 < .
+i
+1−2p
+i
+Byusingmax z ≤ lnZ(z)[BoydandVandenberghe,2004,p.72]andS(p) ≤ lnn,wehave
+j∈[n] j
+−2+2p
+i
+z < maxz −lnn+ .
+i j
+j∈[n] 1−2p i
+Since −2+2pi is unbounded below in domain 1 > p > 0, we focus on discussing cases where
+1−2pi 2 i
+1 > p > 0. Wenowhave
+4 i
+−2+2p
+i
+−2 > < −3.
+1−2p
+i
+Asaresult,theBoltzmannoperatorBoltz(z)isconcavewithrespecttoz forany
+i
+z < maxz −lnn−3.
+i j
+j∈[n]
+Thiscompletestheproof.
+J.4 Lemma C.4
+ProofofLemmaC.4. From Lemma C.2, we know that Boltz(z) monotonically decreases in the
+direction of z when z < z −lnn−1. Since z is tokenwise (δ)-separated and has no duplicate
+i i 1
+58entry,givenz ,theminimumofBoltz(z)happensatz⋆ = (z ,z −δ,z −2δ,...,z −(n−1)δ)
+1 1 1 1 1
+whereδ > lnn+1. ByLemmaC.2,weseethat
+Boltz(z) > Boltz(z⋆) > Boltz(z′).
+J.5 Lemma C.5
+ProofofLemmaC.5. Foranyz′,wefindsomez⋆ ∈ Rm,where
+(cid:0) (cid:1)
+z⋆ = z′,...,z′ ,−∞ .
+1 m−1
+ByLemmaC.2,wehave
+Boltz(z⋆) > Boltz(z′).
+In addition, for any n, we are able to find some z⋆ with last (m − n) entries being (−∞). As a
+result,wehave
+Boltz(z) = Boltz(z⋆) > Boltz(z′).
+J.6 Lemma C.6
+ProofofLemmaC.6. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+Leta′ ∈ Rn be
+a′ = (a ,a −δ,...,a −δ). (J.4)
+1 1 1
+FromLemmaC.4,weknowthatBoltz(a) > Boltz(a′). Inaddition,wehave:
+Boltz(a′)
+(cid:32) (cid:33)
+(cid:88)n ea′
+i
+= a′
+i(cid:80)n ea′
+j
+i=1 j=1
+a ea1 +(n−1)(a −δ)ea1−δ
+= 1 1 (cid:0) By(J.4)(cid:1)
+ea1 +(n−1)ea1−δ
+a +(n−1)(a −δ)e−δ
+1 1
+=
+1+(n−1)e−δ
+59(n−1)δe−δ
+=a − .
+1 1+(n−1)e−δ
+Also,weknowthatBoltz(b) ≤ b ,sinceentriesofbissortedinadecreasingorder. Therefore,
+1
+Boltz(a)−Boltz(b)
+≥Boltz(a′)−b
+1
+(n−1)δe−δ
+>a − −(a −δ) (cid:0) Byb <a −δ(cid:1)
+1 1+(n−1)e−δ 1 1 1
+(n−1)δe−δ
+=δ −
+1+(n−1)e−δ
+δ
+= (cid:0) Byδ >2lnn+3.(cid:1)
+1+(n−1)e−δ
+≥ lnn.
+Notethatlnn > (lnn)2e−(a1−b1),becausea −b > lnnimplieslnn·e−(a1−b1) < 1.
+1 1
+J.7 Lemma C.7
+ProofofLemmaC.7. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+WiththeconcavitygiveninLemmaC.3andfirst-orderTaylorapproximation,wehave
+∂
+Boltz(b ,...,b ,t)+(a −t)· Boltz(b ,...,b ,t) > Boltz(b ,...,b ,a ),
+1 n−1 n 1 n−1 1 n−1 n
+∂t
+fort < a .
+n
+Then,bysettingt = b ,weobtain
+n
+Boltz(b ,...,b ,t)−Boltz(b ,...,b ,a )
+1 n−1 1 n−1 n
+=Boltz(b)−Boltz(a)
+(cid:18) (cid:12) (cid:19)
+∂ (cid:12)
+> (a −b ) − Boltz(b ,...,b ,t)(cid:12)
+n n 1 n−1
+∂t (cid:12)
+t=bn
+= (a −b )[−p (1+lnp +S(p))] (cid:0) ByLemmaC.2(cid:1)
+n n n n
+(cid:20) (cid:18) (cid:19)(cid:21)
+> (a −b ) −p 1+b −maxb +lnn
+n n n n i
+i∈[n]
+> (a −b )p (δ +a −b −lnn−1)
+n n n n n
+ebn
+= (a −b ) (δ +a −b −lnn−1).
+n n (cid:80)n ebi n n
+i=1
+Thiscompletestheproof.
+60J.8 Lemma C.8
+ProofofLemmaC.8. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+Let
+a := (a ,a ,...,a ,a ) ∈ Rk+1,
+up 1 2 k k+1
+b := (a ,a ,...,a ,b ,b ,...,b ) ∈ Rn.
+lo 1 2 k k+1 k+1 k+1
+Then,LemmaC.2impliesthat
+Boltz(a) < Boltz(a ),
+up
+boltz(b) > Boltz(b ).
+lo
+ThusweonlyhavetoboundBoltz(b )−Boltz(a ).
+lo up
+Let
+k k
+(cid:88) (cid:88)
+γ := a ea l and ξ := ea l.
+k l k
+l=1 l=1
+Next,decomposeBoltz(b ):
+lo
+γ +(n−k)b eb k+1
+k k+1
+Boltz(b ) =
+lo ξ k +(n−k)eb k+1
+γ +b eb k+1+ln(n−k)
+k k+1
+=
+ξ
+k
++eb k+1+ln(n−k)
+γ +(b +ln(n−k))eb k+1+ln(n−k) ln(n−k)·eb k+1+ln(n−k)
+k k+1
+= −
+ξ
+k
++eb k+1+ln(n−k) ξ
+k
++eb k+1+ln(n−k)
+ln(n−k)·eb k+1+ln(n−k)
+=Boltz(a ,...,a ,b +ln(n−k))− .
+1 k k+1 ξ
+k
++eb k+1+ln(n−k)
+Therefore,wehave
+Boltz(b )−Boltz(a ) (J.5)
+lo up
+ln(n−k)·eb k+1+ln(n−k)
+=Boltz(a ,...,a ,b +ln(n−k))−Boltz(a )− .
+1 k k+1 up ξ
+k
++eb k+1+ln(n−k)
+NotethatbyLemmaC.7,wealsohave
+boltz(a ,...,a ,b +ln(n−k))−Boltz(a ) (J.6)
+1 k k+1 up
+61> (a −b −ln(n−k))(δ +a −b −ln(n−k)−ln(k +1)−1)
+k+1 k+1 k+1 k+1
+eb k+1+ln(n−k)
+·
+ξ
+k
++eb k+1+ln(n−k)
+eb k+1+ln(n−k)
+>(δ −lnn)(2δ −2lnn−1)· . (cid:0) Byδ-separatedness(cid:1)
+ξ
+k
++eb k+1+ln(n−k)
+eb k+1+ln(n−k)
+>4ln2(n)· . (cid:0) Byassumptionδ >4lnn(cid:1)
+ξ
+k
++eb k+1+ln(n−k)
+Nowweplug(J.6)into(J.5)toobtain
+Boltz(b )−Boltz(a )
+lo up
+ln(n−k)·eb k+1+ln(n−k)
+=Boltz(a ,...,a ,b +ln(n−k))−Boltz(a )−
+1 k k+1 up ξ
+k
++eb k+1+ln(n−k)
+eb k+1+ln(n−k)
+> ·(4ln2(n)−ln(n−k))
+ξ
+k
++eb k+1+ln(n−k)
+eb k+1+ln(n−k)
+> ·2ln2(n).
+ξ
+k
++eb k+1+ln(n−k)
+Also,forthedenominator,wehave
+k+1
+(cid:88)
+ξ +eb k+1+ln(n−k) < ea l (cid:0) Bya >b +ln(n−k)(cid:1)
+k k+1 k+1
+l=1
+k+1
+(cid:88)
+<ea1 e−(l−1)δ (cid:0)
+Bya <a
+−(l−1)δ(cid:1)
+l 1
+l=1
+<2ea1. (cid:0)
+Byδ
+>ln2(cid:1)
+Therefore,wearriveat
+eb k+1+ln(n−k)
+Boltz(b)−Boltz(a ) > ·2(lnn)2
+up ξ
+k
++eb k+1+ln(n−k)
+eb k+1+ln(n−k)
+> ·2(lnn)2
+2ea1
+> (lnn)2e−(a1−b k+1).
+Thisimpliesthat
+Boltz(b)−Boltz(a) > (lnn)2e−(a1−b k+1).
+Thiscompletestheproof.
+62J.9 Lemma C.9
+ProofofLemmaC.9. Werestatetheprooffrom[KajitsukaandSato,2024]forcompleteness.
+First, we observe that Boltz is permutation invariant by definition. In addition, there are no du-
+plicate entries in each vector z . Therefore, w.l.o.g. we write the vectors in entrywise decreasing
+i
+order z(i) > ... > z(i) for any i ∈ [N]. We prove (C.3) by utilizing the first constraint of (γ,δ)-
+1 n
+tokenwiseseparatenessofz(i),whichis
+(cid:12) (cid:12)
+(cid:12)z(i) (cid:12) < γ,
+s
+foranyi ∈ [N]ands ∈ [n]. Sincez(i) < Boltz(z(i)) < z(i) ,wehave
+n 1
+(cid:16)(cid:12) (cid:12) (cid:17)
+(cid:12) (cid:12)Boltz(z(i))(cid:12)
+(cid:12) < max
+(cid:12)z(i)(cid:12),(cid:12) (cid:12)z(i)(cid:12)
+(cid:12) < γ.
+(cid:12) 1 (cid:12) n
+Next, we prove the δ′-separateness. Consider i ∈ [N] and s ∈ [n], w.l.o.g. we assume that there
+existsk ∈ {0,...,n−1}suchthat
+(cid:16) (cid:17) (cid:16) (cid:17)
+z(i),...,z(i) = z(j),...,z(j) and a > b .
+1 k 1 k k+1 k+1
+Then,bycombiningLemmaC.8andLemmaC.6,wehave
+|Boltz(z(i))−Boltz(z(j))|
+>(lnn)2e−(cid:16) z 1(i)−z k(j +) 1(cid:17)
+>(lnn)2e−2γ. (cid:0)
+a −b
+<2rsince(γ,δ)-separated(cid:1)
+1 k+1
+Thiscompletestheproof.
+J.10 Lemma D.1
+ProofofLemmaD.1. Werestatetheprooffrom[Parketal.,2021]forcompleteness.
+We first note that the second inequality is simple because u is a unit vector. Next, we prove the
+first inequality. We focus on the cases where |X| = N ≥ 2 and d ≥ 2. We first prove that for
+any vector v ∈ Rd, a unit vector u ∈ Rd uniformly randomly drawn from the hypersphere Sd−1
+satisfies
+(cid:32) (cid:114) (cid:33)
+(cid:12) (cid:12) ∥v∥ 8 2
+Pr (cid:12)u⊤v(cid:12) < < . (J.7)
+N2 πd N2
+63With(J.7),wedefineV := {x−x′ : x,x′ ∈ X}. Then,theunionboundimplies
+(cid:32) (cid:26) (cid:114) (cid:27)(cid:33) (cid:18) (cid:114) (cid:19)
+(cid:91) (cid:12) (cid:12) ∥v∥ 8 (cid:88) (cid:12) (cid:12) ∥v∥ 8
+Pr (cid:12)u⊤v(cid:12) < ≤ Pr (cid:12)u⊤v(cid:12) <
+N2 πd N2 πd
+x x
+v∈V v∈V
+N(N −1) 2
+< · < 1,
+2 N2
+andthusthereexistsatleastoneunitvectoruthatsatisfiesthelowerbound.
+Westarttheprovewith
+(cid:32) (cid:114) (cid:33)
+(cid:12) (cid:12) ∥v∥ 8
+Pr (cid:12)u⊤v(cid:12) <
+N2 πd
+(cid:32) (cid:114) (cid:33)
+1 8
+= Pr |u | <
+1 N2 πd
+(cid:32) (cid:114) (cid:33)
+1 8
+=2Pr 0 < u < (cid:0) Bysymmetryoftheuniformdistribution(cid:1)
+1 N2 πd
+(cid:90) π
+=
+2
+·
+2
+√
+Area(cid:0)Sd−2(cid:1)
+·(sin(ϕ))d−2dϕ
+Area(Sd−1) (cid:16) (cid:17)
+cos−1 1 8
+N2 πd
+Area(cid:0)Sd−2(cid:1) (cid:90) π
+2
+=2· · √ (sin(ϕ))d−2dϕ
+Area(Sd−1) (cid:16) (cid:17)
+cos−1 1 8
+N2 πd
+2 (d−1)Γ(cid:0) d +1(cid:1) (cid:90) π 2
+= √ · (cid:0) 2 (cid:1) · √ (sin(ϕ))d−2dϕ
+π dΓ d + 1 (cid:16) (cid:17)
+2
+√
+2 cos−1 N1 2 π8 d
+(cid:114) (cid:90) π
+< 2 · (d−1) d+2 · 2 √ 1dϕ (cid:0) ByGautschiinequalityandsin(π)≤1(cid:1)
+π d (cid:16) (cid:17)
+cos−1 1 8
+N2 πd
+(cid:114) (cid:90) π
+≤ 2d 2 √ 1dϕ (cid:0) Sinced≥1(cid:1)
+π (cid:16) (cid:17)
+cos−1 1 8
+N2 πd
+(cid:114) (cid:32) (cid:32) (cid:114) (cid:33)(cid:33)
+2d π 1 8
+= −cos−1
+π 2 N2 πd
+(cid:114) (cid:32) (cid:114) (cid:33)
+2d 1 8
+= sin−1
+π N2 πd
+(cid:114) (cid:114)
+2d π 1 8
+≤ · ·
+π 2 N2 πd
+2
+= . (cid:0) ϕ≤ π sin(ϕ),∀0≤ϕ≤ π(cid:1)
+N2 2 2
+Thiscompletestheproof.
+64References
+Amol Aggarwal and Josh Alman. Optimal-degree polynomial approximations for exponentials
+and gaussian kernel density estimation. In Proceedings of the 37th Computational Complexity
+Conference, CCC ’22, Dagstuhl, DEU, 2022. Schloss Dagstuhl–Leibniz-Zentrum fuer Infor-
+matik. ISBN9783959772419. doi: 10.4230/LIPIcs.CCC.2022.22.
+SilasAlberti,NiclasDern,LauraThesing,andGittaKutyniok. Sumformer: Universalapproxima-
+tion for efficient transformers. In Topological, Algebraic and Geometric Learning Workshops
+2023,pages72–86.PMLR,2023.
+Josh Alman and Zhao Song. Fast attention requires bounded entries. Advances in Neural Infor-
+mationProcessingSystems(NeurIPS),36,2023.
+KavoshAsadiandMichaelLLittman. Analternativesoftmaxoperatorforreinforcementlearning.
+InInternationalConferenceonMachineLearning(ICML),pages243–252.PMLR,2017.
+Alberto Bietti, Vivien Cabannes, Diane Bouchacourt, Herve Jegou, and Leon Bottou. Birth of a
+transformer: A memory viewpoint. Advances in Neural Information Processing Systems, 36,
+2024.
+Rishi Bommasani, Drew A Hudson, Ehsan Adeli, Russ Altman, Simran Arora, Sydney von Arx,
+Michael S Bernstein, Jeannette Bohg, Antoine Bosselut, Emma Brunskill, et al. On the oppor-
+tunitiesandrisksoffoundationmodels. arXivpreprintarXiv:2108.07258,2021.
+Stephen P Boyd and Lieven Vandenberghe. Convex optimization. Cambridge university press,
+2004.
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared D Kaplan, Prafulla Dhariwal,
+ArvindNeelakantan,PranavShyam,GirishSastry,AmandaAskell,etal. Languagemodelsare
+few-shotlearners. Advancesinneuralinformationprocessingsystems,33:1877–1901,2020.
+GuangyiChen,WeiranYao,XiangchenSong,XinyueLi,YongmingRao,andKunZhang. PLOT:
+Prompt learning with optimal transport for vision-language models. In The Eleventh Interna-
+tionalConferenceonLearningRepresentations(ICLR),2023.
+Marek Cygan, Holger Dell, Daniel Lokshtanov, Dániel Marx, Jesper Nederlof, Yoshio Okamoto,
+Ramamohan Paturi, Saket Saurabh, and Magnus Wahlström. On problems as hard as cnf-sat.
+ACMTransactionsonAlgorithms(TALG),12(3):1–24,2016.
+Ning Ding, Yujia Qin, Guang Yang, Fuchao Wei, Zonghan Yang, Yusheng Su, Shengding Hu,
+Yulin Chen, Chi-Min Chan, Weize Chen, et al. Delta tuning: A comprehensive study of pa-
+rameter efficient methods for pre-trained language models. arXiv preprint arXiv:2203.06904,
+2022.
+65Ning Ding, Yujia Qin, Guang Yang, Fuchao Wei, Zonghan Yang, Yusheng Su, Shengding Hu,
+Yulin Chen, Chi-Min Chan, Weize Chen, et al. Parameter-efficient fine-tuning of large-scale
+pre-trainedlanguagemodels. NatureMachineIntelligence,5(3):220–235,2023.
+QingxiuDong,LeiLi,DamaiDai,CeZheng,ZhiyongWu,BaobaoChang,XuSun,JingjingXu,
+andZhifangSui. Asurveyonin-contextlearning. arXivpreprintarXiv:2301.00234,2022.
+LucianoFloridiandMassimoChiriatti. Gpt-3: Itsnature,scope,limits,andconsequences. Minds
+andMachines,30:681–694,2020.
+Shuai Fu, Xiequn Wang, Qiushi Huang, and Yu Zhang. Nemesis: Normalizing the soft-prompt
+vectors of vision-language models. In The Twelfth International Conference on Learning Rep-
+resentations(ICLR),2024.
+Ziqi Gao, Xiangguo Sun, Zijing Liu, Yu Li, Hong Cheng, and Jia Li. Protein multimer structure
+prediction via prompt learning. In The Twelfth International Conference on Learning Repre-
+sentations(ICLR),2024.
+Alexander Havrilla and Wenjing Liao. Understanding scaling laws with statistical and approxi-
+mation theory for transformer neural networks on intrinsically low-dimensional data. In The
+Thirty-eighthAnnualConferenceonNeuralInformationProcessingSystems,2024.
+SoufianeHayou,NikhilGhosh,andBinYu. Lora+: Efficientlowrankadaptationoflargemodels.
+arXivpreprintarXiv:2402.12354,2024.
+EdwardJHu,yelongshen,PhillipWallis,ZeyuanAllen-Zhu,YuanzhiLi,SheanWang,LuWang,
+and Weizhu Chen. LoRA: Low-rank adaptation of large language models. In International
+ConferenceonLearningRepresentations(ICLR),2022.
+Jerry Yao-Chieh Hu, Donglin Yang, Dennis Wu, Chenwei Xu, Bo-Yu Chen, and Han Liu. On
+sparsemodernhopfieldmodel. InThirty-seventhConferenceonNeuralInformationProcessing
+Systems(NeurIPS),2023.
+Jerry Yao-Chieh Hu, Pei-Hsuan Chang, Robin Luo, Hong-Yu Chen, Weijian Li, Wei-Po Wang,
+andHanLiu. Outlier-efficienthopfieldlayersforlargetransformer-basedmodels. InForty-first
+InternationalConferenceonMachineLearning(ICML),2024a.
+Jerry Yao-Chieh Hu, Thomas Lin, Zhao Song, and Han Liu. On computational limits of modern
+hopfield models: A fine-grained complexity analysis. In Forty-first International Conference
+onMachineLearning(ICML),2024b.
+Jerry Yao-Chieh Hu, Maojiang Su, En-Jui Kuo, Zhao Song, and Han Liu. Computational limits
+of low-rank adaptation (lora) for transformer-based models. arXiv preprint arXiv:2406.03136,
+2024c.
+66Jerry Yao-Chieh Hu, Dennis Wu, and Han Liu. Provably optimal memory capacity for modern
+hopfield models: Transformer-compatible dense associative memories as spherical codes. In
+Thirty-eighthConferenceonNeuralInformationProcessingSystems(NeurIPS),2024d.
+Russell Impagliazzo and Ramamohan Paturi. On the complexity of k-sat. Journal of Computer
+andSystemSciences,62(2):367–375,2001.
+Yanrong Ji, Zhihan Zhou, Han Liu, and Ramana V Davuluri. Dnabert: pre-trained bidirectional
+encoderrepresentationsfromtransformersmodelfordna-languageingenome. Bioinformatics,
+37(15):2112–2120,2021.
+Menglin Jia, Luming Tang, Bor-Chun Chen, Claire Cardie, Serge Belongie, Bharath Hariharan,
+and Ser-Nam Lim. Visual prompt tuning. In European Conference on Computer Vision, pages
+709–727.Springer,2022.
+Haotian Jiang and Qianxiao Li. Approximation theory of transformer networks for sequence
+modeling. arXivpreprintarXiv:2305.18475,2023.
+Tokio Kajitsuka and Issei Sato. Are transformers with one layer self-attention using low-rank
+weightmatricesuniversalapproximators? InTheTwelfthInternationalConferenceonLearning
+Representations(ICLR),2024.
+MuhammadUzairKhattak,HanoonaRasheed,MuhammadMaaz,SalmanKhan,andFahadShah-
+baz Khan. Maple: Multi-modal prompt learning. In Proceedings of the IEEE/CVF Conference
+onComputerVisionandPatternRecognition,pages19113–19122,2023.
+Junghwan Kim, Michelle Kim, and Barzan Mozafari. Provable memorization capacity of trans-
+formers. InTheEleventhInternationalConferenceonLearningRepresentations,2022.
+Brian Lester, Rami Al-Rfou, and Noah Constant. The power of scale for parameter-efficient
+prompttuning. arXivpreprintarXiv:2104.08691,2021.
+Xiang Lisa Li and Percy Liang. Prefix-tuning: Optimizing continuous prompts for generation.
+arXivpreprintarXiv:2101.00190,2021.
+Yingyu Liang, Zhenmei Shi, Zhao Song, and Chiwun Yang. Toward infinite-long prefix in trans-
+former. arXivpreprintarXiv:2406.14036,2024.
+Haokun Liu, Derek Tam, Mohammed Muqeeth, Jay Mohta, Tenghao Huang, Mohit Bansal, and
+Colin A Raffel. Few-shot parameter-efficient fine-tuning is better and cheaper than in-context
+learning. AdvancesinNeuralInformationProcessingSystems,35:1950–1965,2022.
+Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig.
+Pre-train, prompt, and predict: A systematic survey of prompting methods in natural language
+processing. ACMComputingSurveys,55(9):1–35,2023.
+67XiaoLiu,KaixuanJi,YichengFu,WengLamTam,ZhengxiaoDu,ZhilinYang,andJieTang. P-
+tuning v2: Prompt tuning can be comparable to fine-tuning universally across scales and tasks.
+arXivpreprintarXiv:2110.07602,2021.
+SadeghMahdavi,RenjieLiao,andChristosThrampoulidis. Memorizationcapacityofmulti-head
+attentionintransformers. arXivpreprintarXiv:2306.02010,2023.
+Shervin Minaee, Tomas Mikolov, Narjes Nikzad, Meysam Chenaghlu, Richard Socher, Xavier
+Amatriain, and Jianfeng Gao. Large language models: A survey. arXiv preprint
+arXiv:2402.06196,2024.
+MichaelMoor,OishiBanerjee,ZahraShakeriHosseinAbad,HarlanMKrumholz,JureLeskovec,
+Eric J Topol, and Pranav Rajpurkar. Foundation models for generalist medical artificial intelli-
+gence. Nature,616(7956):259–265,2023.
+EricNguyen,MichaelPoli,MarjanFaizi,ArminThomas,MichaelWornow,CallumBirch-Sykes,
+Stefano Massaroli, Aman Patel, Clayton Rabideau, Yoshua Bengio, et al. Hyenadna: Long-
+rangegenomicsequencemodelingatsinglenucleotideresolution. Advancesinneuralinforma-
+tionprocessingsystems,36,2024.
+Samet Oymak, Ankit Singh Rawat, Mahdi Soltanolkotabi, and Christos Thrampoulidis. On the
+role of attention in prompt-tuning. In International Conference on Machine Learning, pages
+26724–26768.PMLR,2023.
+Rui Pan, Xiang Liu, Shizhe Diao, Renjie Pi, Jipeng Zhang, Chi Han, and Tong Zhang. Lisa:
+Layerwise importance sampling for memory-efficient large language model fine-tuning. arXiv
+preprintarXiv:2403.17919,2024.
+Sejun Park, Jaeho Lee, Chulhee Yun, and Jinwoo Shin. Provable memorization via deep neural
+networksusingsub-linearparameters. InConferenceonLearningTheory(COLT),pages3627–
+3661.PMLR,2021.
+Aleksandar Petrov, Philip HS Torr, and Adel Bibi. When do prompting and prefix-tuning work?
+atheoryofcapabilitiesandlimitations. arXivpreprintarXiv:2310.19698,2023.
+Aleksandar Petrov, Philip HS Torr, and Adel Bibi. Prompting a pretrained transformer can be a
+universalapproximator. arXivpreprintarXiv:2402.14753,2024.
+Hubert Ramsauer, Bernhard Schafl, Johannes Lehner, Philipp Seidl, Michael Widrich, Thomas
+Adler, Lukas Gruber, Markus Holzleitner, Milena Pavlovic, Geir Kjetil Sandve, et al. Hopfield
+networksisallyouneed. arXivpreprintarXiv:2008.02217,2020.
+ZhengxiangShiandAldoLipani. DePT:Decomposedprompttuningforparameter-efficientfine-
+tuning. InTheTwelfthInternationalConferenceonLearningRepresentations(ICLR),2024.
+68Zhenmei Shi, Junyi Wei, Zhuoyan Xu, and Yingyu Liang. Why larger language models do in-
+contextlearningdifferently? arXivpreprintarXiv:2405.19592,2024.
+KaranSinghal,ShekoofehAzizi,TaoTu,SSaraMahdavi,JasonWei,HyungWonChung,Nathan
+Scales,AjayTanwani,HeatherCole-Lewis,StephenPfohl,etal.Largelanguagemodelsencode
+clinicalknowledge. Nature,620(7972):172–180,2023.
+Arun James Thirunavukarasu, Darren Shu Jeng Ting, Kabilan Elangovan, Laura Gutierrez,
+TingFangTan,andDanielShuWeiTing.Largelanguagemodelsinmedicine.Naturemedicine,
+29(8):1930–1940,2023.
+HugoTouvron,ThibautLavril,GautierIzacard,XavierMartinet,Marie-AnneLachaux,Timothée
+Lacroix, Baptiste Rozière, Naman Goyal, Eric Hambro, Faisal Azhar, et al. Llama: Open and
+efficientfoundationlanguagemodels. arXivpreprintarXiv:2302.13971,2023a.
+Hugo Touvron, Louis Martin, Kevin Stone, Peter Albert, Amjad Almahairi, Yasmine Babaei,
+Nikolay Bashlykov, Soumya Batra, Prajjwal Bhargava, Shruti Bhosale, et al. Llama 2: Open
+foundationandfine-tunedchatmodels. arXivpreprintarXiv:2307.09288,2023b.
+Qiang Wang, Bei Li, Tong Xiao, Jingbo Zhu, Changliang Li, Derek F Wong, and Lidia S Chao.
+Learning deep transformer models for machine translation. arXiv preprint arXiv:1906.01787,
+2019.
+Yihan Wang, Jatin Chauhan, Wei Wang, and Cho-Jui Hsieh. Universality and limitations of
+prompttuning. AdvancesinNeuralInformationProcessingSystems(NeurIPS),36,2023a.
+ZhenWang,RameswarPanda,LeonidKarlinsky,RogerioFeris,HuanSun,andYoonKim. Multi-
+taskprompttuningenablesparameter-efficienttransferlearning. InTheEleventhInternational
+ConferenceonLearningRepresentations(ICLR),2023b.
+Jerry Wei, Jason Wei, Yi Tay, Dustin Tran, Albert Webson, Yifeng Lu, Xinyun Chen, Hanxiao
+Liu, Da Huang, Denny Zhou, et al. Larger language models do in-context learning differently.
+arXivpreprintarXiv:2303.03846,2023.
+Yuxin Wen, Neel Jain, John Kirchenbauer, Micah Goldblum, Jonas Geiping, and Tom Goldstein.
+Hard prompts made easy: Gradient-based discrete optimization for prompt tuning and discov-
+ery. AdvancesinNeuralInformationProcessingSystems,36,2024.
+Virginia Vassilevska Williams. On some fine-grained questions in algorithms and complexity.
+In Proceedings of the international congress of mathematicians: Rio de janeiro 2018, pages
+3447–3487.WorldScientific,2018.
+Dennis Wu, Jerry Yao-Chieh Hu, Teng-Yun Hsiao, and Han Liu. Uniform memory retrieval with
+largercapacityformodernhopfieldmodels. InForty-firstInternationalConferenceonMachine
+Learning(ICML),2024a.
+69Dennis Wu, Jerry Yao-Chieh Hu, Weijian Li, Bo-Yu Chen, and Han Liu. Stanhop: Sparse tan-
+demhopfieldmodelformemory-enhancedtimeseriesprediction. InTheTwelfthInternational
+ConferenceonLearningRepresentations(ICLR),2024b.
+ShijieWu,Ozan Irsoy,StevenLu,VadimDabravolski,Mark Dredze,SebastianGehrmann,Prab-
+hanjan Kambadur, David Rosenberg, and Gideon Mann. Bloomberggpt: A large language
+modelforfinance. arXivpreprintarXiv:2303.17564,2023.
+Ruibin Xiong, Yunchang Yang, Di He, Kai Zheng, Shuxin Zheng, Chen Xing, Huishuai Zhang,
+Yanyan Lan, Liwei Wang, and Tieyan Liu. On layer normalization in the transformer architec-
+ture. InInternationalConferenceonMachineLearning,pages10524–10533.PMLR,2020.
+Zhuoyan Xu, Zhenmei Shi, and Yingyu Liang. Do large language models have compositional
+ability? an investigation into limitations and scalability. In First Conference on Language
+Modeling(CoLM),2024.
+Hongyang Yang, Xiao-Yang Liu, and Christina Dan Wang. Fingpt: Open-source financial large
+languagemodels. arXivpreprintarXiv:2306.06031,2023.
+Chulhee Yun, Srinadh Bhojanapalli, Ankit Singh Rawat, Sashank Reddi, and Sanjiv Kumar. Are
+transformers universal approximators of sequence-to-sequence functions? In International
+ConferenceonLearningRepresentations(ICLR),2020.
+Yaowei Zheng, Richong Zhang, Junhao Zhang, Yanhan Ye, and Zheyan Luo. Llamafactory:
+Unifiedefficientfine-tuningof100+languagemodels. arXivpreprintarXiv:2403.13372,2024.
+Zhihan Zhou, Yanrong Ji, Weijian Li, Pratik Dutta, Ramana Davuluri, and Han Liu. Dnabert-
+2: Efficient foundation model and benchmark for multi-species genome. arXiv preprint
+arXiv:2306.15006,2023.
+Zhihan Zhou, Winmin Wu, Harrison Ho, Jiayi Wang, Lizhen Shi, Ramana V Davuluri, Zhong
+Wang, and Han Liu. Dnabert-s: Learning species-aware dna embedding with genome founda-
+tionmodels. arXivpreprintarXiv:2402.08777,2024.
+70

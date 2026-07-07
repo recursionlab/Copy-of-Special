@@ -1,0 +1,90 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "id": "concept-unit-schema",
+  "version": "0.2",
+  "description": "Enhanced schema for ConceptUnits in research-mining with additional metadata and validation",
+  "type": "object",
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique identifier for the ConceptUnit (e.g., functor-001)",
+      "pattern": "^[a-zA-Z0-9_-]+$"
+    },
+    "version": {
+      "type": "string",
+      "description": "Version of this ConceptUnit (e.g., 1.0.0)",
+      "default": "1.0.0"
+    },
+    "source": {
+      "type": "string",
+      "description": "Source material (e.g., paper title, book, URL)"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["Functor", "Recursion", "Autopoiesis", "Distinction", "Contradiction"],
+      "description": "Type of concept"
+    },
+    "definition": {
+      "type": "string",
+      "description": "Formal definition of the concept",
+      "minLength": 10
+    },
+    "mathematical_formulation": {
+      "type": "string",
+      "description": "Mathematical representation or formula (LaTeX or plain text)"
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Related concepts or ConceptUnit IDs",
+      "uniqueItems": true
+    },
+    "examples": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Code or math examples"
+    },
+    "prototypes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Paths to prototype implementations"
+    },
+    "references": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Bibliographic references or citations"
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Tags for categorization (e.g., category theory, self-reference)"
+    },
+    "extraction_date": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Date and time when this unit was extracted"
+    },
+    "confidence_score": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "description": "Confidence score for the extraction accuracy (0-1)"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Additional notes or observations"
+    }
+  },
+  "required": ["id", "source", "type", "definition"],
+  "additionalProperties": false
+}

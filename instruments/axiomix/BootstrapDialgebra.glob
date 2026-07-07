@@ -1,0 +1,314 @@
+DIGEST c048674cb22c519063996de06752bcf8
+FBootstrapDialgebra
+R127:137 ProofSystem <> <> lib
+R155:168 MetaAxiomMonad <> <> lib
+R186:198 SelfModKernel <> <> lib
+R216:228 LaterModality <> <> lib
+R246:249 Coq.Lists.List <> <> lib
+R259:271 Coq.Lists.List ListNotations <> mod
+ax 483:498 <> build_refl_deriv
+R514:524 ProofSystem <> ProofSystem rec
+binder 510:510 <> A:1
+R533:536 Coq.Init.Datatypes <> list ind
+R539:544 ProofSystem <> axioms proj
+R546:546 BootstrapDialgebra <> A:1 var
+binder 528:529 <> ps:2
+R553:559 Coq.Lists.List <> Forall2 ind
+R593:594 BootstrapDialgebra <> ps:2 var
+R590:591 BootstrapDialgebra <> ps:2 var
+binder 566:566 <> p:3
+binder 568:568 <> q:4
+R573:581 ProofSystem <> derivable proj
+R583:583 BootstrapDialgebra <> A:1 var
+R585:585 BootstrapDialgebra <> p:3 var
+R587:587 BootstrapDialgebra <> q:4 var
+ax 604:620 <> build_trans_deriv
+R636:646 ProofSystem <> ProofSystem rec
+binder 632:632 <> A:6
+R661:664 Coq.Init.Datatypes <> list ind
+R667:672 ProofSystem <> axioms proj
+R674:674 BootstrapDialgebra <> A:6 var
+binder 650:651 <> ps:7
+binder 653:654 <> qs:8
+binder 656:657 <> rs:9
+R723:728 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R681:687 Coq.Lists.List <> Forall2 ind
+R721:722 BootstrapDialgebra <> qs:8 var
+R718:719 BootstrapDialgebra <> ps:7 var
+binder 694:694 <> p:10
+binder 696:696 <> q:11
+R701:709 ProofSystem <> derivable proj
+R711:711 BootstrapDialgebra <> A:6 var
+R713:713 BootstrapDialgebra <> p:10 var
+R715:715 BootstrapDialgebra <> q:11 var
+R771:776 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R729:735 Coq.Lists.List <> Forall2 ind
+R769:770 BootstrapDialgebra <> rs:9 var
+R766:767 BootstrapDialgebra <> qs:8 var
+binder 742:742 <> p:12
+binder 744:744 <> q:13
+R749:757 ProofSystem <> derivable proj
+R759:759 BootstrapDialgebra <> A:6 var
+R761:761 BootstrapDialgebra <> p:12 var
+R763:763 BootstrapDialgebra <> q:13 var
+R777:783 Coq.Lists.List <> Forall2 ind
+R817:818 BootstrapDialgebra <> rs:9 var
+R814:815 BootstrapDialgebra <> ps:7 var
+binder 790:790 <> p:14
+binder 792:792 <> q:15
+R797:805 ProofSystem <> derivable proj
+R807:807 BootstrapDialgebra <> A:6 var
+R809:809 BootstrapDialgebra <> p:14 var
+R811:811 BootstrapDialgebra <> q:15 var
+ax 828:843 <> build_rule_deriv
+R859:869 ProofSystem <> ProofSystem rec
+binder 855:855 <> A:17
+R881:884 Coq.Init.Datatypes <> list ind
+R887:892 ProofSystem <> axioms proj
+R894:894 BootstrapDialgebra <> A:17 var
+binder 873:874 <> ps:18
+binder 876:877 <> qs:19
+R939:944 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R901:907 Coq.Lists.List <> Forall2 ind
+R937:938 BootstrapDialgebra <> qs:19 var
+R934:935 BootstrapDialgebra <> ps:18 var
+binder 914:914 <> p:20
+binder 916:916 <> q:21
+R921:925 ProofSystem <> rules proj
+R927:927 BootstrapDialgebra <> A:17 var
+R929:929 BootstrapDialgebra <> p:20 var
+R931:931 BootstrapDialgebra <> q:21 var
+R945:951 Coq.Lists.List <> Forall2 ind
+R985:986 BootstrapDialgebra <> qs:19 var
+R982:983 BootstrapDialgebra <> ps:18 var
+binder 958:958 <> p:22
+binder 960:960 <> q:23
+R965:973 ProofSystem <> derivable proj
+R975:975 BootstrapDialgebra <> A:17 var
+R977:977 BootstrapDialgebra <> p:22 var
+R979:979 BootstrapDialgebra <> q:23 var
+def 1001:1017 <> build_foundations
+R1024:1034 ProofSystem <> ProofSystem rec
+binder 1020:1020 <> A:25
+R1039:1049 ProofSystem <> ProofSystem rec
+R1059:1064 ProofSystem <> axioms proj
+R1059:1064 ProofSystem <> axioms proj
+R1059:1064 ProofSystem <> axioms proj
+R1091:1095 ProofSystem <> rules proj
+R1091:1095 ProofSystem <> rules proj
+R1158:1166 ProofSystem <> derivable proj
+R1158:1166 ProofSystem <> derivable proj
+R1233:1242 ProofSystem <> refl_deriv proj
+R1233:1242 ProofSystem <> refl_deriv proj
+R1272:1282 ProofSystem <> trans_deriv proj
+R1272:1282 ProofSystem <> trans_deriv proj
+R1313:1322 ProofSystem <> rule_deriv proj
+R1313:1322 ProofSystem <> rule_deriv proj
+R1069:1072 Coq.Init.Datatypes <> list ind
+R1075:1080 ProofSystem <> axioms proj
+R1082:1082 BootstrapDialgebra <> A:25 var
+binder 1104:1105 <> ps:26
+binder 1107:1108 <> qs:27
+R1113:1119 Coq.Lists.List <> Forall2 ind
+R1149:1150 BootstrapDialgebra <> qs:27 var
+R1146:1147 BootstrapDialgebra <> ps:26 var
+binder 1126:1126 <> p:28
+binder 1128:1128 <> q:29
+R1133:1137 ProofSystem <> rules proj
+R1139:1139 BootstrapDialgebra <> A:25 var
+R1141:1141 BootstrapDialgebra <> p:28 var
+R1143:1143 BootstrapDialgebra <> q:29 var
+binder 1175:1176 <> ps:30
+binder 1178:1179 <> qs:31
+R1184:1190 Coq.Lists.List <> Forall2 ind
+R1224:1225 BootstrapDialgebra <> qs:31 var
+R1221:1222 BootstrapDialgebra <> ps:30 var
+binder 1197:1197 <> p:32
+binder 1199:1199 <> q:33
+R1204:1212 ProofSystem <> derivable proj
+R1214:1214 BootstrapDialgebra <> A:25 var
+R1216:1216 BootstrapDialgebra <> p:32 var
+R1218:1218 BootstrapDialgebra <> q:33 var
+R1247:1262 BootstrapDialgebra <> build_refl_deriv prfax
+R1264:1264 BootstrapDialgebra <> A:25 var
+R1287:1303 BootstrapDialgebra <> build_trans_deriv prfax
+R1305:1305 BootstrapDialgebra <> A:25 var
+R1327:1342 BootstrapDialgebra <> build_rule_deriv prfax
+R1344:1344 BootstrapDialgebra <> A:25 var
+def 1362:1380 <> extract_foundations
+R1387:1397 ProofSystem <> ProofSystem rec
+binder 1383:1383 <> A:34
+R1402:1412 ProofSystem <> ProofSystem rec
+R1438:1443 ProofSystem <> axioms proj
+R1438:1443 ProofSystem <> axioms proj
+R1438:1443 ProofSystem <> axioms proj
+R1514:1518 ProofSystem <> rules proj
+R1514:1518 ProofSystem <> rules proj
+R1593:1601 ProofSystem <> derivable proj
+R1593:1601 ProofSystem <> derivable proj
+R1676:1685 ProofSystem <> refl_deriv proj
+R1676:1685 ProofSystem <> refl_deriv proj
+R1742:1752 ProofSystem <> trans_deriv proj
+R1742:1752 ProofSystem <> trans_deriv proj
+R1866:1875 ProofSystem <> rule_deriv proj
+R1866:1875 ProofSystem <> rule_deriv proj
+R1448:1449 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1451:1453 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1474:1476 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1506:1507 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1462:1465 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1454:1459 ProofSystem <> axioms proj
+R1466:1471 ProofSystem <> axioms proj
+binder 1450:1450 <> f:35
+binder 1484:1484 <> p:36
+R1487:1495 ProofSystem <> derivable proj
+R1499:1499 BootstrapDialgebra <> p:36 var
+R1502:1502 BootstrapDialgebra <> f:35 var
+R1504:1504 BootstrapDialgebra <> p:36 var
+binder 1527:1527 <> f:37
+binder 1529:1529 <> g:38
+binder 1541:1541 <> p:39
+R1544:1552 ProofSystem <> derivable proj
+R1557:1565 Coq.Init.Specif <> proj1_sig def
+R1569:1569 BootstrapDialgebra <> p:39 var
+R1567:1567 BootstrapDialgebra <> f:37 var
+R1573:1581 Coq.Init.Specif <> proj1_sig def
+R1585:1585 BootstrapDialgebra <> p:39 var
+R1583:1583 BootstrapDialgebra <> g:38 var
+binder 1610:1610 <> f:40
+binder 1612:1612 <> g:41
+binder 1624:1624 <> p:42
+R1627:1635 ProofSystem <> derivable proj
+R1640:1648 Coq.Init.Specif <> proj1_sig def
+R1652:1652 BootstrapDialgebra <> p:42 var
+R1650:1650 BootstrapDialgebra <> f:40 var
+R1656:1664 Coq.Init.Specif <> proj1_sig def
+R1668:1668 BootstrapDialgebra <> p:42 var
+R1666:1666 BootstrapDialgebra <> g:41 var
+binder 1694:1694 <> f:43
+binder 1703:1703 <> p:44
+R1708:1717 ProofSystem <> refl_deriv proj
+R1722:1730 Coq.Init.Specif <> proj1_sig def
+R1734:1734 BootstrapDialgebra <> p:44 var
+R1732:1732 BootstrapDialgebra <> f:43 var
+binder 1761:1761 <> f:45
+binder 1763:1763 <> g:46
+binder 1765:1765 <> h:47
+binder 1767:1768 <> H1:48
+binder 1770:1771 <> H2:49
+binder 1780:1780 <> p:50
+R1785:1795 ProofSystem <> trans_deriv proj
+R1800:1808 Coq.Init.Specif <> proj1_sig def
+R1812:1812 BootstrapDialgebra <> p:50 var
+R1810:1810 BootstrapDialgebra <> f:45 var
+R1816:1824 Coq.Init.Specif <> proj1_sig def
+R1828:1828 BootstrapDialgebra <> p:50 var
+R1826:1826 BootstrapDialgebra <> g:46 var
+R1832:1840 Coq.Init.Specif <> proj1_sig def
+R1844:1844 BootstrapDialgebra <> p:50 var
+R1842:1842 BootstrapDialgebra <> h:47 var
+R1848:1849 BootstrapDialgebra <> H1:48 var
+R1851:1851 BootstrapDialgebra <> p:50 var
+R1855:1856 BootstrapDialgebra <> H2:49 var
+R1858:1858 BootstrapDialgebra <> p:50 var
+binder 1884:1884 <> f:51
+binder 1886:1886 <> g:52
+binder 1888:1888 <> H:53
+R1893:1893 BootstrapDialgebra <> H:53 var
+R1438:1443 ProofSystem <> axioms proj
+R1438:1443 ProofSystem <> axioms proj
+R1438:1443 ProofSystem <> axioms proj
+R1514:1518 ProofSystem <> rules proj
+R1514:1518 ProofSystem <> rules proj
+R1593:1601 ProofSystem <> derivable proj
+R1593:1601 ProofSystem <> derivable proj
+R1676:1685 ProofSystem <> refl_deriv proj
+R1676:1685 ProofSystem <> refl_deriv proj
+R1742:1752 ProofSystem <> trans_deriv proj
+R1742:1752 ProofSystem <> trans_deriv proj
+R1866:1875 ProofSystem <> rule_deriv proj
+R1866:1875 ProofSystem <> rule_deriv proj
+R1448:1449 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1451:1453 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1474:1476 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1506:1507 Coq.Init.Specif <> ::type_scope:'{'_x_':'_x_'|'_x_'}' not
+R1462:1465 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1454:1459 ProofSystem <> axioms proj
+R1466:1471 ProofSystem <> axioms proj
+binder 1450:1450 <> f:54
+binder 1484:1484 <> p:55
+R1487:1495 ProofSystem <> derivable proj
+R1499:1499 BootstrapDialgebra <> p:55 var
+R1502:1502 BootstrapDialgebra <> f:54 var
+R1504:1504 BootstrapDialgebra <> p:55 var
+binder 1527:1527 <> f:56
+binder 1529:1529 <> g:57
+binder 1541:1541 <> p:58
+R1544:1552 ProofSystem <> derivable proj
+R1557:1565 Coq.Init.Specif <> proj1_sig def
+R1569:1569 BootstrapDialgebra <> p:58 var
+R1567:1567 BootstrapDialgebra <> f:56 var
+R1573:1581 Coq.Init.Specif <> proj1_sig def
+R1585:1585 BootstrapDialgebra <> p:58 var
+R1583:1583 BootstrapDialgebra <> g:57 var
+binder 1610:1610 <> f:59
+binder 1612:1612 <> g:60
+binder 1624:1624 <> p:61
+R1627:1635 ProofSystem <> derivable proj
+R1640:1648 Coq.Init.Specif <> proj1_sig def
+R1652:1652 BootstrapDialgebra <> p:61 var
+R1650:1650 BootstrapDialgebra <> f:59 var
+R1656:1664 Coq.Init.Specif <> proj1_sig def
+R1668:1668 BootstrapDialgebra <> p:61 var
+R1666:1666 BootstrapDialgebra <> g:60 var
+binder 1694:1694 <> f:62
+binder 1703:1703 <> p:63
+R1708:1717 ProofSystem <> refl_deriv proj
+R1722:1730 Coq.Init.Specif <> proj1_sig def
+R1734:1734 BootstrapDialgebra <> p:63 var
+R1732:1732 BootstrapDialgebra <> f:62 var
+binder 1761:1761 <> f:64
+binder 1763:1763 <> g:65
+binder 1765:1765 <> h:66
+binder 1767:1768 <> H1:67
+binder 1770:1771 <> H2:68
+binder 1780:1780 <> p:69
+R1785:1795 ProofSystem <> trans_deriv proj
+R1800:1808 Coq.Init.Specif <> proj1_sig def
+R1812:1812 BootstrapDialgebra <> p:69 var
+R1810:1810 BootstrapDialgebra <> f:64 var
+R1816:1824 Coq.Init.Specif <> proj1_sig def
+R1828:1828 BootstrapDialgebra <> p:69 var
+R1826:1826 BootstrapDialgebra <> g:65 var
+R1832:1840 Coq.Init.Specif <> proj1_sig def
+R1844:1844 BootstrapDialgebra <> p:69 var
+R1842:1842 BootstrapDialgebra <> h:66 var
+R1848:1849 BootstrapDialgebra <> H1:67 var
+R1851:1851 BootstrapDialgebra <> p:69 var
+R1855:1856 BootstrapDialgebra <> H2:68 var
+R1858:1858 BootstrapDialgebra <> p:69 var
+binder 1884:1884 <> f:70
+binder 1886:1886 <> g:71
+binder 1888:1888 <> H:72
+R1893:1893 BootstrapDialgebra <> H:72 var
+rec 2120:2137 <> BootstrapDialgebra
+proj 2146:2152 <> carrier
+proj 2172:2176 <> delta
+proj 2233:2237 <> gamma
+R2156:2166 ProofSystem <> ProofSystem rec
+R2180:2191 ProofSystem <> ProofFunctor rec
+R2194:2210 BootstrapDialgebra <> build_foundations def
+R2212:2218 BootstrapDialgebra <> carrier:74 meth
+R2221:2227 BootstrapDialgebra <> carrier:74 meth
+R2241:2252 ProofSystem <> ProofFunctor rec
+R2254:2260 BootstrapDialgebra <> carrier:74 meth
+R2263:2281 BootstrapDialgebra <> extract_foundations def
+R2283:2289 BootstrapDialgebra <> carrier:74 meth
+ax 2504:2529 <> smallest_guarded_dialgebra
+R2547:2557 ProofSystem <> ProofSystem rec
+binder 2543:2543 <> A:77
+R2563:2570 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R2593:2595 Coq.Init.Logic <> ::type_scope:'exists'_x_'..'_x_','_x not
+R2575:2592 BootstrapDialgebra <> BootstrapDialgebra rec
+binder 2571:2571 <> D:78
+R2596:2599 Coq.Init.Logic <> True ind

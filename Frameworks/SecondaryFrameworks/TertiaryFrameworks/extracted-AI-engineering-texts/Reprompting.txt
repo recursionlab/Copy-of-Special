@@ -1,0 +1,793 @@
+Reprompting: Automated Chain-of-Thought Prompt Inference
+Through Gibbs Sampling
+WeijiaXu1 AndrzejBanburski-Fahey1 NebojsaJojic1
+Abstract thescalabilityandgeneralizabilityofthemethod. Further-
+more,aproblemcanbereasonedinmanydifferentways,
+WeintroduceReprompting,aniterativesampling
+andsomeofthemmayworkwellonsomeLLMsbutnoton
+algorithmthatautomaticallylearnstheChain-of-
+others. TofairlycomparetheperformanceofvariousLLMs
+Thought(CoT)recipesforagiventaskwithout
+oneachtask,weneedtofindtheCoTpromptthatworksbest
+human intervention. Through Gibbs sampling,
+foreachmodelinafeasibleway,whichremainsachallenge.
+Reprompting infers the CoT recipes that work
+consistentlywellforasetoftrainingsamplesby Inthispaper,weproposeReprompting,aniterativesampling
+iterativelysamplingnewrecipesusingpreviously algorithmthatautomaticallyfindseffectiveCoTprompt
+sampledrecipesasparentpromptstosolveother foreachmodelgivenafewquestion-answerpairswithout
+trainingproblems. Weconductextensiveexper- human intervention. Specifically, the algorithm aims to
+iments on 20 challenging reasoning tasks. Re- infer a set of CoT recipes that perform consistently well
+sultsshowthatRepromptingoutperformshuman- asin-contextexamplesforasetoftrainingproblems. We
+writtenCoTpromptssubstantiallyby+9.4points frameitasaproblemofsamplingfromajointdistribution
+on average. It also achieves consistently better of CoT recipes given the training question-answer pairs,
+performancethanthestate-of-the-artpromptopti- which is infeasible to characterize directly but can be ap-
+mizationanddecodingalgorithms. proachedusingGibbssampling–weinitiallysampleaset
+ofrecipesthroughzero-shotprompting,expandthesetwith
+newrecipessamplediterativelybyusingpreviouslysampled
+1.Introduction recipesasparentpromptstosolveadifferenttrainingprob-
+lem, andweedouttheleast-fitrecipesthatleadtowrong
+Few-shot prompting with large language models (LLMs)
+answers. Thus,thealgorithmwilleventuallyconvergeto
+has revolutionized the landscape of natural language pro-
+asetofrecipesthatsharesimilarchainsofthoughtforef-
+cessing. Given natural language instructions and a few
+fectivelysolvingthetrainingproblems. TheseCoTrecipes
+demonstrationsasin-contextexamples,LLMscanquickly
+optimized on the training set then serve as effective CoT
+adapttonewtasks,approachingorevensurpassingtheper-
+promptsforsolvingunseentestproblems.
+formanceofmodelsfine-tunedonlargerdatasetsonawide
+rangeoftasks(Brownetal.,2020). However,suchprompt- We evaluate Reprompting on 20 tasks from three reason-
+ingtechniquesfallshortontasksthatrequiremulti-steprea- ing benchmarks including Big-Bench Hard (BBH) (Suz-
+soningandconstraintpropagation(Weietal.,2022),suchas gun et al., 2022), GSM8K (Cobbe et al., 2021) and
+logicaldeductionintheBig-BenchHardbenchmark(Suz- MATH(Hendrycksetal.,2021)usingChatGPT(OpenAI,
+gunetal.,2022). Toaddresstheselimitations,priorworks 2023) and InstructGPT (Ouyang et al., 2022) as LLMs.
+proposedtoteachLLMstoreasonstepbysteplikehumans Comparedwithhuman-writtenCoTprompts,Reprompting
+bypromptingthemwithchain-of-thought(CoT)reasoning achieves+9.4higheraccuracyonaverage. Italsoconsis-
+stepsforafewexampleproblems(Weietal.,2022).Despite tentlyoutperformsself-consistencydecoding(Wangetal.,
+theimprovedperformance,suchamethodrequireshuman 2022b), Auto-CoT (Zhang et al., 2022) and Automatic
+expertswithnotonlythetaskknowledgebutalsoanunder- PromptOptimization(Pryzantetal.,2023)by11–33points
+standingofhowpromptingworkstocrafttheCoTprompt on average. Furthermore, Reprompting facilitates model
+foreachtask(Zamfirescu-Pereiraetal.,2023),whichlimits combinationbyusingdifferentLLMsforinitializingand
+samplingnewrecipes. Empirically,leveragingChatGPTto
+1MicrosoftResearch,Redmond,USA.Correspondenceto:Wei-
+sampleinitialrecipesforInstructGPTbringsupto+71point
+jiaXu<weijiaxu@microsoft.com>.
+improvementsoverusingInstructGPTaloneandevenout-
+Proceedings of the 41st International Conference on Machine performsChatGPTaloneoncertaintasks.Lastly,ourresults
+Learning,Vienna,Austria.PMLR235,2024.Copyright2024by confirmthattheCoTrecipesthatworkwellononemodel
+theauthor(s).
+1
+4202
+yaM
+32
+]GL.sc[
+2v39990.5032:viXraReprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+amongdifferentpatternsanLLMmightdetect. Thesecond
+roleismoreimportant: itprovidesstep-by-stepguidance
+ononeproblemandthusteachesanLLMtosolvesimilar
+problemsfollowingthesameroutineasitcontinuesthetext
+conditionedontheprevioustokens. Intheextreme, with
+promptsthatstrictlyregimentself-attention,GPTmodels
+can be turned into Turing Machines to execute standard
+computer algorithms (Jojic et al., 2023). In practice, the
+CoTpromptscommonlyusedinpriorworkfallsomewhere
+between colloquial explanations and regimented recipes.
+Formally,in-contextlearningwithCoTinferstheanswer
+Figure1:AnexamplethatChatGPTcanproposevariousdifferent foragiventestquestionxbypromptinganLLMwithan
+solutionstothesameprobleminzero-shot. optionalinstructionmessagemandasetofdemonstration
+exampleswithstep-by-stepsolutions{x,z,y}K :
+i i i i=1
+mayworkpoorlyonanother,evenwhenthelattermayap-
+zˆ,yˆ∼p (z,y|{x,z,y}K ,x,m) (2)
+proachthebestperformanceusingpromptsoptimizedfor LLM i i i i=1
+itself. Thesefindingsemphasizetheneedtooptimizethe
+promptforeachmodelforfaircomparisons. Here,misatextualmessagethatinstructsthemodeltogen-
+eratethestep-by-stepsolutionz beforetheanswertexty
+j j
+and the specific format to present the answer.1 It can be
+2.Reprompting: PromptInferenceThrough
+task-specificorgeneric,asinthecaseofourexperiments.
+GibbsSampling
+Suchaninstructionmessagecantriggerinstruction-tuned
+2.1.In-ContextLearning LLMstogeneratestep-by-stepsolutionsgiven[x j,m]alone
+withoutanydemonstrationexamples(i.e.K=0),asillus-
+In-contextlearninghasbecomethecornerstoneofevalu- trated in Figure 1. These solutions follow varying styles
+atinglargelanguagemodels(LLMs)(Brownetal.,2020; and often lead to incorrect answers. However, we argue
+Srivastava et al., 2022). To facilitate this evaluation ap- thatgoodrecipesforsolvingthesetofproblemsonagiven
+proach, data is provided for a large number of different taskcanevolvefromthesezero-shotsolutions. Inthenext
+tasks, witheachtaskconsistingofdozensor, moreoften, section,weintroduceReprompting,aniterativesampling
+hundredsofinstanceswithvaryingproblemsetupandques- algorithmthatautomaticallyproducestheCoTrecipesfora
+tiontextsx iandtheircorrespondingtextanswersy i,where givensetofproblemswithouthumanintervention.
+i∈[1..N]andN isthenumberofprobleminstancesforthe
+task. Formally,in-contextlearninginferstheanswerfora
+2.2.PromptInferenceThroughGibbsSampling
+giventestquestionx bypromptinganLLMwithasetof
+demonstrationexamples{x,y}K : We introduce the Reprompting algorithm, which aims to
+i i i=1
+find a set of CoT recipes z that work consistently well
+i
+yˆ∼p LLM(y|{x i,y i}K i=1,x) (1) as few-shot in-context examples for a dataset {x i,y i}N i=1.
+Specifically, we formulate it as the problem of sampling
+Theperformanceofin-contextlearningcanbesignificantly fromajointdistribution
+enhancedbyincorporatingauxiliaryknowledgeorhuman-
+writteninstructionsinaprompt(Shwartzetal.,2020;Zelik- p(z 1,z 2,...z N|{x i,y i}N i=1,m) (3)
+manetal.,2022;Nyeetal.,2021),particularlyintheform
+of Chain-of-Thought (CoT) reasoning (Wei et al., 2022; suchthatz 1...N aregeneralizedenoughsothatgivenanytest
+Wangetal.,2022b;Zhouetal.,2022;Creswelletal.,2022; question x, the distribution over z and y is approximately
+Wangetal.,2022a;Liuetal.,2022;Kojimaetal.,2022;Li invarianttothechoiceoftheK-shotCoTrecipes:
+etal.,2022).
+p (z,y|{x,z,y}N ,x,m)
+In-contextlearningwithCoT(Weietal.,2022)canbeseen LLM i i i i=1 (4)
+≈p (z,y|{x,z,y} ,x,m), ∀S⊂[1,N],|S|=K
+LLM i i i i∈S
+inasimilarlight,statistically. Inadditiontothequestion-
+answerpairs{x,y},theCoTpromptalsocontainsworked
+i i
+out step-by-step reasoning “recipes” z in text, which are Without characterizing the joint distribution, we can use
+i
+insertedbetweenthequestionandanswer:{x,z,y}. These Gibbssampling(Geman&Geman,1984)togeneratesuch
+i i i
+recipescanplaytworoles. First, theyfurtherexplainthe
+1This enables us to separate the generated answer y j from
+intentofthequestionx i,asasmallcollectionofquestion- the step-by-step solution z j and forces the model to stop after
+answer pairs alone may be insufficient to disambiguate generatingtheanswer.
+2Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+samples{z 1,z 2,...z N}byfirstsampling{z 1,z 2,...z N}inde- Algorithm1:Repromptingalgorithm
+pendently from the distributions p(z |x ,y ), and then it-
+j j j Input:Trainingset{x,y}N ,numberofexamplesin
+eratively drawing samples from the conditional distribu- i i i=1
+thepromptK,numberofiterationsM,rejection
+tions p(z |z ,...,z ,z ,...z ,{x,y}N ,m). Based on
+j 1 j−1 j+1 N i i i=1 probability p ,theinitializationmodelLLM
+theproperty(4)ofthejointdistribution,wehavethefollow- rej 1
+andthesamplingmodelLLM
+ingapproximation: 2
+1 Initialization:
+p(z |z ,...,z ,z ,...z ,{x,y}N ,m) 2 foreach jdo
+j 1 j−1 j+1 N i i i=1 3 z j←0/
+=p (z |{x,z,y} ,x ,y ,m)
+LLM j i i i i̸=j j j 4 Samplezˆ j,yˆ j∼p LLM1(z,y|x j,m)
+∝p LLM(z j,y j|{x i,z i,y i} i̸=j,x j,m) (5) 5 Sampleu∼Uniform([0,1])
+≈p LLM(z j,y j|{x i,z i,y i} i∈Sj,x j,m), 6 ifyˆ j=y j oru>p rej then
+∀S ⊂[1,N]\{j},|S |=K 7 z j←zˆ j
+j j 8 end
+Thus, we can sample z by randomly picking K data 9 end
+j
+points (excluding j) and then sampling z with weights 10 Sampling:
+j
+proportionaltotheconditionalprobability 11 repeat
+12 Randomlyselect j∈[1,N]
+p LLM(z j,y j|{x i,z i,y i} i∈Sj,x j,m) 13 RandomlyselectS j⊂[1,N]\{j}ofsizeK
+=p LLM(z j|{x i,z i,y i} i∈Sj,x j,m) (6) 1 14
+5
+S Sa am mp pl le ez uˆ j ∼,yˆ Uj∼ nip fL oL rM m2 (( [z 0, ,y 1|{ ])x i,z i,y i} i∈Sj,x j,m)
+·p LLM(y j|{x i,z i,y i} i∈Sj,x j,m,z j) 16 ifyˆ j=y j oru>p rej then
+17 z j←zˆ j
+One way to approximate it is to sample several zˆ from
+j 18 end
+theLLMconditionedon{x,z,y} ,x andm,compute
+i i i i∈Sj j 19 untilconvergenceorMiterationsarereached
+the weight for each zˆ using the model’s probability of
+j
+the correct answer y conditioned on {x,z,y} , x , m
+j i i i i∈Sj j
+and zˆ , and sample a z from {zˆ } based on the weights.
+j j j
+Inpractice,however,themodellikelihoodofagiventext
+by randomly selecting K recipes from the population as
+may be inaccessible. Thus, we approximate it using re-
+parentrecipes,whicharethenusedtoprompttheLLMto
+jection sampling – we sample z by sampling zˆ and yˆ
+j j j
+generaterecipesforanewproblem. Byrepeatingthe2aand
+from p (z,y|{x,z,y} ,x ,m)andthenrejectzˆ with
+LLM i i i i∈Sj j j
+2bsteps,initialrecipescanberecombined(Figure4)and
+a probability of p if yˆ ̸=y . Otherwise, we accept zˆ
+rej j j j
+evolveintobetterrecipes(Figure3)throughiterations. And
+and update the sample. Algorithm 1 shows the complete
+eventually,thefittestrecipes(i.e. onesthatcanbefollowed
+Repromptingalgorithmconsistingoftheinitializationand
+tosolvesimilarproblems)willsurvive.
+iterativesamplingsteps. Notethatwesettherejectionprob-
+ability p rej inawaythatallowssolutionsthatleadtoincor- During testing, we select K tuples {x i,z i,y i} from the in-
+rectanswerstobekeptoccasionally,asthesesolutionsmay ferred{z }basedonthetrainingaccuracywhenusingeach
+j
+stillcontainusefulsegmentsthatevolveintogoodrecipes tupleindividuallyinaprompt.
+throughReprompting.
+Based on the properties of Gibbs sampling (Casella 3.ExperimentalSetup
+& George, 1992; Roberts & Smith, 1994), the algo-
+We evaluate the Reprompting algorithm against var-
+rithm should converge to the point where the probability
+ious baselines including zero-shot, few-shot, Chain-
+p (z ,y |{x,z,y} ,x ,m)ishighandagnostictothe
+LLM j j i i i i∈Sj j
+of-Thought (CoT), Chain-of-Thought combined with
+choiceofS ,whichleadstoasetof{z }thatworkwellas
+j j
+self-consistency decoding (Wang et al., 2022b), Auto-
+apromptforsolvingsimilarproblemsinaseparatetestset.
+CoT (Zhang et al., 2022) and Automatic Prompt Opti-
+Thealgorithmcanalsobeviewedasavariantofevolution- mization (Pryzant et al., 2023) on 20 challenging rea-
+aryalgorithms:1)First,wegeneratetheinitialpopulation soning tasks, including 12 challenging tasks in the Big-
+ofindividuals(whereeachindividualisaCoTrecipegiven Bench Hard (BBH) benchmark (Suzgun et al., 2022),2
+aproblem). 2)Next,werepeatthefollowingregeneration
+2TheBBHtasksincludeLogicalDeduction,GeometricShapes,
+stepsiteratively:2a)wefirstevaluatethefitnessofeachCoT
+ObjectCounting,PenguinsinaTable,TemporalSequences,Date
+recipebycomparingtheanswerthatfollowstherecipewith
+Understanding,FormalFallacies,MovieRecommendation,Rea-
+thecorrectanswerandweedouttheleast-fitrecipes;2b)we soningAboutColoredObjects,RuinNames,SalientTranslation
+thenbreednewindividualsthroughcrossoverandmutation ErrorDetection,andWordSorting.
+3Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+GSM8K(Cobbeetal.,2021)andMATH(Hendrycksetal., Prompt Optimization Baselines We also compare Re-
+2021).Wechoosebothtasksthathavebeenshowntobenefit promptingwithtwopreviousstate-of-the-artpromptopti-
+substantiallyfromhuman-writtenCoTrecipes,suchasLog- mization algorithms, including Auto-CoT (Zhang et al.,
+ical Deduction, Geometric Shapes, Temporal Sequences, 2022)andAPO(Pryzantetal.,2023). ForAuto-CoT,since
+GSM8KandMATH,andtasksonwhichCoTdoesnotim- theoriginalAuto-CoTalgorithmdiffersfromoursettingas
+provemuchordoesnotimproveconsistentlyoverzero-shot itfocusesontheunsupervisedsettingwithoutexploitingany
+prompting,suchasFormalFallacies,MovieRecommenda- labeledexamples,weadaptthealgorithmtoourfew-shot
+tionandWordSorting. settingwhereitfollowstheoriginalalgorithmtogenerate
+diverseCoTrecipesthroughzero-shotpromptingbutselects
+3.1.RepromptingSetup thedemonstrationexamplesbasedonthetrainingaccuracy
+whenusedindividuallyinaprompt.5 WealsoevaluateAPO,
+For each task, we randomly select 20 training examples
+arecentlyproposednonparametricpromptoptimizational-
+from the Big-Bench dataset excluding the test examples
+gorithm that uses LLMs to generate “textual gradient” –
+in the BBH benchmark.3 We experiment with hav-
+criticismofthecurrentprompt–basedontrainingsamples
+ing k∈{1,3} clones ofthe same training example in the
+andeditthepromptaccordingly. Thealgorithmhasbeen
+set{x,y}N toallowformorediverserecipesamples(so
+i i i=1 showntooutperformotherpromptoptimizationmethods,
+the number of recipes we need to sample from the joint
+suchasTEMPERA(Zhangetal.,2023),AutomaticPrompt
+distribution(3)isN=20∗k)andchoosekthatobtainsthe Engineering(Zhouetal.,2023),andAutoGPT.6
+highesttrainingaccuracy. Wesetthenumberofexamplesin
+thepromptbyK=5. WerunRepromptingforamaximum
+3.3.LargeLanguageModels(LLMs)
+of M=20,000 iterations. We allow for early stopping if
+the average training accuracy stops increasing for 1,000 We experiment with two powerful LLMs including Chat-
+iterations. For the rejection probability, we experiment GPT(gpt-3.5-turbo;OpenAI(2023))andInstructGPT(text-
+with p ∈{0.95,0.99}andchoose p =0.99asitleads davinci-003; Ouyang et al. (2022)). We also experiment
+rej rej
+tohighertrainingaccuracyonvarioustasks. withacombomodelforRepromptingwhereweuseChat-
+GPTasLLM forinitializationandInstructGPTasLLM
+1 2
+3.2.Baselines forsampling. ForbothLLMs,wesetthemaximumnumber
+ofoutputtokensto500,top_p=0.5,zerofrequencyand
+PromptingBaselines Forzero-shotprompting,weonly
+presencepenalty. Additionally,weinclude“END”asthe
+includethetestquestionx andthespecialmessageminthe
+i stopword. Wesetthetemperatureto1.0forReprompting
+prompt,whichtriggersthemodeltogenerateastep-by-step
+and0.0fortesting.
+solutionpriortotheanswertext. Forfew-shotprompting,
+werandomlyselect20trainingexamplesinthesamewayas
+3.4.EvaluationProtocol
+inRepromptingandconcatenatetheseexamplesintheform
+ofquestion-answerpairsintheprompt,followedbythetest Weextractthefinalanswerfromthemodeloutputbyextract-
+question. ForCoTprompting,weusethehuman-written ingthetextbetween“<answer>”and“</answer>”,except
+CoTpromptsfromSuzgunetal.(2022). ForCoTwithself- fortheCoTbaselinewhereweextractthefinalanswerinthe
+consistencydecoding,weusethesameCoTpromptsand samewayasinSuzgunetal.(2022). Wemeasureaccuracy
+followWangetal.(2022b)bysampling10reasoningpaths basedonexactmatchbycomparingtheextractedanswer
+perquestionandtakingthemajorityvoteontheanswer. For withthegroundtruth.
+bothapproaches,werandomlyselect20trainingexamples
+inthesamewayasinReprompting.4
+4.Results
+3Except for Penguins in a Table where there are only three
+4.1.MainResults
+samplesintheBig-BenchdatasetthatareexcludedfromBBH,so
+werandomlyselect17moreexamplesfromBBHintothetraining WefirstcomparetheperformanceofRepromptingwithall
+set.
+thebaselinesonfiveBBHtasks. AsshowninTable1,re-
+4Recentpromptingmethodsthataremoreannotation-intensive,
+sultsconfirmthepreviousfindingthatfew-shotin-context
+such as Complex-CoT (Fu et al., 2022) and Progressive-Hint
+Prompting (Zheng et al., 2023), are shown to outperform Re- promptingimprovestheperformanceoverzero-shot(Brown
+promptingby3.3–5.6pointsonGSM8K.However,thesemethods etal.,2020)andthatCoTpromptingoutperformsbothzero-
+leveragesubstantiallymorehuman-annotatedexamples(e.g.7.5K shotandfew-shotpromptingbyalargemargin. However,
+annotatedexamplesonGSM8K)thanReprompting,thustheyare
+human-writtenCoTpromptingrequirescostlyprompten-
+notdirectlycomparable.
+5TheoriginalAuto-CoTalgorithmselectsthedemonstration
+examplesbasedonthediversityofthedemonstrationquestions.
+6https://news.agpt.co/
+4Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+ZS FS CoT CoT+SC APO AutoCoT Reprompting
+BBHTask SOTA
+ChatGPT ChatGPT InsGPT Chat+Ins
+Logical 60.4 35.1 46.4 63.1 62.7 28.0 53.2 66.3 53.7 60.0
+Geometric 56.0 13.6 20.0 58.0 60.0 52.0 52.4 72.8 40.8 64.4
+ObjectCount 93.2 52.4 46.8 95.6 95.2 74.8 88.8 97.2 42.8 99.6
+Penguins 81.5 50.7 60.3 67.1 71.2 45.2 85.6 85.6 78.1 82.9
+Temporal 96.8 38.4 41.2 66.8 66.8 50.4 80.8 93.2 28.4 99.2
+Average 77.6 38.0 42.9 70.1 71.2 50.1 72.2 83.0 48.8 81.2
+Table1:Performanceofseverallargelanguagemodels(LLMs)usingRepromptingversusthebaselinepromptingandpromptoptimization
+methodsonBig-BenchHard(BBH)tasks.SOTAreferstothestate-of-the-artperformanceamongInstructGPT(text-davinci-002;Ouyang
+etal.(2022)),Codex(Chenetal.,2021),andPaLM540B(Chowdheryetal.,2022)usingCoTpromptingfromSuzgunetal.(2022).
+WealsocompareRepromptingwithChatGPTusingZS(zero-shot), FS(few-shot), CoT,CoT+SC (CoTpromptingcombinedwith
+self-consistencydecoding(Wangetal.,2022b)),APO(automaticpromptoptimizationusingtextualgradient(Pryzantetal.,2023)),
+andAutoCoT(thefew-shotversionofAuto-CoT(Zhangetal.,2022)).ForReprompting,weshowtheperformanceofvariousLLMs
+–includingChatGPT(gpt-3.5-turbo;OpenAI(2023)),InstructGPT(text-davinci-003),andChat+Instruct(acomboversionthatuses
+ChatGPTforinitializationandInstructGPTatsamplingsteps).
+gineering, as not all CoT recipes work equally well on usedforrecombiningandevolvingthem,itislesscapable
+LLMs(Madaan&Yazdanbakhsh,2022;Jojicetal.,2023). ofgeneratingdiverseinitialsolutionsinazero-shotmanner.
+Crucially, we show that using Reprompting, LLMs can However, through Reprompting, we can use ChatGPT
+achievebetterperformancecomparedtotheexistingCoT to “teach” InstructGPT diverse strategies for solving the
+prompts,butwithoutrequiringanyhumanguidanceonhow trainingproblems,whicharethenrecombinedandevolved
+tosolveproblemsstepbystep. Specifically,comparingthe byInstructGPTintobetterCoTpromptsforitself.
+performanceofChatGPTusingRepromptingversusthebest
+Furthermore,Table2showstheperformanceofReprompt-
+human-writtenCoTpromptsfromSuzgunetal.(2022),Re-
+ingagainstzero-shot,few-shotandCoTprompting(allus-
+promptingachievesconsistentlyhigherscoresonalltasks.
+ingChatGPT)ontheremaining15tasks.7 Repromptingstill
+Next,wecompareRepromptingwithself-consistency(SC) outperformszero-shotandfew-shotpromptingconsistently
+decoding (Wang et al., 2022b). CoT+SC improves over and substantially by 14-15 points on average. Compared
+CoT on two of the five tasks, but the improvements are with CoT, Reprompting achieves better performance on
+not consistent. By contrast, Reprompting consistently 11outof15tasks. Onaverage,Repromptingoutperforms
+outperformsCoT+SCby2–26pointsonallfivetasks. CoT by +8.2 points. Interestingly, on tasks where CoT
+even underperforms zero-shot prompting, such as Movie
+Additionally, we compare Reprompting with existing
+Recommendation,SalientTranslationErrorDetection,and
+promptoptimizationalgorithms. APOimprovesoverzero-
+Word Sorting, Reprompting still improves over zero-shot
+shotpromptingonthreeoutoffivetasksbutunderperforms
+promptingbylargemargins. ThissuggeststhatnotallCoT
+itonthetwotaskswherethemodelneedstosearchthrough
+recipesimprovemodelperformance,andsomemayeven
+awiderangeofstrategiestofindeffectivesolutions.Bycon-
+leadtodegradation. Thisfurtheremphasizestheneedfor
+trast,Repromptingconsistentlyoutperformszero-shotand
+algorithmslikeRepromptingfordiscoveringandoptimizing
+CoTprompting,andimprovesoverAPOby20–43points
+theCoTprompttobestexploitandcompareLLMs.
+onallfivetasks. WhencomparedagainstAuto-CoT(Zhang
+et al., 2022), Reprompting also archives higher accuracy Overall,thesefindingshighlightthepotentialofReprompt-
+by+11pointsonaverage. Insummary,Repromptingoutper- ingasapowerfulmethodforautomatingCoTpromptingon
+formsstrongdecodingandpromptoptimizationbaselines awiderangeoftasks.
+by11–33pointsonaverage.
+4.2.QuantitativeAnalysis
+Comparing the performance of Reprompting on different
+LLMs,weobservethatInstructGPTunderperformsChat- AblationStudy Weconductanablationstudyontherejec-
+GPTonmosttasks. However,weshowthatbyusingChat- tionsamplingandrecombinationprocess.ResultsinTable3
+GPTjustastheinitializationmodelLLM 1 tobootstrapIn- showthat,withoutrejectionsampling,thetestperformance
+structGPTasLLM 2inReprompting,wecanimproveperfor- degrades substantially by 25 point on average. Always
+manceoverInstructGPTaloneby5–71pointsandachieve
+competitiveorevenbetterperformancethanChatGPTalone
+7BasedonthemainresultsinTable1,CoT+SCandAuto-CoT
+aremorecomplicatedthanCoTbutonlyslightlyimprovesover
+ontwoofthefivetasks. WeshowintheAppendixwhythat
+CoT.Thus,weselectCoTasabaselinehere.
+is: whileInstructGPTcanfollowagivenrecipeandevenbe
+5Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+0.90
+0.85
+0.80
+0.75
+0.70
+0.65
+0.60
+0.55
+0 2000 4000 6000 8000 10000
+Iterations
+ycaruccA
+gniniarT
+egarevA
+1.0
+0.9
+0.8
+0.7
+0.6
+0.5
+0 2000 4000 6000 8000 10000
+Iterations
+(a)InstructGPT
+ycaruccA
+gniniarT
+egarevA
+0.9
+0.8
+0.7
+0.6
+0.5
+0.4
+0.3
+0 4000 8000 12000 16000 20000
+Iterations
+(b)ChatGPT
+ycaruccA
+gniniarT
+egarevA
+(c)ChatGPT+InstructGPT
+Figure2:LearningcurvesoftheRepromptingalgorithmusingInstructGPT,ChatGPT,andthecomboChatGPT+InstructGPTmodelson
+theLogicalDeductiontask.They-axisshowstheaccuracyontrainingsamplesaveragedoverthecurrentandallpreviousiterations.
+ZS FS CoT Reprompting p =0 p =1 NoRec Orig.
+rej rej
+BBH Logical 56.3 61.9 54.7 66.3
+Date 63.6 46.4 76.8 76.4 ObjectCount 52.0 97.2 95.6 97.2
+Formal 49.2 53.6 48.4 56.8 Temporal 74.8 74.4 90.4 93.2
+Movie 59.2 72.4 25.6 78.4
+Average 61.0 77.8 80.2 85.6
+ColoredObj 66.8 48.8 76.0 74.0
+Ruin 53.2 66.8 60.8 74.8
+Table3: Ablationstudyonrejectionsampling(includingnore-
+Salient 43.2 53.2 32.8 54.8
+jection(p rej=0)andalwaysrejecting(p rej=1))andrecombina-
+WordSort 58.0 72.0 46.0 73.2
+tion(NoRecrepresentsRepromptingwithoutrecombinationofpre-
+viouslysampledrecipes)onLogicalDeduction,ObjectCounting,
+GSM8K 45.6 26.5 75.6 79.5
+andTemporalSequencesfromBig-BenchHard(BBH)(Suzgun
+MATH etal.,2022).TheOrig.columnrepresentsthestandardReprompt-
+Algebra 37.6 23.7 52.0 53.1 ingalgorithmwithoutablation.
+Counting 17.1 19.8 26.6 32.3
+Tasks InsGPT ChatGPT
+Geometry 12.4 16.2 28.5 29.2
+IntAlgebra 9.4 12.1 18.0 16.8 Logical 65.9 66.3∗
+Number 20.8 17.1 32.9 33.3 Geometric 53.6 72.8∗
+Prealgebra 31.4 33.2 54.0 43.8 ObjectCount 99.6∗ 96.8
+Precalculus 7.4 18.4 19.0 19.3 Penguins 82.2 85.6∗
+Temporal 99.2∗ 81.6
+Average 38.3 38.7 44.9 53.0
+Table4:TestingthebestperformingCoTpromptlearnedonChat-
+Table 2: Performance of ChatGPT using Reprompting versus
+GPT,InstructGPTorInstructGPT+ChatGPTthroughReprompting
+ZS(zero-shot), FS(few-shot), andCoT promptingmethodson
+onbothChatGPTandInstructGPT.Thesuperscript∗denotesthe
+sevenadditionaltasksfromBig-BenchHard(BBH)(Suzgunetal.,
+modelusedasLLM inReprompting.
+2022),GSM8K(Cobbeetal.,2021)andMATH(Hendrycksetal., 2
+2021).
+workaswellforothermodels. Specifically,weobservethat
+ontaskssuchasLogicalDeductionandObjectCounting,
+rejectingsolutionsthatleadtoincorrectanswersalsocauses
+thebestCoTrecipesachievesimilarperformanceonboth
+adegradationof8point.Additionally,notallowingmultiple
+InstructGPTandChatGPT.However,onGeometricShapes
+solutionstoberecombinedwhensamplingnewsolutions
+andTemporalSequences,thebestCoTpromptsoptimized
+attheiterativesamplingstagealsohurtsperformance.
+for LLM work well on LLM , but poorly with the other
+2 2
+LLM–usingthemontheotherLLMleadsto18–19points
+DothegeneratedCoTrecipesgeneralizeacrossmodels? lower accuracy than testing with LLM (see examples in
+2
+We test the best-performing CoT recipes optimized with Figure A.2). On such tasks, using the prompt optimized
+InstructGPT,ChatGPT,orInstructGPT+ChatGPTthrough for the testing LLM improves accuracy by 11–12 points
+RepromptingonbothInstructGPTandChatGPT.Asshown overthesametestingLLMwithpromptoptimizedforother
+inTable4,theCoTrecipesoptimizedforonemodelmaynot LLMs.Theseresultssuggestthat,tomakeafaircomparison
+6Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+Figure3:AnexampleofhowtheCoTrecipesevolvethroughReprompting.Intheleft-mostrecipe,themodel(ChatGPT)firstreorders
+theconstraintssothattheoneswithabsoluterankingpositionsareconsideredpriortotheoneswithrelativepositions(highlightedindark
+blue).Next,themodelattemptstodeducetheobjectsatspecificpositionsbutmakesamistake(seetheredunderlinedpart).Despitethe
+error,thisrecipestillprovidesausefulstrategyforsolvingsimilarproblems–whenitisusedinaprompttosolveanotherproblem,the
+modelfirstadoptsthesamestrategytoreordertheconstraintsandthenproposesanotherwaytodealwiththeconstraints(highlightedin
+orange).Althoughtheresultingsolutionstillcontainserrors,itmakesagoodrecipeforsolvingthistypeofproblem.Thus,whenusingit
+inanewprompttosolveyetanotherproblem,themodelcanfollowthesamerecipeanddeducethecorrectanswer.
+between different LLMs, one needs to optimize the CoT LLM(evenwithReprompting,onecanalsosavethecostby
+promptforeachmodel. runningitwithChatGPTandusingtheinferredCoTprompt
+onotherLLMs),itrisksmakingunfaircomparisonsaswe
+RepromptingimprovesCoTrecipesoveriterations. In haveshowninTable4thattheCoTpromptthatworkswell
+Figure2,weplottheaveragetrainingaccuracy(averaged ononemodelmaybesub-optimalforanother.
+overiterationsuptothecurrentiteration)overtrainingit-
+erationsonLogicalDeduction. Forallthreemodelvariants, 4.3.QualitativeAnalysis
+theinitialtrainingaccuracyisrelativelylow,butitgradually
+Weobservethatevenmodeloutputscontainingerrorsand
+increases(withoccasionalfluctuations)overiterationsuntil
+unreasonabledeductionscanevolveintoahigh-quality
+convergence. Thisistheresultofevolutionandrecombi-
+recipe through Reprompting. This is illustrated by the
+nationoftherecipesassociatedwithtrainingexamples.
+LogicalDeductionexampleinFigure3,whenK=1,where
+themodelinitiallygeneratesarecipethatiserroneousand
+ComputeandResources WeusetheOpenAIAPIsforall
+contains illogical deductions. However, when this recipe
+ourexperiments.8 RunningRepromptingcostsaround$80
+is used as the new prompt for solving a similar problem,
+(inUSdollars)ongpt-3.5-turboand$800ontext-davinci-
+themodelisabletoexploitpartsoftherecipeandpropose
+003basedonthestandardpricing,9whilebeingexempted
+an alternative way to continue reasoning. Although the
+fromanyhumancost. Bycontrast,CoTpromptingrequires
+subsequentrecipestillcontainserrors,itaidsthemodelin
+manualpromptconstructionandengineering,whichcosts
+correctlysolvingotherproblemswhenincorporatedintoa
+not only human labor (including the cost for humans to
+prompt. Asaresult,suchrecipeswillbepopulatedonother
+getfamiliarwiththetaskitselfandhowLLMprompting
+trainingsamples,whiletherecipesthatleadtolowaccuracy
+works,writedownvariousCoTsolutionsforeachproblem,
+willeventuallydieout.
+testandoptimizethesolutionsontheLLM)butalsoLLM
+queries,butthesecostsaretypicallyneglectedinprevious
+Repromptingcombinesfragmentsfromdifferentrecipes
+works. Inaddition,previousworkstypicallycomparediffer-
+into a better one. Reprompting benefits from having
+entLLMsusingthesameCoTprompt. Whilethisstrategy
+multipleexamplesintheprompt,whichallowsthemodel
+avoidsadditionalcostsforcustimizingCoTpromptforeach
+tointegratevarioussegmentsfromdifferentpromptrecipes
+8https://platform.openai.com/docs/ intoanewrecipe. AsillustratedbytheObjectCountingex-
+api-reference?lang=python amplesinFigure4,themodelcancombinelargesegments
+9https://openai.com/pricing ofreasoningsteps,aswellassmallsegmentsthataddress
+7Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+Figure4:Examplesofhowfragmentsfromdifferentrecipesinapromptcanbe(re)combinedintoabetterrecipetosolveanewproblem
+throughReprompting.
+distinctcasestosolveamorecomplexproblem. Theresult- CoTsolutionsinthepromptforsolvingtestquestions. This
+ingpromptssometimes,butnotalways,sharesimilarities methoddiffersfromRepromptinginthat:1)itfocuseson
+withthehuman-writtenprompts(SeetheAppendix). theunsupervisedsettingandexploitsalargesetofexample
+questionswithoutannotatedanswers,and2)itreliesmore
+heavily on the correctness of the zero-shot recipes as it
+5.RelatedWork
+doesnothaveanyiterativealgorithm(asinReprompting)
+In-ContextLearning isanemergentabilityofLLMsas to further improve the recipes. In our experiments, we
+they scale up in model sizes and training data, where an adaptedAuto-CoTtothefew-shotsettingandshowedthat
+LLMscanlearntoperformataskfromafewexamplesin Repromptingoutperformsthefew-shotversionofAuto-CoT.
+thecontext(whichisalsoreferredtoasfew-shotprompt-
+Deng et al. (2022); Zhang et al. (2023) proposed to train
+ing) (Brown et al., 2020). It has been shown to achieve
+anadditionalpolicymodeltofindthebestpromptthrough
+promisingfew-shotandevenzero-shotperformanceonvari-
+reinforcement learning, but their approaches are limited
+ousnaturallanguageprocessing(Brownetal.,2020;Schick
+to prompt optimization within a relatively small search
+&Schütze,2020;Perezetal.,2021)andprogramsynthe-
+space(i.e. itisrestrictedtothepromptsthatareeitherex-
+sis(Austinetal.,2021)tasks.
+tremelyshortorwithinasmalleditdistancefromaninitial
+prompt). Zhouetal.(2023)proposedamethodforautomat-
+icallygenerating,scoringandselectingeffectiveinstruction
+ReasoningviaChain-of-ThoughtPrompting Chain-of-
+messagesmforzero-shotchain-of-thoughtreasoning,which
+Thought(CoT)promptingisatechniquethatenablesLLMs
+isorthogonalandcanbepotentiallycombinedwithoural-
+toperformcomplexreasoningtasksbypromptingthemwith
+gorithm. Paranjape et al. (2023) introduced a framework
+afewexampleswithstep-by-stepsolutions(Weietal.,2022;
+thatautomaticallyretrievesdemonstrationsofrelatedtasks
+Suzgun et al., 2022). CoT prompting has been shown to
+fromatasklibraryandgeneratesCoTsolutionsforthenew
+improveperformanceonvariousreasoningtasks,suchas
+task. However,thisframeworkstillrequirescollectivehu-
+arithmeticreasoning(Weietal.,2022;Zhouetal.,2022),
+maneffortstowritedemonstrationsforadiversesetoftasks
+symbolic reasoning (Wei et al., 2022; Zhou et al., 2022),
+inthetasklibrary. Incontrast,ourRepromptingalgorithm
+multi-hop question answering (Press et al., 2022; Arora
+enablesLLMstosolvecomplexreasoningtaskswithoutany
+etal.,2022),andnaturallanguageinference(Wangetal.,
+humanguidance. Additionally,Yoranetal.(2023)proposed
+2022b). However, designing effective CoT prompts re-
+amulti-chainreasoning(MCR)methodthatpromptsLLMs
+quires human experts with an understanding of both the
+tocombinepiecesofinformationfrommultiplechainsof
+taskandthepromptingtechnique(Zamfirescu-Pereiraetal.,
+thoughttopredictthefinalanswer,whichdiffersfromour
+2023),whichlimitsthescalabilityandgeneralizabilityof
+method in two ways: first, MCR combines multiple CoT
+CoTprompting.
+solutionstothesamequestionattesttime,whileReprompt-
+Severalworkshaveattemptedtoautomatetheprocessof ingcombinesCoTsolutionsgeneratedfordifferenttraining
+CoTpromptdiscovery.Zhangetal.(2022)proposedAuto- questionsbeforetesting;second,MCRcombinessolutions
+CoT,whichusesLLMstogenerateCoTsolutionsfordiverse only once, whereas Reprompting iteratively samples new
+trainingquestionsinzero-shotandintegratesthegenerated
+8Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+solutionsandrecombinesthem. Asaresult,Reprompting Casella,G.andGeorge,E.I. Explainingthegibbssampler.
+generates effective CoT recipes from only a few training TheAmericanStatistician,46(3):167–174,1992.
+examples,resultinginimprovedtestperformancewithout
+Chen,M.,Tworek,J.,Jun,H.,Yuan,Q.,Pinto,H.P.d.O.,
+slowingdowntestinference.
+Kaplan,J.,Edwards,H.,Burda,Y.,Joseph,N.,Brockman,
+G., Ray, A., Puri, R., Krueger, G., Petrov, M., Khlaaf,
+6.Conclusion
+H.,Sastry,G.,Mishkin,P.,Chan,B.,Gray,S.,Ryder,N.,
+Pavlov,M.,Power,A.,Kaiser,L.,Bavarian,M.,Winter,
+WeintroduceReprompting,anautomatedpromptinference
+C., Tillet, P., Such, F. P., Cummings, D., Plappert, M.,
+algorithmwhich,withouthumaneffort,discoverseffective
+Chantzis,F.,Barnes,E.,Herbert-Voss,A.,Guss,W.H.,
+chain-of-thought(CoT)promptsforeachtaskgivenafew
+Nichol,A.,Paino,A.,Tezak,N.,Tang,J.,Babuschkin,I.,
+question-answer pairs. Experiments on 20 challenging
+Balaji,S.,Jain,S.,Saunders,W.,Hesse,C.,Carr,A.N.,
+reasoningtasksshowthatRepromptingachieves+9.4higher
+Leike,J.,Achiam,J.,Misra,V.,Morikawa,E.,Radford,
+accuracythanhuman-writtenCoTonaverage. Italsoout-
+A., Knight, M., Brundage, M., Murati, M., Mayer, K.,
+performsself-consistencydecodingandthestate-of-the-art
+Welinder,P.,McGrew,B.,Amodei,D.,McCandlish,S.,
+promptoptimizationalgorithmsby11–33pointsonaverage.
+Sutskever,I.,andZaremba,W. Evaluatinglargelanguage
+Our results also suggest that LLM comparisons can be
+modelstrainedoncode,2021. URLhttps://arxiv.
+highly sensitive to the choice of CoT prompts, further
+org/abs/2107.03374.
+emphasizingtheneedforautomaticpromptdiscoveryand
+optimizationusingalgorithmssuchasReprompting.
+Chowdhery,A.,Narang,S.,Devlin,J.,Bosma,M.,Mishra,
+G., Roberts, A., Barham, P., Chung, H.W., Sutton, C.,
+Acknowledgements Gehrmann,S.,etal. PaLM:Scalinglanguagemodeling
+withpathways. arXivpreprintarXiv:2204.02311,2022.
+WethankBillDolan,SudhaRaoandthereviewersfortheir
+valuablefeedback. Cobbe,K.,Kosaraju,V.,Bavarian,M.,Chen,M.,Jun,H.,
+Kaiser,L.,Plappert,M.,Tworek,J.,Hilton,J.,Nakano,
+ImpactStatement R.,Hesse,C.,andSchulman,J.Trainingverifierstosolve
+mathwordproblems. arXivpreprintarXiv:2110.14168,
+Thispaperpresentsworkwhosegoalistoadvancethefield 2021.
+of Machine Learning. There are many potential societal
+consequences of our work, none which we feel must be Creswell, A., Shanahan, M., and Higgins, I. Selection-
+specificallyhighlightedhere. inference: Exploiting large language models for
+interpretable logical reasoning. arXiv preprint
+arXiv:2205.09712,2022.
+References
+Deng,M.,Wang,J.,Hsieh,C.-P.,Wang,Y.,Guo,H.,Shu,T.,
+Arora,S.,Narayan,A.,Chen,M.F.,Orr,L.J.,Guha,N.,
+Song,M.,Xing,E.P.,andHu,Z. Rlprompt: Optimizing
+Bhatia,K.,Chami,I.,Sala,F.,andRé,C. Askmeany-
+discretetextpromptswithreinforcementlearning. arXiv
+thing: Asimplestrategyforpromptinglanguagemodels.
+preprintarXiv:2205.12548,2022.
+arXivpreprintarXiv:2210.02441,2022.
+Fu, Y., Peng, H., Sabharwal, A., Clark, P., and Khot, T.
+Complexity-based prompting for multi-step reasoning.
+Austin,J.,Odena,A.,Nye,M.,Bosma,M.,Michalewski,
+arXivpreprintarXiv:2210.00720,2022.
+H.,Dohan,D.,Jiang,E.,Cai,C.,Terry,M.,Le,Q.,etal.
+Program synthesis with large language models. arXiv
+Geman,S.andGeman,D. Stochasticrelaxation,gibbsdis-
+preprintarXiv:2108.07732,2021.
+tributions,andthebayesianrestorationofimages. IEEE
+Transactions on Pattern Analysis and Machine Intelli-
+gence,PAMI-6:721–741,1984.
+Brown,T.,Mann,B.,Ryder,N.,Subbiah,M.,Kaplan,J.D.,
+Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G.,
+Hendrycks,D.,Burns,C.,Kadavath,S.,Arora,A.,Basart,
+Askell,A.,Agarwal,S.,Herbert-Voss,A.,Krueger,G.,
+S., Tang, E., Song, D., and Steinhardt, J. Measuring
+Henighan,T.,Child,R.,Ramesh,A.,Ziegler,D.,Wu,J.,
+mathematicalproblemsolvingwiththeMATHdataset.
+Winter,C.,Hesse,C.,Chen,M.,Sigler,E.,Litwin,M., CoRR,abs/2103.03874,2021. URLhttps://arxiv.
+Gray, S., Chess, B., Clark, J., Berner, C., McCandlish, org/abs/2103.03874.
+S.,Radford,A.,Sutskever,I.,andAmodei,D. Language
+modelsarefew-shotlearners. NeuralInformationPro- Jojic,A.,Wang,Z.,andJojic,N. Gptisbecomingaturing
+cessingSystems(NeurIPS),2020. machine: Herearesomewaystoprogramit,2023.
+9Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+Kojima,T.,Gu,S.S.,Reid,M.,Matsuo,Y.,andIwasawa, Roberts,G.O.andSmith,A.F. Simpleconditionsforthe
+Y. Largelanguagemodelsarezero-shotreasoners. arXiv convergenceofthegibbssamplerandmetropolis-hastings
+preprintarXiv:2205.11916,2022. algorithms. Stochasticprocessesandtheirapplications,
+49(2):207–216,1994.
+Li,Y.,Lin,Z.,Zhang,S.,Fu,Q.,Chen,B.,Lou,J.-G.,and
+Chen, W. Ontheadvanceofmakinglanguagemodels Schick,T.andSchütze,H. Exploitingclozequestionsfor
+betterreasoners. arXivpreprintarXiv:2206.02336,2022. fewshottextclassificationandnaturallanguageinference.
+arXivpreprintarXiv:2001.07676,2020.
+Liu,Z.,Patwary,M.,Prenger,R.,Prabhumoye,S.,Ping,W.,
+Shoeybi,M.,andCatanzaro,B. Multi-stageprompting Shwartz, V., West, P., Le Bras, R., Bhagavatula, C., and
+forknowledgeabledialoguegeneration.InFindingsofthe Choi,Y. Unsupervisedcommonsensequestionanswer-
+Association for Computational Linguistics: ACL 2022, ing with self-talk. In Proceedings of the 2020 Confer-
+pp.1317–1337,Dublin,Ireland,May2022.Association ence on Empirical Methods in Natural Language Pro-
+forComputationalLinguistics. doi: 10.18653/v1/2022. cessing (EMNLP), pp. 4615–4629, Online, November
+findings-acl.104. URL https://aclanthology. 2020. Association for Computational Linguistics. doi:
+org/2022.findings-acl.104. 10.18653/v1/2020.emnlp-main.373. URL https://
+aclanthology.org/2020.emnlp-main.373.
+Madaan,A.andYazdanbakhsh,A. Textandpatterns: For
+effectivechainofthought,ittakestwototango. arXiv Srivastava,A.,Rastogi,A.,Rao,A.,Shoeb,A.A.M.,Abid,
+preprintarXiv:2209.07686,2022. A., Fisch, A., Brown, A. R., Santoro, A., Gupta, A.,
+Garriga-Alonso, A., et al. Beyond the imitation game:
+Nye,M.,Andreassen,A.J.,Gur-Ari,G.,Michalewski,H., Quantifyingandextrapolatingthecapabilitiesoflanguage
+Austin,J.,Bieber,D.,Dohan,D.,Lewkowycz,A.,Bosma, models. arXivpreprintarXiv:2206.04615,2022.
+M., Luan, D., et al. Show your work: Scratchpads for
+intermediatecomputationwithlanguagemodels. arXiv Suzgun, M., Scales, N., Schärli, N., Gehrmann, S., Tay,
+preprintarXiv:2112.00114,2021. Y., Chung, H. W., Chowdhery, A., Le, Q. V., Chi,
+E.H.,Zhou,D.,etal. Challengingbig-benchtasksand
+OpenAI. Gpt-4technicalreport,2023. whetherchain-of-thoughtcansolvethem. arXivpreprint
+arXiv:2210.09261,2022.
+Ouyang, L., Wu, J., Jiang, X., Almeida, D., Wainwright,
+C. L., Mishkin, P., Zhang, C., Agarwal, S., Slama, Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E., and
+K., Ray, A., et al. Training language models to fol- Zhou,D. Rationale-augmentedensemblesinlanguage
+low instructions with human feedback. arXiv preprint models. arXivpreprintarXiv:2207.00747,2022a.
+arXiv:2203.02155,2022.
+Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E.,
+Paranjape,B.,Lundberg,S.,Singh,S.,Hajishirzi,H.,Zettle- and Zhou, D. Self-consistency improves chain of
+moyer,L.,andRibeiro,M.T. Art: Automaticmulti-step thought reasoning in language models. arXiv preprint
+reasoningandtool-useforlargelanguagemodels. arXiv arXiv:2203.11171,2022b.
+preprintarXiv:2303.09014,2023.
+Wei, J., Wang, X., Schuurmans, D., Bosma, M., Xia, F.,
+Perez, E., Kiela, D., andCho, K. Truefew-shotlearning Chi, E., Le, Q. V., Zhou, D., et al. Chain-of-thought
+withlanguagemodels. Advancesinneuralinformation prompting elicits reasoning in large language models.
+processingsystems,34:11054–11070,2021. AdvancesinNeuralInformationProcessingSystems,35:
+24824–24837,2022.
+Press,O.,Zhang,M.,Min,S.,Schmidt,L.,Smith,N.A.,
+and Lewis, M. Measuring and narrowing the com- Yoran, O., Wolfson, T., Bogin, B., Katz, U., Deutch,
+positionality gap in language models. arXiv preprint D., and Berant, J. Answering questions by meta-
+arXiv:2210.03350,2022. reasoningovermultiplechainsofthought. arXivpreprint
+arXiv:2304.13007,2023.
+Pryzant, R., Iter, D., Li, J., Lee, Y., Zhu, C., and Zeng,
+M. Automatic prompt optimization with “gradient de- Zamfirescu-Pereira, J., Wong, R. Y., Hartmann, B., and
+scent”andbeamsearch. InBouamor,H.,Pino,J.,and Yang,Q. Whyjohnnycan’tprompt: Hownon-aiexperts
+Bali, K. (eds.), Proceedings of the 2023 Conference try(andfail)todesignllmprompts. InProceedingsofthe
+onEmpiricalMethodsinNaturalLanguageProcessing, 2023CHIConferenceonHumanFactorsinComputing
+pp.7957–7968,Singapore,December2023.Association Systems,CHI’23,NewYork,NY,USA,2023.Associa-
+forComputationalLinguistics. doi: 10.18653/v1/2023. tionforComputingMachinery. ISBN9781450394215.
+emnlp-main.494. URL https://aclanthology. doi: 10.1145/3544548.3581388. URLhttps://doi.
+org/2023.emnlp-main.494. org/10.1145/3544548.3581388.
+10Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+Zelikman, E., Wu, Y., andGoodman, N.D. STaR:Boot-
+strapping reasoning with reasoning. arXiv preprint
+arXiv:2203.14465,2022.
+Zhang,T.,Wang,X.,Zhou,D.,Schuurmans,D.,andGonza-
+lez,J.E. TEMPERA:Test-timeprompteditingviarein-
+forcementlearning.InTheEleventhInternationalConfer-
+enceonLearningRepresentations,2023. URLhttps:
+//openreview.net/forum?id=gSHyqBijPFO.
+Zhang, Z., Zhang, A., Li, M., and Smola, A. Automatic
+chain of thought prompting in large language models.
+arXivpreprintarXiv:2210.03493,2022.
+Zheng,C.,Liu,Z.,Xie,E.,Li,Z.,andLi,Y. Progressive-
+hint prompting improves reasoning in large language
+models. arXivpreprintarXiv:2304.09797,2023.
+Zhou,D.,Schärli,N.,Hou,L.,Wei,J.,Scales,N.,Wang,
+X., Schuurmans, D., Bousquet, O., Le, Q., and Chi, E.
+Least-to-mostpromptingenablescomplexreasoningin
+largelanguagemodels. arXivpreprintarXiv:2205.10625,
+2022.
+Zhou, Y., Muresanu, A. I., Han, Z., Paster, K., Pitis,
+S., Chan, H., and Ba, J. Large language models are
+human-level prompt engineers. In The Eleventh In-
+ternational Conference on Learning Representations,
+2023. URLhttps://openreview.net/forum?
+id=92gvk82DE-.
+11Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+FigureA.1: ComparingtheCoTrecipesinferredthroughRepromptingusingIntructGPTaloneversusChatGPT(forinitialization)+
+InstructGPT(forsampling).
+A.AdditionalIllustrations
+Onsensitivitytoinitialization WehaveshownthatRepromptingcanbesensitivetoinitialrecipegeneration. Armedwith
+theoptimalpromptsdiscoveredwithChatGPT+InstructGPTthroughReprompting,InstructGPTcanreachtestaccuracy
+equallingorbestingChatGPTonmostchallengingreasoningtasks. However,onsometasks,suchpromptscouldnotbe
+discoveredusingInstructGPTitselfastheinitializationmodelLLM . FigureA.1pointstoalikelyexplanation: ChatGPT
+1
+cangenerateawiderrangeofusefulrecipes,andwhethertheseinitialrecipesleadtothecorrectsolutionornot,InstructGPT
+canfollowthemand,throughReprompting,refineandcorrectthemiteratively. Thus,aswehaveshowninourexperiments,
+withadiversepoolofinitialrecipes,LLMsthatmayappearinferiorbasedontheirzero-shotperformancemayendup
+performingjustaswellorbetterthanLLMswhosezero-shotperformanceismoreencouraging. Itwouldbeinterestingto
+seeifRepromptingcanuseamixtureofLLMsininitializationtoperformevenbetter,orifhumanscanbeputbackintothe
+looptoprovidesomeinitialrecipesorsomegenericinstructionsonhowtogeneratesuchrecipes.
+On transferability of discovered recipes The fact that LLM (ChatGPT) can point LLM (InstructGPT) in the right
+1 2
+directionsforpromptdiscoverydoesnotmeanthatthediscoveredprompts,havingbeenoptimizedfortrainingperformance
+onLLM ,willperformwellwhenusedtopromptLLM . Infact,Table4indicatesthatthediscoveredCoTrecipesthat
+2 1
+workforonemodelmaynotnecessarilyworkforothermodels. Forexample,inthecaseofTemporalSequences,thebest
+performanceisachievedwithaprompttrainedwithInstructGPT(afterinitializationwithChatGPTasLLM ). Butwhen
+1
+usingthatpromptonChatGPT,thetestperformanceisby18%lower. FigureA.2illustrateshowChatGPTandInstructGPT
+followthesameCoTpromptdifferently. Followingthepromptrecipes,thetimeintervalsthatneedtobereasonedover
+aresorted,andamongthesortedlist,themissingintervalwasinsertedasthepossibleintervalwhenthepersoninquestion
+couldhaveperformedanactivity. InstructGPTfollowsthisprocedurewithaccuracyover99%,butChatGPTsometimes
+skipsthecrucialline(forthisrecipe)withthemissingintervalwithinthetimelineandthereforeobtainssuboptimaltest
+accuracy. However,thebestperformanceofChatGPT(usingtheCoTpromptoptimizedforitselfthroughReprompting)is
+onlyslightlylowerthanthatoftheChatGPT+InstructGPTcombination.
+Theseresultssuggestthat,forafaircomparisonbetweendifferentLLMs,oneneedstooptimizetheCoTpromptforeach
+LLMusingpromptoptimizationalgorithmssuchasReprompting.
+12Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+Figure A.2: An example on Temporal Sequences (BBH) where ChatGPT underperforms InstructGPT using the same CoT prompt
+optimizedforInstructGPTviaReprompting(usingChatGPT+InstructGPT).ChatGPTfailstocorrectlyexecutetherecipeasitskipsakey
+step(theblueunderlinedtextfromInstructGPT)toreachthefinalanswer.(Theillustrationdoesnotshowthefullpromptthatprecedes
+thepuzzlexforbrevity;itconsistsof5trainingexampleswithworked-outsolutionsthatallfollowthesamestrategyofsolvingthese
+typesofproblems.)
+Howdothemodel-generatedCoTrecipesdifferfromhuman-writtenones? Inthepaper,Weevaluatedtheperformance
+of the CoT prompt discovered through Reprompting and contrasted it with human-written ones. As illustrated by the
+examplerecipesinFigureA.3,theautomaticallydiscoveredCoTrecipessharesomesimilaritiestohuman-writtenones
+onsometasks(suchasLogicalDeduction),butdiffersonothertasks. Forinstance,onObjectCounting,theCoTgenerated
+usingRepromptingcomputesthetotalnumberofobjectsbyincrementingthecountonebyone(e.g. adding4tothecount5
+by“[6,7,8,9]”),whileinthehumanwrittenrecipe,itcomputestheadditionthroughanarithmeticformulaattheend.
+13Reprompting:AutomatedChain-of-ThoughtPromptInferenceThroughGibbsSampling
+(a)
+(b)
+FigureA.3:Examplesofthebest-performingCoTrecipesinferredviaRepromptingonLogicalDeduction,GeometricShapes,Object
+Counting,PenguinsinaTable,andTemporalSequences.
+14

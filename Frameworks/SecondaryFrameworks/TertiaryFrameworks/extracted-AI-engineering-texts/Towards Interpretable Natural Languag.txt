@@ -1,0 +1,758 @@
+2202
+yaM
+62
+]LC.sc[
+3v86250.1102:viXra
+Towards Interpretable Natural Language
+Understanding with Explanations as Latent Variables
+WangchunshuZhou1∗ JinyiHu2∗ HanlinZhang3∗
+XiaodanLiang4 MaosongSun2 ChenyanXiong5 JianTang6,7
+1BeihangUniversity2TsinghuaUniversity3SouthChinaUniversityofTechnology
+4SunYat-senUniversity5MicrosoftResearch
+6Mila-QuébecAIInstitute7HECMontréal
+zhouwangchunshu@buaa.edu.cn
+hujy17@mails.tsinghua.edu.cnsms@tsinghua.edu.cn
+{hlzhang109, xdliang328}@gmail.com
+chenyan.xiong@microsoft.com
+jian.tang@hec.ca
+Abstract
+Generating natural language explanations has shown to be effective in not only
+offeringinterpretableexplanationsbutalsoprovidingadditionalinformationand
+supervisionforprediction. However,existingapproachesusuallyrequirea large
+set of human annotated explanations for training while collecting a large set of
+explanationsisnotonlytimeconsumingbutalsoexpensive. Inthispaper,wede-
+velopa generalframeworkfor interpretablenaturallanguageunderstandingthat
+requiresonlyasmallsetofhumanannotatedexplanationsfortraining.Ourframe-
+work treats natural language explanations as latent variables that model the un-
+derlyingreasoningprocessofaneuralmodel. Tooptimizeit,wedevelopavaria-
+tionalEMframeworkwhereanexplanationgenerationmoduleandanexplanation-
+augmented prediction module are alternatively optimized and mutually enhance
+each other. Moreover, we further propose an explanation-based self-training
+methodunderthisframeworkforsemi-supervisedlearning. Italternatesbetween
+assigningpseudo-labelstounlabeleddataandgeneratingnewexplanationstoiter-
+ativelyimproveeachother. Experimentson twonaturallanguageunderstanding
+tasksdemonstratethatourframeworkcannotonlymakeeffectivepredictionsin
+bothsupervisedandsemi-supervisedsettings,butalsogenerategoodnaturallan-
+guageexplanations.2
+1 Introduction
+Buildinginterpretablesystemsfornaturallanguageunderstandingiscriticalinvariousdomainssuch
+ashealthcareandfinance. Onedirectionisgeneratingnaturallanguageexplanationsforprediction
+[1–4], which has been shown to be effective as they can not only offer interpretable explanations
+for back-boxpredictionbutalso provideadditionalinformationandsupervisionforprediction[5–
+7]. For example, given a sentence “The only thing more wonderful than the food is the service.”,
+a human annotator may write an explanationlike “Positive, because the word ‘wonderful’ occurs
+withinthreewordsbeforethetermfood.”,whichismuchmoreinformativethanthelabel“positive”
+asitexplainshowthedecisionwasmade. Moreover,theexplanationcanserveasanimplicitlogic
+rulethatcanbegeneralizedtootherinstanceslike“Thefoodiswonderful,Ireallyenjoyedit.”.
+∗Equalcontribution,withorderdeterminedbyrollingadice.WorkwasdoneduringinternshipatMila.
+2Codeisavailableathttps://github.com/JamesHujy/ELV.git
+34thConferenceonNeuralInformationProcessingSystems(NeurIPS2020),Vancouver,Canada.There are recent works [3, 4] that study generating natural language explanations for predictions
+and/orleveragethem asadditionalfeaturesforprediction. Forexample,Camburuetal. [3] learns
+a language model to generate natural language explanations for the task of natural language in-
+ference by training on a corpus with annotated human explanations. Rajani et al. [2] proposes a
+two-stageframeworkforcommonsensereasoningwhichfirsttrainsanaturallanguageexplanation
+modeland then further trainsa predictionmodelwith the generatedexplanationsas additionalin-
+formation.Theseapproachesachievepromisingperformanceintermsofbothpredictiveresultsand
+explainability.However,alargenumberoflabeledexampleswithhumanexplanationsarerequired,
+whichisexpensiveandsometimesimpossibletoobtain. Therefore,wearelookingforanapproach
+thatmakeseffectiveprediction,offersgoodexplainability,whileonlyrequiresalimitednumberof
+humanexplanationsfortraining.
+In this paper, we propose such an approach. We start from the intuition that the explanation-
+augmented prediction model is able to provide informative feedback for generating meaningful
+natural language explanations. Therefore, different from existing work which trains the explana-
+tiongenerationmodelandtheexplanation-augmentedpredictionmodelinseparatestages, wepro-
+posetojointlytrainthetwomodels. Specifically,takingthetaskoftextclassificationasanexam-
+ple,weproposeaprincipledprobabilisticframeworkfortextclassification,wherenaturallanguage
+ExplanationsaretreatedasLatentVariables(ELV).VariationalEM[8]isusedfortheoptimization,
+and only a set of humanexplanationsare requiredfor guidingthe explanationgenerationprocess.
+IntheE-step,theexplanationgenerationmodelistrainedtoapproximatethegroundtruthexplana-
+tions (forinstanceswith annotatedexplanations)or guidedby the explanation-augmentationmod-
+ule through posterior inference (for instances without annotated explanations); in the M-step, the
+explanation-augmented prediction model is trained with high-quality explanations sampled from
+theexplanationgenerationmodel.Thetwomodulesmutuallyenhanceeachother. Ashumanexpla-
+nations can serve as implicit logic rules, they can be used for labeling unlabeled data. Therefore,
+wefurtherextendourELVframeworktoanExplantion-basedSelf-Training(ELV-EST)modelfor
+leveragingalargenumberofunlabeleddatainthesemi-supervisedsetting.
+Tosummarize,inthispaperwemakethefollowingcontributions:
+• WeproposeaprincipledprobabilisticframeworkcalledELVfortextclassification,inwhichnat-
+urallanguageexplanationistreatedasalatentvariable. Itjointlytrainsanexplanationgenerator
+andanexplanation-augmentedpredictionmodel. Onlyafewannotatednaturallanguageexplana-
+tionsarerequiredtoguidethenaturallanguagegenerationprocess.
+• WefurtherextendELVforsemi-supervisedlearning(theELV-ESTmodel),whichleveragesnatu-
+rallanguageexplanationsasimplicitlogicrulestolabelunlabeleddata.
+• We conductextensiveexperimentsontwo tasks: relationextractionandsentimentanalysis. Ex-
+perimentalresults prove the effectivenessof our proposedapproach in terms of both prediction
+andexplainabilityinbothsupervisedandsemi-supervisedsettings.
+2 Related Work
+Naturallanguage(NL)explanationshavebeenprovedveryusefulforbothmodelexplanationsand
+predictioninavarietyoftasksrecently[9,10,3,4,4]. Someearlywork [11,9,10]exploitedNL
+explanation as additional features for prediction. For example, Srivastava et al. [9] convertedNL
+explanationsintoclassifierfeaturestotraintextclassificationmodels. Fidleretal.[12]usednatural
+language explanations to assist in supervising an image captioning model. Very recently, Murty
+etal.[10]proposedExpBERTtodirectlyincorporateNLexplanationswithBERT.However,most
+oftheseworkrequiretheexplanationstobeavailableinbothtrainingandtestinginstances,which
+isnotrealisticasannotatingtheexplanationofahugeamountofinstancesisverytimeconsuming
+and expensive. Moreover,the predictionbecomesmuch easier once the explanationsare givenin
+thetestingdata.
+Thereissomerecentworkthatstudiedtraininganaturallanguageexplanationmodelandthenused
+thegeneratedexplanationsforprediction.Forexample, Camburuetal.[3]andRajanietal.[4]pro-
+posedtoseparatelytrainamodeltogenerateNLexplanationsandaclassificationmodelthattakes
+thegeneratedexplanationsasadditionalinput.Theirapproacheshaveshownverypromisingforim-
+provingtheinterpretabilityofclassificationmodelsandincreasingthepredictionperformancewith
+explanations as additional features. However, their approaches require a large number of human
+2Figure 1: Overview of ELV. During E-step, we train our generator p(e|x,y) to generate explana-
+tionsgivenlabeleddata. Forlabeleddatawithannotatedexplanations(i.e. D ),wemaximizethe
+E
+likelihood of the ground truth explanations. For labeled data without explanations(i.e. D ), we
+L
+minimize the KL divergence between the variational distribution q (e|x,y) and the ground truth
+θ
+posteriorp(e|x,y), whichis calculated with the help of the predictionmodel. DuringM-step, we
+usetheexplanationgeneratedinE-steptotrainthepredictorp(y|x,e)withMLE.
+annotatedNLexplanationstotraintheexplanationgenerationmodel. Moreover,theseapproaches
+fail to modelthe interaction between generatingNL explanationsand exploitingNL explanations
+forprediction.Asaresult,thereisnoguaranteethatthegeneratedexplanationsreflectthedecision-
+makingprocessofthepredictionmodelorbeneficialtothepredictionmodel. AsreportedbyCam-
+buruetal.[3]thatinterpretabilitycomesatthecostoflossinperformance.Inthispaper,wepropose
+a principledprobabilisticframeworkwith explanationsas latentvariablesto minimizethe number
+oftraininginstanceswithexplanationsbyjointlytrainingthenaturallanguageexplanationmodule
+andtheexplanation-augmentedpredictionmodule.
+Another relevantdirection is treating natural language explanationsas additional supervisions for
+semi-supervisedlearninginsteadofasadditionalfeatures[13,7]. Forexample,Hancocketal.[13]
+utilizedasemanticparsertoparsetheNLexplanationsintologicalforms(i.e.,“labelingfunction”).
+The labeling functions are then employed to match the unlabeled examples either hardly [13] or
+softly[7]togeneratepseudo-labeleddatasetsusedfortrainingmodels. However,theseapproaches
+require the explanations to be annotated in a form that can be accurately parsed by a semantic
+parser to form labeling functions, which may not be possible for many NLP applications. In our
+semi-supervised framework, semantic parsing is not required, and natural language explanations
+areinterpretedwithdistributedrepresentationobtainedbypre-trainedlanguagemodelsforlabeling
+unlabeleddata.
+3 Methodology
+We first discuss the definition of the problem. Given an input sentence x, we aim to predict
+its label y and generate a natural language (NL) explanation e describing why x is classified
+as y. Specifically, given a few amount of training example with NL explanation annotation
+D = {(x ,y ,e ,),...,(x ,y ,e ,)} and a relatively large set of labeled examples D =
+E 1 1 1 n n n L
+{(x ,y ),...,(x ,y )}, our goal is to learn: 1) An explanation generation model E that
+n+1 n+1 m m θ
+parametrize q(e|x,y), which takes a labeled example (x,y) as input and generates a correspond-
+ingnaturallanguageexplanatione,and2)anexplanation-augmentedpredictionmodelM ,which
+φ
+parametrizep(y|x,e)andtakesanunlabeledexamplexandNLexplanations(asimplicitrules)E
+toassignalabelytox.
+33.1 NaturalLanguageExplanationasLatentVariables
+Givenlabeleddata(x,y),wetreatthenaturelanguageexplanationeasalatentvariable.Fortraining,
+weaimtooptimizetheevidencelowerbound(ELBO)oflogp(y|x),whichcanbeformulatedas:
+p(e,y|x)
+logp(y|x)=log p(e,y|x)de=log q (e|x,y) de (1)
+Z Z θ q (e|x,y)
+θ
+p(e,y|x) p (y|e,x)p(e|x)
+≥L(θ,φ)=E log =E log φ , (2)
+qθ(e|x,y) q (e|x,y) qθ(e|x,y) q (e|x,y)
+θ θ
+whereq (e|x,y)isthevariationaldistributionofposteriordistributionp(e|x,y),p(e|x)istheprior
+θ
+distributionofexplanationeforinstancex,andp (y|e,x)istheexplanation-augmentedprediction
+φ
+model.
+Due to the largesearch space ofnaturallanguageexplanatione, insteadof usingreprametrization
+trick usedin variationalautoencoder[14], herewe use the variational-EMalgorithmfor optimiza-
+tion. TheoverviewofELVisilluatratedinFigure1. Notethatinourtrainingdata,theexplanations
+of a few numberof labeled examples(i.e., D ) are given. Therefore, we first initialize the expla-
+E
+nation generation modelE = q (e|x,y) and the prediction modelM = p (y|e,x) by training
+θ θ φ φ
+on D with maximumlikelihoodestimation (MLE).Then, we updatethe aforementionedmodels
+E
+bymaximizingthelog-likelihoodlogp(y|x)usingD ∪D withvariational-EM.Inthevariational
+L E
+E-step, we train the explanationgeneratorto minimize the KL divergencebetween q (e|x,y) and
+θ
+p(e|x,y),whichwillbedetailedinSection3.3. IntheM-step,wefixθ andp(e|x)andupdatethe
+parametersφofthepredictionmodeltomaximizethelog-likelihoodlogp(y|x).
+3.2 E-step: ExplanationGenerationmodel
+As the core componentof our variationalEM framework, the explanationgenerationmodelis ex-
+pectedtogenerate“soft”logicrulesintheformofnaturallanguageexplanations.However,training
+a seq2seq model to generate explanationsof high quality from scratch is very challenging. Moti-
+vatedbytherecentfindingthatpretrainedlanguagemodelsencodevarioustypesoffactualknowl-
+edgeandcommonsenseknowledgeintheirparameters[15–17],weemployUniLM[18]—aunified
+pre-trainedlanguagegenerationmodelthatachievedstate-of-the-artperformanceonmanytextgen-
+erationtasks—astheexplanationgenerationmodelE inourframework. Specifically,theexplana-
+θ
+tiongenerationmodeltakesasinputtheconcatenationofinputsentencexandthetextdescription
+ofitscorrespondinglabely togenerateanexplanation,whichexplainsthelabeldecisioninnatural
+languageandcanbetreatedasanimplicitlogicrulethatcangeneralizetootherexamples.
+Notethatinthetrainingdata,onlyasmallsetoflabeledexamplesareprovidedwithexplanations.
+Therefore,inthevariationalE-step,forlabeleddata(x,y)withoutexplanations(i.e.D ),wearetry-
+L
+ingtousethevariationaldistributionq (e|x,y)toapproximatethegroundtruthposteriorp(e|x,y),
+θ
+whichcanbecalculatedas
+p(e|x,y)∼p (y|x,e)p(e|x) (3)
+φ
+where p (y|x,e) is parameterized by the prediction model and provides feedback for generating
+φ
+meaningfulnaturallanguageexplanations. Wewillintroducethedetailedparametrizationofp(e|x)
+andp (y|x,e)intheM-step.
+φ
+Forlabeleddatawithexplanations(i.e. D ),wejustneedtomaximizethelikelihoodoftheground
+E
+truthexplanations.Therefore,theoverallobjectivefunctionofE-stepcanbesummarizedas:
+O= logq(e|x,y)+ KL(q(e|x,y)kp(e|x,y)) (4)
+X X
+(x,y)∈DE (x,y)∈DL
+3.3 M-step: Explanation-AugmentedPredictionmodel
+DuringM-step,theexplanation-augmentedpredictionmodelistrainedtopredictthelabelofinput
+sentencexwiththeexplanationegeneratedfromthevariationaldistributionq(e|x,y).
+However,notethatthelabelyisnotavailableduringtesting,andtheexplanationsfortheunlabeled
+xcanonlybegeneratedfromthepriordistributionp(e|x). Therefore,therearesomediscrepancies
+betweenthedistributionsoftheexplanationsforlabeleddatainthetrainingstageandthoseforunla-
+beleddatainthetestingstagesincegeneratinganaturallanguageexplanationwithoutconditioning
+4onalabelisharder.Tomitigatethisissue,inthepredictionmodel,besidessamplinganexplanation
+fromthevariationaldistribution,wealsoaddasetofexplanationsfromp(e|x),whichretrievesaset
+ofexplanationsfromsimilarsentences.
+Specifically, given an input sentence x and the set of labeled and pseudo-labeleddata consists of
+(x′,e′,y′), we retrieveN explanationsE := {e′}N of which the correspondingsentencesx′ are
+i i=1
+themostsimilartotheinputsentencex,measuredbythecosinesimilaritybetweentheembedding
+of x and each x′ from D under SentenceBERT [19], a pretrained sentence embedding model.
+E
+Notethatwedonotdirectlyuseaseq2seqmodeltoparametrizep(e|x)becausewefindgenerating
+explanationswithoutpredictedlabelsoftenresultsinirrelevantandevenmisleadingexplanations.
+Algorithm1:Explanation-basedSelf-Training(ELV-EST)
+Input: D ={(x ,y ,e ,),...,(x ,y ,e ,)},D ={(x ,y ),...,(x ,y )},
+E 1 1 1 n n n L n+1 n+1 m m
+unlabeleddataD ={x ,...,x },ConfidencethresholdT
+U m+1 N
+Output: E (e|x,y),M (y|x,E)
+θ φ
+initializeE andM withD ∪D usingELV
+θ φ E L
+repeat
+foreachx ∈D do
+i U
+ifmax M (y|x,E)>T then
+y φ
+Assignpseudo-labely tox andgenerateexplanatione withE
+i i i θ
+UpdateD =D ∪(x ,y )
+L L i i
+UpdateD =D ∪(x ,y ,e )(forexplanationretrieval)
+E E i i i
+UpdateD =D \x
+U U i
+end
+end
+TrainE andM onD ∪D withELV
+θ φ E L
+untilConvergenceorD =∅
+U
+LetE = {e ,...,e }denotesalltheexplanationsofx. Foreache ∈ E,wefeedtheexplanatione
+1 n i i
+andtheinputsentencex,separatedbya[SEP]token,toBERT[20]andusethevectoratthe[CLS]
+tokentorepresenttheinteractionsbetweenxande asa768-dimensionalfeaturevector:
+i
+I(x,e )=BERT([[CLS];x;[SEP];e ]) (5)
+i i
+Ourfinalclassifiertakestheconcatenationofthesevectorsandoutputsthefinalpredictionas:
+M (y|x,E)=MLP[Average(I(x,e );I(x,e );...;I(x,e ))] (6)
+φ 1 2 n
+At test time, for each unlabeled x, we first use p(e|x) to retrieve a set of explanations and then
+predictalabelwiththeexplanation-augmentedpredictionmodel.Afterward,wecanfurtheremploy
+theexplanationgenerationmodeltogenerateanNLexplanationtoexplainthepredictiondecision
+basedonboththeinputsentenceandthepredictedlabel.
+Tosummarize,byalternatingbetweenE-stepandM-stepwhereq (e|x,y)andp (y|e,x)areopti-
+θ φ
+mizedrespectively,theexplanationgenerationmodelE andtheexplanation-augmentedprediction
+θ
+model M are jointly optimized and mutually enhanced. Next, we describe how our framework
+φ
+canbeappliedtothesemi-supervisedsettingwherebothhuman-annotatedexplanationsandground-
+truthlabelsarelimited.
+3.4 Explanation-basedSelf-Training
+As natural language explanations can serve as implicit logic rules, which can generalize to new
+data and help assign pseudo-labels to unlabeled data. Therefore, we extend the ELV to the
+semi-supervised learning setting and propose an Explanation-based Self-Training (ELV-EST) al-
+gorithm. In this setting, we only have limited labeled examples but abundant unlabeled data
+D ={x ,...,x }.
+U m+1 N
+As illustrated in Algorithm 1, we first use ELV to initialize E and M with the limited labeled
+θ φ
+corpusD ∪D . Afterward,weiterativelyuseM toassignpseudo-labelstounlabeledexamplesin
+E L φ
+D toextendthelabeleddataD . WethenuseELVtojointlytrainE andM withtheaugmented
+U L θ φ
+5Table 1: Statistics of datasets. We present the size of train/dev/test sets for 4 datasets in both
+supervisedandsemi-supervisedsettings. Moreover,#Expmeansthesizeofinitialexplanationsets.
+Dataset #Explanations #Train(Supervised) #Train(Semi-supervised) #Dev #Test
+SemEval[21] 203 7,016 1,210 800 2,715
+TACRED[22] 139 68,006 2,751 22,531 15,509
+Laptop 70 1,806 135 462 638
+Restaurant 75 2,830 107 720 1,120
+labeleddataset. Atthesametime,wealsoemployE togeneratenewexplanationswithunlabeled
+θ
+examplesand their pseudo-labels. In this way, we can harvestmassive pseudo-labelsand pseudo-
+explanationswith unlabeled examples. The pseudo-labeledexamples can be used to improve the
+models while also enable us to generate more NL explanations. In return, the newly generated
+explanationscannotonlyimprovetheexplanationgenerationmodelbutalsoserveasimplicitrules
+thathelpthepredictionmodelassignmoreaccuratepseudo-labelsinthenextiteration.
+The proposed ELV-EST approach is different from the conventional self-training method in two
+perspectives. First, in addition to predicting pseudo-labels for unlabeled data, our method also
+discovers implicit logic rules in the form of natural language explanations, which in return helps
+thepredictionmodeltobetterassignnoisylabelstotheunlabeleddata. Second,ourapproachcan
+produceexplainablepredictionswithE . Comparedtorecentworks[7,13]thatparseexplanations
+θ
+tologicforms,ourapproachdoesnotrequiretask-specificsemanticparsersandmatchingmodels,
+makingittask-agnosticandapplicabletovariousnaturallanguageunderstandingtaskswithminimal
+additionalefforts.
+4 Experiments
+4.1 Datasets
+Weconductexperimentsontwotasks: relationextraction(RE)andaspect-basedsentimentclassifi-
+cation(ASC).Forrelationextractionwe choosetwodatasets, TACRED[23]andSemEval[21]in
+ourexperiments. We use two customerreviewdatasets, RestaurantandLaptop, which are partof
+SemEval 2014 Task 4 [24] for the aspect-based sentiment classification task. We use the human-
+annotatedexplanationscollectedin[7]fortrainingourexplanation-basedmodels.
+4.2 ExperimentalSettings
+Weconductexperimentsinboththesupervisedsettingwherewehaveaccesstoalllabeledexam-
+plesin the datasetandthe semi-supervisedsetting wherewe onlyuse a smallfractionoflabeled
+examplesandconsideringtherestlabeledexamplesintheoriginaldatasetasunlabeledexamplesby
+ignoringtheirlabels. In bothsettings, onlya few human-annotatedNL explanationsare available.
+Thenumberofexplanations,labeleddatausedinsupervised/unsupervisedsetting,andthestatistics
+ofthedatasetsarepresentedinTable1.
+We employ BERT-base and UniLM-base as the backbone of our prediction model and explana-
+tion generation model, respectively. We select batch size over {32,64} and learning rate over
+{1e-5,2e-5,3e-5}. The number of retrieved explanations is set to 10 for all tasks. We train the
+predictionmodelfor3epochsandthegenerationmodelfor5epochsineachEMiteration. Weuse
+AdamoptimizersandearlystoppingwiththebestvalidationF1-score.
+4.3 ComparedMethods
+In the supervised setting, we compare ELV with the BERT-base baseline that directly fine-tunes
+the pre-trainedBERT-base modelon the targetdatasets. To show the importanceof modelingthe
+interactions between the explanation generation model and the explanation-augmentedprediction
+model,wealsocomparewithavariantofourmodel,whichonlytrainstheexplanation-augmented
+predictionmodulewith allthe explanationsgeneratedfromthe priordistribution, denotedas ELV
+(M-steponly)).Wealsocomparewithsomestate-of-the-artalgorithmsontheREandSAtasks.
+6Table2:Results(Micro-F1)onRelationExtrac- Table 3: Results (Macro-F1) on ASC datasets
+tiondatasetsinsupervisedsetting. insupervisedsetting.
+Method TACRED SemEval Method Restaurant Laptop
+BERT [25] 66.3 76.9 ASGCN[26] 72.2 71.1
+EM
+BERT [25] 67.1 77.5 BERT-PT[27] 77.0 75.1
+EM+MTB
+BERT-large 66.4 78.8 BERT-SPC[28] 77.0 75.0
+BERT-base 64.7 78.3 BERT-base 75.4 72.4
+ELV(M-steponly) 65.4 80.2 ELV(M-steponly) 76.2 74.1
+ELV(ours) 65.9 80.7 ELV(ours) 77.8 75.2
+Table4:Results(Micro-F1)onRelationExtrac- Table 5: Results (Macro-F1) on ASC datasets
+tiondatasetsinsemi-supervisedsetting. insemi-supervisedsetting.
+Method TACRED SemEval Method Restaurant Laptop
+BERT-base 25.1 49.3 BERT-base 32.2 34.6
+Pseudo-Labeling[29] 28.6 50.2 Pseudo-Labeling[29] 42.5 38.2
+Self-Training[30] 36.9 59.5 Self-Training[30] 47.2 42.3
+DataProgramming[13] 25.8 47.9 DataProgramming[13] 38.2 36.3
+ELV-EST(ours) 42.5 66.4 ELV-EST(ours) 59.5 63.6
+Inthesemi-supervisedsetting,wecompareELV-ESTagainstseveralcompetitivesemi-supervised
+textclassificationmethodsincludingPseudo-Labeling[29], Self-Training[30], andDataProgram-
+ming[13]whichincorporatesNLexplanationstoperformsemi-supervisedtextclassification. Note
+thatallcomparedmodelvariantsincorporateBERT-baseasthebackbonemodel.
+4.4 ExperimentalResults
+Resultsonsupervisedsetting. WefirstpresenttheresultsinthesupervisedsettinginTable2and
+3. ELVsignificantlyoutperformsthestrongBERT baselineinallfourdatasets, demonstratingthe
+effectiveness of exploiting NL explanations as additional information for natural language under-
+standing.ELValsoconsistentlyoutperformstheELV(M-steponly),showingthatELV’svariational
+EMtrainingeffectivelymodelstheinteractionsbetweenexplanationandprediction. Also,theper-
+formanceofELVcomparesfavorablyagainstseveralcompetitiverecentstudiesfocusingonREand
+ASCrespectively,furtherdemonstratingtheeffectivenessofELV.
+Results on semi-supervised setting. The results in the semi-supervisedsetting are presentedin
+Table4and5. Inthesemi-supervisedscenario,ELV-ESTmethodsignificantlyoutperformsvarious
+semi-supervisedtextclassificationmethods,aswellasthedataprogrammingapproach. Thelatter
+usespre-definedrulestoparsetheNLexplanationsintologicformsandmatchunlabeledexamples,
+on all four datasets. The improvement upon the BERT-base + self-training baseline is around 7
+pointsforREdatasetsandover15pointsforASCdatasetsintermsofF1score. Thisdemonstrates
+theeffectivenessofELV-ESTinthesemi-supervisedsetting.
+Table6: Humanevaluationresults. The Table 7: Results on ASC datasets with expla-
+scores scale from 1 to 5 (the larger, the nationswith wordsrandomlycorrupted(80%).
+better). The inner-rater agreementmea- Orig+RandExpisthe1:1mixoforiginaland
+suredbyKappascoreis0.51. randomlycorruptedexplanations.
+Model Inf. Corr. Cons. Method Restaurant Laptop
+Seq2Seq 2.43 3.27 2.68 BERT-base 75.4 72.4
+Transformer 2.35 3.12 2.62
+w.80%RandWord 73.2 70.9
+UniLM 3.48 3.94 3.14
+Orig+RandExp 76.9 74.0
+ELV(ours) 3.87 4.20 3.51 ELV(ours) 77.8 75.2
+7Resultsonexplanationgeneration. Wefurtherevaluatethequalityoftheexplanationgeneration
+model with human evaluation. We invite 5 graduate students with enough English proficiency to
+score the explanations generated on the test set with input sentences and the labels predicted by
+theexplanation-augmentedpredictionmodule3. Theannotationscenariosincludetheexplanantions’
+informativeness(Info.),correctness(Corr.),andconsistency(Cons.) withrespecttothemodelpre-
+diction. The inner-rater agreement is at 0.51 Kappa score. The details of human evaluation and
+examplesofgeneratedexplanationsarepresentedintheAppendixduetospaceconstraints.
+Forcomparison,weincludeafine-tunedUniLMmodelwithannotatedNLexplanations,aswellas
+twobaselinestrainedfromscratchusingannotatedNLexplanations,onewithavanillatransformer
+model and the other an attention-based LSTM seq2seq model. The results are in Table 6. The
+explanationsgeneratedbyourELVframeworkaresubstantiallybetterthanthosegeneratedbythe
+fine-tuned UniLM model. ELV generates better NL explanationsthat are relevant to the model’s
+decision-making process, because it models the interactions of the explanation generation model
+andthepredictionmodel.
+4.5 Analysis
+QXPEHU(cid:3)RI(cid:3)H[SODQDWLRQV
+HURF6(cid:3)(cid:20))
+(/9(cid:3)(cid:11)0(cid:16)VWHS(cid:3)RQO\(cid:12) (/9
+(cid:26)(cid:27)
+(cid:26)(cid:26)
+(cid:26)(cid:25)
+(cid:26)(cid:24)
+(cid:21)(cid:19) (cid:22)(cid:19) (cid:23)(cid:19) (cid:24)(cid:19) (cid:25)(cid:19) (cid:26)(cid:19)
+QXPEHU(cid:3)RI(cid:3)H[SODQDWLRQV
+HURF6(cid:3)(cid:20))
+(/9(cid:3)(cid:11)0(cid:16)VWHS(cid:3)RQO\(cid:12) ’DWD(cid:3)3URJUDPPLQJ (/9(cid:16)(67
+(cid:25)(cid:19)
+(cid:24)(cid:19)
+(cid:23)(cid:19)
+(cid:22)(cid:19)
+(cid:21)(cid:19) (cid:22)(cid:19) (cid:23)(cid:19) (cid:24)(cid:19) (cid:25)(cid:19) (cid:26)(cid:19)
+Figure2: Performancewithdifferentnumberofexplanations. We compareourmethodwithbase-
+line(s)inbothsupervisedsetting(left)andsemi-supervisedsetting(right).
+)UDFWLRQ(cid:3)RI(cid:3)ODEHOHG(cid:3)GDWD(cid:3)XVHG(cid:3)(cid:11)(cid:8)(cid:12)
+HURF6(cid:3)(cid:20))
+%(57 (/9
+(cid:27)(cid:19)
+(cid:26)(cid:19)
+(cid:25)(cid:19)
+(cid:24)(cid:19)
+(cid:23)(cid:19)
+(cid:21)(cid:19) (cid:23)(cid:19) (cid:25)(cid:19) (cid:27)(cid:19) (cid:20)(cid:19)(cid:19)
+IUDFWLRQ(cid:3)RI(cid:3)XQODEHOHG(cid:3)GDWD(cid:3)XVHG(cid:3)(cid:11)(cid:8)(cid:12)
+HURF6(cid:3)(cid:20))
+%(57(cid:14)6HOI(cid:16)7UDLQLQJ (/9(cid:16)(67
+(cid:25)(cid:19)
+(cid:24)(cid:19)
+(cid:23)(cid:19)
+(cid:22)(cid:19)
+(cid:21)(cid:19) (cid:23)(cid:19) (cid:25)(cid:19) (cid:27)(cid:19) (cid:20)(cid:19)(cid:19)
+Figure3:Performancewithdifferentnumberoflabeledorunlabeleddatainsupervisedsetting(left)
+andsemi-supervisedsetting(right)respectively.
+Performancewithcorruptedexplanations. Wefirstinvestigatethemodelperformancew.r.t. the
+quality of the retrieved explanations. We compare with corrupted explanations which randomly
+replace80%ofthewordsintheoriginalexplanations,resultsshowninTable7. Theperformance
+withcorruptedexplanationssignificantlydecreasesasexpected.Thehigh-qualityexplanationshelp
+themodelbettergeneralizewhiletherandomonesmayconfusethemodel.
+Performancewithdifferentnumbersofexplanations.Wetheninvestigatetheperformanceswith
+differentamountsofexplanations.AsillustratedinFigure2(left),withasfewas15annotatedexpla-
+nations,ELVsignificantlyoutperformsitscounterparttrainedwithoutthevariationalEMframework
+in the supervised setting. The performanceof ELV continues to improve with more explanations
+but the performance of ELV (M-step only) starts to saturate with 45 explanations, showing the
+importanceofmodelingtheinteractionsbetweentheexplanationgenerationmodelandexplanation-
+augmentedpredictionmodel.Similarresultsareobservedinthesemi-supervisedlearningsettingin
+Figure2(right).
+3Thepredictionmoduleisjointlytrainedwiththeexplanationgenerationmodule
+8Performancewithdifferentnumbersoflabeled/unlabeleddata. We alsoinvestigatetheperfor-
+manceofdifferentmodelswithdifferentproportionsoftrainingdata. FromFigure3(left),wecan
+see that ELV consistently outperformsthe BERT baseline with differentamounts of labeled data.
+Especially,theimprovementisthemostsignificantwhenonly10%oflabeleddataisused. Thisis
+becausehumanexplanationsprovideadditionalsupervisionandcanserveasimplicitlogicrulesto
+helpgeneralization.Inthesemi-supervisedlearningsetting(Figure3,right),ELV-ESToutperforms
+traditional self-training methods by a large margin, especially with fewer unlabeled data, further
+confirmingtheimprovedgeneralizationabilityfromexplanations.
+5 Conclusion
+Inthispaper,weproposeELV,anovelframeworkfortraininginterpretablenaturallanguageunder-
+standingmodelswithlimitedhumanannotatedexplanations.Ourframeworktreatsnaturallanguage
+explanationsaslatentvariablesthatmodeltheunderlyingreasoningprocesstoenableinteractions
+betweenexplanationgenerationandexplanation-basedclassification. Experimentalresultsinboth
+supervisedandsemi-supervisedsettingsshowthatELVcannotonlymakeeffectivepredictionsbut
+alsogeneratemeaningfulexplanations. Inthefuture,weplantoapplyourframeworktoothernat-
+urallanguageunderstandingtasks. Inaddition,we plantotest theeffectivenessofourframework
+on other pre-trained language models that are either stronger (e.g., XLNet [31], RoBERTa [32],
+ALBERT [33], ELECTRA [34], etc.) or more computationally efficient. (e.g., DistilBERT [35],
+BERT-of-Theseus[36],DeeBERT[37],PABEE[38],etc.)
+Broader Impact
+Ontheotherhand,suchasystemalsobringspotentialrisksdependingonthequalityofthegener-
+atednaturallanguageexplanations.Forexample,thegeneratednaturallanguagecouldhavecertain
+biases,whichhavebeenreportedinmanynaturallanguageunderstandingsystems[39,40]. Howto
+mitigatetheseriskswillbeourfuturework.Anotherpotentialriskisthattheexplanationgeneration
+model in our framework generates ad-hoc explanationsthat are not necessarily informative about
+how the model makes its predictions, since the model can come up with whatever explanation it
+thinkswouldpairwithitspredictedlabel. Thisisacommondrawbackforcurrentexplanationgen-
+erationmodels.Ourframeworkpartiallymitigatesthisproblemsincethegeneratedexplanationsare
+inreturnusedinthetrainingprocessoftheexplanation-augmentedclassifierthroughtheexplanation
+retrievalprocess.
+Acknowledgments
+ThisprojectissupportedbytheNaturalSciencesandEngineeringResearchCouncil(NSERC)Dis-
+covery Grant, the Canada CIFAR AI Chair Program, collaboration grants between Microsoft Re-
+searchandMila,Samsung,AmazonFacultyResearchAward,TencentAILabRhino-BirdGiftFund
+anda NRCCollaborativeR&D Project(AI4D-CORE-06). Theauthorswouldliketo thankMeng
+Qu,ZiqiWang,ChengLu,andtheanonymousreviewersfortheirvaluablefeedbackandinsightful
+comments.
+References
+[1] Braden Hancock, Paroma Varma, Stephanie Wang, Martin Bringmann, Percy Liang,
+and Christopher Ré. Training classifiers with natural language explanations. In
+Proceedings of the 56th Annual Meeting of the Association for Computational Lin-
+guistics (Volume 1: Long Papers), pages 1884–1895, Melbourne, Australia, July
+2018. Association for Computational Linguistics. doi: 10.18653/v1/P18-1175. URL
+https://www.aclweb.org/anthology/P18-1175.
+[2] NazneenFatemaRajani,BryanMcCann,CaimingXiong,andRichardSocher. Explainyour-
+self! leveraging language models for commonsense reasoning. In Proceedings of the 57th
+AnnualMeetingoftheAssociationforComputationalLinguistics,pages4932–4942,Florence,
+Italy,July2019.AssociationforComputationalLinguistics.doi:10.18653/v1/P19-1487.URL
+https://www.aclweb.org/anthology/P19-1487.
+9[3] Oana-MariaCamburu,TimRocktäschel,ThomasLukasiewicz,andPhilBlunsom. e-snli:Nat-
+urallanguageinferencewithnaturallanguageexplanations.InAdvancesinNeuralInformation
+ProcessingSystems,pages9539–9549,2018.
+[4] Nazneen Fatema Rajani, Bryan McCann, Caiming Xiong, and Richard Socher. Ex-
+plain yourself! leveraging language models for commonsense reasoning. arXiv preprint
+arXiv:1906.02361,2019.
+[5] Shashank Srivastava, Igor Labutov, and Tom Mitchell. Joint concept learning and semantic
+parsing from natural languageexplanations. In Proceedingsof the 2017 Conference on Em-
+piricalMethodsin NaturalLanguageProcessing, pages1527–1536,Copenhagen,Denmark,
+September 2017. Association for Computational Linguistics. doi: 10.18653/v1/D17-1161.
+URLhttps://www.aclweb.org/anthology/D17-1161.
+[6] Wenxuan Zhou, Hongtao Lin, Bill Yuchen Lin, Ziqi Wang, Junyi Du, LeonardoNeves, and
+XiangRen. Nero:Aneuralrulegroundingframeworkforlabel-efficientrelationextraction.In
+ProceedingsofTheWebConference2020,WWW’20,page2166–2176,NewYork,NY,USA,
+2020.AssociationforComputingMachinery. ISBN9781450370233. doi: 10.1145/3366423.
+3380282. URLhttps://doi.org/10.1145/3366423.3380282.
+[7] Ziqi Wang, Yujia Qin, Wenxuan Zhou, Jun Yan, Qinyuan Ye, Leonardo Neves,
+Zhiyuan Liu, and Xiang Ren. Learning from explanations with neural execu-
+tion tree. In International Conference on Learning Representations, 2020. URL
+https://openreview.net/forum?id=rJlUt0EYwS.
+[8] Jason Palmer, KennethKreutz-Delgado,Bhaskar D Rao, and David P Wipf. Variationalem
+algorithms for non-gaussian latent variable models. In Advances in neural information pro-
+cessingsystems,pages1059–1066,2006.
+[9] Shashank Srivastava, Igor Labutov, and Tom Mitchell. Joint concept learning and semantic
+parsingfromnaturallanguageexplanations. InProceedingsofthe2017conferenceonempiri-
+calmethodsinnaturallanguageprocessing,pages1527–1536,2017.
+[10] Shikhar Murty, Pang Wei Koh, and Percy Liang. Expbert: Representation engineeringwith
+naturallanguageexplanations. arXivpreprintarXiv:2005.01932,2020.
+[11] DanGoldwasserandDanRoth. Learningfromnaturalinstructions. Machinelearning,94(2):
+205–232,2014.
+[12] SanjaFidleretal. Teachingmachinestodescribeimageswithnaturallanguagefeedback. In
+AdvancesinNeuralInformationProcessingSystems,pages5068–5078,2017.
+[13] Braden Hancock, Martin Bringmann, Paroma Varma, Percy Liang, Stephanie Wang, and
+Christopher Ré. Training classifiers with natural language explanations. In Proceedings of
+theconference.AssociationforComputationalLinguistics.Meeting,volume2018,page1884.
+NIHPublicAccess,2018.
+[14] Diederik P Kingma and Max Welling. Auto-encoding variational bayes. arXiv preprint
+arXiv:1312.6114,2013.
+[15] Zied Bouraoui, Jose Camacho-Collados, and Steven Schockaert. Inducing relational knowl-
+edgefrombert. arXivpreprintarXiv:1911.12753,2019.
+[16] Fabio Petroni, Tim Rocktäschel, Patrick Lewis, Anton Bakhtin, Yuxiang Wu, Alexander H
+Miller, and Sebastian Riedel. Language models as knowledge bases? arXiv preprint
+arXiv:1909.01066,2019.
+[17] AdamRoberts,ColinRaffel,andNoamShazeer. Howmuchknowledgecanyoupackintothe
+parametersofalanguagemodel? arXivpreprintarXiv:2002.08910,2020.
+[18] LiDong,NanYang,WenhuiWang, FuruWei, XiaodongLiu,YuWang, JianfengGao,Ming
+Zhou, and Hsiao-Wuen Hon. Unified language model pre-training for natural language un-
+derstanding and generation. In Advances in Neural Information Processing Systems, pages
+13042–13054,2019.
+10[19] Nils Reimers and Iryna Gurevych. Sentence-BERT: Sentence embeddings using Siamese
+BERT-networks. In Proceedings of the 2019 Conference on Empirical Methods in Nat-
+ural Language Processing and the 9th International Joint Conference on Natural Lan-
+guage Processing (EMNLP-IJCNLP), pages 3982–3992, Hong Kong, China, November
+2019. Association for Computational Linguistics. doi: 10.18653/v1/D19-1410. URL
+https://www.aclweb.org/anthology/D19-1410.
+[20] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training
+of deep bidirectional transformers for language understanding. In Proceedings of the 2019
+Conference of the North American Chapter of the Association for Computational Linguis-
+tics: Human Language Technologies, Volume 1 (Long and Short Papers), pages 4171–
+4186, Minneapolis, Minnesota, June 2019. Association for Computational Linguistics. doi:
+10.18653/v1/N19-1423.URLhttps://www.aclweb.org/anthology/N19-1423.
+[21] IrisHendrickx, Su Nam Kim, ZornitsaKozareva, Preslav Nakov, DiarmuidO Séaghdha, Se-
+bastian Padó, Marco Pennacchiotti, Lorenza Romano, and Stan Szpakowicz. Semeval-2010
+task8: Multi-wayclassificationofsemanticrelationsbetweenpairsofnominals. InProceed-
+ingsofthe5thInternationalWorkshoponSemanticEvaluation,pages33–38.Associationfor
+ComputationalLinguistics,2010.
+[22] Yuhao Zhang, Victor Zhong, Danqi Chen, Gabor Angeli, and Christopher D. Manning.
+Position-awareattentionandsuperviseddataimproveslotfilling. InProceedingsofthe2017
+Conference on Empirical Methods in Natural Language Processing (EMNLP 2017), pages
+35–45,2017. URLhttps://nlp.stanford.edu/pubs/zhang2017tacred.pdf.
+[23] YuhaoZhang,VictorZhong,DanqiChen,GaborAngeli,andChristopherDManning.Position-
+awareattentionandsuperviseddataimproveslotfilling.InProceedingsofthe2017Conference
+onEmpiricalMethodsinNaturalLanguageProcessing,pages35–45,2017.
+[24] Maria Pontiki, Dimitris Galanis, John Pavlopoulos, Harris Papageorgiou,Ion Androutsopou-
+los, and Suresh Manandhar. SemEval-2014 task 4: Aspect based sentiment analysis. In
+Proceedings of the 8th International Workshop on Semantic Evaluation (SemEval 2014),
+pages27–35, Dublin, Ireland,August2014.Association forComputationalLinguistics. doi:
+10.3115/v1/S14-2004.URLhttps://www.aclweb.org/anthology/S14-2004.
+[25] Livio Baldini Soares, Nicholas FitzGerald, Jeffrey Ling, and Tom Kwiatkowski. Matching
+theblanks: Distributionalsimilarityforrelationlearning. InProceedingsofthe57thAnnual
+Meeting ofthe Association for ComputationalLinguistics, pages2895–2905,Florence, Italy,
+July 2019. Association for Computational Linguistics. doi: 10.18653/v1/P19-1279. URL
+https://www.aclweb.org/anthology/P19-1279.
+[26] ChenZhang,QiuchiLi, andDaweiSong. Aspect-basedsentimentclassificationwith aspect-
+specificgraphconvolutionalnetworks. arXivpreprintarXiv:1909.03477,2019.
+[27] HuXu,BingLiu,LeiShu,andPhilipSYu. Bertpost-trainingforreviewreadingcomprehen-
+sionandaspect-basedsentimentanalysis. arXivpreprintarXiv:1904.02232,2019.
+[28] Youwei Song, Jiahai Wang, Tao Jiang, Zhiyue Liu, and Yanghui Rao. Attentional encoder
+networkfortargetedsentimentclassification. arXivpreprintarXiv:1902.09314,2019.
+[29] Dong-HyunLee. Pseudo-label:Thesimpleandefficientsemi-supervisedlearningmethodfor
+deepneuralnetworks.InWorkshoponchallengesinrepresentationlearning,ICML,volume3,
+page2,2013.
+[30] ChuckRosenberg,MartialHebert,andHenrySchneiderman.Semi-supervisedself-trainingof
+objectdetectionmodels. WACV/MOTION,2,2005.
+[31] ZhilinYang,ZihangDai,YimingYang,JaimeCarbonell,RussRSalakhutdinov,andQuocV
+Le. Xlnet:Generalizedautoregressivepretrainingforlanguageunderstanding. InAdvancesin
+neuralinformationprocessingsystems,pages5753–5763,2019.
+[32] Yinhan Liu, Myle Ott, Naman Goyal, Jingfei Du, Mandar Joshi, Danqi Chen, Omer Levy,
+Mike Lewis, Luke Zettlemoyer, and Veselin Stoyanov. Roberta: A robustly optimized bert
+pretrainingapproach. arXivpreprintarXiv:1907.11692,2019.
+11[33] ZhenzhongLan,MingdaChen,SebastianGoodman,KevinGimpel,PiyushSharma,andRadu
+Soricut. Albert: A lite bert for self-supervised learning of language representations. arXiv
+preprintarXiv:1909.11942,2019.
+[34] Kevin Clark, Minh-Thang Luong, Quoc V Le, and Christopher D Manning. Elec-
+tra: Pre-training text encoders as discriminators rather than generators. arXiv preprint
+arXiv:2003.10555,2020.
+[35] Victor Sanh, Lysandre Debut, Julien Chaumond, and Thomas Wolf. Distilbert, a distilled
+versionofbert:smaller,faster,cheaperandlighter. arXivpreprintarXiv:1910.01108,2019.
+[36] CanwenXu,WangchunshuZhou,TaoGe,FuruWei, andMingZhou. Bert-of-theseus: Com-
+pressingbertbyprogressivemodulereplacing. arXivpreprintarXiv:2002.02925,2020.
+[37] Ji Xin, Raphael Tang, Jaejun Lee, Yaoliang Yu, and Jimmy Lin. Deebert: Dynamic early
+exitingforacceleratingbertinference. arXivpreprintarXiv:2004.12993,2020.
+[38] WangchunshuZhou,CanwenXu,TaoGe,JulianMcAuley,KeXu,andFuruWei. Bertloses
+patience:Fastandrobustinferencewithearlyexit. arXivpreprintarXiv:2006.04152,2020.
+[39] JieyuZhao,TianluWang,MarkYatskar,VicenteOrdonez,andKai-WeiChang. Menalsolike
+shopping: Reducinggenderbiasamplificationusingcorpus-levelconstraints. arXiv preprint
+arXiv:1707.09457,2017.
+[40] MartaRCosta-jussà.Ananalysisofgenderbiasstudiesinnaturallanguageprocessing.Nature
+MachineIntelligence,pages1–2,2019.
+12A Examples ofExplanations
+Inthissectionwepresentseveralhumanannotatednaturallanguageexplanationsandexplanationos
+generatedbytheexplanationgenerationmodelintheELVframeworkindifferentdatasetsforbetter
+understandingoftheproposedapproach.
+A.1 TACRED
+A.1.1 HumanAnnotatedExplanations
+a) AlthoughnotaPlayboyPlaymate,shehasappearedinnudepictorialswithherGirlsNext
+DoorcostarsandfellowHefnergirlfriendsHollyMadisonandKendraBaskett(OBJ),then
+knownasKendraWilkinson(SUBJ).
+Label: per:alternate_names
+Explanation: Theterm"thenknownas"occursbetweenSUBJandOBJandthereareno
+morethansixwordsbetweenSUBJandOBJ
+b) Burke(SUBJ) ’s mother Melissa Bell(OBJ) was a singer in the dance group Soul II Soul,
+whichhadhitsinthe1980sand1990s.
+Label: per:parents
+Explanation: SUBJandOBJsandwichthephrase"’smother"andtherearenomorethan
+threewordsbetweenSUBJandOBJ
+c) EllenPompeo(OBJ)secretlymarriedChrisIvery(SUBJ)Congratulationstothenewlyweds
+andletthemlivehappilyeverafter!!
+Label: per:spouse
+Explanation: TherearenomorethanfourwordsbetweenSUBJandOBJandSUBJand
+OBJsandwichthephrase"secretlymarried"
+A.1.2 MachineGeneratedExplanations
+a) LomaxsharesastoryaboutAlmenaLomax,hismotherandanewspaperownerandjour-
+nalist(OBJ)inLosAngeles,takingher(SUBJ)familyonthebustoTuskegee,Ala.,in1961.
+Label: per:title
+Explanation:theword"family"isrightafterSUBJ.
+b) What happened to their investments was of no interest to them, because they would al-
+ready be paid , said Paul Hodgson(OBJ),senior research associate at the Corporate Li-
+brary(SUBJ),ashareholderactivistgroup.
+Label: per:org:top_members/employees
+Explanation:Theword"seniorresearchassociateat"appearsrightbeforeSUBJ.
+c) IroquoispassportdisputeraisessovereigntyissueTheNationalCongressofAmericanIndi-
+ans(SUBJ),basedinWashington,DC(OBJ),hasadvocatedonbehalfofthelacrosseteam,
+urgingBritish officialsto allow the members entry into Englandon their Iroquois-issued
+passports.
+Label: org:country_of_headquarterse
+Explanation:Theword"basedin"appearsrightbeforeOBJ.
+A.2 SemEval
+A.2.1 HumanAnnotatedExplanations
+a) Morton’s SUBJ-O is the most common cause of localized OBJ-O in the third interspace
+andthesediagnostictestsproducegoodindicationsofthecondition.
+Label: Cause-Effect(e1,e2)
+Explanation: Between SUBJ and OBJ the term "is the most commoncause of" appears
+andSUBJprecedesOBJ
+b) The frontalSUBJ-Ois apartofthe OBJ-Othatmaintainsvery close tieswith thelimbic
+system.
+13Label: Component-Whole(e1,e2)
+Explanation: Between SUBJ andOBJthe term "isa partof the"appearsandSUBJ pre-
+cedesOBJ.
+c) OutcurrentSecretaryisgatheringSUBJ-OfrompastOBJ-Oandcommitteechairs.
+Label: Entity-Origin(e1,e2)
+Explanation: The phrase "from past" links SUBJ and OBJ and there are no more than
+threewordsbetweenSUBJandOBJandOBJfollowsSUBJ.
+A.2.2 MachineGeneratedExplanations
+a) SUBJ-OcausedOBJ-OattheCharlotteDouglasInternationalAirportMondaymorning.
+Label: Cause-Effect(e1,e2)
+Explanation:Thereisonlyoneword"caused"betweensubjandobjandobjfollowssubj.
+b) ThebaseinwhichitsitshidesthedamagewhichoccurredwhentheSUBJ-Owasremoved
+fromitsinitialOBJ-OontheLongTanbattlefield.
+Label: Entity-Origin(e1,e2)
+Explanation:Betweensubjandobjthephrase"wasremovedinto"occursandthereareno
+morethanfourwordsbetweenSUBJandOBJandSUBJprecedesOBJ
+c) A hinge SUBJ-O attachesa OBJ-O pivotally to a base of an electronic device and hasa
+pivotingleafandastationaryleaf.
+Label: Component-Whole(e1,e2)
+Explanation: Thephrase"attachesa"betweenSUBJandOBJandOBJfollowsSUBJ
+A.3 Restaurant
+A.3.1 HumanAnnotatedExplanations
+a) We hadgreatdesserts(includingthe bestcannoliI’ve everhad)andthentheyofferedan
+afterdinnerdrink,onthehouse.(Term: cannoli)
+Label: positive
+Explanation:Theword"best"directlyprecedestheterm.
+b) Allthedessertsthegrouptriedgotfavorablereviews. (Term: desserts)
+Label: positive
+Explanation:Thestring"favorable"appearsnomorethan5wordsaftertheterm.
+c) The most annoyingthing, though, is the fact that the servers seem to be trained to drive
+revenue.(Term: servers)
+Label: negative
+Explanation:Theword"annoying"occursbeforetheterm.
+A.3.2 MachineGeneratedExplanations
+a) Thislittleplaceiswonderfullywarmwelcoming.(Term: place)
+Label: positive
+Explanation:Theteremisfollowedby"wonderful".
+b) Thefalafalwasratherovercookedanddriedbutthechickenwasfine. (Term: chicken)
+Label: positive
+Explanation:Theword"fine"occurswithin3wordsaftertheterm.
+c) Service was awful - mostly because staff were overwhelmed on a Saturday night. (Term:
+staff)
+Label: negative
+Explanation:Theword"unbearable"occurswithinthreewordsaftertheterm.
+14Table8:Results(Macro-F1)onASCdatasetsinsupervisedsettingwithdifferentfractionoflabeled
+dataused.
+Fractionoflabeleddataused 60% 70% 80% 90% 100%
+ELV(ours) 75.5 - - - -
+BERT-base 74.6 75.0 75.3 75.4 75.4
+A.4 Laptop
+A.4.1 HumanAnnotatedExplanations
+a) TheDVDdriverandomlypopsopenwhenitisinmybackpackaswell,whichisannoying.
+(Term: DVDdrive)
+Label: negative
+Explanation:Thestring"annoying"occursaftertheterm
+b) TheAppleteamalsoassistsyouverynicelywhenchoosingwhichcomputerisrightforyou.
+(Term: Appleteam)
+Label: positive
+Explanation:Thestring"verynicely"occursafterthetermbynomorethan6words.
+c) Thedesignisawesome,qualityisunprecedented.(Term: design)
+Label: positive
+Explanation:Theword"awesome"iswithin2wordsaftertheterm.
+A.4.2 MachineGeneratedExplanations
+a) Iorderedmy2012macminiafterbeingdisappointedwithspecofthenew27Imacs.(Term:
+spec)
+Label: negative
+Explanation:Theword"disappointed"occurswithin3wordsbeforetheterm.
+b) Ifoundtheminitobeexceptionallyeasytosetup.(Term: setup)
+Label: positive
+Explanation:Thephrase"exceptionallyeasy"occurswithin3wordsbeforetheterm.
+c) However,thereareMAJORissueswiththetouchpadwhichrenderthedevicenearlyuseless.
+(Term: tourchpad)
+Label: negative
+Explanation:Thephrase"nearlyuseless"occurswithin3wordsaftertheterm.
+B HumanEvaluationDetails
+Forhumanevaluation,werandomsample100examplesinthetestsetoftheRestaurantdatasetand
+useELVtopredictthelabelsoftheselectedexamples. Thenweusedifferentcomparedmodelsto
+generateexplanationsofthepredictionresultswithboththeinputsentencesandthepredictedlabels.
+Afterward,weinvite5graduatestudentswithenoughEnglishproficiencytoscoretheexplanations.
+Theannotationscenariosincludetheexplanantions’informativeness(Info.),correctness(Corr.),and
+consistency(Cons.)withrespecttothemodelprediction.Specifically,theinformativenessmeasures
+towhatextentthegeneratedexplanationishelpfultounderstandthemodel’spredictionoutput.The
+correctnessmeasureswhethertheexplanationisfactuallycorrect(e.g.word“good”beforetheterms
+leads to positive label while word “annoying”is negative). The consistency refersto whether the
+explanationisconsistentwiththeinputsentence(i.e. thedescriptionintheexplanationistruew.r.t
+theinputsentence).
+15C AdditionAnalysisExperiments
+In thissection, we reportadditionalexperimentalresults comparingthe performanceof ELVwith
+60% of labeled data and the performancewith the BERT-base modelwith 60%, 70%, 80%, 90%,
+and 100%of labeled data to investigateto what extenthuman annotatedexplanationscan replace
+human labeled examples. The result is shown in Table 8. We find that ELV can achieve or even
+exceedtheperformanceofaBERT-basemodeltrainedwithmuchmorelabeleddata.Thisconfirms
+thatELVcaneffectivelyleveragehumanannotatedexplanationsasadditionalinformation.
+16

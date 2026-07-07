@@ -1,0 +1,1363 @@
+Retrieval Augmented Recipe Generation
+GuoshanLiu*,1,2,HailongYin*,1,2,BinZhu3,JingjingChen†,1,2,Chong-WahNgo3,Yu-GangJiang1,2
+1ShanghaiKeyLabofIntelligentInformationProcessing,SchoolofComputerScience,FudanUniversity
+2ShanghaiCollaborativeInnovationCenteronIntelligentVisualComputing
+3SingaporeManagementUniversity
+gsliu24, 23210240364 @m.fudan.edu.cn, chenjingjing, ygj @fudan.edu.cn
+{ } { }
+binzhu, cwngo @smu.edu.sg
+{ }
+Abstract classifyingfoodandingredientrecognition[42,45,54,73].
+However,duetothelimitedavailabilityofdetailedinforma-
+The growing interest in generating recipes from food tiononpreparedfoods,acomprehensivevisualfoodrecog-
+images has drawn substantial research attention in recent nition system should not only be able to identify the type
+years.Existingworksforrecipegenerationprimarilyutilize ofdietoritsingredientsbutalsogeneratecookinginstruc-
+a two-stage training method—first predicting ingredients tions. Therefore, thetaskofrecipegenerationhasbecome
+from a food image and then generating instructions from asignificanttaskinthefieldoffoodcomputing.
+both the image and ingredients. Large Multi-modal Mod- Previous methods for recipe generation [9,47,56] typ-
+els(LMMs),whichhaveachievednotablesuccessacrossa ically use a two-stage approach: first extracting ingredi-
+varietyofvisionandlanguagetasks,shedlightongenerat- ents from images, then generating instructions based on
+ingbothingredientsandinstructionsdirectlyfromimages. theembeddingsofthoseingredientsandtheimages,which
+Nevertheless, LMMs still face the common issue of hallu- is shown in Figure 1 (a). Due to limited training data
+cinations during recipe generation, leading to suboptimal andpoormulti-modalalignment,traditionalmethodsoften
+performance. To tackle this issue, we propose a retrieval yieldunsatisfactoryresults. Incontrast,Multi-modalMod-
+augmented large multimodal model for recipe generation. els (LMMs) [1,2,8,14,44] can directly generate recipes
+WefirstintroduceStochasticDiversifiedRetrievalAugmen- fromimagesinonestage. FoodLMM[70]improvedrecipe
+tation(SDRA)toretrieverecipessemanticallyrelatedtothe generationperformancebutstillsuffersfromhallucinations,
+imagefromanexistingdatastoreasasupplement,integrat- affecting recipe quality. Figure 1 (b) compares the recipe
+ingthemintotheprompttoadddiverseandrichcontextto generation results of different methods. Compared to the
+the input image. Additionally, Self-Consistency Ensemble groundtruthinstructions,theresultspredictedbyoneofthe
+Votingmechanismisproposedtodeterminethemostconfi- state-of-the-art LMMs, LLaVA [44], exhibit clear halluci-
+dentpredictionrecipesasthefinaloutput. Itcalculatesthe nations,asitincorrectlyidentifiescrumbsas‘beef’ander-
+consistencyamonggeneratedrecipecandidates,whichuse roneously detects ‘tomatoes’ and ‘taco seasoning’ that are
+differentretrievalrecipesascontextforgeneration. Exten- not present in the image. Although the two-stage method
+siveexperimentsvalidatetheeffectivenessofourproposed [56]accuratelyidentifiesthecorrecttemperature,itfailsto
+method,whichdemonstratesstate-of-the-art(SOTA)perfor- precisely recognize the ingredients. FoodLMM [70] man-
+manceinrecipegenerationontheRecipe1Mdataset. agestoidentifymostofthecorrectingredientsbutstillhal-
+lucinated, mistakenly recognizing ‘rice’. The result arises
+1.Introduction duetoinadequatemulti-modalunderstandingandalackof
+Withtherisingfocusonfoodandhealth,foodcomputing effective use of context, which prevents the models from
+[49]hasincreasinglycapturedattentionandspurredvarious learningsufficientinformation.
+foodrelatedtasks,suchasfoodrecognition[3,7,12,22,28,
+This paper addresses the limitation by introducing the
+30,43,48,59,68,75],cross-modalreciperetrieval[6,51,57,
+firstretrieval-augmentedlargemultimodalmodeltogener-
+66,76,77],recipegeneration[11,46,56,64,65],foodrecom-
+ate recipes from food images. The proposed architecture
+mendation[17,19,60]andfoodlogging[13,55]. Previous
+consists of a retriever and a generator. The retriever lever-
+research on food understanding has primarily focused on
+ages an off-the-shelf cross-modal recipe retrieval model
+[57]toidentifysemanticallysimilarrecipesfromtheimage.
+*Theseauthorscontributedequallytothiswork.
+†JingjingChenisthecorrespondingauthor. ThegeneratorisbuiltuponLLaVA[44]withLoRA[26]to
+4202
+voN
+31
+]VC.sc[
+1v51780.1142:viXratwo-stage
+Ingredient LLaVA-FT: preheat oven to 350 degrees f…Cook ground
+Image Decoder Ingredients G Instruction beef, breaking up chunks, until browned throughout, about
+10 min…Stir in tomatoes, taco seasoning…
+Inverse cooking: Preheat oven to 350f. Mix all ingredients in
+LMMs-based
+large bowl. cover and refrigerate overnight.…Bake 350 f, for
+Ingredients 1 hour or until bubbling in center.
+Image G
+Instructions
+FoodLMM: Heat oven to 350f…Mixcrumbs, sugar, and
+melted butter until well combined…cook riceaccording to…
+Ours
+Ingredients GT: Heat oven to 350f. mix baking crumbsand Ours: Heat oven to 350f. Mix cookie crumbs,
+Image G
+Instructions butter;…Beat cream cheeseand granulated butterand 1/4 cup sugar;…Beat cream
+sugarin large bowl with mixer until cheese, sugar, vanilla and saltin large bowl
+blended…Sprinkle icing sugar over cheesecake with mixer until blended.…Top with berries
+Retriever Retrieved recipes just before serving. Top with berries. and powdered sugar just before serving.
+(a) (b)
+Figure1.(a)Thestructuraldifferencesbetweenourretrieval-augmentedframeworkandthe“two-stage”[11,56]and“LMMs-based”[44,
+70]approaches. “G”referstothegenerator. (b)Recipegenerationresultscomparison. “GT”referstogroundtruth,“LLaVA-FT”denotes
+themodelusingpre-trainedLLAVAweightsfine-tunedonRecipe1M,“Inversecooking”[56]representsamodeltrainedwithtwo-stage,
+“FoodLMM” [70] is the LMMs-based model for recipe generation, and “Ours” refers to our model, where yellow highlights indicate
+ingredientsthatmatchthoseinthe“GT”,bluesignifiescookinginstructionspredictionsmatchingthe“GT”,andredfontdenotesincorrectly
+predictedingredients.
+generaterecipesbasedontheimageandretrievedreference agreementandconsistencyinthegeneratedrecipe.
+recipes. On the one hand, we propose Stochastic Diversi-
+• OurproposedmodelachievesSOTArecipegeneration
+fiedRetrievalAugmentation(SDRA)toprovidearichand
+performanceonRecipe1Mdataset. Weconductcom-
+diverse set of retrieved recipes as references, which could
+prehensive ablation studies to validate the effective-
+provide relevant knowledge for the generation to reduce
+nessofourdesignchoicesanddemonstratethecontri-
+hallucination [24,29,52]. Section 2 of the supplementary
+butionsofeachcomponenttotheoverallperformance.
+materialscomparesretrievedrecipeswiththegroundtruth,
+Our proposed model exhibits exceptional adaptabil-
+highlighting related content that helps alleviate hallucina-
+ity, outperforming current SOTA results in ingredient
+tions and improve generation. On the other hand, we pro-
+recognitionontheRecipe1Mdataset.
+poseSelf-consistencyEnsembleVotingstrategytoimprove
+generationqualityduringtheinferencephase. Specifically,
+thegeneratorproducesmultiplerecipecandidatesusingdif-
+2.Relatedwork
+ferent retrieved recipes and the image. Cosine similarity
+scoresarecomputedforthesecandidatestoassesstheirmu-
+2.1.RecipeGeneration
+tualagreement.Therecipewiththehighestscorerelativeto
+the others is selected as the final output. The consensus The significance of food and the accessibility of com-
+among different candidates is capable of further reducing prehensive food datasets, including Recipe1M [66], Vireo
+thehallucinationinthegeneratedrecipes,asdetailedinSec- Food-172 [6] and Food2K [50], have facilitated compu-
+tion5ofthesupplementarymaterials,whichexplainswhy tational studies in the domain of food-related computing
+thefinaloutputissuperior. OnRecipe1Mdataset[66],our tasks[49]. Recipegenerationposesasignificantchallenge
+proposed model significantly outperforms existing meth- due to the presence of multiple sentences in cooking in-
+ods and fine-tuned LLaVA. Moreover, our model demon- structions. It entails the complex task of generating food
+strates strong generalizability, surpassing the state-of-the- recipes based on provided food images [25,64,65]. Ac-
+art(SOTA)benchmarksontheRecipe1Mdatasetforingre- curate recipe generation requires understanding food com-
+dientrecognitionmetrics. ponents, images, and processes. Early methods generated
+Overall, our main contributions can be summarized as ingredients from images first, then instructions from these
+follows: ingredients and images. [56] used transformers for recipe
+generationbutmissedsomestepsduetoalackofcompre-
+• We propose the first retrieval-augmented large mul-
+hensivestructure. PreviouseffortsdidnotuseLargeMulti-
+timodal model tailored for recipe generation. Our
+modalModels(LMMs).Recently,[70]fine-tunedtheLMM
+model introduces a stochastic diversified retrieval-
+LISA[33]usingmultipledatasets,creatingthefirstunified
+augmentation technique to enhance the diversity and
+foodcomputingmodel, includingrecipegeneration. How-
+richness of retrieval. Additionally, we employ a Self-
+ever,FoodLMMstillsuffersfromhallucinationissues.This
+consistencyEnsembleVotingstrategyduringtheinfer-
+paperaimstomitigatetheseissueswithretrievalaugmenta-
+ence stage, using different retrieved recipes to ensure
+tion.3.Method
+Q : Can you predict the food category of this image?
+title
+A The food is…
+title: 3.1.Preliminary
+Q : Can you list the ingredients present in this dish?
+ingredients
+A ingredients:The ingredients are:… 3.1.1 RetrievalAugmentedGeneration(RAG)Models
+Q : Can you provide the preparation instructions for
+instructions
+this image? RAG models [24,52,69]are usually composed of a re-
+A instructions:Here are the instructions:… trieval model R and a generator (language model) G. The
+retrieverR,basedonthequery(inputsequence)x ,...,x ,
+1 n
+Figure2.TemplatesforRecipeGeneration.
+vectorizesthequerytotokensandsearchestheTopK doc-
+uments with the highest similarity to the query sequence
+within the datastore M, denoted as M = (m ,...,m ).
+′ 1 K
+2.2.Vision-languageMultimodalModels
+M is then concatenated with the query to form a context-
+′
+rich prompt, which is fed into the language model to gen-
+Due to the increasing demand for versatile deep learn-
+erate enhanced outputs. Next-token prediction is widely
+ing models, various large pre-trained models like BERT
+adopted in language models. During the training process,
+[15], ViT [16], and GPT [67] have emerged. However,
+theautoregressivemodelaimstomaximizetheconditional
+their single-modality limits generalization, leading to the
+probability of the next word given the preceding sequence
+development of multimodal models. Autoregressive lan-
+ofwords,namely,byoptimizingtheparametersθ tomaxi-
+guage models are now popular for vision-language tasks
+mize:
+[1,2,4,31,38,39,41,71,72]. For example, LLaVA [44]
+n
+integrates visual encoder output with LLaMA [61] using p(x ,...,x )= p (x x ), (1)
+1 n θ i <i
+syntheticdata,whileVicuna[74]usesLLaMAforconver- |
+i=1
+Y
+sationalinteractions. TheriseofLMMshasexpandedtheir
+where x is the sequence of tokens preceding x .
+applicationinvariousdomains. However,hallucinationre- <i i
+Retrieval-augmented language models make predictions
+mainsanissue.[40]treatsitasabinaryclassificationprob-
+conditionallybasedontheretrieveddocumentsM .Specif-
+lem, and [20] uses models to generate data for annotators ′
+ically, by simply merging the retrieved documents into the
+toidentifyhallucinations. OurmodelisbuiltuponLLaVA
+inputquerytopredictthecontinuationoftheinput:
+forrecipegeneration,equippedwithadiversifiedstochastic
+retrievalaugmentation,thatbooststherecipegenerationca- n
+pabilities by introducing additional relevant contextual in-
+p(x 1,...,x n)= p θ(x
+i
+|[ M′(x <i);x <i]), (2)
+formation,enablingthemodeltolearnmorespecializedand i Y=1
+comprehensiveinformation. where[a;b]denotestheconcatenationofstringsaandb.
+3.1.2 DataOrganizationStrategy
+We organize image-recipe pairs as dialogues, with each
+2.3.Retrieval-AugmentedGeneration
+imagelinkedtothreequestion-answerpairs(titles,ingredi-
+ents, instructions). In the retrieval model, the image x is
+Retrieval-augmented generation (RAG) enhances lan-
+the query; in the generator, questions about titles, ingredi-
+guage models (LMs) by incorporating knowledge from an
+ents, andinstructionsserveasqueries. Duringthetraining
+externaldatastore[35]. Thisinvolvesfetchingrelevantdoc-
+process, the model formats each multimodal document as
+uments from external storage to improve the LM’s predic-
+“[<Image> Conversations: Q , A , Q ,
+tive accuracy [5,21,24,29,36,52]. While RAG is popular titles titles ingredients
+A , Q , A ]”, which Q
+in NLP tasks [34], it is less explored in multimodal mod- ingredients instructions instructions titles
+denotes the title’s questions and A denotes the title’s
+els [23,32]. Some relevant works in retrieval-augmented titles
+answersofthisimage,andsimilarlyforingredientsandin-
+multimodallanguagemodelingfocusoncaptiongeneration
+structions. We define these dialogues as ground truth con-
+basedontheencodedinputimage,aswellasacollectionof
+versationsG. SeeFigure2formoredetailsofthetemplates
+retrievedtextswhichareusedasataskdemonstration,input
+forourtask.
+tothedecoderasaprompt[53]. Recentworks[27,69]train
+generators with external multimodal information. While
+3.2.RetrievalAugmentedRecipeGeneration
+RAG enhances language models by incorporating external
+data,itsuseinverticaldomainsislimited[37,62]. Wepro- 3.2.1 StochasticDiversifiedRetrievalAugmentation
+pose the first Retrieval-Augmented LMMs for recipe gen-
+AsdepictedinFigure3(a),weutilizeimage-to-recipere-
+erationusingaStochasticDiversifiedRetrievalAugmenta-
+trievalmodel[57],toretrievethetopKmostsimilaringre-
+tion (SDRA) method. This method employs a pretrained
+dientsandinstructionsfromthedatastoragetotheimagex.
+retrievertofetchdiverserecipesassupplementalinputs,im-
+Unlikeexistingretrievalaugmentationmethods[29,35,53]
+provingLMMcapabilitiesinrecipegeneration.Stochastic Diversified Retrieval Augmentation
+Recipe demonstration R
+… Add the onion
+Ground truth conversations G
+Qtitle and cook until
+Atitle: The food is… softened, about 5
+Retrieved Instructions Conversations:
+Search results… Qingredients minutes… and
+Retrieval {[Instr1],…,[InstrK]} A Sein ag rr ce hdi e rn et ss: uT lth s…e i n [gredient Is n a sr te r: ]… Qinstructions tb or o a t bh o a in l.d r eb dri un cg e
+Retrieved Ingredients Ainstructions:Here are the instructions:… the heat to
+{ ,…, medium-low and
+Datastore
+simmer for 10
+minutes. simmer
+LLaVA ＋ LoRA for 5 minutes…
+Generator
+(a) Training stage.
+Self-consistency Ensemble Voting
+Ainstr 0 0.89 … 0.97 0.93 … Add pasta and
+1 cook for 8 to 10
+F too pr - 1e a tc oh t or pet -r sieved recipe in Generator Ainstr 2 siC mo ils ain rie ty 0.76 0 … 0.8 avg 0.78 dem ni tn eu …te s Sto ir r iu nn t pi el sa tl o ,
+[ ,Instr1]+Qinstr … … … 0 … … parmesan cheese,
+[ ,Instr2]+Qinstr Ainstr
+S
+0.42 0.08 … 0 0.25 and butter…
+… Prediction
+[ ,InstrS]+Qinstr
+(b) Inference stage.
+Figure 3. Overview of our proposed model architecture. Our model consists of a retriever to search semantically similar recipes from
+theimageasreference,andageneratorbasedonafrozenLLaVA[44]withatrainableLoRA[26]togeneraterecipewiththeimageand
+retrievedrecipes. StochasticDiversifiedRetrievalAugmentationisintroducedbyusingretrievedingredientsandinstructions,toform
+RecipedemonstrationR,andfedintothegeneratorfortraining. Self-consistencyEnsembleVotingisproposedtoselectthefinalrecipe
+outputbasedonmutualagreementamongtherecipecandidates, whichareproducedbyusingeachrecipefromtop1totopsretrieved
+recipesascontext.
+whichdirectlyusetheretrievedresultsascontext,toensure imagefeatures. Theimagefeaturesarefurthermappedinto
+thediversityofretrievalinformation, werandomlysample thesameembeddingspaceastextfeaturesviaaMLP.Upon
+fromthetopKretrievalresults,selectingthreesetsofingre- receivingbothtextandimageembeddings,thedecoderpro-
+dientsandonesetofinstructionsasthefinalretrievalinfor- ceeds to produce caption tokens, which are contingent on
+mation,asshowninFigure3(a). 1setofingredientsrefers the image features X and the recipe demonstration R. To
+totheingredientspartretrievedfromanimage,specifically, reduce the compute requirements for training and to pre-
+such as ‘oil, egg, milk, vanilla’. Two sets of retrieved in- serve their generalization capabilities, we freeze the gen-
+gredientsareconcatenatedinsequencebeforeQ , erator LLaVA model and only train its patch LoRA [26],
+ingredients
+and the instructions and remaining set of retrieved ingre- which allows the focus to then be on fine-tuning specific,
+dients are concatenated in sequence before Q smaller aspects of the model to adapt to recipe generation
+instructions
+while informing the model like this that it is a reference without the need for extensive computation. The model is
+result: “Search results for reference is ‘retrieved informa- trainedbyminimizingthecross-entropylossfornexttoken
+tion’. The search results are only for referring, please fo- predictionasfollows:
+cus on the image.” Finally, they are normalized as recipe n
+demonstration R according to the prompt in Figure 3 (a). L = p (y [X;R;y ];θ), (3)
+θ θ i <i
+− |
+Here,theprompts“Thefoodis”,“Theingredientsare:”and i=1
+X
+“Herearetheinstructions:”aresimilartothesimple,fixed wherenistheindexofthecurrenttokens,andy denotes
+<i
+promptsusedinotherresearch[39]. representsthetokensinthesequencebeforepositioni.
+3.2.2 RecipeGenerationwithRetrievalRecipes 3.3.Self-consistencyEnsembleVoting
+OurgenerationmodelisbuiltuponaLargeMulti-modal To further improve the quality of recipe generation, we
+ModelLLaVA[44]whichtakesimageandtextpromptsas propose self-consistency ensemble voting. As shown in
+input. The text prompt (i.e., questions) and the retrieved Figure 3 (b), we first retrieve the Top S sets of ingredi-
+recipesareconcatenatedandprocessedthroughatokenizer, entsandinstructionsfromthefoodimageduringthetesting
+thenfedintoatextencodertoobtaintextualfeatures,while phase. Each set is then concatenated before Q
+instructions
+theimageisprocessedthroughanimageencodertoobtain in the model input, following the Recipe denomination Rin Figure 3 (a), which concatenates the retrieved data in Table 1. Recipe generation performance comparison. “LLaVA-
+frontofQ . TheSretrievedsetsaresequentially FT”referstofine-tunedLLaVAmodel.
+instructions
+concatenatedbeforeQ andinputintothemodel, Methods BLEU SacreBLEU ROUGEL
+instructions
+producing S different outputs. This process generates S ChefTransformer[18] 18.08 4.61 17.54
+InverseCooking[56] 7.23 5.48 19.47
+different recipes, we note that the generated recipes could
+TIRG[63] 7.95 — 32.4
+be inconsistent with different retrieved recipes as context.
+VAL[10] 8.83 — 34.20
+As a result, we introduce a score-based ensemble voting
+SGN[65] 12.75 — 36.90
+method,whichselectsthebestrecipefrommultiplepredic-
+FIRE[11] — 6.02 21.29
+tions to maintain self-consistency and improve the quality
+FoodLMM[70] 27.86 6.24 36.96
+ofthegeneratedrecipes. Specifically,denotethegenerated
+LLaVA-FT[44] 28.32 5.88 38.18
+recipesasP = P ,...,P byemployingtop1totopSas
+1 S
+{ } Ours 30.11 6.42 38.93
+retrievedrecipes,whereSisthenumberofrecipesusedfor
+inference. Wecomputethecosinesimilarity,BLEU,Sacre-
+4.1.2 Implementation
+BLEUscores,orROUGELscoresamongtheseS recipes,
+In our retrieval module R, we use the revamping cross-
+producing a S S matrix where each row represents the
+× modal recipe retrieval model [57] based on Transformers.
+agreement of all other predictions with the current predic-
+Our generator G utilizes LLAVA [44] augmented with a
+tion (excluding diagonal elements). By averaging the sum
+LoRA[26]patch. Duringtraining,weutilizeLoRAtofine-
+of agreements in each row, we obtain a confidence score
+tune LLaVa based on the PyTorch framework, employing
+foreachrecipe. Then,takingthecalculationofconfidence
+thepre-trainedweightsfromLISA-7B-v1-explanatory[33].
+scoresusingcosinesimilarityasanexample,weselectthe
+This process is carried out on four NVIDIA 80G A100
+recipewiththehighestconfidencescoreasourfinaloutput
+GPUs. Forthebaseline,whichwenamed“LLaVA-FT,”we
+asfollows:
+fine-tuned LLAVA using LoRA without retrieval augmen-
+1 S P P tation, utilizingthesamemodelarchitecture, trainingdata,
+i j
+P =argmax · , (4)
+best i S 1 P i P j  andcomputationalresourcestoensureafaircomparison.
+− j=1,j=i∥ ∥∥ ∥
+X̸
+ 
+where
+Pi·Pj
+referstocosinesimilaritybetweentwopre-
+dictions∥.Pi∥∥Pj∥ 4.1.3 TrainingandInference
+During training, we retrieve the top 50 recipes for each
+4.Experiments image,includingtitles,ingredients,andinstructions. From
+these,werandomlyselectthreesetsofingredientsandone
+4.1.ExperimentalSettings set of instructions to concatenate before Q and
+ingredients
+Q as described in Section 3.2. The generator’s
+4.1.1 DatasetandEvaluationMetrics instructions
+maxsequencelengthof4096encompassesalltheinforma-
+Following prior works [11,70], we use the recipes with tion. Weoptimizethetokenpredictionlossovertheentire
+images in Recipe1M dataset [66] for experiments, includ- sequence(Equation3).Giventhestrongperformanceofour
+ing571,587pairsfortrainingand51,304fortesting. Inthis cross-modalreciperetriever[57],whichusesatransformer
+dataset, each image is associated with a title, ingredients, toencoderecipecomponents,wekeeptheretrieverconstant
+and instructions. During training, each image corresponds and focus on training the generator. Future research could
+tothreequestion-answerpairsasmentionedinSection3.1. exploreco-trainingorfine-tuningtheretriever.
+Ingredientsareclusteredinto1,488categories,andquanti- During inference, we first use the images from the test
+fiersareremoved,inlinewith[56]. Fortesting,thefirstim- set as queries to retrieve from the 571,587 instances in
+ageofeachrecipeisused,formattedtoonequestion-answer the train set, with the retrieval model and method as men-
+pairperimage,toseparatelytesttitles,ingredients,andin- tioned in Section 3.2. Then, using the retrieved instruc-
+structions. Generating long recipes word by word is time- tions and ingredients, we concatenate them in front of
+consuming,sowerandomlyselect5,000samplesfromtest Q in the same pattern as during training. For
+instructions
+setandfixtheseedforallexperiments. Similarto[69],we Self-consistencyEnsembleVoting,wesequentiallyusethe
+use the Recipe1M training set as our external datastore M tops= top1,...,tops retrievedinformation,addingitbe-
+toensureconsistencyandfairness,avoidingexternaldata. fore Q { and} then feeding the recipe demonstra-
+instructions
+Following existing works [11,65], we utilize F1 score tion R in the form of “[<Image> Conversations: Search
+andIntersectionOverUnion(IOU)toevaluatethequalityof results...[Ingre,Instr]Q ,A ]”intothe
+instructions instructions
+ingredients, as well as document-level evaluation metrics, generator to obtain s prediction results. The final predic-
+specifically BLEU, SacreBLEU, and RougeL, to evaluate tion is made using the Self-consistency Ensemble Voting
+thequalityofinstructionsinthegeneratedrecipes. method.LLaVA-FT: Preheat oven to 350 degrees…with pork and kimchi in it. mix well. place in a 2 quart casseroledish
+sprinkle with cheese. Bake for 1 hour. Sprinkle with cheese. Bake for 1 hour.
+Inverse cooking: Preheat oven to 350 degrees f…Combine hash browns, sour cream, soup, milk, onion, salt and
+pepper…Sprinkle with cheddar cheese. Bake in preheated oven for 30 minutes, or until cheeseis melted and bubbly.
+FoodLMM: Preheat oven to 400 degrees…Combine hash browns, sour cream, soup, milk, onion, salt and
+pepper…Sprinkle with cheddar cheese. Bake in preheated oven for 30 minutes, or until cheeseis melted and bubbly.
+Ours: preheat oven to 350 degrees…Bring milk, water, and butterto a boil; mix in the potato…Add cornand…half of
+the cheese and onionsover it…the rest of the potatoes…Bake for 10 to 15 minutes until the cheesehas melted.
+GT: Preheat oven to 350 degrees…Heat milk, water and butter to boiling; stir in contents of both pouches of potatoes…Stir in corn. Spoon half the potato
+mixture in pan. Sprinkle half each of cheese and onions; top with remaining potatoes…Bake 10 to 15 minutes until cheeseis melted. Enjoy !
+(a)
+LLaVA-FT: …use white frostingand black decorating icing…Add candy cornto the top of each cupcake…beat the
+eggs and mix in the melted butter, milk, and vanilla extract. Add the vanilla extract and beat until…
+Inverse cooking: Preheat oven to 350f…Sift together flour, cocoa, baking powder and salt…Add flour mixture
+alternately with chocolate, beating until just blended after each addition…Frost cupcakes with white frosting.
+FoodLMM: Cream butter and sugar. Add eggs and vanilla. Mix in flour, salt, baking powder, and cocoa. Mix in milk
+and nuts. Bake at 350 degrees for 15 minutes. Frost with chocolate frosting.
+Ours: prepare cupcakes...cut licoriceinto 3 inch sections...frost the cupcakeswith the white frosting…to make the legs
+of the spider…place two pieces of candy cornon the front of the cupcake for fangs and use two red hotsas eyes...
+GT: prepare cupcakes…cut licoriceinto 3 inch pieces…frost the cupcakeswith the white frosting. insert licorice pieces into the outer edges of the
+cupcakes to make the legs of the spider…arrange two pieces of candy cornon the front of the cupcake for fangs and use two red hotsas eyes…
+(b)
+Figure4. Qualitativeresults. Theingredientsingeneratedrecipesthatoverlapwithgroundtruth(“GT”)arehighlightedinyellow,while
+detailsintheinstructionsthatmatchtheGTareshowninblue.Otherwise,theincorrectgenerationresultsaredisplayedinred.Bestviewed
+incolor.
+The input food image ‘tuna and Ground truth: effectivenessofourmodel.
+tomato cream pasta sauce’. -Mince the garlic, and saute in olive oil until
+fragrant.
+4.2.2 Quantitative Comparison of Ingredients Recog-
+-Season with salt and pepperto taste…crush
+the tomatoeswhile… nition
+-You can use this sauce not only for pasta,
+For the inference of ingredients, the input for each im-
+but as sauce for omelets, meat or fish dishes.
+age is Q , which directly generates the answers
+Prediction: ingredients
+-Cook the spaghettiin a large pot of boiling fortheingredients.Table2liststheperformanceofingredi-
+salted water until al dente…add the onion entrecognitionwithexistingmethodsinRecipe1Mdataset.
+andgarlicand cook…
+-Add the tomatoes, basil, salt and pepperand Our proposed method is superior to all the methods, with
+cook… 1.05% and 1.03% improvement in terms of both F1 and
+-Add the cooked spaghettiand toss to coat.
+IOUrespectively, comparedtoFIRE[11]. NotethatFIRE
+Figure5. ComparisonbetweengeneratedrecipesandGTrecipes. and InverseCooking both specifically design an ingredient
+Thehighlightsinyellowindicateingredientsthatmatchthosein recognitionnetwork. Incontrast, ourmethodiscapableof
+theGT,ingredientsincorrectlyidentifiedbythemodelaresigni- generating the ingredients and instructions in a conversa-
+fiedinred. tionalmanner.
+4.2.PerformanceComparison 4.2.3 QualitativeResults
+Figure 4 presents the qualitative results comparison be-
+4.2.1 QuantitativeComparisonofRecipeGeneration tween our proposed model and other models including
+Table 1 demonstrates that our proposed method out- LLaVA-FT, inverse cooking [56], FoodLMM [70], as well
+performs all the existing works by a noticeable mar- as the ground truth “GT”. It can be observed that our
+gin. In particular, our method manages to surpass the re- model, compared to the other models, can predict ingre-
+centLMM-basedmodels,includingLLaVA-FT(fine-tuned dients, preparation time, and temperature details more ac-
+LLaVA) [44] and FoodLMM [70]. We achieve a relative curately, and produce more detailed and precise instruc-
+improvementof2.25%,0.18%,and1.97%overFoodLMM tions. For instance, for Figure 4 (a), our model success-
+in BLEU, SacreBLEU and RougeL scores, respectively. fully identifies ingredients that the LLaVA-FT model fails
+Theseresultsdemonstratethatourproposedframeworkcan to recognize, such as ‘milk’, ‘butter’ and ‘onions’, and it
+generatemorepreciseandcoherentrecipes,confirmingthe makes more precise predictions regarding the timing, es-(a)ConfusionmatrixforBLEUscore. (b)ConfusionmatrixforSacreBLEUscore. (c)ConfusionmatrixforROUGELscore.
+Figure6. ConfusionmatrixofSelf-consistencyEnsembleVotingfor5,000testsamples. Thehorizontalaxisrepresentstheindexsorted
+fromsmallesttolargestbasedonthescorescalculatedbetweeneachsample’stop11retrieval-augmentedpredictionresultsandtheground
+truth,whiletheverticalaxisrepresentstheindexsortedfromsmallesttolargestbasedontheconfidencelevelsobtainedfromvotingamong
+these11predictionsforeachsample,usingcosinesimilarityforthevotingprocess.
+Table2. Comparisonofingredientrecognitionresultsintermsof Table 3. Ablation study of Stochastic Diversified Retrieval
+IOUandF1. Augmentation(SDRA).”LLaVA-FT”denotesfine-tunedLLaVA,
+Methods IOU(%) F1(%) whichisusedasourbaseline. ”SDRA(fixedtop1)”referstothe
+R [58] 18.92 31.83 approach where specifically, the top 2 retrieved ingredients sets
+I2L
+and the top 3 ingredients along with top 1 instruction are pre-
+R [58] 19.85 33.13
+I2LR
+appendedtotheirrespectivequeryplaceholders. ”SDRA(topk)”
+FF [56] 29.82 45.94
+TD referstotheaugmentationofthemodelbyrandomlyselectingtop
+InverseCooking[56] 32.11 48.61
+kretrievalinformationwhenusingtheSDRAmethod.
+FIRE[11] 32.59 49.27
+Methods BLEU SacreBLEU ROUGEL
+Ours 33.62 50.32 LLaVA-FT 28.32 5.88 38.18
++SDRA(fixedtop1) 28.79 6.08 38.46
++SDRA(top10) 28.52 6.07 38.46
++SDRA(top50) 29.23 6.21 38.43
+pecially noting “10 to 15 minutes.” For Figure 4 (b), the
++SDRA(top100) 28.67 6.04 38.36
+generated recipe by our model is quite semantically simi-
+lar to the GT, whereas the other models erroneously pre-
+Self-consistency Ensemble Voting during inference to en-
+dictedunnecessaryingredients,suchas‘flour’,‘vanilla’and
+sure the fairness of the experiment. Instead, SDRA is di-
+‘nuts’ in FoodLMM. These results demonstrate the effec-
+rectlyaddedtoLLaVA-FTbyincreasingK from1,10,50
+tiveness of our model to alleviate the issue of hallucina-
+to 100 to investigate the effect of the number of retrieved
+tion in recipe generation. Figure 5 shows that our model,
+recipesforrandomization. TheresultsdisplayedinTable3
+while able to identify some correct ingredients like ‘toma-
+indicatethatSDRA(top50)performsthebest,demonstrat-
+toes’and‘garlic’forthefood‘tunaandtomatocreampasta
+ingthatourSDRAenhancesitseffectivenessbyincreasing
+sauce’, still performs poorly in generating comprehensive
+the diversity and richness of the retrieved recipes within a
+instructions. A significant reason is our textual evaluation
+certain retrieval scope. However, expanding the scope of
+metricscannotrecognize‘pasta’and‘spaghetti’asthesame
+the search too broadly can introduce noise into the model,
+food;hence,evenifthemodelcorrectlyidentifies‘pasta’as
+thereby diminishing its performance. Specifically, for the
+‘spaghetti’,thedifferenceinexpressionleadstolowtextual
+k = 1 case, the top 1 and top 2 retrieved sets of ingre-
+metric scores. Similarly, leading models also struggle to
+dients are added before Q , while the top 3 in-
+predictaccuraterecipes.Weaimtoimproveourmodel’sin- ingredients
+gredientsandretrievedinstructionsareconcatenatedbefore
+gredientrecognitionandtextgenerationtomatchthetrain-
+Q . The results verify the effectiveness of our
+ingdataset’svocabularyandstyleformorerobustapplica- instructions
+SDRA by increasing the diversity and richness of the re-
+tionacrossvariousrecipes.
+trievedrecipes.
+4.3.AblationStudy
+Furthermore, we adopted two methods for concatenat-
+4.3.1 Stochastic Diversified Retrieval Augmentation ingretrievedinformationtoverifytheimpactoftheamount
+(SDRA) of retrieved information on the model’s performance. The
+Wefirstinvestigatetheeffectnumberofretrievedrecipes firstmethodisasshowninFigure3(a),where3setsofin-
+K for randomization for SDRA. Note that we do not use gredients and 1 set of instructions are added. The secondTable4. Ablationstudyofthewayconcatenatingretrievedinfor- computational expense. For instance, while higher values
+mation. “(1set)”and“(2sets)”indicateRecipedemonstrationR likeS=11mayyieldbetterresults,selectingS=5couldbe
+asshowninFigure7andFigure3(a)respectively.
+a more practical choice when computational resources are
+Methods BLEU SacreBLEU ROUGEL
+constrained, as it strikes a balance between efficiency and
+LLaVA-FT 28.32 5.88 38.18
++SDRA(1set) 28.79 6.08 38.46 performance.
++SDRA(2sets) 29.23 6.21 38.43
+Additionally, in Figure 6, we plot a confusion ma-
+Table5. AblationstudyofSelf-consistencyEnsembleVoting. ‘S’ trix comparing the confidence ranking of seven predic-
+refers to the number of generated recipes for ensemble voting. tions—obtained through voting with cosine similarity on
+‘Sum’isthesumofcosinesimilarityscores.
+the top 11 retrieval results from 5,000 test samples—with
+Scoringmetric Number BLEU SacreBLEU ROUGEL Sum
+theiractualBLEU,SacreBLEU,andROUGELscorerank-
+S=1 29.23 6.21 38.43 73.87
+S=3 29.68 6.31 38.68 74.67 ings. The shade of color represents the number of sam-
+Cosine S=5 30.12 6.39 38.66 75.17 ples, forexample, inFigure6(a), (1,3)indicatesthenum-
+Similarity S=7 30.07 6.41 38.84 75.32
+S=9 30.11 6.42 38.91 75.44 berofsampleswiththehighestconfidenceyetrankedthird
+S=11 30.11 6.42 38.93 75.47 inBLEUscores. Theresultsshowthatthefinalprediction
+selectedbyconfidenceandtheactualpredictionscoresare
+method involves adding only 1 set of retrieved ingredients consistent, leading to consistently better performance, fur-
+beforeQ ingredients,andsimilarly,addingonly1setofin- ther emphasizing the importance of introducing the voting
+structionsbeforeQ instructionsasshowninFigure7.Figure mechanismduringinference.
+7showstheformatofthetrainingdata. Althoughthetitleis
+notrequiredduringtheinferenceprocess,weincludeitdur-
+<Image>
+ingtrainingtoincreasetheamountofinformationusedfor
+training. Duringtheinferencephase, only1setofinstruc- Q title
+tions is added before Q instructions. In this way, we com- A title: The food is…
+Search results… [Ingre] Q
+paretheuseofthetraditionalRAGmethod,whichinvolves Conversations: ingredients
+A :The ingredients are:…
+adding fixed retrieval information before Q and ingredients
+ingredients
+Search results… [Instr] Q
+Q . Specifically, the top 1 and top 2 retrieved instructions
+instructions A :Here are the instructions:…
+setsofingredientsareaddedbeforeQ ,whilethe instructions
+ingredients
+top3ingredientsandretrievedinstructionsareconcatenated
+Figure7.OnesetforRecipedemonstrationR.
+beforeQ . Table4indicatesthatincorporating2
+instructions
+sets of retrieved recipes is more beneficial for the model’s
+5.Conclusion
+predictions than that of 1 set. However, due to the length
+limitationsofmodelinput,wearenotabletoexaminemore
+We have presented the first retrieval augmented large
+thantwosetsbeforeeachofthequestion.
+multimodal mode to mitigate the hallucination issue for
+recipe generation. We introduce the Stochastic Diversified
+4.3.2 Self-consistencyEnsembleVoting
+Retrieval Augmentation to enable the model to better ac-
+Table 5 shows the variation in recipe generation quality
+quireusefulknowledgefromretrievedretrievalandpropose
+when calculating the confidence of candidate recipes us-
+Self-consistency Ensemble Voting, which optimizes the fi-
+ing cosine similarity. The table shows that as more candi-
+nal instructions by scoring predictions obtained from dif-
+daterecipesaregenerated,thetextmetricsforrecipequal-
+ferentretrievalinformationagainsteachother. Experimen-
+ity steadily improve. In addition to cosine similarity, we
+talresultsvalidateourmethod’seffectivenessandpotential
+also used BLEU, SacreBLEU, and ROUGE L as scoring
+forwidespreadapplicationinfoodcomputing. Futurework
+metrics, with results presented in Section 4 of the supple-
+will introduce a self-reflection strategy to refine incorrect
+mentary materials. Our best result, as displayed in Table
+generation results, improving recipe accuracy and reliabil-
+1, is based on Cosine Similarity due to its consistent per-
+ity.
+formance. WechooseS=11becausetheBLEUandSacre-
+BLEUstoppedimprovingatS=11. Theseresultsverifythe
+effectivenessofourSelf-consistencyEnsembleVoting. As Acknowledgements
+cosine similarity shows more steady and robust results in
+This research/project is supported by the Ministry of
+improvingBLEU,SacreBLEU,andROUGELscoreswith
+Education, Singapore, under its Academic Research Fund
+the increase of S, we report the results of cosine similar-
+Tier 2 (Proposal ID: T2EP20222-0046). Any opinions,
+itywithS = 11inTable1. Asthe parameterSincreases, findings and conclusions or recommendations expressed
+thecomputationalcostscaleslinearly. Weconsistentlyob- in this material are those of the authors and do not re-
+serve performance improvements as S grows. However, flect the views of the Ministry of Education, Singapore.
+thiscomeswithatrade-offbetweenperformancegainsandReferences [13] AndrewMartinCox,PamelaMcKinney,andPaulaGoodale.
+Food logging: an information literacy perspective. Aslib
+[1] Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ah-
+JournalofInformationManagement,69(2):184–200,2017.
+mad,IlgeAkkaya,FlorenciaLeoniAleman,DiogoAlmeida,
+1
+JankoAltenschmidt, SamAltman, ShyamalAnadkat, etal.
+[14] WenliangDai,JunnanLi,DongxuLi,AnthonyMengHuat
+Gpt-4 technical report. arXiv preprint arXiv:2303.08774,
+Tiong, JunqiZhao, WeishengWang, BoyangLi, PascaleN
+2023. 1,3
+Fung, and Steven Hoi. Instructblip: Towards general-
+[2] Jean-BaptisteAlayrac, JeffDonahue, PaulineLuc, Antoine purposevision-languagemodelswithinstructiontuning.Ad-
+Miech, Iain Barr, Yana Hasson, Karel Lenc, Arthur Men- vancesinNeuralInformationProcessingSystems,36,2024.
+sch,KatherineMillican,MalcolmReynolds,etal.Flamingo: 1
+a visual language model for few-shot learning. Advances
+[15] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina
+inneuralinformationprocessingsystems,35:23716–23736,
+Toutanova. Bert: Pre-training of deep bidirectional trans-
+2022. 1,3
+formersforlanguageunderstanding. 2018. 3
+[3] Lukas Bossard, Matthieu Guillaumin, and Luc Van Gool.
+[16] Alexey Dosovitskiy, Lucas Beyer, Alexander Kolesnikov,
+Food-101–mining discriminative components with random
+Dirk Weissenborn, Xiaohua Zhai, Thomas Unterthiner,
+forests. In Computer Vision–ECCV 2014: 13th European
+MostafaDehghani,MatthiasMinderer,GeorgHeigold,Syl-
+Conference, Zurich, Switzerland, September 6-12, 2014,
+vain Gelly, et al. An image is worth 16x16 words: Trans-
+Proceedings,PartVI13,pages446–461.Springer,2014. 1
+formersforimagerecognitionatscale. 2020. 3
+[4] JunChen,HanGuo,KaiYi,BoyangLi,andMohamedEl- [17] David Elsweiler, Christoph Trattner, and Morgan Harvey.
+hoseiny. Visualgpt: Data-efficient adaptation of pretrained Exploitingfoodchoicebiasesforhealthierreciperecommen-
+language models for image captioning. In Proceedings of dation. In Proceedings of the 40th international acm sigir
+theIEEE/CVFConferenceonComputerVisionandPattern conferenceonresearchanddevelopmentininformationre-
+Recognition,pages18030–18040,2022. 3 trieval,pages575–584,2017. 1
+[5] JiaweiChen,HongyuLin,XianpeiHan,andLeSun.Bench- [18] Mehrdad Farahani, Kartik Godawat, Haswanth Aekula,
+markinglargelanguagemodelsinretrieval-augmentedgen- Deepak Pandian, and Nicholas Broad. Chef transformer,
+eration. InProceedingsoftheAAAIConferenceonArtificial 2023. 5
+Intelligence,volume38,pages17754–17762,2024. 3
+[19] JillFreyneandShlomoBerkovsky.Intelligentfoodplanning:
+[6] Jingjing Chen and Chong-Wah Ngo. Deep-based ingredi- personalizedreciperecommendation. InProceedingsofthe
+entrecognitionforcookingreciperetrieval. InProceedings 15thinternationalconferenceonIntelligentuserinterfaces,
+of the 24th ACM international conference on Multimedia, pages321–324,2010. 1
+pages32–41,2016. 1,2
+[20] SaadiaGabriel,AsliCelikyilmaz,RahulJha,YejinChoi,and
+[7] Jingjing Chen, Bin Zhu, Chong-Wah Ngo, Tat-Seng Chua, JianfengGao. Gofigure: Ametaevaluationoffactualityin
+andYu-GangJiang. Astudyofmulti-taskandregion-wise summarization. 2020. 3
+deeplearningforfoodingredientrecognition. IEEETrans- [21] Yunfan Gao, Yun Xiong, Xinyu Gao, Kangxiang Jia, Jin-
+actionsonImageProcessing,30:1514–1526,2020. 1 liu Pan, Yuxi Bi, Yi Dai, Jiawei Sun, and Haofen Wang.
+[8] Jun Chen, Deyao Zhu, Xiaoqian Shen, Xiang Li, Zechun Retrieval-augmentedgenerationforlargelanguagemodels:
+Liu, Pengchuan Zhang, Raghuraman Krishnamoorthi, Asurvey. arXivpreprintarXiv:2312.10997,2023. 3
+Vikas Chandra, Yunyang Xiong, and Mohamed Elhoseiny. [22] YinxuanGui,BinZhu,JingjingChen,ChongWahNgo,and
+Minigpt-v2: large language model as a unified interface Yu-GangJiang.Navigatingweightpredictionwithdietdiary.
+for vision-language multi-task learning. arXiv preprint In Proceedings of the 32nd ACM International Conference
+arXiv:2310.09478,2023. 1 onMultimedia,page127–136,2024. 1
+[9] Jing-jingChen,Chong-WahNgo,andTat-SengChua.Cross- [23] Shir Gur, Natalia Neverova, Chris Stauffer, Ser-Nam Lim,
+modalreciperetrievalwithrichfoodattributes. InProceed- DouweKiela,andAustinReiter. Cross-modalretrievalaug-
+ingsofthe25thACMinternationalconferenceonMultime- mentationformulti-modalclassification. 2021. 3
+dia,pages1771–1779,2017. 1 [24] KelvinGuu,KentonLee,ZoraTung,PanupongPasupat,and
+[10] Yanbei Chen, Shaogang Gong, and Loris Bazzani. Image MingweiChang. Retrievalaugmentedlanguagemodelpre-
+searchwithtextfeedbackbyvisiolinguisticattentionlearn- training. pages3929–3938,2020. 2,3
+ing. InProceedingsoftheIEEE/CVFConferenceonCom- [25] Helena H. Lee, Ke Shu, Palakorn Achananuparp,
+puter Vision and Pattern Recognition, pages 3001–3011, Philips Kokoh Prasetyo, Yue Liu, Ee-Peng Lim, and
+2020. 5 LavRVarshney. Recipegpt: Generativepre-trainingbased
+[11] PrateekChhikara,DhirajChaurasia,YifanJiang,OmkarMa- cooking recipe generation and evaluation system. In
+sur,andFilipIlievski.Fire:Foodimagetorecipegeneration. CompanionProceedingsoftheWebConference2020,pages
+pages8184–8194,2024. 1,2,5,6,7 181–184,2020. 2
+[12] GianluigiCiocca, PaoloNapoletano, andRaimondoSchet- [26] Edward J Hu, Yelong Shen, Phillip Wallis, Zeyuan Allen-
+tini. Foodrecognition: anewdataset,experiments,andre- Zhu,YuanzhiLi,SheanWang,LuWang,andWeizhuChen.
+sults. IEEE journal of biomedical and health informatics, Lora: Low-rankadaptationoflargelanguagemodels. 2021.
+21(3):588–598,2016. 1 1,4,5[27] Ziniu Hu, Ahmet Iscen, Chen Sun, Zirui Wang, Kai-Wei vision-language understanding and generation. In Interna-
+Chang, Yizhou Sun, Cordelia Schmid, David A Ross, and tionalconferenceonmachinelearning,pages12888–12900.
+AlirezaFathi. Reveal:Retrieval-augmentedvisual-language PMLR,2022. 3,4
+pre-trainingwithmulti-sourcemultimodalknowledgemem- [40] Yifan Li, Yifan Du, Kun Zhou, Jinpeng Wang, Wayne Xin
+ory. In Proceedings of the IEEE/CVF conference on com- Zhao,andJi-RongWen. Evaluatingobjecthallucinationin
+puter vision and pattern recognition, pages 23369–23379, largevision-languagemodels. 2023. 3
+2023. 3
+[41] YianLi,WentaoTian,YangJiao,andJingjingChen. Eyes
+[28] Shuqiang Jiang, Weiqing Min, Linhu Liu, and Zhengdong can deceive: Benchmarking counterfactual reasoning abili-
+Luo. Multi-scale multi-view deep feature aggregation for ties of multi-modal large language models. arXiv preprint
+foodrecognition. IEEETransactionsonImageProcessing, arXiv:2404.12966,2024. 3
+29:265–276,2019. 1
+[42] ChengxuLiu,YuanzhiLiang,YaoXue,XuemingQian,and
+[29] ZhengbaoJiang,FrankFXu,LuyuGao,ZhiqingSun,Qian
+Jianlong Fu. Food and ingredient joint learning for fine-
+Liu,JaneDwivedi-Yu,YimingYang,JamieCallan,andGra- grainedrecognition. IEEEtransactionsoncircuitsandSys-
+hamNeubig. Activeretrievalaugmentedgeneration. 2023. temsforVideoTechnology,31(6):2480–2493,2020. 1
+2,3
+[43] Guoshan Liu, Yang Jiao, Jingjing Chen, Bin Zhu, and Yu-
+[30] PengkunJiao,XinlanWu,BinZhu,JingjingChen,Chong-
+GangJiang.Fromcanteenfoodtodailymeals:Generalizing
+WahNgo,andYugangJiang. Rode:Linearrectifiedmixture
+foodrecognitiontomorepracticalscenarios. IEEETransac-
+ofdiverseexpertsforfoodlargemulti-modalmodels. arXiv
+tionsonMultimedia,pages1–10,2024. 1
+preprintarXiv:2407.12730,2024. 1
+[44] HaotianLiu,ChunyuanLi,QingyangWu,andYongJaeLee.
+[31] YangJiao, ShaoxiangChen, ZequnJie, JingjingChen, Lin
+Visualinstructiontuning. volume36,2024. 1,2,3,4,5,6
+Ma, and Yu-Gang Jiang. Lumen: Unleashing versatile
+[45] Xinda Liu, Lili Wang, and Xiaoguang Han. Transformer
+vision-centriccapabilitiesoflargemultimodalmodels.arXiv
+with peak suppression and knowledge guidance for fine-
+preprintarXiv:2403.07304,2024. 3
+grainedimagerecognition. Neurocomputing,492:137–149,
+[32] YangJiao,ZequnJie,WeixinLuo,JingjingChen,Yu-Gang
+2022. 1
+Jiang,XiaolinWei,andLinMa. Two-stagevisualcuesen-
+[46] BodhisattwaPrasadMajumder,ShuyangLi,JianmoNi,and
+hancement network for referring image segmentation. In
+JulianMcAuley. Generatingpersonalizedrecipesfromhis-
+Proceedings of the 29th ACM international conference on
+torical user preferences. arXiv preprint arXiv:1909.00105,
+multimedia,pages1331–1340,2021. 3
+2019. 1
+[33] Xin Lai, Zhuotao Tian, Yukang Chen, Yanwei Li, Yuhui
+[47] NikiMartinel,GianLucaForesti,andChristianMicheloni.
+Yuan,ShuLiu,andJiayaJia. Lisa:Reasoningsegmentation
+Wide-sliceresidualnetworksforfoodrecognition. In2018
+vialargelanguagemodel. arXivpreprintarXiv:2308.00692,
+IEEEWinterconferenceonapplicationsofcomputervision
+2023. 2,5
+(WACV),pages567–576.IEEE,2018. 1
+[34] Mike Lewis, Marjan Ghazvininejad, Gargi Ghosh, Armen
+[48] Sachit Menon and Carl Vondrick. Visual classification via
+Aghajanyan,SidaWang,andLukeZettlemoyer.Pre-training
+descriptionfromlargelanguagemodels. 2022. 1
+viaparaphrasing. volume33,pages18470–18481,2020. 3
+[35] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio [49] Weiqing Min, Shuqiang Jiang, Linhu Liu, Yong Rui, and
+Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich RameshJain.Asurveyonfoodcomputing.ACMComputing
+Ku¨ttler, Mike Lewis, Wen-tau Yih, Tim Rockta¨schel, et al. Surveys(CSUR),52(5):1–36,2019. 1,2
+Retrieval-augmentedgenerationforknowledge-intensivenlp [50] Weiqing Min, Zhiling Wang, Yuxin Liu, Mengjiang Luo,
+tasks. volume33,pages9459–9474,2020. 3 Liping Kang, Xiaoming Wei, Xiaolin Wei, and Shuqiang
+[36] Patrick Lewis, Ethan Perez, Aleksandra Piktus, Fabio Jiang. Large scale visual food recognition. IEEE Trans-
+Petroni, Vladimir Karpukhin, Naman Goyal, Heinrich actionsonPatternAnalysisandMachineIntelligence,2023.
+Ku¨ttler, Mike Lewis, Wen-tau Yih, Tim Rockta¨schel, et al. 2
+Retrieval-augmentedgenerationforknowledge-intensivenlp [51] HaiXPham,RicardoGuerrero,VladimirPavlovic,andJia-
+tasks. volume33,pages9459–9474,2020. 3 tongLi.Chef:cross-modalhierarchicalembeddingsforfood
+[37] Chunyuan Li, Cliff Wong, Sheng Zhang, Naoto Usuyama, domainretrieval. InProceedingsoftheAAAIConferenceon
+HaotianLiu,JianweiYang,TristanNaumann,HoifungPoon, ArtificialIntelligence,volume35,pages2423–2430,2021.1
+and Jianfeng Gao. Llava-med: Training a large language- [52] OriRam,YoavLevine,ItayDalmedigos,DorMuhlgay,Am-
+and-visionassistantforbiomedicineinoneday.Advancesin nonShashua,KevinLeyton-Brown,andYoavShoham. In-
+NeuralInformationProcessingSystems,36,2024. 3 contextretrieval-augmentedlanguagemodels. Transactions
+[38] Junnan Li, Dongxu Li, Silvio Savarese, and Steven Hoi. oftheAssociationforComputationalLinguistics,11:1316–
+Blip-2: Bootstrapping language-image pre-training with 1331,2023. 2,3
+frozen image encoders and large language models. In In- [53] RitaRamos,BrunoMartins,DesmondElliott,andYovaKe-
+ternational conference on machine learning, pages 19730– mentchedjhieva. Smallcap: lightweight image captioning
+19742.PMLR,2023. 3 prompted with retrieval augmentation. In Proceedings of
+[39] Junnan Li, Dongxu Li, Caiming Xiong, and Steven Hoi. theIEEE/CVFConferenceonComputerVisionandPattern
+Blip: Bootstrappinglanguage-imagepre-trainingforunified Recognition,pages2840–2849,2023. 3[54] JavierRo´denas,BhalajiNagarajan,MarcBolan˜os,andPetia tionandfoodretrieval. IEEETransactionsonPatternAnal-
+Radeva. Learning multi-subset of classes for fine-grained ysisandMachineIntelligence,45(3):3363–3377,2022.1,2,
+food recognition. In Proceedings of the 7th International 5
+Workshop on Multimedia Assisted Dietary Management, [66] HaoWang,DoyenSahoo,ChenghaoLiu,Ee-pengLim,and
+pages17–26,2022. 1 StevenCHHoi. Learningcross-modalembeddingswithad-
+[55] DoyenSahoo,WangHao,ShuKe,WuXiongwei,HungLe, versarialnetworksforcookingrecipesandfoodimages. In
+PalakornAchananuparp,Ee-PengLim,andStevenCHHoi. Proceedings of the IEEE/CVF conference on computer vi-
+Foodai: Foodimagerecognitionviadeeplearningforsmart sionandpatternrecognition,pages11572–11581,2019. 1,
+food logging. In Proceedings of the 25th ACM SIGKDD 2,5
+InternationalConferenceonKnowledgeDiscovery&Data [67] QiaolinXia,HaoyangHuang,NanDuan,DongdongZhang,
+Mining,pages2260–2268,2019. 1 Lei Ji, Zhifang Sui, Edward Cui, Taroon Bharti, and Ming
+[56] AmaiaSalvador,MichalDrozdzal,XavierGiro´-iNieto,and Zhou. Xgpt: Cross-modalgenerativepre-trainingforimage
+AdrianaRomero. Inversecooking: Recipegenerationfrom captioning. In Natural Language Processing and Chinese
+foodimages. InProceedingsoftheIEEE/CVFConference Computing: 10th CCF International Conference, NLPCC
+onComputerVisionandPatternRecognition,pages10453– 2021,Qingdao,China,October13–17,2021,Proceedings,
+10462,2019. 1,2,5,6,7 PartI10,pages786–797.Springer,2021. 3
+[68] Shulin Yang, Mei Chen, Dean Pomerleau, and Rahul Suk-
+[57] Amaia Salvador, Erhan Gundogdu, Loris Bazzani, and
+thankar. Food recognition using statistics of pairwise lo-
+Michael Donoser. Revamping cross-modal recipe retrieval
+calfeatures. In2010IEEEcomputersocietyconferenceon
+withhierarchicaltransformersandself-supervisedlearning.
+computervisionandpatternrecognition,pages2249–2256.
+In Proceedings of the IEEE/CVF Conference on Computer
+IEEE,2010. 1
+VisionandPatternRecognition,pages15475–15484,2021.
+[69] Michihiro Yasunaga, Armen Aghajanyan, Weijia Shi, Rich
+1,3,5
+James, Jure Leskovec, Percy Liang, Mike Lewis, Luke
+[58] AmaiaSalvador,NicholasHynes,YusufAytar,JavierMarin,
+Zettlemoyer, and Wen-tau Yih. Retrieval-augmented mul-
+FerdaOfli,IngmarWeber,andAntonioTorralba. Learning
+timodallanguagemodeling. 2022. 3,5
+cross-modal embeddings for cooking recipes and food im-
+[70] YuehaoYin, HuiyanQi, BinZhu, JingjingChen, Yu-Gang
+ages. In Proceedings of the IEEE conference on computer
+Jiang, and Chong-Wah Ngo. Foodlmm: A versatile food
+visionandpatternrecognition,pages3020–3028,2017. 7
+assistant using large multi-modal model. arXiv preprint
+[59] FangzhouSong,BinZhu,YanbinHao,andShuoWang. En-
+arXiv:2312.14991,2023. 1,2,5,6
+hancingreciperetrievalwithfoundationmodels:Adataaug-
+[71] JiachengZhang,YangJiao,ShaoxiangChen,JingjingChen,
+mentation perspective. In European Conference on Com-
+and Yu-Gang Jiang. Eagle: Towards efficient arbitrary re-
+puterVision,pages111–127,2024. 1
+ferringvisualpromptscomprehensionformultimodallarge
+[60] Chun-YuenTeng,Yu-RuLin,andLadaAAdamic. Recipe
+languagemodels.arXivpreprintarXiv:2409.16723,2024.3
+recommendationusingingredientnetworks. InProceedings
+[72] JiachengZhang,YangJiao,ShaoxiangChen,JingjingChen,
+ofthe4thannualACMwebscienceconference,pages298–
+andYu-GangJiang. Eventhallusion: Diagnosingeventhal-
+307,2012. 1
+lucinationsinvideollms. arXivpreprintarXiv:2409.16597,
+[61] Hugo Touvron, Thibaut Lavril, Gautier Izacard, Xavier 2024. 3
+Martinet,Marie-AnneLachaux,Timothe´eLacroix,Baptiste [73] MengyangZhang,GuohuiTian,YingZhang,andHongLiu.
+Rozie`re, Naman Goyal, Eric Hambro, Faisal Azhar, et al. Sequentiallearningforingredientrecognitionfromimages.
+Llama: Open and efficient foundation language models. IEEETransactionsonCircuitsandSystemsforVideoTech-
+arXivpreprintarXiv:2302.13971,2023. 3 nology,2022. 1
+[62] TomvanSonsbeekandMarcelWorring. X-tra: Improving [74] Lianmin Zheng, Wei-Lin Chiang, Ying Sheng, Siyuan
+chestx-raytaskswithcross-modalretrievalaugmentation.In Zhuang,ZhanghaoWu,YonghaoZhuang,ZiLin,Zhuohan
+InternationalConferenceonInformationProcessinginMed- Li,DachengLi,EricXing,etal.Judgingllm-as-a-judgewith
+icalImaging,pages471–482.Springer,2023. 3 mt-benchandchatbotarena. volume36,2024. 3
+[63] Nam Vo, Lu Jiang, Chen Sun, Kevin Murphy, Li-Jia Li, [75] BinZhu,Chong-WahNgo,andWing-KwongChan. Learn-
+Li Fei-Fei, and James Hays. Composing text and image ingfromwebrecipe-imagepairsforfoodrecognition:Prob-
+forimageretrieval-anempiricalodyssey. InProceedingsof lem,baselinesandperformance.IEEETransactionsonMul-
+the IEEE/CVF conference on computer vision and pattern timedia,24:1175–1185,2021. 1
+recognition,pages6439–6448,2019. 5 [76] BinZhu,Chong-WahNgo,JingjingChen,andYanbinHao.
+[64] Hao Wang, Guosheng Lin, Steven CH Hoi, and Chunyan R2gan: Cross-modalreciperetrievalwithgenerativeadver-
+Miao. Structure-aware generation network for recipe gen- sarialnetwork.InProceedingsoftheIEEE/CVFConference
+erationfromimages. InComputerVision–ECCV2020:16th onComputerVisionandPatternRecognition,pages11477–
+European Conference, Glasgow, UK, August 23–28, 2020, 11486,2019. 1
+Proceedings,PartXXVII16,pages359–374.Springer,2020. [77] Bin Zhu, Chong-Wah Ngo, and Jing-jing Chen. Cross-
+1,2 domain cross-modal food transfer. In Proceedings of the
+28th ACM International Conference on Multimedia, pages
+[65] Hao Wang, Guosheng Lin, Steven CH Hoi, and Chunyan
+3762–3770,2020. 1
+Miao. Learningstructuralrepresentationsforrecipegenera-Supplementary Material
+Retrieval Augmented Recipe Generation
+GuoshanLiu*,1,HailongYin*,1,BinZhu2,JingjingChen†,1,Chong-WahNgo2,Yu-GangJiang1
+1FudanUniversity,
+gsliu24, 23210240364 @m.fudan.edu.cn, chenjingjing, ygj @fudan.edu.cn
+{ } { }
+2SingaporeManagementUniversity,
+binzhu, cwngo @smu.edu.sg
+{ }
+1.DetailsofTrainingDataOrganization Table 1. Ablation study of the independence of retrieved ingre-
+dientsandretrievedinstructions. “SDRA(Matched)”referstothe
+AsillustratedinFigure1,wepresentanexampleofhow situationwhereretrievedingredientsandinstructionsarematched,
+thetrainingdataisorganizedinourproposedretrievalaug- while “SDRA(Independent)” indicates that retrieved ingredients
+mentedframework. andinstructionsaremutuallyindependent.
+2.RetrievedResults Methods BLEU SacreBLEU ROUGEL
+LLaVA-FT 28.32 5.88 38.18
++SDRA(Matched) 28.83 6.17 38.30
+OurSDRAmethodutilizesavarietyofretrievedrecipes +SDRA(Independent) 29.23 6.21 38.43
+toenhancemodelperformance. Figure2, andFigure4re-
+spectivelyillustratesomeofthetrainingdataalongsidetheir
+corresponding retrieved data. It can be seen that there are tailstothemorecomplexlyseasonedgroundtruthinstruc-
+significant overlaps between the retrieved ingredients and tion,enablingthemodeltoaccuratelygenerateresponsesto
+thegroundtruthingredients,whichmeanstheretrievedin- queriesaboutthefoodimageusingthegivencontext.
+gredientscanprovideadditionalinformationtoenhancethe
+3. Ablation of Stochastic Diversified Retrieval
+model’sdiversitybasedontheoriginalingredients. Forthe
+retrieved instructions, they provide additional information Augmentation(SDRA)
+based on many relevant contents to the ground truth. For
+AsdescribedinSection4.3.1,toinvestigatewhetherthe
+example,inFigure2,concerningthefood“awardwinning
+ingredients and instructions added before Q in
+softchocolatechipcookies,”“threeoutoffourretrievedre- instructions
+Recipe demonstration R need to come from the same top
+sultspreciselymatchedthepreparationprocessfor“choco-
+retrieval results, i.e., having the same K value, we com-
+latechipcookies.”Stepslike“Preheatovento350degrees
+paredexperimentswhereingredientsandinstructionswere
+f (175 degrees c).” and “Blend in the dry ingredients, then
+sourced from the same top K retrieval results, specifically
+foldinthechocolatechips.”alignwiththegroundtruthin-
+concatenatingthetopK ingredientsandtopK instructions
+structions, asindicatedbytheBOLDpartsinthediagram,
+insequencebeforeQ . Table1indicatesthatthe
+ensuringthattheadditionalinformationeffectivelyprovides instructions
+model with independent ingredients and instructions per-
+content relevant to the original query. Additionally, steps
+formsbetter,asourmethodSDRAreliesonabroaderrange
+from Retrieved recipe 4 like “Allow cookies to cool for 1
+ofknowledgeanddiversifiedretrievalinformationsettings.
+minute on baking sheets before transferring to wire racks
+tocoolcompletely.”adddetaileddescriptionstothecookie-
+making process, enhancing the post-preparation flow and
+4. Ablation of Self-consistency Ensemble Vot-
+providingthemodelwithmoredetailedandcomprehensive
+ing
+information to complement and diversify the instructions
+foundinthegroundtruth. Similarly,Figure4demonstrates To demonstrate the impact of self-consistent ensemble
+thattheretrievedrecipesaddusefulcontextualinformation voting,Table2examinestheresultsofourmodelwhenus-
+related to the original queries to the Ground Truth. This ingcosinesimilarity,BLEU,SacreBLEU,andROUGELto
+guidesthemodeltogeneraterecipesmoreeffectively, per- calculatethemutualagreementamongthegeneratedrecipe
+fectlyleveragingretrievalaugmentationtechnologyforen- candidates. Note that S = 1 refers to no voting adopted,
+hanced predictions. This adds fundamental procedural de- which is the baseline for our model with Self-consistency
+Ensemble Voting when S > 1. In other words, the input
+*Theseauthorscontributedequallytothiswork.
+†JingjingChenisthecorrespondingauthor. promptisconcatenatedwiththetop1retrievedingredients
+1
+4202
+voN
+31
+]VC.sc[
+1v51780.1142:viXra<IMAGE> Qinstr: Search results for reference is: {juice, pepper, egg, milk, nutmeg, butter,
+spinach, cheese, lemon, onion}
+-In a large bowl, beat eggs with the salt and pepper, cream and sriracha if using
+until frothy. use a fork or hand mixer.
+-In a skillet over medium heat , get pan hot. add butter and allow to melt and
+cook 1 minute. add beaten eggs and let cook in pan undisturbed for 30 seconds.
+-With a spatula, start to pull eggs in toward the center of the pan from the pans
+edges.
+-Keep repeating this step until most of the eggs are cooked but still very moist
+Qtitle: Can you predict the food category of looking. turn off heat.
+this image? -The heat left in the pan will continue to gently finish the cooking process. just
+keep stirring until you get them cooked through.
+Atitle: The food is delish scrambled eggs.
+-I like to leave the eggs still a bit "moist" looking.
+-Over cooking can cause eggs taste and texture to be rubbery. serve up the best
+Qingre: Search results for reference is:
+scrambled ever!
+{creme_fraiche, salmon, oil, mustard,
+-Recipe by taylor68too try adding my crispy potato rounds to finish the meal.
+pepper, onion, dill, cheese, lemon, egg,
+The search results are only for referring, please focus on the image.
+peas, rocket}
+Can you provide the preparation instructions for this image?
+{egg, pepper, salmon, margarine,
+chives, milk} Ainstr:
+Here are the instructions:
+The search results are only for
+-Whisk together eggs, milk, sour cream, salt, and pepper.
+referring, please focus on the image.
+-Melt butter in frying pan. add eggs to frying pan.
+Can you list the ingredients present in
+-Constantly stir with a spatula. when eggs are on the creamier end of firm (my
+this dish?
+preference, again feel free to adjust!) add the cream cheese and cheddar cheese.
+Aingre: The ingredients are egg, cheese, salt, -Stir with spatula until cream cheese and cheddar cheese are melted. serve with
+milk, pepper, butter, cream. whatever you'd like.
+Figure1. Ourtrainingdataorganization. BOLDservesasafixedprompt,thebluefonthighlightsthethreegroupsofingredientsandone
+groupofinstructionsretrieved,andtherestofthecontentrepresentsthegroundtruth.
+and instruction before Q during inference. To Table 2. Ablation study of Self-consistency Ensemble Voting.
+instructions
+ensure the fairness of the experiments, these experiments Fourscoringmetricsareexaminedtoevaluatethemutualagree-
+mentamonggeneratedrecipes,includingcosinesimilarity,BLEU,
+startwiththeSDRA(top50)model. Theexperimentswith
+SacreBLEU,andROUGEL.“S”referstothenumberofgenerated
+different voting groups indicate using the top S retrieved
+recipesforensemblevoting.“Sum”isthesumof3evaluationmet-
+instructions and ingredients for S separate predictions as
+rics.
+describedinSection3.3,andthenselectingthescoreofthe
+prediction with the highest score of mutual agreement as Scoringmetric Number BLEU SacreBLEU ROUGEL Sum
+the final output. As S is increased from 1 to 11, the vot- S=1 29.23 6.21 38.43 73.87
+S=3 29.68 6.31 38.68 74.67
+ingresultsbasedonCosineSimilarityasthescoringmetric Cosine S=5 30.12 6.39 38.66 75.17
+showasteadyimprovementacrossallmetrics. Theresults Similarity S=7 30.07 6.41 38.84 75.32
+S=9 30.11 6.42 38.91 75.44
+based on the other three scoring metrics also exhibit fluc- S=11 30.11 6.43 38.96 75.50
+tuating improvements across various indicators, and after S=1 29.23 6.21 38.43 73.87
+S=3 29.25 6.27 38.88 74.40
+S=7,thereisatrendofslowergrowth,nofurtherincrease, S=5 29.47 6.35 38.93 74.75
+BLEU
+orevenadecreaseinsomemetrics. S=7 29.50 6.36 39.09 74.95
+S=9 29.53 6.37 39.09 74.99
+S=11 29.52 6.37 39.13 75.02
+5.MoreQualitativeExamples S=1 29.23 6.21 38.43 73.87
+S=3 28.79 6.21 39.11 74.11
+S=5 29.30 6.30 38.83 74.43
+SacreBLEU
+Figure5displaysadditionalqualitativeresults. Inthese S=7 29.33 6.32 39.01 74.66
+S=9 29.33 6.32 39.10 74.75
+three cases, our predictions closely align with the ground
+S=11 29.30 6.35 39.10 74.74
+truth“GT”,whereasothermodels—“LLaVA-FT”,“Inverse S=1 29.23 6.21 38.43 73.87
+S=3 32.21 6.62 36.99 75.82
+Cooking”[?],and“FoodLLM”[?]—exhibitedvarioushal-
+S=5 32.92 6.81 36.90 76.63
+ROUGEL
+lucinations. Forinstance,inFigure5(a),“LLaVA-FT”in- S=7 33.08 6.82 36.80 76.70
+S=9 33.26 6.84 36.67 76.77
+correctlypredicted“coconut”as“pudding”,“InverseCook-
+S=11 33.53 6.88 36.60 77.01
+ing” identified the food as “cheesecake”, and “FoodLLM”
+mistakenlylabeledblueberriesas“chocolate”,thoughtheir
+overallinstructionpredictionswerereasonablyaccurate. In errors in ingredient prediction but were generally close to
+Figure 5 (b), “LLaVA-FT” and “FoodLLM” made slight “GT”,however,theirinstructionpredictionsdidnotcloselyGround truth
+Title: award winning soft chocolate chip cookies
+Ingredients: Egg, sugar, extract, vanilla, butter, chips, baking_soda, walnuts, flour.
+Instructions:
+-Preheat oven to 350 degrees f (175 degrees c).
+-Sift together the flour and baking soda, set aside.
+-In a large bowl, cream together the butter, brown sugar, and white sugar.
+-Beat in the instant pudding mix until blended. stir in the eggs and vanilla.
+-Blend in the flour mixture. finally, stir in the chocolate chips and nuts.
+-Drop cookies by rounded spoonfuls onto ungreased cookie sheets.
+-Bake for 10 to 12 minutes in the preheated oven.
+-Edges should be golden brown.
+Retrieved recipe 1 Retrieved recipe 2
+Title: oatmeal chocolate coconut chewy
+Ingredients: Egg, sugar, walnuts, extract, milk, coconut, baking_soda, chips, butter, salt, Title: the perfect chocolate chip cookie
+flour, oats. Ingredients: Egg, sugar, oil, extract, chips, baking_soda, salt, flour.
+Instructions: Instructions:
+-Preheat oven to 375 degrees f (190 degrees c). -Preheat oven to 350 degrees f (175 degrees c).
+-In a large bowl, cream together the butter, brown sugar and white sugar until smooth. -Stir together the flour, baking soda and salt; set aside.
+-Beat in the eggs one at a time, then stir in the milk and vanilla. -In a large bowl, cream together the vegetable oil, brown sugar and white sugar until
+-Combine the flour, baking soda and salt; stir into the sugar mixture until well blended. smooth.
+-Stir in the oats, chocolate chips. walnuts and coconut until evenly distributed. drop by -Beat in the eggs one at a time, then stir in the vanilla and almond extracts.
+rounded tablespoons onto ungreased cookie sheet. -Blend in the dry ingredients, then fold in the chocolate chips.
+-Bake 10 to 12 minutes in the preheated oven for a chewy cookie or 14 minutes for a -Drop by rounded spoonfuls onto ungreased cookie sheets.
+firmer cookie. -Bake for 8 to 10 minutes in the preheated oven.
+-Cool for 1 minute on the cookie sheet and then remove to wire rack. cool completely and -Allow cookies to cool on baking sheet for 5 minutes before removing to a wire rack to cool
+then store in tightly sealed container. completely.
+Retrieved recipe 3 Retrieved recipe 4
+Title: light chocolate chip cookies
+Title: anna 's chocolate chip cookies Ingredients: Egg, sugar, extract, water, baking_soda, chips, butter, salt, flour.
+Ingredients: Egg, sugar, extract, baking_soda, chips, butter, salt, flour. Instructions:
+Instructions: -Preheat oven to 350 degrees f (175 degrees c).
+-Preheat the oven to 375 degrees f (190 degrees c). -In a medium bowl, cream the butter with the brown and white sugars. stir in the
+-In a large bowl, cream together the butter and sugar until smooth. vanilla, egg white, and water.
+-Beat in the vanilla and eggs one at a time. combine the flour, baking soda and salt; stir -Sift together the flour, baking soda, and salt; stir into the creamed mixture.
+into the sugar mixture. -Mix in the chocolate chips.
+-Finally, mix in the chocolate chips. -Drop dough by heaping spoonfuls onto ungreased cookie sheets. -Bake for 8 to 10
+-Drop by tablespoonfuls onto ungreased cookie sheets. minutes in the preheated oven.
+-Bake for 8 to 10 minutes in the preheated oven, or until edges are golden. remove from -Allow cookies to cool for 1 minute on baking sheets before transferring to wire racks to
+baking sheet to cool on wire racks. cool completely.
+Figure2. Comparisonbetweenretrievalresultsandgroundtruth. BOLDrepresentstherelevantandsimilarpartsbetweentheretrieved
+results and the ground truth. This is the ground truth for “award winning soft chocolate chip cookies” and its corresponding retrieved
+recipes.
+match “GT”, leading to lower test scores, whereas “In- ple juice’ received supplementary information from their
+verse Cooking” provided overly simplistic and less de- corresponding retrieved ingredients and instructions, such
+tailed predictions. In Figure 5 (c), both “LLaVA-FT” and as‘bluecuracao’and‘vodka,curacao,andsoda’. However,
+“FoodLLM”misidentified“meat”as“groundbeef”,affect- the description in the retrieved information differs signifi-
+ingtheaccuracyoftheirinstructionpredictions,while“In- cantlyfromthegroundtruth,resultinginalowerconfidence
+verseCooking”wasmoreaccurate,thoughitlackedthede- score for the predictions. This demonstrates that the self-
+tailofourmodel,suchas“4(1/2-inch-thick)patties”. consistency voting mechanism effectively selects the best
+Figure3demonstratesthecomparativeresultsofourbest recipe.
+model during the inference process, with and without the
+additionofretrievalinformation. Itisevidentthatthepre- 6.ConsistencybetweentheGeneratedIngredi-
+dictions made without retrieval information are less accu-
+entsVSRetrievedIngredients
+rate and comprehensive than those made with it. For in-
+stance,inFigure3(a),ourmethodpreciselypredicts“cook We compared the retrieved ingredients with the ingre-
+andstir”insteadofmerely“cook,”incomparisontothere- dients predicted by the model. As shown in Figure 7, in
+sults without added retrieval information. In Figure 3(b), the first case, it can be observed that the model predic-
+ourmethod’spredictionsalmostperfectlymatchtheground tion partly overlaps with the ground truth. However, the
+truth,furtherunderscoringtheimportanceofincorporating retrieved ingredient list misled the model by introducing
+retrievalinformation. ‘cheese’ and ‘vanilla’, which are not part of the ground
+Figure 6 shows the four generated recipe candidates, truth. The retrieved ‘walnuts’ were beneficial, helping the
+with prediction 1 being the output with the highest confi- model predict ‘walnuts’ correctly. In the second case, the
+dence. Itoverlapswiththegroundtruthin‘shakerwithice’ retrieved ingredients misled the prediction by introducing
+and‘achilledcocktailglass.’ItcanbeobservedthatPredic- incorrectingredients(‘chicken’,‘pepper’),whichwerenot
+tion3andPrediction4’s‘vodka,bluecuracao,andpineap- part of the ground truth. Nonetheless, the model was ableOurs(no RAG): heat oil in large skillet on medium-high heat. add chicken; cook 5 min. or until done, stirring
+occasionally. add broccoli; cook 3 min. or until crisp-tender, stirring occasionally. add remaining ingredients; cook 2
+min. or until heated through, stirring occasionally.
+Ours: heat oil in large skillet on medium-high heat. add chicken; cook and stir 5 min. or until done. add onions; cook
+and stir 3 min. or until crisp-tender. add broccoli; cook and stir 3 min. or until crisp-tender. add remaining
+ingredients; mix well. bring to boil. reduce heat to medium-low; cover. simmer 15 min. or until rice is tender.
+GT: heat oil in large skillet on medium-high heat. add meat and garlic; cook and stir 4 min. or until meat is cooked
+through. add broth and vegetables; mix well. bring to boil. stir in rice and dressing; cover. reduce heat to low;
+simmer 5 min. remove from heat. let stand 5 min. fluff with fork.
+(a)
+Ours(no RAG): in a medium bowl, whisk together the olive oil, lemon juice, oregano, salt, and pepper. toss with the
+quinoa to coat. in a medium saucepan, bring the broth to a boil. stir in the quinoa. cover, reduce heat to low, and
+simmer 15 minutes. remove from heat, and let stand, covered, 5 minutes more. fluff with a fork, and serve.
+Ours: bring quinoa and water to a boil in a saucepan. reduce heat to medium-low, cover, and simmer until quinoa is
+tender and water has been absorbed, 10 to 15 minutes. set aside to cool. whisk olive oil, lemon juice, white wine
+vinegar, garlic, salt, and pepper together in a bowl…toss to coat. refrigerate until chilled, at least 1 hour.
+GT: bring broth and quinoa to a boil in a saucepan. reduce heat to medium-low, cover, and simmer until quinoa is
+tender and water has been absorbed, 15 to 20 minutes…set aside to cool, ... mix tomatoes, parsley, kalamata olives,
+onion, feta cheese, olive oil, vinegar, and garlic into quinoa…and toss to coat. chill in refrigerator, 1 to 4 hours.
+(b)
+Figure3. Qualitativeresultsofwhetherthebestmodelusesretrievalinformationforinference. Theyellowhighlightsindicatetheparts
+whereourmethodprovidesmoreaccuratepredictionsonthebestmodelcomparedtothemethodwithoutretrievalinformation.
+to predict other ingredients like ‘flour’, ‘oil’, ‘soy sauce’, the predicted ingredients are fewer but still quite accurate.
+and ‘breadcrumbs’ accurately. In both cases, the retrieved This could be because the model uses more contextual in-
+ingredientssignificantlyinfluencedthemodel’sprediction. formation when generating instructions, which helps it in-
+When the retrieval stage introduced irrelevant ingredients feringredientsthatwerenotcapturedduringstandalonein-
+(like chicken and pepper in the second case), these errors gredientprediction. Overall, theingredientpredictionsare
+propagated into the prediction. However, the model was fairly accurate, and there is a significant overlap between
+stillabletopredictaportionofthecorrectingredients,par- theextractedandpredictedingredients.
+ticularlywhentheyoverlappedwiththeretrievedones. The
+resultsunderscoretheimportanceofaccurateingredientre- 8.RetrievalFailureCase
+trieval,asincorrectretrievalscanleadtofaultypredictions,
+evenifthemodelhasthecapacitytopredictwellwhenpro- Toexploreretrievalfailurecases,weanalyzedsomeex-
+videdwithaccurateinputs. amplesofunsuccessfulretrievals. Figure9providesanex-
+ample of a retrieval failure. The prediction is influenced
+7.IngredientsExtractedfromInstructionsand by retrieved information, like ”cut into bars,” and mixing
+DirectlyPredicted nuts into the batter early. In the ground truth, nuts are
+sprinkled on top at the end. Figure 10 presents two re-
+Figure 8 shows a comparison between ingredients ex- trievedinstructionsforthesaladandtheirrespectivepredic-
+tracted from generated instructions and those directly pre- tions.Itcanbeseenthatthecompletenessofthepreparation
+dicted. In the first case, ingredients like ‘greens’ and steps also influences the comprehensiveness of the predic-
+‘tomato’, which are visually prominent in the image, are tion,andthepredictedingredientstendtooverlapwiththe
+successfully predicted. However, ‘jicama’ is detected in ingredients mentioned in the retrieved instructions. These
+theinstructionsandappearsintheinstructiongroundtruth, results clearly show that when the retrieved instruction is
+butismissingfromthedirectlypredictedingredients. This more comprehensive and accurate, the resulting prediction
+mightbebecausethemodel,whengeneratinginstructions, willalsobebetter.
+learnscommoncookingpairingsandautomaticallyaddsin-
+gredientsmissedduringingredientprediction.Additionally,
+9.BroaderIngredientCategories
+theretrievedinstructionsmayhaveincluded‘jicama’. Itis
+worthnotingthattheingredient‘pineapple’intheextracted To avoid situations where ingredients in the prediction
+ingredientswasidentifiedas‘fruit’. Whilethisiscorrectin and ground truth are very similar but are counted as com-
+a broad or human sense, it would be considered incorrect pletely incorrect due to different terminology in the ingre-
+whencalculatingclassificationmetrics. Inthesecondcase, dientslist—suchas’pasta’and’spaghetti’—wedesignedan
+theextractedingredientsarealmostentirelyaccurate,while alternativepenaltycalculationmethod. Weidentifiedsimi-Ground truth
+Title: mango shrimp
+Ingredients: Jalapeno, mango, turmeric, masala, seeds, clove, juice, yogurt, shrimp, cilantro, cashews, butter, salt, ginger.
+Instructions:
+-In a blender, combine the cashews, ginger, garlic, jalapeno, mustard seeds, garam masala and turmeric and pulse until the gingerand garlic are finely
+chopped.
+-Add the mango nectar and lemon juice and puree until smooth, scraping down the side of the bowl.
+-Add the yogurt and 1 tablespoon of salt and pulse to blend. pour the mixture into a large bowl.
+-Add the shrimp and toss to coat. refrigerate for 2 hours, stirring once or twice. light a grill.
+-Thread the shrimp on pairs of skewers, being sure to leave on some of the marinade.
+-Brush with the melted butter and sprinkle with salt.
+-Oil the grate and grill the shrimp over high heat, turning occasionally, until lightly charred and cooked through, about 8 minutes. serve the shrimp
+with the cilantro and yogurt sauce.
+Retrieved recipe 1 Retrieved recipe 2
+Title: shrimp and corn chowder Title: sichuan peppercorn shrimp
+Ingredients: Salsa, cumin, juice, plum, milk, clove, shrimp, pepper, cilantro, fish, onion, Ingredients: Chili, jalapeno, juice, clove, scallion, oil, salt, peppercorn.
+scallion, oil, corn, salt. Instructions:
+Instructions: -In a small skillet, toast the peppercorns over moderate heat until fragrant, about 30 seconds;
+-In a large, shallow glass or stainless-steel bowl, toss the shrimp with two-thirds of the let cool. transfer the peppercorns to a mortar or spice grinder and grind to a powder.
+minced garlic, the scallions, lime juice and 1 teaspoon of salt. -Put the shrimp in a bowl, toss with 1 teaspoon of the ground peppercorns and season
+-Cover with plastic wrap and refrigerate for at least 1 hour or for up to 3 hours. with salt. in a medium skillet, heat 1 tablespoon of the vegetable oil.
+-Simmer over moderately low heat until very flavorful, about 20 minutes. …
+… -Add the shrimp and lime juice and stir until the shrimp are just cooked through, 1
+-Return the puree and the strained broth to the saucepan and bring to a simmer. minute.
+-Add the shrimp and its marinade and cook over moderate heat until the shrimp are -Season with salt and transfer to a bowl.garnish with the sliced scallion, drizzle with the
+just opaque throughout, about 2 minutes. chile oil and serve.
+Retrieved recipe 3 Retrieved recipe 4
+Title: almond-crusted chicken wings
+Ingredients: Almonds, vinegar, cumin, clove, chicken, pepper, mayonnaise, lemon, paprika, Title: chicken souvlaki
+oil. Ingredients: Juice, chicken, clove, pepper, lemon, wine, oregano, onion, oil, salt,
+Instructions: bay_leaves.
+-In a large bowl, combine the 1/3 cup of olive oil with the paprika, cumin, cayenne and Instructions:
+garlic. -Combine the oil, lemon juice, wine, garlic, oregano, lemon zest, 1 teaspoon salt and the
+-Stir in the vinegar and season with salt and pepper. add the wings and almonds and toss. pepper in a large nonreactive bowl and whisk until blended and the salt is dissolved.
+-Spread the wings and almonds on a large baking sheet in a single layer and roast for about -Taste for seasoning, adding salt as necessary; the mixture should be highly seasoned.
+25 minutes, until cooked through. meanwhile, in a mini food processor, combine the -Add the chicken and turn to coat. let marinate, at room temperature, for 30 minutes,
+mayonnaise with the lemon zest and juice. add the remaining 1/4 cup of olive oil and turning occasionally. soak the bay leaves in a bowl of cold water for 20 minutes.
+process until smooth; season the aioli with salt and pepper. -Preheat the grill to high. when ready to cook, break the onion quarters into individual
+-Turn on the broiler and broil the chicken wings, turning once until they are lightly crisp, 2 layers. drain the bay leaves. remove the chicken cubes from the bowl, reserving whatever
+to 3 minutes. marinade is left, and thread onto the skewers, placing a piece of onion and bay leaf between
+-Transfer the wings and almonds to a platter and serve with the lemon aioli. each and dividing evenly.
+(a)Theexampleofthegroundtruthfor“mangoshrimp”anditscorrespondingretrievedrecipes.
+Ground truth
+Title: chocolate cherry drops
+Ingredients: Egg, sugar, walnuts, extract, cocoa, baking_soda, cherries, butter, salt, flour.
+Instructions:
+-Preheat oven to 350 degrees f (175 degrees c).
+-Grease cookie sheets. in a large bowl, cream together the butter and sugar until smooth.
+-Blend in the egg and vanilla. combine the flour, cocoa, baking soda and salt; stir into the creamed mixture.
+-Finally, mix in the chopped cherries and walnuts.
+-Drop by rounded spoonfuls onto the prepared cookie sheets.
+-Bake for 8 to 10 minutes in the preheated oven.
+-Allow cookies to cool on baking sheet for 5 minutes before removing to a wire rack to cool completely.
+Retrieved recipe 1 Retrieved recipe 2
+Title: high altitude banana chocolate chip cookies Title: cracked sugar cookies ii
+Ingredients: Egg, sugar, extract, butter, banana, baking_powder, chips, baking_soda, salt, Ingredients: Egg, sugar, shortening, extract, baking_powder, salt, flour.
+flour. Instructions:
+Instructions: -In a large bowl, cream together the shortening and 1 1/2 cups sugar until smooth.
+-Preheat the oven to 375 degrees f (190 degrees c). -Beat in the eggs one at a time then stir in the vanilla.
+-Sift together the flour, baking powder, baking soda and salt, set aside. -Combine the flour, baking powder and salt; stir into the creamed mixture until well
+-In a large bowl, cream together the butter, sugar and brown sugar. blended.
+-Beat in the eggs, one at a time, then stir in the vanilla and mashed banana. -Cover dough and refrigerate for at least 1 hour. preheat oven to 350 degrees f (175
+-Mix in the dry ingredients until just blended, then fold in chocolate chips. degrees c). roll dough into 1 inch balls and roll the balls in the remaining sugar.
+-Drop by rounded spoonfuls onto prepared cookie sheets. -Place cookies 2 inches apart onto ungreased cookie sheets.
+-Bake for 11 to 13 minutes in the preheated oven. -Bake for 8 to 9 minutes in the preheated oven, or until just barely golden.
+-Allow cookies to cool on baking sheet for 5 minutes before removing to a wire rack to -Allow cookies to cool on the baking sheet for 2 minutes before removing to wire
+cool completely. racks to cool completely.
+Retrieved recipe 3 Retrieved recipe 4
+Title: crunchy chocolate chippers
+Ingredients: Egg, sugar, oil, extract, cereal, margarine, milk, chips, baking_soda, salt,
+Title: chocolate chocolate chip cookies i flour, oats.
+Ingredients: Egg, sugar, walnuts, extract, cocoa, baking_soda, chips, butter, salt, flour. Instructions:
+Instructions: -Preheat oven to 350 degrees f (175 degrees c).
+-Preheat oven to 350 degrees f (175 degrees c). -Grease cookie sheets. stir together the flour, baking soda and salt; set aside.
+-In large bowl, beat butter, sugar, eggs, and vanilla until light and fluffy. -In a large bowl, cream together the margarine, brown sugar and white sugar until
+-Combine the flour, cocoa, baking soda, and salt; stir into the butter mixture until well smooth.
+blended. -Beat in the eggs, one at a time, then stir in the vanilla, vegetable oil and milk.
+-Mix in the chocolate chips and walnuts. -Blend in the flour mixture before stirring in the oats, frosted corn flakes and chocolate
+-Drop by rounded teaspoonfuls onto ungreased cookie sheets. chips. drop by heaping spoonfuls onto the prepared cookie sheets.
+-Bake for 8 to 10 minutes in the preheated oven, or just until set. -Bake for 8 to 10 minutes in the preheated oven. allow cookies to cool on baking
+-Cool slightly on the cookie sheets before transferring to wire racks to cool completely. sheet for 5 minutes before removing to a wire rack to cool completely.
+(b)Theexampleofthegroundtruthfor“chocolatecherrydrops”anditscorrespondingretrievedrecipes.
+Figure4.Comparisonbetweenretrievalresultsandgroundtruth.LLaVA-FT: beat cream cheese and sugarin large bowl with mixer until blended.add cool whip; mix well. spread onto bottom of 13x9-inch pan.
+refrigerate 1 hour. meanwhile, beat puddingmix and milkwith whisk 2 min. ; pour over cream cheeselayer. refrigerate 1 hour. spread remaining
+cool whip over puddinglayer; refrigerate 1 hour. top with remaining ingredients. refrigerate 1 hour.
+Inverse cooking: …Beat cream cheese, sugar and vanillain large bowl with mixer until blended. Add eggs, 1 at a time, mixing on low speed after
+each just until blended. Pour into 9-inch springform pan sprayed with cooking spray...Meanwhile, beat pudding mix and milkin medium bowl with
+whisk 2 min...Top cheesecake with berriesjust before serving.
+FoodLMM: ...Line a 9-inch square pan with foil, with ends of foil extending over sides...Beat cream cheese, sugar and vanillain large bowl with
+electric mixer on medium speed until well blended. Add cool whip; mix well. Spread over crust...Refrigerate 1 hour. Arrange berriesin rows over
+cream cheese mixture. Drizzle with melted chocolate...
+Ours: …line 13x9-inch pan with foil, with ends of foil extending over sides. mix graham crumbs and butter; press onto bottom of prepared pan. beat
+cream cheese, sugar and vanillawith mixer until blended. add eggs, 1 at a time, mixing on low speed after each just until blended. pour over crust.
+bake 40 to 45 min. or until center is almost set…refrigerate 4 hours. top with whipped topping just before serving…
+GT: …line 13x9-inch pan with foil, with ends of foil extending over sides. mix graham crumbs, 3 tbsp. sugar and butter; press firmly onto bottom of pan…beat cream cheese, 1 cup sugar and
+vanillain large bowl with mixer until well blended…add eggs, 1 at a time, mixing on low speed after each just until blended. pour over crust. bake 40 min. or until center is almost
+set…refrigerate 4 hours…top with cool whip; sprinkle with coconut to resemble a cross. fill in corners with berries to resemble the dominican republic flag.
+(a)
+LLaVA-FT: preheat oven to 400 degrees f (200 degrees c). grease 12 muffin cups or line with paper muffin liners. combine flour, baking powder,
+andpepperin a large bowl…stir the milkmixture into the flour mixture until just combined. fold in the cheese and spinachuntil evenly combined.
+spoon the batter into prepared muffin cups. bake in the preheated ovenuntil golden and the tops spring back when lightly pressed, about 20 minutes.
+Inverse cooking: Preheat oven to 400 degrees f. In a large bowl, combine the ricotta, spinach, eggs, flour, saltand pepper. Stir in the ricotta cheese.
+Fill greased muffin cups two-thirds full. Bake for 20 minutes or until golden brown.
+FoodLMM: Preheat oven to 400 degrees f (200 degrees c). Lightly grease a 12 cup muffin pan. In a large bowl, beat together eggs, milk, oil, salt,
+and pepper. Mix in cheese, spinach, and feta…Stir in chives. Spoon batter into prepared muffin pan. Bake in preheated oven for 20 minutes, or until
+a toothpick inserted into a muffin comes out clean.
+Ours: …grease 12 muffin cups or line with paper muffin liners. combine flour, baking powder, baking soda, and saltin a large bowl. mix egg, milk,
+oil,and cheddar cheesein a bowl; stir into flourmixture until just moistened…fill prepared muffin cups 2/3 full with batter. bake in preheated oven
+until a toothpick inserted into the center of a muffin comes out clean, about 35 minutes.
+GT: …lightly grease 12 cup muffin cups. mix the flour, baking powder, baking soda, and salttogether in a mixing bowl. stir the melted butter, egg, milk, spinach, and cheddar cheesetogether
+in a large mixing bowl until evenly blended. slowly stir in the flour mixture to form a batter. spoon about 2 tablespoons into each muffin cup. bake in preheated oven until a toothpick inserted
+into the center of a muffin comes out clean, about 35 minutes.
+(b)
+LLaVA-FT: Preheat the oven to 375 degrees f. Place the brioche buns on a baking sheet and bake for 5 minutes or until golden brown. In a mixing
+bowl, combine the ground beef, cheddar cheese, green sauce, and parsley. Place a small amount of the meatmixture on top of each bun. Serve
+immediately.
+Inverse cooking: Heat grill to medium heat. Mix meat and 2 tbsp. Barbecue sauce; shape into 4 (1/2-inch-thick) patties. Grill 5 to 6 min. On each
+side or until done (160 degrees f).Top with cheese; grill 1 min…Fill buns with cheeseburgers, baconand remaining barbecue sauce.
+FoodLMM: Mix ground beef, bread crumbs, egg, onion, garlic, salt, pepper, and 1/2 cup of the cheese. Shape into 4 patties. Heat oil in a large skillet
+over medium-high heat. Add patties; cook 5 minutes on each side or until well browned. Remove from skillet; cover to keep warm. Add onionsto
+skillet; cook 5 minutes or until tender. Stir in ketchup, mustard, and remaining 1/2 cup cheese. Serve patties topped with onionmixture.
+Ours: heat grill to medium heat. mix meat. our favorite chimichurrijust until blended; shape into 6 (1/2-inch-thick) patties. grill 5 min. on each side
+or until done (160 degrees f). top with remaining cheese; grill 1 min. or until melted. fill buns with cheeseburgersand remaining chimichurri.
+GT: heat grill to medium-high heat. mix meatand 3 tbsp. our favorite chimichurrijust until blended; shape into 6 (1/2-inch-thick) patties. grill 5 to 6 min. on each side or until done (160f). top
+with singles; grill 1 min. or until melted. fill buns with cheeseburgersand remaining chimichurri.
+(c)
+Figure 5. Additional qualitative results. The ingredients in generated recipes that overlap with ground truth (“GT”) are highlighted in
+yellow,whiledetailsintheinstructionsthatmatchtheGTareshowninblue. Otherwise,theincorrectgenerationresultsaredisplayedin
+red.Bestviewedincolor.
+laringredientsinthelistandgroupedtheminto42broader
+categories, as shown in the Table 3. We apply a reduced
+penalty (0.5 weight) for ingredients within the same cat-
+egory and a full penalty (1 weight) for those across cate-
+gories.GT: combine ingredients in a cocktail shaker with ice. shake vigorously Confidence
+and strain into a chilled cocktail glass. garnish with a cherry. scores
+Prediction 1: combine all ingredients in a shaker with ice. shake and strain
+0.64
+into a chilled cocktail glass. garnish with a cherry.
+Prediction 2: combine all ingredients in a shaker with ice. shake and strain
+0.52
+into a chilled cocktail glass.
+Prediction 3: fill a highball glass with ice. add the vodka, blue curacao, and
+0.59
+pineapple juice. stir and garnish with a cherry and a maraschino cherry.
+Prediction 4: fill a tall glass with ice. add the vodka, blue curacao, and
+0.58
+pineapple juice. stir. garnish with a cherry and a maraschino cherry.
+Retrieved ingredients 1: curacao, juice, schnapps, vodka.
+Retrieved instruction 1: pour all ingredients except pineapple juice into a cocktail shaker, and mix well. pour into a cocktail
+glass filled with ice and add pineapple juice to taste. mix well.
+Retrieved ingredients 2: lime, liqueur, vodka, juice, curacao, ice.
+Retrieved instruction 2: pre-chill vodka in freezer ... pre-chill large/9 ounce wine glass in freezer. add about 4-6 ice cubes into
+the wine glass. add vodka, raspberry liqueur, blue curacao, lime cordial, and cranberry cocktail. stir or shake gently and serve.
+Retrieved ingredients 3: rum, lemonade, curacao, vodka.
+Retrieved instruction 3: fill a highball glass with ice and add vodka and coconut rum. fill with lemonade. splash blue curacao.
+garnish with pineapple leaf and lemon wheel, if desired.
+Retrieved ingredients 4: lime, vodka, curacao, sprite, ice.
+Retrieved instruction 4: fill a 6-8 oz glass with crushed ice. add vodka, curacao and soda. give the lime a squeeze over the drink.
+garnish with a slice of lime and serve.
+Figure6. QualitativeresultsofAblationofSelf-consistencyEnsembleVoting. BOLDindicatesthepartsthatoverlapwiththeground
+truth,whileredtexthighlightsthehallucinatedoutputs. Theretrievedingredientsandinstructionscorrespondtoeachprediction,andthe
+confidencescoreiscalculatedfroma4x4cosinesimilaritymatrixwhenS=4,witheachrowaveragedtoobtainthefinalscore.
+Retrieved ingredients : chocolate, sugar, milk, pecans, coconut, butter, flour, caramel
+Prediction : butter, cream, sugar, cheese, vanilla, egg, chocolate, walnuts
+Ground truth : chocolate, walnuts, baking_soda, oats, flour, milk, salt, caramel, butter, sugar
+Retrieved ingredients : egg, breadcrumbs, milk, chicken, pepper, lemon, oil, flour
+Prediction : flour, cornstarch, salt, pepper, chicken, oil, garlic, mayonnaise, soy_sauce
+Ground truth : scallion, spinach, oil, egg, flour, soy_sauce, breadcrumbs, seeds, ginger, salt, mayonnaise, pork, clove
+Figure7.Retrievedandpredictedingredients.BOLDrepresenttheoverlapofingredientsbetweenbothRetrievedingredientsandPredicted
+ingredientswiththegroundtruthingredients. Theingredientsinredfontaretheonesincorrectlypredictedduetoerrorsintheretrieved
+ingredients.Instruction ground truth: preheat greased grill to medium-high heat. grill fruit 3 min. on each side or until lightly browned on both sides. cut fruit into 2-
+inch sticks; place in large salad bowl. add greens, jicama and tomatoes; toss lightly. drizzle with dressing just before serving.
+Predicted instruction: Preheat the grill to medium-high heat after greasing it. grill fruit 3 min. on each side or until lightly browned on both sides. cut the
+fruit into 2-inch sticks and transfer them to a large salad bowl. add greens, jicama and tomatoes; toss lightly. drizzle with dressing just before serving.
+Extracted ingredients: [‘fruit’, ‘greens’, ‘jicama’, ‘tomato’, ‘dressing’]
+Predicted ingredients: [‘tomato’, ‘cheese’, ‘greens’, ‘vinaigrette’, ‘mushroom’, ‘pepper’]
+Ingredients ground truth: [‘stick’, ‘greens’, ‘tomato’, ‘vinaigrette’, ‘pineapple’]
+Predicted instruction: preheat oven to 350 degrees f. in a large bowl, combine the flour, oats, baking soda, cinnamon, and salt. in a separate bowl,
+combine the brown sugar, butter, and vanilla. mix well. add the egg and mix until smooth. add the flour mixture and mix until just combined. stir in the
+chocolate chips. drop by tablespoonfuls onto a greased cookie sheet. bake for 10-12 minutes or until lightly browned.
+Extracted ingredients: [‘flour’, ‘oats’, ‘baking_soda’, ‘cinnamon’, ‘salt’, ‘sugar’, ‘butter’, ‘vanilla’, ‘egg’, ‘chips’]
+Predicted ingredients: [‘flour’, ‘oats’, ‘baking_soda’, ‘vodka’, ‘ice’, ‘vanilla’]
+Ingredients ground truth: [‘extract’, ‘chips’, ‘baking_soda’, ‘egg’, ‘oats’, ‘flour’, ‘banana’, ‘salt’, ‘baking_powder’, ‘butter’, ‘sugar’]
+Instruction ground truth: 1. preheat oven to 350 degrees f. 2. in a medium bowl, stir together flours, baking powder, baking soda, and salt. 3. in a separate bowl, cream together butter and
+sugars. add in egg and beat until light and creamy. mix in banana and vanilla. 4. by hand, stir in banana mixture into flour mixture until well-combined. stir in oats and mini-chips. 5. drop by
+heaping tablespoonfuls onto greased cookie sheet. bake for 8-10 minutes or until edges begin to brown. do not overbake. 6. remove to wire rack and cool. store in an airtight container. (recipe
+adapted from skinnytaste.)
+Figure8. Predictedandgroundtruthingredients,instructions,andingredientsextractedfromthepredictedinstructions. BOLDrepresent
+theoverlapofingredientsbetweenbothExtractedingredientsandPredictedingredientswiththegroundtruthingredients.
+Retrieved instruction: …combine brown sugar and butter in bowl. beat at medium speed, scraping bowl often, until creamy. add eggs, vanilla and
+almond extract; continue beating until well mixed. add oats, flour and baking soda; beat at low speed until well mixed. stir in 8 ounces chopped
+chocolate and pecans. spread batter into ungreased 15x10x1-inch baking pan. bake 24-27 minutes or until set. cool completely…cut into bars.
+Prediction: …combine all ingredients except nuts in large bowl. beat at medium speed, scraping bowl often, until well mixed. stir in nuts. spread
+into greased 13x9-inch baking pan. bake 25 to 30 min. or until toothpick inserted in center comes out clean. cool completely. cut into 24 bars.
+GT: …combine first 5 ingredients…add eggs, 1 at a time, mixing well after each addition. add pumpkin and milk; mix well. gradually add flour
+mixture, mixing well after each addition. pour into parchment-lined 15x10x1-inch pan. bake 30 to 35 min. or until toothpick inserted in centre
+comes out clean. cool completely. beat cream cheese and remaining butter in large bowl with mixer until blended. gradually add icing sugar,
+beating after each addition until well blended. spread over dessert; sprinkle with nuts.
+Figure9.Retrievalfailureexamples.Redtextshowspredictionerrorsinfluencedbytheretrievedinstruction,andyellowhighlightsindicate
+missingcontentintheprediction.
+Retrieved instruction 1: preheat oven to 400 degrees f. toss bread with oil and a pinch of salt. spread onto a baking sheet, and bake until
+golden brown and crisp, about 15 minutes. combine endives, radicchio, lettuce, and frisee in a bowl. add hazelnuts, bacon, and croutons.
+drizzle with half the vinaigrette, and toss well to combine. add remaining vinaigrette as desired. season with salt and pepper...
+Prediction 1: preheat the oven to 400. in a large bowl, toss the squash with the olive oil and season with salt and pepper. spread the squash
+in a single layer on a baking sheet and roast for about 20 minutes, until tender and lightly browned…toss the squash with the arugula,
+parsley, pine nuts, parmesan and 1/4 cup of the walnuts. in a small bowl, whisk the vinegar with the mustard, honey and 1/4 teaspoon of salt.
+gradually whisk in the olive oil until emulsified. season the dressing with salt and pepper. toss the salad with the dressing and serve.
+Retrieved instruction 2: prepare dressing: in very large bowl, with wire whisk, mix vinegar, mustard, salt, and pepper. in thin, steady stream,
+whisk in oil until blended. add pears, tossing to coat…add radicchio, endive, and arugula to pears; toss until mixed and coated with dressing.
+top salad with parmesan shavings and pecans.
+Prediction 2: in a large bowl, toss the endive with the olive oil and vinegar. season with salt and pepper. add the beets, walnuts and parsley and
+toss well.
+Ground truth: preheat the oven to 425. on a baking sheet, toss the squash with 2 tablespoons of the olive oil; season with salt and pepper. roast for 20 minutes, until tender. spread the
+hazelnuts in a pie plate and toast for 6 minutes, until golden…in a large bowl, toss the arugula, frisee, prosciutto, chives, hazelnuts and squash. in a small microwave-safe bowl, mix
+the remaining 1 tablespoon of olive oil with the vinegar and hazelnut oil and season with salt and pepper...pour the dressing over the salad, toss well and serve.
+Figure10. Twosetsofretrievalresultsfor“butternutsquashsaladwithhazelnuts”andtheircorrespondingpredictions. BOLDrepresent
+thepartsthatoverlapwiththegroundtruth,whileredtextindicatesthosethatdonotmatchthegroundtruth.BroaderCategory Ingredients
+PastaandDerivatives spaghetti, pasta, penne, linguine, fettuccine, tortellini, ravioli, vermicelli,
+lasagna sheet,orecchiette,fusilli,conchiglie,cavatelli,spaghettini,manicotti
+Cheese cheese, medium cheddar, parmesan rind, parmigiano, gorgonzola, mascarpone, ri-
+cotta salata,queso fresco,feta
+Meat beef, chicken, pork, lamb, veal, bacon, ham, sausage, rib, tenderloin, fillets, steak,
+roast,duck,meatballs,sirloin,liver,tender quick
+FishandSeafood tuna, salmon, shrimp, lobster, oyster, cod, scallops, sardines, anchovies, crabmeat,
+mussels,trout,mackerel,sole,haddock
+Seasonings salt,pepper,chili,oregano,basil,rosemary,thyme,parsley,cumin,coriander,paprika,
+mustard,dill,chives,cinnamon,nutmeg,allspice,marjoram,bay leaf,curry,saffron,
+tarragon,cardamom,ginger,garlic,horseradish,vanilla,extract
+Vegetables onion,celery,carrot,potato,zucchini,cucumber,lettuce,spinach,broccoli,cabbage,
+kale, squash, arugula, leek, fennel, asparagus, artichoke, beet, radish, tomato, egg-
+plant,pumpkin
+Fruits apple,banana,berries,grapes,melon,cantaloupe,lemon,lime,orange,peach,pineap-
+ple,pear,mango,strawberry,kiwi,watermelon
+NutsandSeeds peanuts,almonds,cashews,walnuts,pecans,hazelnuts,macadamias,sesame
+OilsandFats oil,butter,margarine,shortening,lard,ghee
+DairyProducts milk,cream,yogurt,buttermilk,cheese
+FlourandGrains flour,cornmeal,oats,quinoa,barley,wheat,rice
+BeansandSoyProducts lentils,chickpeas,kidney bean,soybeans,tofu,edamame,peas
+SweetenersandSugars sugar,honey,molasses,syrup,stevia,fructose
+BakingIngredients baking soda,baking powder,yeast,vanilla,cocoa,gelatin,cornstarch
+SaucesandCondiments ketchup, mayonnaise, soy sauce, worcestershire sauce, teriyaki sauce, barbe-
+cue sauce, salad dressing, vinaigrette, gravy, mustard, hot sauce, ranch dressing,
+marinara sauce,pesto sauce,tartar sauce
+Drinks tea,coffee,wine,beer,lemonade,milk,brandy,rum,vodka,gin,cider,cola
+AlcoholicBeverages brandy,rum,vodka,gin,liqueur,champagne,vermouth,tequila
+ProcessedandSeasonedFoods bacon,sausage,hot dog,ham,salami,prosciutto
+ProcessedGrainFoods bread,cracker,chips,pie crust,pancake,waffle,biscuit
+DriedSeafood nori,kelp,bonito flakes,anchovy
+NutCandiesandPastries peanuts,almonds,cashews,pecans,macadamias,hazelnuts,walnuts
+BakingandDesserts cake,cookie,brownie,muffin,pudding,pancake,waffle
+DryGoodsandGrains rice,oats,quinoa,barley,bulgur,millet,couscous
+BrothandSeasoningLiquids broth,stock,bouillon,gravy,miso
+TeaandCoffeeBeverages coffee,espresso
+JamsandPreserves jam,jelly,marmalade,preserves
+CandiesandSweets candy,chocolate,fudge,caramel,marshmallow
+Berries strawberries,blueberries,raspberries,blackberries,cranberries
+TropicalFruits mango,papaya,pineapple,banana,coconut
+CitrusFruits orange,lemon,lime,grapefruit,tangerine
+LeafyVegetables spinach,kale,lettuce,arugula
+RootVegetables potato,carrot,beet,radish,turnip
+SpicesandSeasoningPowders cumin,coriander,turmeric,paprika
+MushroomsandFungi mushroom,truffle,morel
+AlcoholicBeverages wine,beer,brandy,vodka,rum,gin,tequila
+LegumesandSoyProducts kidney bean,chickpeas,lentils,soybeans,tofu
+SoySauceandAsianCondiments soy sauce,teriyaki sauce,hoisin sauce
+HoneyandSyrups honey,molasses
+ConcentratedSauces ketchup,mustard,mayonnaise,barbecue sauce,salad dressing
+BreadsandBakedGoods bread,baguette,bagel,muffin
+PastaSauces pesto sauce,marinara sauce,alfredo sauce,bolognese sauce
+GrainsandCereals rice,oats,quinoa,barley,bulgur
+Table3.Broadercategoriesandtheirrespectiveingredients.

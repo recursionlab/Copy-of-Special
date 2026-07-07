@@ -1,0 +1,712 @@
+Rationale-Augmented Convolutional Neural Networks
+for Text Classification
+YeZhang,1 IainMarshall,2 ByronC.Wallace3
+1DepartmentofComputerScience,UniversityofTexasatAustin
+2DepartmentofPrimaryCareandPublicHealthSciences,KingsCollegeLondon
+3CollegeofComputerandInformationScience,NortheasternUniversity
+yezhang@cs.utexas.edu, iain.marshall@kcl.ac.uk
+byron@ccs.neu.edu
+Abstract that we are provided a set of rationales (Zaidan et
+al., 2007; Zaidan and Eisner, 2008; McDonnell et
+We present a new Convolutional Neural Net-
+al., 2016) in addition to instance labels, i.e., sen-
+work(CNN)modelfortextclassificationthat
+tences or snippets that support the corresponding
+jointlyexploitslabelsondocumentsandtheir
+documentcategorizations. Providingsuchrationales
+constituent sentences. Specifically, we con-
+during manual classification is a natural interaction
+sider scenarios in which annotators explic-
+itly mark sentences (or snippets) that sup- for annotators, and requires little additional effort
+port their overall document categorization, (Settles, 2011; McDonnell et al., 2016). Therefore,
+i.e., they provide rationales. Our model ex- when training new classification systems, it is natu-
+ploits such supervision via a hierarchical ap-
+ral to acquire supervision at both the document and
+proachinwhicheachdocumentisrepresented
+sentencelevel,withtheaimofinducingabetterpre-
+by a linear combination of the vector repre-
+dictivemodel,potentiallywithlesseffort.
+sentations of its component sentences. We
+proposeasentence-levelconvolutionalmodel Learning algorithms must be designed to capital-
+thatestimatestheprobabilitythatagivensen- ize on these two types of supervision. Past work
+tence is a rationale, and we then scale the
+(Section 2) has introduced such methods, but these
+contribution of each sentence to the aggre-
+havereliedonlinearmodelssuchasSupportVector
+gatedocumentrepresentationinproportionto
+Machines(SVMs)(Joachims,1998),operatingover
+these estimates. Experiments on five classifi-
+sparse representations of text. We propose a novel
+cationdatasetsthathavedocumentlabelsand
+associatedrationalesdemonstratethatourap- CNNmodelfortextclassificationthatexploitsboth
+proach consistently outperforms strong base- documentlabelsandassociatedrationales.
+lines. Moreover,ourmodelnaturallyprovides
+Specificcontributionsofthisworkasfollows. (1)
+explanationsforitspredictions.
+This is the first work to incorporate rationales into
+neural models for text classification. (2) Empiri-
+1 Introduction
+cally, we show that the proposed model uniformly
+Neural models that exploit word embeddings have outperformsrelevantbaselineapproachesacrossfive
+recentlyachievedimpressiveresultsontextclassifi- datasets,includingpreviouslyproposedmodelsthat
+cation tasks (Goldberg, 2015). Feed-forward Con- capitalize on rationales (Zaidan et al., 2007; Mar-
+volutional Neural Networks (CNNs), in particular, shall et al., 2016) and multiple baseline CNN vari-
+have emerged as a relatively simple yet powerful ants, including a CNN equipped with an attention
+classofmodelsfortextclassification(Kim,2014). mechanism. We also report state-of-the-art results
+These neural text classification models have ontheimportanttaskofautomaticallyassessingthe
+tendedtoassumeastandardsupervisedlearningset- risks of bias in the studies described in full-text
+tinginwhichinstancelabelsareprovided. Herewe biomedical articles (Marshall et al., 2016). (3) Our
+consideranalternativescenarioinwhichweassume modelnaturallyprovidesexplanationsforitspredic-
+795
+Proceedingsofthe2016ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,pages795–804,
+Austin,Texas,November1-5,2016.(cid:13)c2016AssociationforComputationalLinguisticstions,providinginterpretability. being more confidently classified than ‘pseudo’-
+We have made available online both a Theano1 instances from which these rationales had been
+andaKerasimplementation2 ofourmodel. stripped. This approach dramatically outperformed
+baseline SVM variants that do not exploit such ra-
+2 RelatedWork tionales. Yessenalina et al. (2010) later developed
+anapproachtogeneraterationales.
+2.1 Neuralmodelsfortextclassification
+Anotherlineofrelatedworkconcernsmodelsthat
+Kim (2014) proposed the basic CNN model we de-
+capitalize on dual supervision, i.e., labels on indi-
+scribebelowandthenbuilduponinthiswork. Prop-
+vidual features. This work has largely involved in-
+erties of this model were explored empirically in
+serting constraints into the learning process that fa-
+(ZhangandWallace,2015). WealsonotethatZhang
+vorparametervaluesthatalignwithapriorifeature-
+et al. (2016) extended this model to jointly accom-
+labelaffinitiesorrankings(Drucketal.,2008;Mann
+modate multiple sets of pre-trained word embed-
+and McCallum, 2010; Small et al., 2011; Settles,
+dings. Roughly concurrently to Kim, Johnson and
+2011). We do not discuss this line of work further
+Zhang(2014)proposedasimilarCNNarchitecture,
+here, as our focus is on exploiting provided ratio-
+although they swapped in one-hot vectors in place
+nales,ratherthanindividuallabeledfeatures.
+of (pre-trained) word embeddings. They later de-
+veloped a semi-supervised variant of this approach 3 Preliminaries: CNNsfortext
+(JohnsonandZhang,2015).
+classification
+In related recent work on Recurrent Neural Net-
+work(RNN)modelsfortext,Tangetal.(2015)pro-
+Softmax layer
+posed using a Long Short Term Memory (LSTM)
+layer to represent each sentence and then passing
+Sentence feature
+another RNN variant over these. And Yang et al. vector o
+(2016) proposed a hierarchical network with two
+1 max pooling
+levels of attention mechanisms for document clas-
+sification. Wediscussthismodelspecificallyaswell
+Four feature
+as attention more generally and its relationship to maps
+ourproposedapproachinSection4.3.
+Convolution
+2.2 Exploitingrationales layer
+In long documents the importance of sentences Patients
+were
+varies; some are more central than others. Prior
+randomized
+work has investigated methods to measure the rel- to
+placebo
+ativeimportancesentences(Koetal., 2002; Murata
+or
+etal.,2000). Inthisworkweadoptaparticularview intervention
+of sentence importance in the context of document word embedding
+classification. In particular, we assume that docu- Figure 1: A toy example of a CNN for sentence
+mentscomprisesentencesthatdirectlysupporttheir classification. Here there are four filters, two with
+categorization. Wecallsuchsentencesrationales. heights2andtwowithheights3,resultinginfeature
+The notion of rationales was first introduced by mapswithlengths6and5respectively.
+Zaidan et al. (2007). To harness these for classifi-
+cation, they proposed modifying the Support Vec-
+We first review the simple one-layer CNN
+tor Machine (SVM) objective function to encode
+for sentence modeling proposed by Kim (2014).
+a preference for parameter values that result in in-
+Given a sentence or document comprising n words
+stances containing manually annotated rationales
+w ,w ,...,w , we replace each word with its d-
+1 2 n
+1https://github.com/yezhang-xiaofan/Rationale-CNN dimensional pretrained embedding, and stack them
+2https://github.com/bwallace/rationale-CNN row-wise,generatinganinstancematrixA Rn ×d.
+∈
+796Wethenapplyconvolutionoperationsonthisma- 4.2). InSection4.3wediscussconnectionstoatten-
+trix using multiple linear filters, these will have the tion mechanisms and describe a baseline equipped
+same width d but may vary in height. Each filter withone,inspiredbyYangetal.(2016).
+thus effectively considers distinct n-gram features,
+wherencorrespondstothefilterheight. Inpractice, 4.1 ModelingDocumentStructure
+we introduce multiple, redundant features of each
+Recall that rationales are snippets of text marked
+height; thus each filter height might have hundreds
+ashavingsupporteddocument-levelcategorizations.
+ofcorrespondinginstantiatedfilters. Applyingfilter
+Weaimtodevelopamodelthatcanexploitthesean-
+i parameterized by W
+i
+Rhi·d to the instance ma-
+∈ notations during training to improve classification.
+trixinducesafeaturemapf
+i
+Rn −hi+1. Thispro-
+∈ Here we achieve this by developing a hierarchical
+cess is performed by sliding the filter from the top
+model that estimates the probabilities of individual
+ofthematrix(thestartofthedocumentorsentence)
+sentences being rationales and uses these estimates
+to the bottom. At each location, we apply element-
+toinformthedocumentlevelclassification.
+wise multiplication between filter i and sub-matrix
+As a first step, we extend the CNN model above
+A[j : j + h 1], and then sum up the resultant
+i
+− toexplicitlyaccountfordocumentstructure. Specif-
+matrix elements. In this way, we induce a vector
+ically, we apply a CNN to each individual sentence
+(featuremap)foreachfilter.
+in a document to obtain sentence vectors indepen-
+Wenextrunthefeaturemapthroughanelement-
+dently. Wethensumtherespectivesentencevectors
+wisenon-lineartransformation. Specifically,weuse
+to create a document vector.3 As before, we add a
+the Rectified Linear Unit, or ReLU (Krizhevsky et
+softmax layer on top of the document-level vector
+al., 2012). We extract the maximum value o from
+i
+toperformclassification. Weperformregularization
+eachfeaturemapi(1-maxpooling).
+byapplyingdropoutbothontheindividualsentence
+Finally, we concatenate all of the features o to
+i
+vectors and the final document vector. We will re-
+form a vector representation o R|F
+|
+for this in-
+∈ fertothismodelasDoc-CNN.Doc-CNNformsthe
+stance,where F denotesthetotalnumberoffilters.
+| | basisforournovelapproach,describedbelow.
+Classification is then performed on top of o, via a
+softmax function. Dropout (Srivastava et al., 2014)
+4.2 RA-CNN
+is often applied at this layer as a means of regular-
+ization. We provide an illustrative schematic of the InthissectionwepresenttheRationale-Augmented
+basic CNN architecture just described in Figure 1. CNN (RA-CNN). Briefly, RA-CNN induces a
+Formoredetails,see(ZhangandWallace,2015). document-level vector representation by taking a
+This model was originally proposed for sentence weighted sum of its constituent sentence vectors.
+classification (Kim, 2014), but we can adapt it for Each sentence weight is set to reflect the estimated
+document classification by simply treating the doc- probabilitythatitisarationaleinsupportofthemost
+ument as one long sentence. We will refer to this likely class. We provide a schematic of this model
+basic CNN variant as CNN in the rest of the paper. inFigure2.
+Belowweconsiderextensionsthataccountfordoc-
+RA-CNN capitalizes on both sentence- and
+umentstructure.
+document-level supervision. There are thus two
+steps in the training phase: sentence level training
+4 Rationale-AugmentedCNNfor anddocumentleveltraining. Fortheformer,weap-
+DocumentClassification plyaCNNtoeachsentencejindocumentitoobtain
+ij
+sentence vectors x . We then add a softmax layer
+sen
+We now move to the main contribution of this
+parametrized by W ; this takes as input sentence
+sen
+work: a rationale-augmented CNN for text classi-
+vectors. Wefitthismodeltomaximizetheprobabil-
+fication. We first introduce a simple variant of the
+itiesoftheobservedrationales:
+aboveCNNthatmodelsdocumentstructure(Section
+4.1) and then introduce a means of incorporating 3Wealsoexperimentedwithtakingtheaverageofsentence
+rationale-level supervision into this model (Section vectors,butsummingperformedbetterininformaltesting.
+797p( y i = k )(cid:1) exp(Wk x i )
+doc doc doc
+N
+i
+i Σ . ij x x
+doc sen
+j=1
+sentence model p( y i 0 = k )(cid:1) exp(Wk . xi0 ) ... p( y i l = k ) ... p( y i N i = k )
+sen sen sen sen sen
+sentence vectors ... ...
+x si e0 n x si el n x siN eni
+Films adapted from ... Now onto from hell’s ... The film, however,
+comic books... appearance: it’s... is all good.
+Films adapted from
+comic books...
+...
+Now onto from hell’s
+appearance: it’s... ...
+The film, however, is
+all good.
+document i
+secnetnes
+N i
+document model
+document vector = = max{ p ( y i j = p o s i t iv e ) , p ( y i j = n e g a t iv e ) }
+sen rationale sen rationale
+neutral
+neutral
+positive rationale
+Figure 2: A schematic of our proposed Rationale-Augmented Convolution Neural Network (RA-CNN).
+Thesentencescomprisingatextarepassedthroughasentencemodelthatoutputsprobabilitiesencodingthe
+likelihood that sentences are neutral or a (positive or negative) rationale. Sentences likely to be rationales
+aregivenhigherweightsintheglobaldocumentvector,whichistheinputtothedocumentmodel.
+tencesbelongtoathird,neutralclass: thesearenon-
+rationales. We also experimented with having only
+(k)T ij
+p(yij = k;E,C,W ) = exp(W sen x sen) twosentenceclasses: rationalesandnon-rationales,
+sen sen Ksenexp(W(k)T xij ) but this did not perform as well as explicitly main-
+k=1 sen sen
+(1) taining separate classes for rationales of different
+Whereyij denotestheratioP nalelabelforsentencej polarities.
+sen
+indocumenti,K sen denotesthenumberofpossible We train an estimator using the provided ratio-
+classes for sentences, E denotes the word embed- nale annotations, optimizing over E,C,W to
+sen
+{ }
+dingmatrix,Cdenotestheconvolutionlayerparam- minimize the categorical cross-entropy of sentence
+eters, and W sen is a matrix of weights (comprising labels. Once trained, this sub-model can provide
+oneweightvectorpersentenceclass). conditional probability estimates regarding whether
+In our setting, each sentence has three possible agivensentenceisapositiveoranegativerationale,
+labels (K = 3). When a rationale sentence ap- whichwewilldenotebyp andp ,respectively.
+sen pos neg
+pears in a positive document,4 it is a positive ratio-
+We next train the document-level classification
+nale;whenarationalesentenceappearsinanegative
+model. The inputs to this are vector representations
+document, it is a negative rationale. All other sen-
+ofdocuments,inducedbysummingoverconstituent
+sentence vectors, as in Doc-CNN. However, in the
+4All of the document classification tasks we consider here
+RA-CNN model this is a weighted sum. Specifi-
+arebinary,althoughextensionofourmodeltomulti-classsce-
+nariosisstraight-forward. cally, weights are set to the estimated probabilities
+798that corresponding sentences are rationales in the Onenicepropertyofourmodelisthatitnaturally
+mostlikelydirection. Moreprecisely: provides explanations for its predictions: the model
+identifiesrationalesandthencategorizesdocuments
+Ni informedbythese. Thusifthemodelclassifiesatest
+xi = xij max pij ,pij (2)
+doc sen· { pos neg} instance as positive, then by construction the sen-
+Xj=1 tencesassociatedwiththehighestpi pj
+os
+estimatesare
+thosethatthemodelreliedonmostincomingtothis
+WhereN isthenumberofsentencesintheithdoc-
+i disposition. These sentences can of course be out-
+ument. Theintuitionisthatsentenceslikelytobera-
+put in conjunction with the prediction. We provide
+tionales will have greater influence on the resultant
+concreteexamplesofthisinSection7.2.
+documentvectorrepresentation, whilethecontribu-
+tion of neutral sentences (which are less relevant to 4.3 Rationalesas‘SupervisedAttention’
+theclassificationtask)willbeminimized.
+OnemayviewRA-CNNasasupervisedvariantofa
+Thefinalclassificationisperformedbyasoftmax
+modelequippedwithanattentionmechanism(Bah-
+layerparameterizedbyW ;theinputstothislayer
+doc danau et al., 2014). On this view, it is apparent that
+arethedocumentvectors. TheW parametersare
+doc rather than capitalizing on rationales directly, we
+trainedusingthedocument-levellabels,yi :
+doc couldattempttoletthemodellearnwhichsentences
+are important, using only the document labels. We
+therefore construct an additional baseline that does
+exp(W(k)T xi )
+p(yi = k;E,C,W ) = doc doc justthis,therebyallowingustoassesstheimpactof
+doc doc K docexp(W(k)T xi ) learningdirectlyfromrationale-levelsupervision.
+k=1 doc doc
+(3) Following the recent work of Yang et al. (2016),
+P
+where K doc is the cardinality of the document label wefirstpositforeachsentencevectorahiddenrep-
+set. Weoptimizeoverparameterstominimizecross- resentation uij . We then define a sentence-level
+sen
+entropyloss(w.r.t. thedocumentlabels). contextvectoru ,whichwemultiplywitheachuij
+s sen
+We note that the sentence- and document-level to induce a weight α . Finally, the document vec-
+ij
+models share word embeddings E and convolution toristakenasaweightedsumoversentencevectors,
+layer parameters C, but the document-level model whereweightsreflectα’s. Wehave:
+has its own softmax parameters W . When train-
+doc
+ing the document-level model, E, C and W doc are ui sj en = tanh(W sxi sj en+b s) (4)
+fit,butweholdW fixed.
+sen exp(uTuij
+)
+The above two-step strategy can be equivalently α = s sen (5)
+described as follows. We first estimate E, C and ij N j iexp(uT sui sj en)
+W ,whichparameterizeourmodelforidentifying
+sen P Ni
+rationalesindocuments. Wethenmovetofittingour xi = α xij (6)
+doc ij sen
+documentclassificationmodel. Forthisweinitialize
+j
+X
+the word embedding and convolution parameters to
+where xi again denotes the document vector fed
+theEandCestimatesfromtheprecedingstep. We doc
+intoasoftmaxlayer,andW ,u andb arelearned
+thendirectlyminimizethedocumentlevelclassifica- s s s
+duringtraining. Wewillrefertothisattention-based
+tion objective, tuning E and C and simultaneously
+methodasAT-CNN.
+fittingW .
+doc
+Note that this sequential training strategy differs
+5 Datasets
+from the alternating training approach commonly
+used in multi-task learning (Collobert and Weston, We used five text classification datasets to evaluate
+2008). We found that the latter approach does not our approach in total. Four of these are biomedical
+work well here, leading us to instead adopt the textclassificationdatasets(5.1)andthelastisacol-
+cascade-like feature learning approach (Collobert lectionofmoviereviews(5.2). Thesedatasetsshare
+andWeston,2008)justdescribed. thepropertyofhavingrecordedrationalesassociated
+799with each document categorization. We summarize N #sen #token #rat
+RSG 8399 300 9.92 0.31
+attributesofalldatasetsusedinthisworkinTable1.
+AC 11512 297 9.87 0.15
+BPP 7997 296 9.95 0.21
+5.1 RiskofBias(RoB)Datasets
+BOA 2706 309 9.92 0.2
+WeusedacollectionRiskofBias(RoB)textclassifi- MR 1800 32.6 21.2 8.0
+cationdatasets,describedatlengthelsewhere(Mar-
+Table1: Datasetcharacteristics. N isthenumberof
+shall et al., 2016). Briefly, the task concerns as-
+instances,#senistheaveragesentencecount,#token
+sessing the reliability of the evidence presented in
+is the average token per-sentence count and #rat is
+full-textbiomedicaljournalarticlesthatdescribethe
+theaveragenumberofrationalesperdocument.
+conduct and results of randomized controlled trials
+(RCTs). This involves, e.g., assessing whether or augmented this dataset by adding rationales corre-
+notpatientswereproperlyblindedastowhetherthey sponding to the binary classifications for 1800 doc-
+were receiving an active treatment or a comparator uments, leaving the remaining 200 for testing. Be-
+(such as a placebo). If such blinding is not done cause 200 documents is a modest test sample size,
+correctly, it compromises the study by introducing weran9-foldcrossvalidationonthe1800annotated
+statisticalbiasintothetreatmentefficacyestimate(s) documents (each fold comprising 200 documents).
+derivedfromthetrial. The rationales, as originally marked in this dataset,
+A formal system for making bias assessments is weresub-sententialsnippets;forthepurposesofour
+codified by the Cochrane Risk of Bias Tool (Hig- model, we considered the entire sentences contain-
+gins et al., 2011). This tool defines multiple do- ingthemarkedsnippetsasrationales.
+mains; the risk of bias may be assessed in each of
+6 ExperimentalSetup
+these. We consider four domains here. (1) Random
+sequence generation (RSG): were patients were as-
+6.1 Baselines
+signed to treatments in a truly random fashion? (2)
+We compare against several baselines to assess the
+Allocation concealment (AC): were group assign-
+advantages of directly incorporating rationale-level
+ments revealed to the person assigning patients to
+supervisionintotheproposedCNNarchitecture. We
+groups(sothatshemayhaveknowinglyorunknow-
+describethesebelow.
+ingly) influenced these assignments? (3) Blinding
+of Participants and Personnel (BPP): were all trial
+SVMs. We evaluated a few variants of linear Sup-
+portVectorMachines(SVMs). Theserelyonsparse
+participants and individuals involved in running the
+representationsoftext. Weconsidervariantsthatex-
+trial blinded as to who was receiving which treat-
+ploituni-andbi-grams;werefertotheseasuni-SVM
+ment? (4) Blinding of outcome assessment (BOA):
+and bi-SVM, respectively. We also re-implemented
+werethepartieswhomeasuredtheoutcome(s)ofin-
+the rationale augmented SVM (RA-SVM) proposed
+terestblindedtotheinterventiongroupassignments?
+by Zaidanetal.(2007),describedinSection2.
+These assessments are somewhat subjective. To in-
+For the RoB dataset, we also compare to a re-
+creasetransparency,researchersperformingRoBas-
+cently proposed multi-task SVM (MT-SVM) model
+sessmentthereforerecordrationales(sentencesfrom
+developedspecificallyfortheseRoBdatasets(Mar-
+articles)supportingtheirassessments.
+shalletal.,2015;Marshalletal.,2016). Thismodel
+5.2 MovieReviewDataset exploitstheintuitionthattherisksofbiasacrossthe
+domains codified in the aforementioned Cochrane
+We also ran experiments on a movie review (MR)
+RoB tool will likely be correlated. That is, if we
+datasetwithaccompanyingrationales. PangandLee
+knowthatastudyexhibitsahighriskofbiasforone
+(2004) developed and published the original ver-
+domain, then it seems reasonable to assume it is at
+sion of this dataset, which comprises 1000 positive
+anelevatedriskfortheremainingdomains. Further-
+and 1000 negative movie reviews from the Internet
+more, Marshall et al. (2016) include rationale-level
+MovieDatabase(IMDB).5 Zaidanetal.(2007)then
+supervisionbyfirsttraininga(multi-task)sentence-
+5http://www.imdb.com/ level model to identify sentences likely to support
+800RoBassessmentsintherespectivedomains. Special Trainingproceededasfollows. Wefirstextracted
+featuresextractedfromthesepredictedrationalesare all sentences from all documents in the training
+thenactivatedinthedocument-levelmodel,inform- data. The distribution of sentence types is highly
+ing the final classification. This model is the state- imbalanced (nearly all are neutral). Therefore, we
+of-the-artonthistask. downsampled sentences before each epoch, so that
+CNNs. We compare against several baseline CNN sentence classes were equally represented. After
+variants to demonstrate the advantages of our ap- trainingonsentence-levelsupervision,wemovedto
+proach. We emphasize that our focus in this work document-levelmodelfitting. Forthisweinitialized
+is not to explore how to induce generally ‘better’ embedding and convolution layer parameters to the
+documentvectorrepresentations–thisquestionhas estimatesfromtheprecedingsentence-leveltraining
+been addressed at length elsewhere, e.g., (Le and step(thoughthesewerefurthertunedtooptimizethe
+Mikolov, 2014; Jozefowicz et al., 2015; Tang et al., document-levelobjective).
+2015;Yangetal.,2016). For RA-CNN, we tuned the dropout rate (range:
+Rather, the main contribution here is an augmen- 0-.9) applied at the sentence vector level on each
+tationofCNNsfortextclassificationtocapitalizeon training fold (using a subset of the training data as
+rationale-level supervision, thus improving perfor- a validation set) during the document level training
+manceandenhancinginterpretability. Thisinformed phase. Anecdotally, we found this has a greater ef-
+ourchoiceofbaselineCNNvariants: standardCNN fect than the other model hyperparameters, which
+(Kim, 2014), Doc-CNN (described above) and AT- we thus set after a small informal process of exper-
+CNN (also described above) that capitalizes on an imentation on a subset of the data. Specifically, we
+(unsupervised) attention mechanism at the sentence fixed the dropout rate at the document level to 0.5,
+level,describedinSection4.3.6 and we used 3 different filter heights: 3, 4 and 5,
+following (Zhang and Wallace, 2015). For each fil-
+6.2 Implementation/Hyper-ParameterDetails terheight,weused100featuremapsforthebaseline
+Sentencesplitting. Tosplitthedocumentsfromall CNN,and20foralltheotherCNNvariants.
+datasetsintosentencesforconsumptionbyourDoc- For parameter estimation we used ADADELTA
+CNN and RA-CNN models, we used the Natural (Zeiler,2012),mini-batchesofsize50,andanearly
+LanguageToolkit(NLTK)7 sentencesplitter. stoppingstrategy(usingavalidationset).
+SVM-based models. We kept the 50,000 most
+7 ResultsandDiscussion
+frequently occurring features in each dataset. For
+estimation we used SGD. We tuned the C hyper- 7.1 QuantitativeResults
+parameter using nested development sets. For the
+For all CNN models, we replicated experiments 5
+RA-SVM,weadditionallytunedtheµandC
+contrast
+times,whereeachreplicationconstituted5-foldand
+parameters,asperZaidanetal.(2007).
+9-fold CV respectively the RoB and the movies
+CNN-based models. For all models and datasets
+datasets, respectively. We report the mean and ob-
+we initialized word embeddings to pre-trained vec-
+servedrangesinaccuracyacrossthese5replications
+tors fit via Word2Vec. For the movie reviews
+for these models, because attributes of the model
+dataset these were 300-dimensional and trained on
+(notably,dropout)andtheestimationprocedureren-
+Google News.8 For the RoB datasets, these were
+der model fitting stochastic (Zhang and Wallace,
+200-dimensional and trained on biomedical texts in
+2015). We do not report ranges for SVM-based
+PubMed/PubMedCentral(Pyysaloetal.,2013).9
+models because the variance inherent in the estima-
+6WealsoexperimentedbrieflywithLSTMandGRU(Gated tion procedure is much lower for these simpler, lin-
+RecurrentUnit)models,butfoundthatsimpleCNNperformed earmodels.
+betterthanthese.Moreover,CNNsarerelativelyrobustandless Results on the RoB datasets and the movies
+sensitivetohyper-parameterselection.
+dataset are shown in Tables 2 and Table 3, respec-
+7http://www.nltk.org/api/nltk.tokenize.html
+8https://code.google.com/archive/p/word2vec/ tively. RA-CNN consistently outperforms all of the
+9http://bio.nlplab.org/ baseline models, across all five datasets. We also
+801Method RSG AC BPP BOA
+Uni-SVM 72.16 72.81 72.80 65.85
+Bi-SVM 74.82 73.62 75.13 67.29
+RA-SVM 72.54 74.11 75.15 66.29
+MT-SVM 76.15 74.03 76.33 67.50
+CNN 72.50(72.22,72.65) 72.16(71.49,72.93) 75.03(74.16,75.44) 63.76(63.12,64.15)
+Doc-CNN 72.60(72.43,72.90) 72.92(72.19,73.48) 74.24(74.03,74.38) 63.64(63.23,64.37)
+AT-CNN 74.14(73.40,74.58) 73.66(73.12,73.92) 74.29(74.09,74.74) 63.34(63.21,63.49)
+RA-CNN 77.42(77.33,77.59) 76.14(75.89,76.29) 76.47(76.15,76.75) 69.67(69.33,69.93)
+Human 85.00 80.00 78.10 83.20
+Table2: AccuraciesonthefourRoBdatasets. Uni-SVM:unigramSVM,Bi-SVM:BigramSVM,RA-SVM:
+Rationale-augmentedSVM(Zaidanetal.,2007),MT-SVM:amulti-taskSVMmodelspecificallydesigned
+for the RoB task, which also exploits the available sentence supervision (Marshall et al., 2016). We also
+reportanestimateofhuman-levelperformance,ascalculatedusingsubsetsofthedataforeachdomainthat
+were assessed by two experts (one was arbitrarily assumed to be correct). We report these numbers for
+reference;theyarenotdirectlycomparabletothecross-foldestimatesreportedforthemodels.
+observethatCNN/Doc-CNNdonotnecessarilyim- Method Accuracy
+Uni-SVM 86.44
+proveovertheresultsachievedbySVM-basedmod-
+Bi-SVM 86.94
+els, which prove to be strong baselines for longer
+RA-SVM 88.89
+document classification. This differs from previ-
+CNN 85.59(85.27,86.17)
+ouscomparisonsinthecontextofclassifyingshorter
+Doc-CNN 87.14(86.70,87.60)
+texts. In particular, in previous work (Zhang and AT-CNN 86.69(86.28,87.17)
+Wallace, 2015) we observed that CNN outperforms RA-CNN 90.43(90.11,91.00)
+SVMuniformlyonsentenceclassificationtasks(the
+Table3: Accuraciesonthemoviereviewdataset.
+average sentence-length in these datasets was about
+10). In contrast, in the datasets we consider in the 7.2 QualitativeResults: IllustrativeRationales
+present paper, documents often comprise hundreds
+Inadditiontorealizingsuperiorclassificationperfor-
+ofsentences,eachinturncontainingmultiplewords.
+mance, RA-CNN also provides explainable catego-
+We believe that it is in these cases that explicitly
+rizations. Themodelcanprovidethehighestscoring
+modeling which sentences are most important will
+rationales(rankedbymax p ,p )foranygiven
+result in the greatest performance gains, and this { pos neg }
+targetinstance,whichinturn–byconstruction–are
+alignswithourempiricalresults.
+thosethatmostinfluencedthefinaldocumentclassi-
+fication.
+Forexample,asamplepositiverationalesupport-
+Another observation is that AT-CNN does of-
+ing a correct designation of a study as being at low
+ten improve performance over vanilla variants of
+risk of bias with respect to blinding of outcomes
+CNN(i.e.,withoutattention),especiallyontheRoB
+assessment reads simply The study was performed
+datasets, probably because these comprise longer
+double blind. An example rationale extracted for a
+documents. However, as one might expect, RA-
+study(correctly)deemedathighriskofbias,mean-
+CNN clearly outperforms AT-CNN by exploiting
+while, reads as the present study is retrospective,
+rationale-levelsupervisiondirectly. Andbyexploit-
+there is a risk that the woman did not properly re-
+ing rationale information directly, RA-CNN is able
+callhowandwhattheyexperienced....
+to consistently perform better than baseline CNN
+Turning to the movie reviews dataset, an exam-
+and SVM model variants. Indeed, we find that RA-
+ple rationale extracted from a glowing review of
+CNN outperformed MT-SVM on all of the RoB
+‘Goodfellas’ (correctly classified as positive) reads
+datasets,andthiswasaccomplishedwithoutexploit-
+thiscinematicgemdeservesitsrightfulplaceamong
+ing cross-domain correlations (i.e., without multi-
+the best films of 1990s. While a rationale extracted
+tasklearning).
+802fromanunfavorablereviewof‘TheEnglishPatient’ RonanCollobertandJasonWeston. 2008. Aunifiedar-
+asserts that the only redeeming qualities about this chitecturefornaturallanguageprocessing: Deepneu-
+filmarethefineactingofFiennesandDafoeandthe ral networks with multitask learning. In Proceedings
+ofthe25thinternationalconferenceonMachinelearn-
+beautifuldesertcinematography.
+ing,pages160–167.ACM.
+In each of these cases, the extracted rationales
+Gregory Druck, Gideon Mann, and Andrew McCallum.
+directly support the respective classifications. This
+2008. Learning from labeled features using gener-
+provides direct, meaningful insight into the auto-
+alized expectation criteria. In Proceedings of the
+matedclassifications,animportantbenefitforneural 31st annual international ACM SIGIR conference on
+models,whichareoftenseenasopaque. Research and development in information retrieval,
+pages595–602.ACM.
+8 Conclusions YoavGoldberg. 2015. Aprimeronneuralnetworkmod-
+els for natural language processing. arXiv preprint
+Wedevelopedanewmodel(RA-CNN)fortextclas- arXiv:1510.00726.
+sification that extends the CNN architecture to di- JulianPTHiggins,DouglasGAltman,PeterCGøtzsche,
+rectlyexploitrationaleswhenavailable. Weshowed Peter Ju¨ni, David Moher, Andrew D Oxman, Je-
+that this model outperforms several strong, rele- lena Savovic´, Kenneth F Schulz, Laura Weeks, and
+Jonathan AC Sterne. 2011. The cochrane collabo-
+vantbaselinesacrossfivedatasets,includingvanilla
+rations tool for assessing risk of bias in randomised
+and hierarchical CNN variants, and a CNN model
+trials. Bmj,343:d5928.
+equipped with an attention mechanism. Moreover,
+ThorstenJoachims. 1998. Textcategorizationwithsup-
+RA-CNN automatically provides explanations for
+port vector machines: Learning with many relevant
+classifications made at test time, thus providing in-
+features. Springer.
+terpretability.
+Rie Johnson and Tong Zhang. 2014. Effective use of
+Moving forward, we plan to explore additional word order for text categorization with convolutional
+mechanismsforexploitingsupervisionatlowerlev- neuralnetworks. arXivpreprintarXiv:1412.1058.
+els in neural architectures. Furthermore, we believe Rie Johnson and Tong Zhang. 2015. Semi-supervised
+an alternative approach may be a hybrid of the AT- convolutional neural networks for text categorization
+via region embedding. In Advances in Neural Infor-
+CNN and RA-CNN models, wherein an auxiliary
+mationProcessingSystems(NIPs),pages919–927.
+loss might be incurred when the attention mecha-
+RafalJozefowicz,WojciechZaremba,andIlyaSutskever.
+nism output disagrees with the available direct su-
+2015. An empirical exploration of recurrent network
+pervisiononsentences.
+architectures. In Proceedings of the 32nd Interna-
+tional Conference on Machine Learning (ICML-15),
+Acknowledgments pages2342–2350.
+YoonKim. 2014. Convolutionalneuralnetworksforsen-
+Research reported in this article was supported by
+tenceclassification. arXivpreprintarXiv:1408.5882.
+theNationalLibraryofMedicine(NLM)oftheNa-
+Youngjoong Ko, Jinwoo Park, and Jungyun Seo. 2002.
+tional Institutes of Health (NIH) under award num-
+Automatictextcategorizationusingtheimportanceof
+ber R01LM012086. The content is solely the re- sentences. In Proceedings of the 19th international
+sponsibility of the authors and does not necessarily conference on Computational linguistics-Volume 1,
+representtheofficialviewsoftheNationalInstitutes pages1–7.AssociationforComputationalLinguistics.
+of Health. This work was also made possible by AlexKrizhevsky,IlyaSutskever,andGeoffreyEHinton.
+2012. Imagenetclassificationwithdeepconvolutional
+thesupportoftheTexasAdvancedComputerCenter
+neural networks. In Advances in neural information
+(TACC)atUTAustin.
+processingsystems,pages1097–1105.
+QuocVLeandTomasMikolov. 2014. Distributedrepre-
+sentationsofsentencesanddocuments. arXivpreprint
+References
+arXiv:1405.4053.
+Dzmitry Bahdanau, Kyunghyun Cho, and Yoshua Ben- Gideon S Mann and Andrew McCallum. 2010. Gener-
+gio. 2014. Neural machine translation by jointly alized expectation criteria for semi-supervised learn-
+learning to align and translate. arXiv preprint ingwithweaklylabeleddata. TheJournalofMachine
+arXiv:1409.0473. LearningResearch,11:955–984.
+803IainJMarshall,Joe¨lKuiper,andByronCWallace. 2015. ZichaoYang,DiyiYang,ChrisDyer,XiaodongHe,Alex
+Automating risk of bias assessment for clinical trials. Smola, and Eduard Hovy. 2016. Hierarchical atten-
+BiomedicalandHealthInformatics,IEEEJournalof, tionnetworksfordocumentclassification. InProceed-
+19(4):1406–1412. ings of the 2016 Conference of the North American
+Iain J Marshall, Joe¨l Kuiper, and Byron C Wallace. ChapteroftheAssociationforComputationalLinguis-
+2016. Robotreviewer: evaluation of a system for tics: HumanLanguageTechnologies.
+automatically assessing bias in clinical trials. Jour- AinurYessenalina,YejinChoi,andClaireCardie. 2010.
+naloftheAmericanMedicalInformaticsAssociation, Automatically generating annotator rationales to im-
+23(1):193–201. prove sentiment classification. In Proceedings of the
+Tyler McDonnell, Matthew Lease, Tamer Elsayad, and ACL 2010 Conference Short Papers, pages 336–341.
+Mucahid Kutlu. 2016. Why Is That Relevant? AssociationforComputationalLinguistics.
+Collecting Annotator Rationales for Relevance Judg- OmarFZaidanandJasonEisner. 2008. Modelinganno-
+ments. InProceedingsofthe4thAAAIConferenceon tators: A generative approach to learning from anno-
+Human Computation and Crowdsourcing (HCOMP). tator rationales. In Proceedings of the Conference on
+10pages. Empirical Methods in Natural Language Processing,
+pages31–40.AssociationforComputationalLinguis-
+Masaki Murata, Qing Ma, Kiyotaka Uchimoto, Hiromi
+tics.
+Ozaku, Masao Utiyama, and Hitoshi Isahara. 2000.
+Japanese probabilistic information retrieval using lo- Omar Zaidan, Jason Eisner, and Christine D Piatko.
+cation and category information. In Proceedings of 2007. Using” annotator rationales” to improve ma-
+thefifthinternationalworkshopononInformationre- chinelearningfortextcategorization. InHLT-NAACL,
+trievalwithAsianlanguages,pages81–88.ACM. pages260–267.Citeseer.
+MatthewDZeiler. 2012. Adadelta: anadaptivelearning
+BoPangandLillianLee. 2004. Asentimentaleducation:
+ratemethod. arXivpreprintarXiv:1212.5701.
+Sentiment analysis using subjectivity summarization
+based on minimum cuts. In Proceedings of the 42nd Ye Zhang and Byron C. Wallace. 2015. A sensitivity
+annualmeetingonAssociationforComputationalLin- analysisof(andpractitioners’guideto)convolutional
+guistics,page271.AssociationforComputationalLin- neural networks for sentence classification. arXiv
+preprintarXiv:1510.03820.
+guistics.
+YeZhang,StephenRoller,andByronC.Wallace. 2016.
+Sampo Pyysalo, Filip Ginter, Hans Moen, Tapio
+Mgnc-cnn: A simple approach to exploiting multiple
+Salakoski, and Sophia Ananiadou. 2013. Distribu-
+word embeddings for sentence classification. In Pro-
+tional semantics resources for biomedical text pro-
+ceedings of the 2016 Conference of the North Ameri-
+cessing. Proceedings of Languages in Biology and
+canChapteroftheAssociationforComputationalLin-
+Medicine.
+guistics:HumanLanguageTechnologies,pages1522–
+Burr Settles. 2011. Closing the loop: Fast, interactive
+1527, San Diego, California, June. Association for
+semi-supervised annotation with queries on features
+ComputationalLinguistics.
+and instances. In Proceedings of the Conference on
+Empirical Methods in Natural Language Processing,
+pages1467–1478.AssociationforComputationalLin-
+guistics.
+Kevin Small, Byron Wallace, Thomas Trikalinos, and
+CarlaEBrodley. 2011. Theconstrainedweightspace
+svm: learningwithrankedfeatures. InProceedingsof
+the28thInternationalConferenceonMachineLearn-
+ing(ICML-11),pages865–872.
+Nitish Srivastava, Geoffrey Hinton, Alex Krizhevsky,
+Ilya Sutskever, and Ruslan Salakhutdinov. 2014.
+Dropout: A simple way to prevent neural networks
+from overfitting. The Journal of Machine Learning
+Research,15(1):1929–1958.
+Duyu Tang, Bing Qin, and Ting Liu. 2015. Document
+modelingwithgatedrecurrentneuralnetworkforsen-
+timentclassification. InProceedingsofthe2015Con-
+ference on Empirical Methods in Natural Language
+Processing,pages1422–1432.
+804

@@ -1,0 +1,30 @@
+database:
+  neo4j_uri: "bolt://localhost:7687"
+  neo4j_user: "neo4j"
+  neo4j_password: "knowledge123"
+
+models:
+  embedding_model: "all-MiniLM-L6-v2"
+  nli_model: "microsoft/DialoGPT-medium"
+  definition_enhancer: "gpt-4"
+
+thresholds:
+  similarity_threshold: 0.8
+  contradiction_threshold: 0.7
+  relation_confidence: 0.6
+  quality_minimum: 0.3
+
+processing:
+  batch_size: 100
+  max_concepts_per_file: 50
+  refinement_queue_size: 20
+
+quality_thresholds:
+  high_quality_threshold: 0.8
+  mid_quality_threshold: 0.4
+  refinement_threshold: 0.3
+  discard_threshold: 0.15
+  adaptive_length_minimum: 20
+  evidence_strength_weight: 0.3
+  completeness_weight: 0.5
+  support_strength_weight: 0.2

@@ -1,0 +1,542 @@
+Prompt-MIL: Boosting Multi-Instance Learning
+Schemes via Task-specific Prompt Tuning
+JingweiZhang1,SaarthakKapse1,KeMa2,PrateekPrasanna1,JoelSaltz1,Maria
+Vakalopoulou3,andDimitrisSamaras1
+1 StonyBrookUniversity,USA
+2 SnapInc.,USA
+3 CentraleSupélec,UniversityofParis-Saclay,France
+{jingwezhang, kemma, samaras}@cs.stonybrook.edu
+{saarthak.kapse, prateek.prasanna}@stonybrook.edu
+Joel.Saltz@stonybrookmedicine.edu
+maria.vakalopoulou@centralesupelec.fr
+Abstract. Whole slide image (WSI) classification is a critical task in compu-
+tationalpathology,requiringtheprocessingofgigapixel-sizedimages,whichis
+challengingforcurrentdeep-learningmethods.Currentstateoftheartmethods
+arebasedonmulti-instancelearningschemes(MIL),whichusuallyrelyonpre-
+trained features to represent the instances. Due to the lack of task-specific an-
+notateddata,thesefeaturesareeitherobtainedfromwell-establishedbackbones
+onnaturalimages,or,morerecentlyfromself-supervisedmodelspretrainedon
+histopathology. However, both approaches yield task-agnostic features, result-
+inginperformancelosscomparedtotheappropriatetask-relatedsupervision,if
+available.Inthispaper,weshowthatwhentask-specificannotationsarelimited,
+wecaninjectsuchsupervisionintodownstreamtasktraining,toreducethegap
+between fully task-tuned and task agnostic features. We propose Prompt-MIL,
+anMILframeworkthatintegratespromptsintoWSIclassification.Prompt-MIL
+adopts a prompt tuning mechanism, where only a small fraction of parameters
+calibratesthepretrainedfeaturestoencodetask-specificinformation,ratherthan
+theconventionalfullfine-tuningapproaches.ExtensiveexperimentsonthreeWSI
+datasets,TCGA-BRCA,TCGA-CRC,andBRIGHT,demonstratethesuperiority
+of Prompt-MIL over conventional MIL methods, achieving a relative improve-
+ment of 1.49%-4.03% in accuracy and 0.25%-8.97% in AUROC while using
+fewerthan0.3%additionalparameters.Comparedtoconventionalfullfine-tuning
+approaches,wefine-tunelessthan1.3%oftheparameters,yetachievearelative
+improvementof1.29%-13.61%inaccuracyand3.22%-27.18%inAUROCand
+reduceGPUmemoryconsumptionby38%-45%whiletraining21%-27%faster.
+Keywords: Wholeslideimageclassification·Multipleinstancelearning·Prompt
+tuning.
+1 Introduction
+Whole slide image (WSI) classification is a critical task in computational pathology
+enablingdiseasediagnosisandsubtypingusingautomatictools.Owingtothepaucity
+3202
+tcO
+5
+]VC.sc[
+2v41221.3032:viXra2 J.Zhangetal.
+ofpatch-levelannotations,multipleinstancelearning(MIL) [9,18,24]techniqueshave
+become a staple in WSI classification. Under an MIL scheme, WSIs are divided into
+tissuepatchesorinstances,andafeatureextractorisusedtogeneratefeaturesforeach
+instance.Thesefeaturesarethenaggregatedusingdifferentpoolingorattention-based
+operatorstoprovideaWSI-levelprediction.ImageNetpretrainednetworkshavebeen
+widelyusedasMILfeatureextractors.Morerecently,self-supervisedlearning(SSL),
+using a large amount of unlabeled histopathology data, has become quite popular for
+WSIclassification[13,5]asitoutperformsImageNetfeatureencoders.
+Most existing MIL methods do not fine-tune their feature extractor together with
+their classification task; this stems from the requirement for far larger GPU memory
+than is available currently due to the gigapixel nature of WSIs, e.g. training a WSI
+at 10x magnification may require more than 300 Gb of GPU memory. Recently, re-
+searchers have started to explore optimization methods to enable end-to-end training
+oftheentirenetworkandentireWSIwithinGPUmemory[25,21,29].Thesemethods
+show better performance compared to conventional MIL; they suffer, however, from
+two limitations. First, they are ImageNet-pretrained and do not leverage the powerful
+learningcapabilitiesofhistology-trainedSSLmodels.Second,thesearemostlylimited
+to convolutional architectures rather than more effective attention-based architectures
+suchasvisiontransformers[7].
+Motivation:ToimproveWSI-levelanalysis,weexploreend-to-endtrainingofthe
+entire network using SSL pretrained ViTs. To achieve this, we use the patch batch-
+ingandgradientretainingtechniquesin[25].However,wefindthatconventionalfine-
+tuning approaches, where the entire network is fine-tuned, achieve low performance.
+Forexample,ontheBRIGHTdataset[2],theaccuracydropsmorethan5%compared
+totheconventionalMILapproaches.Thepoorperformanceisprobablycausedbythe
+large network over-fitted to the limited downstream training data, leading to subopti-
+malfeaturerepresentation.Indeed,especiallyforweaklysupervisedWSIclassification,
+whereannotateddatafordownstreamtasksissignificantlylesscomparedtonaturalim-
+agedatasets,conventionalfine-tuningschemescanprovetobequitechallenging.
+ToaddressthesubparperformanceofSSL-pretrainedvisiontransformers,weuti-
+lize the prompt tuning techniques. Initially proposed in natural language processing,
+apromptisatrainableorapre-definednaturallanguagestatementthatisprovidedas
+additional input to a transformer to guide the neural network towards learning a spe-
+cific task or objective [3,12]. Using prompt tuning we fine-tune only the prompt and
+downstreamnetworkwithoutre-trainingthelargebackbone(e.g.GPT-3with17Bpa-
+rameters). This approach is parameter efficient [12,15] and has been shown to better
+inject task-specific information and reduce the overfitting in downstream tasks, par-
+ticularly in limited data scenarios [23,8]. Recently, prompts have also been adopted
+in computer vision and demonstrated superior performance compared to conventional
+fine-tuningmethods[10].Prompttuningperformswellevenwhenonlylimitedlabeled
+dataisavailablefortraining,makingitparticularlyattractiveincomputationalpathol-
+ogy.Theprocessofprompttuningthusinvolvesprovidingaformoflimitedguidance
+during the training of downstream tasks, with the goal of minimizing the discrepancy
+between feature representations that are fully tuned to the task and those that are not
+task-specific.Prompt-MIL:BoostingMILSchemesviaPromptTuning 3
+Inthispaper,weproposeanovelframework,Prompt-MIL,whichusespromptsfor
+WSI-levelclassificationtaskswithinanMILparadigm.Ourcontributionsare:
+– Fine-tuning:Unlikeexistingworksinhistopathologyimageanalysis,Prompt-MIL
+isfine-tunedusingpromptsratherthanconventionalfullfine-tuningmethods.
+– Task-specificrepresentationlearning:OurframeworkemploysanSSLpretrained
+ViT feature extractor with a trainable prompt that calibrates the representations
+makingthemtask-specific.Bydoingso,onlythepromptparameterstogetherwith
+the classifier, are optimized. This avoids potential overfitting while still injecting
+task-specificknowledgeintothelearnedrepresentations.
+ExtensiveexperimentsonthreepublicWSIdatasets,TCGA-BRCA,TCGA-CRC,and
+BRIGHTdemonstratethesuperiorityofPrompt-MILoverconventionalMILmethods,
+achieving a relative improvement of 1.49%-4.03% in accuracy and 0.25%-8.97% in
+AUROC by using only less than 0.3% additional parameters. Compared to the con-
+ventionalfullfine-tuningapproach,wefine-tunelessthan1.3%oftheparameters,yet
+achieve a relative improvement of 1.29%-13.61% in accuracy and 3.22%-27.18% in
+AUROC. Moreover, compared to the full fine-tuning approach, our method reduces
+GPU memory consumption by 38%-45% and trains 21%-27% faster. To the best of
+our knowledge, this is the first work where prompts are explored for WSI classifi-
+cation. While our method is quite simple, it is versatile as it is agnostic to the MIL
+scheme and can be easily applied to different MIL methods. Our code is available at
+https://github.com/cvlab-stonybrook/PromptMIL.
+2 Method
+Our Prompt-MIL framework consists of three components: a frozen feature model to
+extract features of tissue patches, a classifier that performs an MIL scheme of feature
+aggregation and classification of the WSIs, and a trainable prompt. Given a WSI and
+itslabely,theimageistiledintontissuepatches/instances x ,x ,...,x atapre-
+1 2 n
+{ }
+definedmagnification.AsshowninFig.1,thefeaturemodelF()computesnfeature
+·
+representationsfromthecorrespondingnpatches:
+h=[h ,h ,...,h ]
+1 2 n
+(1)
+=[F(x 1,P),F(x 2,P),...,F(x n,P)],
+where h denotes the feature of the ith patch, h is the concatenation of all h , and
+i i
+P = p i,i = 1,2,...,k isthetrainablepromptconsistingofk trainabletokens.The
+{ }
+classifierG()appliesanMILschemetopredictthelabelyˆandcalculatetheloss as:
+· L
+= (yˆ,y)= (G(h),y), (2)
+cls cls
+L L L
+wherethe isaclassificationloss.
+cls
+L
+2.1 Visualprompttuning
+Thevisualprompttuningisthekeycomponentofourframework.AsshowninFig.1(b),
+our feature model F() is a ViT based architecture. It consists of a patch embedding
+·4 J.Zhangetal.
+(a) (b) Output [CLS] token 𝑡𝑐𝑙 𝑙𝑠
+Transforme…r encoder 𝑳𝑙*
+Trainable
+Tiling Input WSI Prompt Transformer encoder 𝑳2*
+Split into Frozen … …
+𝑚batches … feature … … Classifier 𝓛 𝕋1 𝑃 𝕋1 𝑧 𝑡𝑐1 𝑙𝑠
+model 𝑮(∙) Transformer encoder 𝑳1*
+Tissue patches 𝑭(∙) C Fon eac ta ute ren sa t ℎed Trainable … …
+𝑥1,𝑥2,…,𝑥𝑛 Output features Pro ℙmpt 𝑝1…𝑝𝑘 𝕋𝑧0 𝑡𝑐0 𝑙𝑠
+Optimization steps: 1
+Forward by batches
+Features ℎ
+Patch embedding 𝑳0*
+3 Forward and backward by batches 𝑔G =rad 𝜕i ℒe /n 𝜕ts ℎ2 bF aco krw wa ar rd d a Mnd IL 𝑥𝑖 𝑧1 𝑧2… 𝑧 *𝑤 : Frozen
+Fig.1.Overviewoftheproposedmethod.(a)Overallstructureofourtrainingpipeline.Tissue
+patchestiledfromtheinputWSIaregroupedintoseparatebatches,whicharefedintoafrozen
+featuremodelF()tocomputetheirrespectivefeatures.Thefeaturesaresubsequentlyconcate-
+·
+natedintothefeaturehandaclassifierG()appliesanMILschemeonhtopredictthelabel
+·
+andcalculatetheloss .(b)StructureofthefeaturemodelF()withtheadditionalprompt.An
+L ·
+inputimagex
+i
+iscroppedintowsmallpatchesz 1,...,z w.ktrainableprompttokens,together
+withtheembeddingofsmallpatchesandaclasstokent0 ,arefedintollayersofTransformer
+cls
+encoders.Theoutputfeaturecorrespondingtox i isthelastclasstokentl cls.Thefeaturemodel
+F()isfrozenandonlythepromptistrainable.
+·
+layer L and l sequential encoding layers {L , L , ..., L }. The ViT first divides an
+0 1 2 l
+inputimagex intowsmallerpatches[z ,z ,...,z ]andembedsthemintowtokens:
+i 1 2 w
+T0
+z
+=L 0([z 1,z 2,...,z w])= {t0 1,t0 2,...,t0 w}, (3)
+wheret0
+i
+istheembeddingtokenofz iandT0
+z
+isthecollectionofsuchtokens.Theseto-
+kensT0areconcatenatedwithaclasstokent0 andapromptP:Theclasstokenisused
+z cls
+toaggregateinformationfromallothertokens.Thepromptconsistsofk trainableto-
+kensP= p
+i
+i=1,2,...,k .TheconcatenationisfedintollayersoftheTransformer
+{ | }
+encoders:
+[T1 z,T1 P,t1 cls]=L 1([T0 z,P,t0 cls]) (4)
+[Ti z,Ti P,ti cls]=L i([Ti z−1,T Pi −1,ti c−ls1]),i=2,3,...,l (5)
+Ti = pi j =1,2,...,k , (6)
+P { j| }
+where pi is the jth output prompt token of the ith Transformer encoder and Ti is
+j P
+the collection of all k such output prompt tokens, which are not trainable. The output
+featureofx isdefinedasthelastclasstoken:h =tl .
+i i cls
+2.2 Optimization
+Ouroveralllossfunctionisdefinedas
+= (G(H),y)
+cls
+L L (7)
+= cls(G([F(x 1,P),F(x 2,P),...,F(x n,P)]),y),
+LPrompt-MIL:BoostingMILSchemesviaPromptTuning 5
+whereonlytheparametersoftheG()andthepromptPareoptimized,whilethefeature
+·
+extractormodelF()isfrozen.
+·
+Trainingtheentirepipelineinanend-to-endfashionongigapixelimagesisinfeasi-
+bleusingthecurrenthardware.Toaddressthisissue,weutilizethepatchbatchingand
+gradientretainingtechniquesfrom[25].AsshowninFig.1(a),toreducetheGPUmem-
+oryconsumption,thentissuepatches x ,x ,...,x aregroupedintombatches.The
+1 2 n
+{ }
+firststep(step①inthefigure)ofouroptimizationistosequentiallyfeedmbatchesof
+tissuepatchesforwardtothefeaturemodeltocomputeitsrespectivefeatureswhichare
+subsequentlyconcatenatedintothehmatrix.Inthisstep,wejustconductaforwardpass
+liketheinferencestage,withoutstoringthememory-intensivecomputationalgraphfor
+back-propagation.
+In the second step (step②), we feed h into the classifier G() to calculate the loss
+·
+andupdatetheparametersofG()byback-propagatetheloss.Theback-propagated
+L ·
+gradientsg =∂ /∂honhareretainedforthenextstep.
+L
+Finally (step③), we feed the input batches into the feature model F() again and
+·
+usetheoutputhandtheretainedgradientsg fromthelaststeptoupdatethetrainable
+prompttokens.Inparticular,thegradientsonthejthprompttokenp arecalculatedas:
+j
+∂ ∂ ∂h
+L = L
+∂p ∂h∂p
+j j
+(8)
+∂ ∂h ∂h
+i i
+= L = g ,
+i
+∂h ∂p ∂p
+i j j
+i i
+X X
+whereg isthegradientcalculatedwithrespecttoh .
+i i
+To sum up, in each step, we only update either F or G given the current batch,
+whichavoidstoringthegradientsofthewholeframeworkforalltheinputpatches.This
+patchbatchingandgradientretainingtechniquesmaketheend-to-endtrainingfeasible.
+In this study, we use DSMIL [13] as the classifier and binary cross entropy as the
+classificationloss whenthetaskisatumorsub-typeclassificationorcrossentropy
+cls
+L
+otherwise.
+3 ExperimentsandDiscussion
+3.1 Datasets
+We assessed Prompt-MIL using three histopathological WSI datasets: TCGA-BRCA
+[14], TCGA-CRC [19], and BRIGHT [2]. These datasets were utilized for both the
+self-supervised feature extractor pretraining and the end-to-end fine-tuning (with or
+without prompts), including the MIL component. Note that the testing data were not
+used in the SSL pretraining. TCGA-BRCA contains 1034 diagnostic digital slides of
+twobreastcancersubtypes:invasiveductalcarcinoma(IDC)andinvasivelobularcarci-
+noma(ILC).Weusedthesametraining,validation,andtestsplitasthatinthefirstfold
+cross validation in [5]. The cropped patches (790K training, 90K test) were extracted
+at 5 magnification. TCGA-CRC contains 430 diagnostic digital slides of colorectal
+×
+cancer for a binary classification task: chromosomal instability (CIN) or genome sta-
+ble (GS). Following the common 4-fold data split [1,16], we used the first three folds6 J.Zhangetal.
+Table1.ComparisonofaccuracyandAUROConthreedatasets.Reportedmetrics(in%age)are
+theaverageacross3runs."Num.ofParameters"representsthenumberofoptimizedparameters
+Dataset TCGA-BRCA TCGA-CRC BRIGHT Num.of
+Metric Accuracy AUROC Accuracy AUROC Accuracy AUROC Parameters
+ConventionalMIL 92.10 96.65 73.02 69.24 62.08 80.96 70k
+Fullfine-tuning 88.14 93.78 74.53 56.63 56.13 75.87 5.6M
+Prompt-MIL(ours) 93.47 96.89 75.47 75.45 64.58 81.31 70k+192
+for training (236 GS, 89 CIN), and the fourth for testing (77 GS, 28 CIN). We fur-
+thersplit20%(65slides)trainingdataasavalidationset.Thecroppedpatches(1.07M
+training, 370K test) were extracted at 10 magnification. BRIGHT contains 503 di-
+×
+agnosticslidesofbreasttissues.Weusedtheofficialtraining(423WSIs)andtest(80
+WSIs)splits.Thetaskinvolvesclassifyingnon-cancerous(196training,25test)vs.pre-
+cancerous (66 training, 23 test) vs. cancerous (161 training, 32 test). We further used
+20% (85 slides) training slides for validation. The cropped patches (1.24M training,
+195Ktest)wereextractedat10 magnification.
+×
+3.2 ImplementationDetails
+Wecroppednon-overlapping224 224sizedpatchesinallourexperimentsandused
+×
+ViT-Tiny (ViT-T/16) [7] for feature extraction. For SSL pretraining, we leveraged the
+DINO framework [4] with the default hyperparameters, but adjusted the batch size to
+256 and employed the global average pooling for token aggregation. We pretrained
+separateViTmodelsontheTCGA-CRCdatasetsfor50epochs,ontheBRIGHTdataset
+for 50 epochs, and on the BRCA dataset for 30 epochs. For TCGA-BRCA, we used
+the AdamW [17] optimizer with a learning rate of 1e 4, 1e 2 weight decay, and
+− −
+trained for 40 epochs. For TCGA-CRC, we also used the AdamW optimizer with a
+learningrateof5e 4andtrainedfor40epochs.ForBright,weusedtheAdam[11]
+−
+optimizerwithalearningrateof1e 4,5e 2weightdecayandtrainedfor40epochs.
+− −
+We applied a cosine annealing learning rate decay policy in all our experiments. For
+theMILbaselines,weemployedthesamehyperparametersasabove.Forallfullfine-
+tuningexperiments,weusedthelearningrateinthecorrespondingpromptexperiment
+as the base learning rate. For parameters in the feature model F(), which are SSL
+·
+pretrained,weuse1/10ofthebaselearningrate.ForparametersintheClassifierG(),
+·
+whicharerandomlyinitialized,weusethebaselearningrate.Wetrainthefulltuning
+model for 10 more epochs than our prompt training to allow full convergence. This
+trainingstrategyisoptimizedusingthevalidationdatasets.Allmodelimplementations
+wereinPyTorch[20]onaNVIDIATeslaV100oraNvidiaQuadroRTX8000.
+3.3 Results
+We chose overall accuracy and Area Under Receiver Operating Characteristic curve
+(AUROC)astheevaluationmetrics.Prompt-MIL:BoostingMILSchemesviaPromptTuning 7
+Table2.ComparisonofGPUmemoryconsumptionandtrainingspeedperslidebenchmarked
+ontheBRIGHTdatasetbetweenthefullfine-tuningandourprompttuningonfourslideswith
+differentsizes.Ourpromptmethodrequiresfarlessmemoryandissignificantlyfaster.
+WSIsize 44k 21k 26k 21k 22k 17k 11k 16k
+× × × ×
+#Tissuepatches 9212 4765 2307 1108
+GPU Fullfine-tuning 21.81G 18.22G 16.37G 12.71G
+Mem. Prompt(ours) 12.04G 10.66G 10.00G 7.90G
+Reductionpercentage 44.79% 41.50% 38.92% 37.84%
+Time Fullfine-tuning 17.73s 8.92s 4.37s 2.15s
+perslide Prompt(ours) 13.92s 7.09s 3.35s 1.56s
+Reductionpercentage 21.49% 20.51% 23.32% 27.27%
+Evaluationofprompttuningperformance: WecomparedtheproposedPrompt-MIL
+withtwobaselines:1)aconventionalMILmodelwithafrozenfeatureextractor[13],
+2)fine-tuningallparametersinthefeaturemodel(fullfine-tuning).Table1highlights
+that our Prompt-MIL consistently outperformed both. Compared to the conventional
+MILmethod,Prompt-MILaddednegligibleparameters(192,lessthan0.3%oftheto-
+tal parameters), achieving a relative improvement of 1.49% in accuracy and 0.25% in
+AUROConTCGA-BRCA,3.36%inaccuracyand8.97%inAUROConTCGA-CRC,
+and 4.03% in accuracy and 0.43% in AUROC on BRIGHT. The observed improve-
+mentcanbeattributedtoamoreoptimalalignmentbetweenthefeaturerepresentation
+learnedduringtheSSLpretrainingandthedownstreamtask,i.e.,thepromptexplicitly
+calibratedthefeaturestowardthedownstreamtask.
+The computationally intensive full fine-tuning method under-performed conven-
+tional MIL and Prompt-MIL. Compared to the full fine-tuning method, our method
+achievedarelativeimprovementof1.29%to13.61%inaccuracyand3.22%to27.18%
+in AUROC on the three datasets. Due to the relatively small amount of slide-level la-
+bels (few hundred to a few thousands) fully fine tuning 5M parameters in the feature
+modelmightsufferfromoverfitting.Incontrast,ourmethodcontainedlessthan1.3%
+ofparameterscomparedtofullfine-tuning,leadingtorobusttraining.
+Table3.ComparisonofaccuracyandAUROConthreedatasetsforapathologicalfoundation
+model.
+Dataset TCGA-BRCA BRIGHT
+Metric AccuracyAUROCAccuracyAUROC
+ViT-small[27] 91.75 97.03 54.17 76.76
+ViT-smallw/Prompt-MIL 92.78 97.53 57.50 78.298 J.Zhangetal.
+EvaluationoftimeandGPUmemoryefficiency: Prompt-MILisanefficientmethod
+requiringlessGPUmemorytotrainandrunningmuchfasterthanfullfine-tuningmeth-
+ods. We evaluated the training speed and memory consumption of our method and
+comparedtothefullfine-tuningbaselineonfourdifferentsizedWSIsintheBRIGHT
+dataset. As shown in Table 2, our method consumed around 38% to 45% less GPU
+memorycomparedtofullfine-tuningandwas21%to27%faster.Aswescaledupthe
+WSIsize(i.e.WSIswithmorenumberofpatches),thememorycostdifferencebetween
+Prompt-MILandfullfine-tuningfurtherwidened.
+Evaluation on the pathological foundation models: We demonstrated our Prompt-
+MILalsohadabetterperformancewhenusedwiththepathologicalfoundationmodel.
+Foundational models refer to those trained on large-scale pathology datasets (e.g. the
+entireTCGAPan-cancerdataset[28]).Weutilizedthepubliclyavailable[27,26]ViT-
+Small network pretrained using MoCo v3 [6] on all the slides from TCGA [28] and
+PAIP [22]. In Table 3, we showed that our method robustly boosted the performance
+on both TCGA (the same domain as the foundation model trained on) and BRIGHT
+(a different domain). The improvement is more prominent in BRIGHT, which further
+confirmedthatPrompt-MILalignsthefeatureextractortobemoretask-specific.
+Table4.Performancewithadifferentnumberofprompttokens.FortwodifferentWSIclassifi-
+cationtasks,onetokenwasenoughtoboosttheperformanceoftheconventionalMILschemes.
+Dataset TCGA-BRCA BRIGHT
+#prompttokensk Accuracy AUROC Accuracy AUROC
+k=1 93.47 96.89 64.58 81.31
+k=2 93.13 96.93 60.41 79.74
+k=3 93.47 96.86 59.17 76.75
+Ablationstudy: Anablationwasperformedtostudytheeffectofthenumberoftrain-
+ableprompttokensondownstreamtasks.Table4showstheaccuracyandAUROCof
+our Prompt-MIL model with 1, 2 and 3 trainable prompt tokens (k = 1,2,3) on the
+TCGA-BRCA and the BRIGHT datasets. On the TCGA-BRCA dataset, our Prompt-
+MILmodelwith1to3prompttokensreportedsimilarperformance.OntheBRIGHT
+dataset, the performance of our model dropped with the increased number of prompt
+tokens.Empirically,thisablationstudyshowsthatforclassificationtasks,oneprompt
+tokenissufficienttoboosttheperformanceofconventionalMILmethods.
+4 Conclusion
+In this work, we introduced a new framework, Prompt-MIL, which combines the use
+ofMultipleInstanceLearning(MIL)withpromptstoimprovetheperformanceofWSIPrompt-MIL:BoostingMILSchemesviaPromptTuning 9
+classification. Prompt-MIL adopts a prompt tuning mechanism rather than a conven-
+tionalfullfine-tuningoftheentirefeaturerepresentation.Insuchascheme,onlyasmall
+fractionofparameterscalibratesthepretrainedrepresentationstoencodetask-specific
+information, so the entiretraining can be performed in an end-to-end manner. Weap-
+pliedourproposedmethodtothreepubliclyavailabledatasets.Extensiveexperiments
+demonstratedthesuperiorityofPrompt-MILovertheconventionalMILaswellasthe
+conventionalfullyfine-tuningmethods.Moreover,byfine-tuningmuchfewerparame-
+terscomparedtofullyfine-tuning,ourmethodisGPUmemoryefficientandfast.Our
+proposed approach also showed promising potentials in transferring foundation mod-
+els. We will further explore the task-specific features that are captured by our prompt
+towardexplainabilityofthesemodels.
+Acknowledgements ThisworkwaspartiallysupportedbytheANRHagnodiceANR-
+21-CE45-0007,theNSFIIS-2212046,theNSFIIS-2123920,theNIH1R21CA258493-
+01A1,theNCIUH3CA225021andStonyBrookUniversityProvostFunds.Thecontent
+issolelytheresponsibilityoftheauthorsanddoesnotnecessarilyrepresenttheofficial
+viewsoftheNationalInstitutesofHealth.
+References
+1. Bilal,M.,Raza,S.E.A.,Azam,A.,Graham,S.,Ilyas,M.,Cree,I.A.,Snead,D.,Minhas,F.,
+Rajpoot,N.M.:Developmentandvalidationofaweaklysuperviseddeeplearningframework
+to predict the status of molecular pathways and key mutations in colorectal cancer from
+routinehistologyimages:aretrospectivestudy.TheLancetDigitalHealth(2021)
+2. Brancati,N.,Anniciello,A.M.,Pati,P.,Riccio,D.,Scognamiglio,G.,Jaume,G.,DePietro,
+G.,DiBonito,M.,Foncubierta,A.,Botti,G.,etal.:Bracs:Adatasetforbreastcarcinoma
+subtypinginh&ehistologyimages.Database2022(2022)
+3. Brown,T.,Mann,B.,Ryder,N.,Subbiah,M.,Kaplan,J.D.,Dhariwal,P.,Neelakantan,A.,
+Shyam,P.,Sastry,G.,Askell,A.,etal.:Languagemodelsarefew-shotlearners.Advancesin
+neuralinformationprocessingsystems33,1877–1901(2020)
+4. Caron,M.,Touvron,H.,Misra,I.,Jégou,H.,Mairal,J.,Bojanowski,P.,Joulin,A.:Emerging
+propertiesinself-supervisedvisiontransformers.In:ProceedingsoftheIEEE/CVFInterna-
+tionalConferenceonComputerVision.pp.9650–9660(2021)
+5. Chen,R.J.,Chen,C.,Li,Y.,Chen,T.Y.,Trister,A.D.,Krishnan,R.G.,Mahmood,F.:Scal-
+ing vision transformers to gigapixel images via hierarchical self-supervised learning. In:
+Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition
+(CVPR).pp.16144–16155(June2022)
+6. Chen,X.,Xie,S.,He,K.:Anempiricalstudyoftrainingself-supervisedvisiontransformers.
+In:ProceedingsoftheIEEE/CVFInternationalConferenceonComputerVision.pp.9640–
+9649(2021)
+7. Dosovitskiy,A.,Beyer,L.,Kolesnikov,A.,Weissenborn,D.,Zhai,X.,Unterthiner,T.,De-
+hghani, M., Minderer, M., Heigold, G., Gelly, S., et al.: An image is worth 16x16 words:
+Transformersforimagerecognitionatscale.In:InternationalConferenceonLearningRep-
+resentations(2021)
+8. Gu,Y.,Han,X.,Liu,Z.,Huang,M.:Ppt:Pre-trainedprompttuningforfew-shotlearning.In:
+Proceedingsofthe60thAnnualMeetingoftheAssociationforComputationalLinguistics
+(Volume1:LongPapers).pp.8410–8423(2022)10 J.Zhangetal.
+9. Hou,L.,Samaras,D.,Kurc,T.M.,Gao,Y.,Davis,J.E.,Saltz,J.H.:Patch-basedconvolutional
+neuralnetworkforwholeslidetissueimageclassification.In:ProceedingsoftheIEEEcon-
+ferenceoncomputervisionandpatternrecognition.pp.2424–2433(2016)
+10. Jia, M., Tang, L., Chen, B.C., Cardie, C., Belongie, S., Hariharan, B., Lim, S.N.: Visual
+prompttuning.In:ComputerVision–ECCV2022:17thEuropeanConference,TelAviv,Is-
+rael,October23–27,2022,Proceedings,PartXXXIII.pp.709–727.Springer(2022)
+11. Kingma,D.P.,Ba,J.:Adam:Amethodforstochasticoptimization.In:Bengio,Y.,LeCun,
+Y.(eds.)3rdInternationalConferenceonLearningRepresentations,ICLR2015,SanDiego,
+CA,USA,May7-9,2015,ConferenceTrackProceedings(2015)
+12. Lester, B., Al-Rfou, R., Constant, N.: The power of scale for parameter-efficient prompt
+tuning.In:Proceedingsofthe2021ConferenceonEmpiricalMethodsinNaturalLanguage
+Processing.pp.3045–3059(2021)
+13. Li, B., Li, Y., Eliceiri, K.W.: Dual-stream multiple instance learning network for whole
+slide image classification with self-supervised contrastive learning. In: Proceedings of the
+IEEE/CVFconferenceoncomputervisionandpatternrecognition.pp.14318–14328(2021)
+14. Lingle,W.,Erickson,B.,Zuley,M.,Jarosz,R.,Bonaccio,E.,Filippini,J.,Gruszauskas,N.:
+Radiologydatafromthecancergenomeatlasbreastinvasivecarcinoma[tcga-brca]collec-
+tion.TheCancerImagingArchive10, K9(2016)
+15. Liu, X., Ji, K., Fu, Y., Tam, W., Du, Z., Yang, Z., Tang, J.: P-tuning: Prompt tuning can
+be comparable to fine-tuning across scales and tasks. In: Proceedings of the 60th Annual
+Meeting of the Association for Computational Linguistics (Volume 2: Short Papers). pp.
+61–68(2022)
+16. Liu,Y.,Sethi,N.S.,Hinoue,T.,Schneider,B.G.,Cherniack,A.D.,Sanchez-Vega,F.,Seoane,
+J.A.,Farshidfar,F.,Bowlby,R.,Islam,M.,etal.:Comparativemolecularanalysisofgastroin-
+testinaladenocarcinomas.Cancercell(2018)
+17. Loshchilov,I.,Hutter,F.:Decoupledweightdecayregularization.In:ICLR(2018)
+18. Lu, M.Y., Williamson, D.F., Chen, T.Y., Chen, R.J., Barbieri, M., Mahmood, F.: Data-
+efficient and weakly supervised computational pathology on whole-slide images. Nature
+BiomedicalEngineering5(6),555–570(2021)
+19. Network,C.G.A.,etal.:Comprehensivemolecularcharacterizationofhumancolonandrec-
+talcancer.Nature(2012)
+20. Paszke, A., Gross, S., Massa, F., Lerer, A., Bradbury, J., Chanan, G., Killeen, T., Lin, Z.,
+Gimelshein, N., Antiga, L., et al.: Pytorch: An imperative style, high-performance deep
+learninglibrary.Advancesinneuralinformationprocessingsystems32(2019)
+21. Pinckaers,H.,VanGinneken,B.,Litjens,G.:Streamingconvolutionalneuralnetworksfor
+end-to-endlearningwithmulti-megapixelimages.IEEEtransactionsonpatternanalysisand
+machineintelligence44(3),1581–1590(2020)
+22. Platform,P.A.:Paip(2021),dataretrievedfromPAIP,http://http://www.wisepaip.org/paip/
+23. Schucher,N.,Reddy,S.,deVries,H.:Thepowerofprompttuningforlow-resourcesemantic
+parsing.In:Proceedingsofthe60thAnnualMeetingoftheAssociationforComputational
+Linguistics(Volume2:ShortPapers).pp.148–156(2022)
+24. Shao,Z.,Bian,H.,Chen,Y.,Wang,Y.,Zhang,J.,Ji,X.,etal.:Transmil:Transformerbased
+correlatedmultipleinstancelearningforwholeslideimageclassification.Advancesinneural
+informationprocessingsystems34,2136–2147(2021)
+25. Takahama,S.,Kurose,Y.,Mukuta,Y.,Abe,H.,Fukayama,M.,Yoshizawa,A.,Kitagawa,
+M.,Harada,T.:Multi-stagepathologicalimageclassificationusingsemanticsegmentation.
+In:ProceedingsoftheIEEE/CVFInternationalConferenceonComputerVision.pp.10702–
+10711(2019)
+26. Wang,X.,Yang,S.,Zhang,J.,Wang,M.,Zhang,J.,Huang,J.,Yang,W.,Han,X.:Transpath:
+Transformer-based self-supervised learning for histopathological image classification. In:Prompt-MIL:BoostingMILSchemesviaPromptTuning 11
+MedicalImageComputingandComputerAssistedIntervention–MICCAI2021:24thInter-
+nationalConference,Strasbourg,France,September27–October1,2021,Proceedings,Part
+VIII24.Springer(2021)
+27. Wang, X., Yang, S., Zhang, J., Wang, M., Zhang, J., Yang, W., Huang, J., Han, X.:
+Transformer-based unsupervised contrastive learning for histopathological image classifi-
+cation.MedicalImageAnalysis81,102559(2022)
+28. Weinstein, J.N., Collison, E.A., Mills, G.B., Shaw, K.R., Ozenberger, B.A., Ellrott, K.,
+Shmulevich,I.,Sander,C.,Stuart,J.M.,Noushmehr,H.:Thecancergenomeatlaspan-cancer
+analysisproject.NatureGenetics45(10),1113–1120(2013)
+29. Zhang,J.,Zhang,X.,Ma,K.,Gupta,R.,Saltz,J.,Vakalopoulou,M.,Samaras,D.:Gigapixel
+whole-slide images classification using locally supervised learning. In: International Con-
+ference on Medical Image Computing and Computer-Assisted Intervention. pp. 192–201.
+Springer(2022)Supplementary Material of
+Prompt-MIL: Boosting Multi-Instance Learning
+Schemes via Task-specific Prompt Tuning
+Table1.ComparisonofaccuracyandAUROCbetweentheconventionalMILmodelandfine-
+tuningthelastTransfromerencoder(L 12 inViT-T),usingvariousMILschemes.“Num.ofPa-
+rameters”representsthenumberofoptimizedparameters.
+MILscheme Method TCGA-CRC BRIGHT Num.of
+Accuracy AUROC Accuracy AUROC Parameters
+ConventionalMIL 73.02 69.24 62.08 80.96 64k
+DSMIL[3] Fine-tuningL 12 69.81 70.72 61.25 80.10 509k
+Prompt-MIL(ours) 75.47 75.45 64.58 81.31 64k+192
+ConventionalMIL 74.10 68.56 61.25 80.35 25k
+ABMIL[2] Fine-tuningL 12 70.37 70.78 62.50 78.92 470k
+Prompt-MIL(ours) 75.87 70.10 62.50 79.30 25k+192
+ConventionalMIL 75.87 77.50 62.08 82.97 59k
+CLAM[4] Fine-tuningL 12 74.07 71.40 63.33 81.32 504k
+Prompt-MIL(ours) 76.19 80.84 64.17 84.31 59k+192
+Table2.ComparisonofaccuracyandAUROConTCGA-BRCAandBRIGHTbetweenthebase-
+line ViT-small model and the same model fine-tuned by our Prompt-MIL. The baseline ViT-
+smallmodelisapathologicalfoundationmodel,whichwaspretrainedusingDINOandtheentire
+TCGAdataset[1].Itisadifferentmodelfromtheoneinthemainpaper.
+Dataset TCGA-BRCA BRIGHT
+Metric Accuracy AUROC Accuracy AUROC
+ViT-smallin [1] 88.49 90.69 56.25 73.69
+ViT-smallw/Prompt-MIL 92.00 95.65 60.00 75.79
+3202
+tcO
+5
+]VC.sc[
+2v41221.3032:viXra2
+Fig.1. (a) The attention visualization of the classifier G(). Compared to that in the conven-
+·
+tionalMIL,theattentionmapofourPrompt-MILfocusedmoreonthetumorregionswhichare
+critical for the cancer classification task. (b) The attention visualization of the last multi-head
+self-attention layer in the feature model F(). The prompt token guided the attention to cover
+·
+moreonthetumorregions.
+References
+1. Chen,R.J.,Chen,C.,Li,Y.,Chen,T.Y.,Trister,A.D.,Krishnan,R.G.,Mahmood,F.:Scaling
+visiontransformerstogigapixelimagesviahierarchicalself-supervisedlearning.In:Proceed-
+ingsoftheIEEE/CVFConferenceonComputerVisionandPatternRecognition(CVPR).pp.
+16144–16155(June2022)
+2. Ilse,M.,Tomczak,J.,Welling,M.:Attention-baseddeepmultipleinstancelearning.In:Inter-
+nationalconferenceonmachinelearning.pp.2127–2136.PMLR(2018)
+3. Li, B., Li, Y., Eliceiri, K.W.: Dual-stream multiple instance learning network for whole
+slide image classification with self-supervised contrastive learning. In: Proceedings of the
+IEEE/CVFconferenceoncomputervisionandpatternrecognition.pp.14318–14328(2021)
+4. Lu,M.Y.,Williamson,D.F.,Chen,T.Y.,Chen,R.J.,Barbieri,M.,Mahmood,F.:Data-efficient
+andweaklysupervisedcomputationalpathologyonwhole-slideimages.NatureBiomedical
+Engineering5(6),555–570(2021)

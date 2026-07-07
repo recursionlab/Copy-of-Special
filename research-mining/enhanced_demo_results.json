@@ -1,0 +1,77 @@
+{
+  "ecosystem_stats": {
+    "total_concepts": 2,
+    "active_concepts": 2,
+    "high_quality_concepts": 0,
+    "mid_quality_concepts": 2,
+    "refinement_queue_size": 0,
+    "merged_concepts": 0,
+    "conceptual_diversity": 0.0,
+    "relation_count": 0,
+    "contradiction_count": 0,
+    "quality_score": 0.6975,
+    "refinement_success_rate": 0.0
+  },
+  "concepts": [
+    {
+      "id": "concept-cb5e8fe9",
+      "label": "Unknown",
+      "definition_full": "The simulation of human intelligence in machines that are programmed to think and learn",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.76,
+        "refinement_potential": 0.12,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T10:00:07.698924"
+    },
+    {
+      "id": "concept-f67cf869",
+      "label": "Unknown",
+      "definition_full": "A subset of AI that enables machines to learn from data",
+      "source_evidence": "No source evidence available",
+      "lineage": [],
+      "generation": 0,
+      "state": "MID_QUALITY",
+      "quality_tier": "MID",
+      "refinement_priority": "MEDIUM",
+      "relations": [],
+      "contradictions": [],
+      "metrics": {
+        "support_strength": 0.5,
+        "definition_completeness": 0.635,
+        "refinement_potential": 0.1825,
+        "evidence_strength": 0.5,
+        "merge_count": 0,
+        "refinement_attempts": 0,
+        "successful_refinements": 0
+      },
+      "refinement_history": [],
+      "timestamp": "2025-09-15T10:00:07.699344"
+    }
+  ],
+  "evolution_log": [],
+  "refinement_queue": [],
+  "quality_thresholds": {
+    "high_quality_threshold": 0.8,
+    "mid_quality_threshold": 0.4,
+    "refinement_threshold": 0.3,
+    "discard_threshold": 0.15,
+    "adaptive_length_minimum": 20,
+    "evidence_strength_weight": 0.3,
+    "completeness_weight": 0.5,
+    "support_strength_weight": 0.2
+  }
+}

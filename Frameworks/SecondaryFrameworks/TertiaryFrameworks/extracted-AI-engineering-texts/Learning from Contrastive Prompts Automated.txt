@@ -1,0 +1,1551 @@
+Learning from Contrastive Prompts: Automated
+Optimization and Adaptation
+MingqiLi∗ KaranAggarwal YongXie
+ClemsonUniversity AmazonServicesLLC AmazonServicesLLC
+mingqil@clemson.edu kagg@amazon.com yonxie@amazon.com
+AitzazAhmad StephanLau
+AmazonServicesLLC AmazonServicesLLC
+aitzaza@amazon.com lausteph@amazon.com
+Abstract
+AsLLMsevolve,significanteffortisspentonmanuallycraftingprompts. While
+existing prompt optimization methods automate this process, they rely solely on
+learning from incorrect samples, leading to a sub-optimal performance. Addi-
+tionally, an unexplored challenge in the literature is prompts effective for prior
+modelsmaynotperformwellonnewerversionsordifferentlanguages. Wepro-
+pose the Learning from Contrastive Prompts (LCP) framework to address these
+gaps, enhancing both prompt optimization and adaptation. LCP employs con-
+trastivelearningtogenerateeffectivepromptsbyanalyzingpatternsingoodand
+badpromptexamples. OurevaluationontheBig-BenchHarddatasetshowsthat
+LCP has a win rate of over 76% over existing methods in prompt optimization
+and demonstrates strong adaptability across different model versions, families,
+and languages. LCP offersa systematicapproach to promptengineering, reduc-
+ingmanualeffortindeployingLLMsacrossvariedcontexts.
+1 Introduction
+ThecurrentapproachtoutilizeLargeLanguageModels(LLMs)beginswithusersprovidingtheir
+queries. Thesequeriesarethenaugmentedwithadditionalinstructions,calledprompts,bythesys-
+temtoenhanceresponsequality. Promptsoftenincludecontextualinformationorinstructionsthat
+help the model better understand and respond to a query. Prompts may also include guidelines to
+restricttheLLMfromgeneratingharmfulorinappropriatecontent,ensuringsaferandmorereliable
+interactions. Theprocessofwritingthesepromptstypicallyinvolvestrial-and-error. Thisinterme-
+diatestep,knownaspromptengineering,iscrucialforoptimizingtheperformanceofLLMs.
+Recent advancements in prompt engineering have introduced various techniques to enhance the
+effectiveness of prompts. One notable example is zero-shot chain-of-thought prompting (Kojima
+et al., 2022), where simply adding the phrase “Let’s think step-by-step” can stimulate the LLMs’
+reasoning capabilities, encouraging it to think aloud and process the query in a logical sequence.
+However, this seemingly magical and straightforward phrase is hard to come up with, as current
+LLMsareverysensitivetophrasingprompts. Semanticallysimilarpromptscanleadtosignificant
+performance variations (Kojima et al., 2022; Zhou et al., 2023; Salinas & Morstatter, 2024), with
+minormodificationsresultinginaperformancedrop. Thisvariationrequiresnumerousexperiments
+to find the optimal prompt, resulting in a labor-intensive and time-consuming prompt engineering
+process.
+∗Thisworkwasdoneduringauthor’sinternshipatAmazon.
+Preprint.Underreview.
+4202
+peS
+32
+]LC.sc[
+1v99151.9042:viXraPriorworksinliterature(Yangetal.,2024; Guoetal.,2024; Wangetal.,2024; Zhouetal.,2023;
+Sunetal.,2023)haveaddressedtheselimitationsbyautomaticallyoptimizingprompts.Forinstance,
+AutoHint(Sunetal.,2023)proposedlearningfromwrongsamplesbyusingLLMstogeneratehints
+for selected incorrect samples, which are used to refine prompts. However, learning from only
+incorrectsamplescanmakethepromptstoospecifictothewrongsamples,losinganunderstanding
+ofwhatworked.AnotherapproachbyOPRO(Yangetal.,2024)involvesusingLLMsasoptimizers,
+wherethemodelgeneratesnewpromptsiterativelybasedonarankinglistofpreviouspromptsand
+their corresponding scores. However, OPRO lacks the incorporation of feedback from incorrect
+samples,potentiallylimitingitsabilitytoachieveoptimalperformance.
+While prompt optimization has prior art, an unexplored and significant challenge in prompt en-
+gineering is prompt adaptation. As LLMs are continually updated and more capable LLMs are
+introduced,existingpromptsoftenneedtoberewrittenandtailoredtoalignwiththenewmodelver-
+sionoranentirelynewmodel. Thisconstantadaptationisnecessarytomaintaintheeffectiveness
+ofthepromptstoensuretheyproducehigh-qualityresults. Additionally,promptadaptationacross
+variouslanguagesiscrucialforensuringperformanceinmultilingualcontexts. However,thisarea
+remainsunexploredintheliterature.
+Toaddressthesegaps,weproposeLearningfromContrastivePrompts(LCP),anautomaticprompt
+optimizationandadaptationframework.Inparticular,ourframeworkconsistsoftwostages:prompt
+candidategenerationandnewpromptgeneration. Weinjectdiversepromptsintopromptoptimiza-
+tionbygeneratingmultiplepromptcandidatestoexplorethepromptspace. Toovercometheshort-
+comingsofexistingmethods,wetakeaninspirationfromtheprincipleofcontrastivelearning(Chen
+et al., 2020) by allowing the LLM to contrast between good and bad prompts from the generated
+prompt candidates while learning to improve on error cases. This helps the LLM reason on the
+promptsthatworkversusthosethatdonot,usingexploration,toincorporategoodpromptswithout
+beingtoospecifictotheerrorcases.
+Wedemonstratetheeffectivenessofourapproachforboththescenariosofpromptoptimizationand
+promptadaptation.WeevaluateourframeworkontheBig-BenchHarddataset(Suzgunetal.,2022),
+whichcomprisesdiversetasksconsideredchallengingevenforhumanevaluators. Ourframework
+achievesawinrateofover76%versusOPRO(Yangetal.,2024)andAutoHint(Sunetal.,2023)on
+promptoptimization. Itespeciallyexcelsatalgorithmicandmulti-steparithmeticreasoningtasks.
+Ourpromptadaptationframeworkleveragesfeedbackfromthetargetmodeltoenhanceperformance
+on the prompts from the source model. It achieves comparable or better results than prompt opti-
+mization from scratch on the target model when the target model is a weaker model. Our results
+showthatpromptadaptationisadelicatebalancebetweenthetargetmodel’sabilitiesandthesource
+model’sabilities. Itcanslightlydegradeperformanceontaskswherethesourcemodelexcels,while
+improving performance on tasks where the target model is stronger. This observation holds true
+acrossmodelversionsandfamilies,withourframeworkcreatingabalancebetweenthestrengthsof
+thesourceandtargetmodels. ResultsontheXCOPAdatasetfurtherdemonstrateourframework’s
+capabilitytoadaptpromptsacrosslanguageswithabetterperformanceon7outof11languagesver-
+suspromptrefinementbaselines,especiallyforlowresourcelanguageslikeSwahilliandSouthern
+Quechua.
+Insummary,wepresentanovelframeworkusingcontrastivelearningforpromptoptimizationand
+anunexploredproblemofpromptadaptation.Ourresultsshowpromisingresultsonboththeprompt
+optimizationandpromptadaptationacrossmodelversions,families,andlanguages.
+2 Methodology
+OurproposedframeworkisillustratedinFigure1.Bothpromptoptimizationandpromptadaptation
+utilize the same framework with minor modifications. The framework is designed to enhance the
+effectiveness of prompts across various scenarios, including adapting to different model versions,
+modelfamilies,andlanguages. Inthissection,wewillexplaintheprocessesofpromptoptimization
+andpromptadaptationseparately,detailingthespecificstagesandmechanismsinvolvedineach.
+2Stage 0 Stage 1 Stage 2
+Prompt New
+Candidates prompt
+Generation Generation
+Contrastive Prompts
+Good Prompts: Bad Prompts:
+Learning from Consistency and
+Switching failures: diversity injection: Prompt 1, 0.92 Prompt 1, 0.37
+User models, 1. Sampling based 1. Summarizing Prompt 2, 0.87 Prompt 2, 0.16
+de df ain taed vers oi ro ns, o ern r op rr se .diction c reo am som no sn . failure N prompts … …
+languages 2. Deriving 2. Setting
+reasons for temperature for Newly
+failures. creative generated
+Unsatisfactory generation. prompt
+overall
+performance
+History
+Repeatedly Integration
+Figure 1: Learning from Contrastive Prompts (LCP) framework. Given an initial prompt and a
+smalltrainingset,LCPgeneratesmultiplepromptcandidatesderivedfromsummariesofcommon
+failurereasonsfordifferentsamplecombinations. ItleveragestheinherentcapabilitiesofLLMsto
+understandtheunderlyingpatternsthroughcontrastivepromptstogenerateanewprompt.
+2.1 Motivation
+In line with recent advancements, our work harnesses the reasoning capabilities of LLMs to au-
+tomatically optimize prompts. However, a significant challenge persists in effectively instructing
+LLMstomaximizetheirpotentialforgeneratinghigh-qualityprompts.
+Ourapproachemulateshowhumanslearn: byunderstandingfailuresandtheirreasons, aswellas
+contrastinggoodandbadexamplestograspwhatworksandwhatdoesnot. WeprovideLLMswith
+errorcasefeedbackandaspectrumofpromptquality.Weexposethemtofailures,theirreasons,and
+askthemtocontrastbetweengoodandbadprompts.Thisenableslearningfromdiverseperspectives
+foranimprovedpromptgeneration. Thisunexploredavenueholdssignificantpotentialforgaining
+a comprehensive understanding and unlocking LLMs’ full capabilities in generating high-quality
+prompts.
+Theconceptofcontrastinghigh-qualitypromptswithlow-qualityonesdrawsparallelstotheprin-
+ciples of contrastive learning, which has gained significant traction across various domains (Chen
+etal.,2020). Contrastivelearningaimstolearnmeaningfulrepresentationsbymaximizingthesim-
+ilarity between positive pairs (analogous to high-quality prompts) while minimizing the similarity
+betweennegativepairs(analogoustolow-qualityprompts). Byleveragingcontrastivelearningtech-
+niques in our context, we can potentially guide LLMs to capture the essential characteristics of
+effectiveprompts. Inparticular,givenalistofpromptswiththeircorrespondingqualityscores,we
+compare a batch of high-quality prompts to a batch of low-quality prompts, drawing conclusions
+aboutthepatternsthatcharacterizeeffectiveprompts.
+2.2 PromptOptimization
+Promptoptimizationimprovestheperformanceofpromptsstartingwithasimpleinitialpromptand
+iterativelyrefiningittoenhancetheperformanceoftheLLMonthetasksathand. Wepresentour
+twomaincomponentsnext: PromptCandidateGenerationtogeneratecandidatepromptsandNew
+PromptGenerationtogenerateafinalpromptusingtheinsightsfromthecandidateprompts.
+2.2.1 PromptCandidateGeneration
+We start with a small training set and an initial prompt, which is appended to each query. Given
+aninputanditsexpectedoutput, LLMsarecapableofunderstandinghowtoachievetheexpected
+output. We evaluate the LLM generated outputs on the small training set to identify failure cases.
+Taking a motivation from AutoHint (Sun et al., 2023), we use LLMs to learn from failures by
+3understandingthefailures,andgeneratingreasonsbehindthefailures. Theprompttemplateinthis
+stepisshowninAppendixA.5.
+Consistencyanddiversityinjection. Aproblemwithgeneratingthereasonforeachwrongsample
+andcraftingapromptcandidatebasedonit,isthatthecandidatepromptcanbebiasedtowardsthat
+sample,makingittoospecific. Toinjectsomeconsistency,weselectmultipleincorrectlypredicted
+samplesandsummarizethecommonfailurereasons(SeeAppendixA.5).AutoHintalsosummarized
+feedbackonincorrectsamples,buttheydirectlyusedthesesummariesasnewprompts,whichledto
+theirperformancebeingsignificantlyinfluencedbytheselectedsamples. Thispresentsadilemma;
+ifweselectsampleswhicharequitesimilar,thiscouldleadtomodelover-fittingonthesesamples,
+trappingthegeneratedpromptinalocalminimum.Toaddressthis,weadddiversitytothegenerated
+summarybysettingamorecreativetemperatureandrepeatingthisstepmultipletimestogenerate
+N prompts,referredtoaspromptcandidates. Thisapproachhelpsthemodeltoexploretheprompt
+space. WeuseN =10basedonourexperiments.
+History integration. The generated prompts from previous iterations can also influence the opti-
+mization process, leading to a better performance. Therefore, we integrate these prompts into the
+promptcandidates,ensuringthattheaccumulatedknowledgefrompastiterationscontributestothe
+ongoingoptimizationprocess.
+2.2.2 NewPromptGeneration
+NowthatwehaveN promptcandidates,ourgoalistogenerateanewpromptusingthem. First,we
+assignascoretoeachcandidatebasedonitsinferenceperformanceonthetrainingset.Wethenrank
+allthecandidatesaccordingtotheirscores. Inspiredbycontrastivelearning,weinstructtheLLMto
+identifytheunderlyingpatternsthatdistinguishgoodpromptsfrombadprompts. Specifically, we
+definethetop-K promptsasthegoodpromptsandthebottom-K promptsasthebadprompts,and
+weusethemeta-promptshowninAppendixA.5toinstructtheLLMtogenerateanewpromptthat
+followstheunderlyingpatternofgoodpromptswhileimprovingtheperformance.
+ThisapproachsimplifiesthelearningprocessforLLMscomparedtoOPRO,whichdirectlylearns
+from a ranked list and also did not provide any error case feedback. Viewing batches of good or
+bad prompts can also be considered as injecting the consistency. Additionally, since we integrate
+promptsgeneratedinpreviousiterations,thedifferentiationbetweengoodandbadpromptsbecomes
+morepronouncedovertime.
+2.3 PromptAdaptation
+Promptadaptationaddressestheneedtoswitchbetweendifferentmodelversions, modelfamilies,
+orlanguages,ensuringthatoptimizedpromptsremaineffectiveacrossdiverseconditions.Whileour
+mainframeworkremainsunchanged,wewilldetailthespecificstrategiesusedforadaptation.
+1 3 7 … ✅
+2 4 5 … ❌
+Source LLM
+1 7
+2 3 4 … ✅ Flipped Samples
+1 7 9 … ❌
+Target LLM
+Figure2: Datasamplingstrategyforpromptadaptation: Runinferenceonthetrainingsetusingthe
+sourceandtargetLLMs.Identifycorrectlyandincorrectlypredictedsamplesforeachmodel.Select
+samplescorrectlypredictedbythepriormodelbutincorrectlypredictedbythecurrentmodel.
+Cross-modelversion. Inreal-worldscenarios,underlyingmodelsarebeingcontinuouslyenhanced
+withnewversionroll-outseveryfewmonths. Forexample,theGPTfamilyhasevolvedtoinclude
+ChatGPT-4o,andMetarecentlyreleasedLLAMA-3. Userscanaddresstheirissuesbyswitchingto
+4amoreadvancedmodelwhenthepreviousversionlackstherequiredcapabilities. Conversely,they
+canreverttothelesscapablemodelversionconsideringcosts.
+Our goal is to refine an optimized prompt for one model version to adapt it effectively to another
+modelversion. Integratingfeedbackfromtheoriginalmodelversioncanprovidevaluableinsights,
+enhancingtheadaptationprocessforthenewmodelversion. Tofacilitatethis,weimproveourdata
+samplingstrategy(seeFigure2). Insteadofrandomlyselectingincorrectlypredictedsamples,
+wefocusonsamplesthatarecorrectlypredictedbytheoriginalmodelversionbutincorrectly
+predictedbythecurrentmodelversion.ThisensurestheLLMpaysmoreattentiontothesecritical
+samples,leadingtoamoreeffectiveadaptation.
+Cross-model. Next, we want to take it a step further. Users may want to switch to models from
+otherfamiliesthataremoreaccessibleorhaveproventobemoreeffectivefortheirspecifictasks.
+This setting is more challenging because the underlying models are fine-tuned with different data
+distributions,tasks,andinstructions,resultinginsignificantvariations.Inthisscenario,wemaintain
+thesamedatasamplingstrategyusedinthecross-modelversion,whileincorporatingerrortolerance
+throughwrongformatrejectiontoaccommodatelesseffectivemodelslikeLLAMA.Inparticular,if
+thegeneratedpromptdoesnotadheretothedefinedoutputformat,weregenerateituntilwereach
+themaximumallowablenumber.
+Cross-lingual. Adaptingpromptsacrossdifferentlanguagespresentsuniquedifficultiesduetovari-
+ations in linguistic structures, vocabularies, and resources. To simplify the process and provide
+a universal approach, we extend the same strategy to handle prompt adaptation across languages,
+demonstratingitsbroaderapplicability. Inparticular,wehavetheLLMtranslatesamplesfromthe
+targetlanguagesintoEnglishandthenconducttheinferencestep. Weselectdatasamplesthatare
+correctlypredictedwhentranslatedintoEnglishbutincorrectlypredictedintheiroriginallanguages.
+3 Experiments
+3.1 Setup
+Benchmarks. OurevaluationbenchmarkisasubsetoftheBig-BenchHarddataset(Suzgunetal.,
+2022),consistingof17challengingmulti-choicetasks. Thetasksarediverse,spanningacrossvar-
+iouscategorieslikenaturallanguageunderstanding,theuseofworldknowledge(bothgeneraland
+factual), multilingual knowledge and reasoning, and algorithmic and multi-step arithmetic reason-
+ing, making it a comprehensive test for our framework. We report results for each task category
+based on the keyword taxonomy provided by Big-Bench Hard dataset2. For the cross-lingual set-
+ting,weusetheXCOPAdataset(Pontietal.,2020),whichdemonstratescommonsensereasoning
+abilityandrequiresworldknowledgeunderstanding.
+Models. For our experiments, we used several state-of-the-art LLMs to evaluate the effectiveness
+ofourframework. Thesemodelsinclude: Claude-3-sonnet(Anthropic,2024)andClaude-3-haiku,
+LLAMA-3-70b(Dubeyetal.,2024). Claude-3-haikuisasmallerandfastermodelwhileClaude-3-
+sonnetisamorepowerfulmodelontheleaderboards3.
+Baselines. Wecompareourframeworkwithtwoexistingmethods: AutoHint(Sunetal.,2023)and
+OPRO(Yangetal.,2024). AutoHintoptimizespromptsbasedonwrongsamplesintwoiterations,
+usinghintgenerationandsummarization. OPROoptimizespromptsbymaintainingarankinglistof
+historicalpromptsandrelyingsolelyonthat. SincetheseworksusedLLMssuchastheGPTfamily
+and the PaLM family, which we don’t have access to, we reimplemented their techniques on our
+targetLLMsforafaircomparison.
+Promptselectionstrategy. OurframeworkandOPRObothinvolveoptimizingpromptsiteratively,
+which can lead to performance fluctuations even upon convergence. Additionally, each task from
+theBig-BenchHarddatasetconsistsofonly250samples,makingitinfeasibletocreateavalidation
+set. Thislimitationisconsistentwithreal-worldscenarioswheredataavailabilityisoftenrestricted.
+We simply use the prompt generated in the last iteration and also present the performance of the
+promptwiththebesttrainingsetaccuracyduringtheprocess.
+2https://github.com/google/BIG-bench/blob/main/keywords.md
+3https://chat.lmsys.org/?leaderboard
+5Table 1: Test accuracy of prompt optimization approaches on four types of 17 BBH tasks for last
+iteration prompt (Last) versus the prompt with best training accuracy (Best). Reported results are
+averageacross5runs. -indicatescaseswhereAutoHintcouldnotproduceanymeaningfulresults.
+BlueindicatesoverallbestresultsforLastorBest. Boldindicateshighestvalueinarow. Winrates
+havebeencalculatedwithpair-wisecomparisonsfollowing Liangetal.(2022).
+TASK LCP AutoHint OPRO
+Last/Best Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 51.25/61.00 45.00/45.00 33.50/33.50
+logical deduction three objects 92.50/90.25 76.00/76.00 70.50/76.00
+logical deduction five objects 71.50/74.50 52.00/52.00 54.00/65.00
+logical deduction seven objects 62.00/62.50 2.00/2.00 48.00/48.50
+penguins in a table 97.86/96.15 86.30/86.30 87.20/94.00
+reasoning about colored objects 85.30/84.40 85.50/85.50 90.50/90.50
+temporal sequences 98.25/97.00 -/- 77.50/80.00
+tracking shuffled objects three objects 92.00/99.00 -/- 99.50/99.50
+tracking shuffled objects five objects 90.50/95.50 -/- 82.50/89.50
+tracking shuffled objects seven objects 92.10/98.30 -/- 72.50/92.00
+WinRate(%) 81.00/81.00 25.00/17.00 38.00/38.00
+NaturalLanguageUnderstanding
+disambiguation qa 66.83/66.33 55.00/57.00 50.00/50.00
+hyperbaton 78.25/84.00 63.00/63.00 29.00/42.50
+salient translation error detection4 57.25/69.50 65.00/67.00 63.00/66.50
+snarks 65.73/70.98 84.40/84.40 67.80/67.80
+WinRate(%) 50.00/88.00 75.00/62.00 25.00/0.00
+UseofWorldKnowledge
+date understanding 75.50/74.50 75.50/75.50 80.50/80.50
+movie recommendation 87.75/85.50 72.00/72.00 36.00/36.00
+ruin names 76.50/75.25 76.50/79.50 68.00/68.00
+WinRate(%) 50.00/50.00 33.00/67.00 33.00/33.00
+MultilingualKnowledgeandReasoning
+salient translation error detection 57.25/69.50 65.00/67.00 63.00/66.50
+WinRate(%) 0.00/100.0 100.0/50.00 50.00/0.00
+OverallWinRate(%) 66.67/76.67 42.31/42.31 33.33/26.67
+ImplementationdetailsWeusethesamedatasplitasOPROontheBig-BenchHarddataset,with
+50samplesfortrainingand200samplesfortesting.FortheXCOPAdataset,weuse50samplesfrom
+thevalidationsetfortraining,andteston500samplesfromtheoriginaltestingset. Thetemperature
+issetto1.0. Themaximumnumberofiterationsissetto50,followedbyaselectionstep. Ineach
+randomsamplingstep,weselect3incorrectlypredictedsamplesandrepeatthisstep10times. For
+contrastiveprompts,weselect3goodpromptsand3badpromptsfromtherankinglist.
+3.2 Results
+3.2.1 PromptOptimization
+Ourpromptoptimizationbeginswiththeinitialprompt“Let’ssolvetheproblem.”inthesamefash-
+ionasOPROandAutoHint.AlltheexperimentsinthissectionareconductedusingClaude-3-sonnet
+toensurebetterperformance. Wereporttheresultsonlastiterationfromourmethodandbaselines
+aswellasfromthepromptwithbestperformanceonthetrainingset. Eitherchoiceisinlinewith
+previous works ( Yang et al. (2024); Sun et al. (2023)) as strategies like a separate validation set,
+doesnotprovideanybenefitowingtobeinghighlycorrelatedwithtrainingperformance. Also,we
+didnotobserveover-fittingwithLCP.Forfurtherdiscussion,pleaserefertoAppendixA.1. While
+wereportresultsfromboth,givenarelativelyhighvariationandaslightlylowerperformanceusing
+thelastprompt(47%winrateversus53%forbesttrainingsetprompt),werecommendusingbest
+promptonthetrainingsetastheselectedprompt.
+4Note,salient translation error detectiontaskcomesunderbothNaturalLanguageUnderstandingandMul-
+tilingualKnowledgeandReasoningbutisonlycountedonceintheoverallwinrates.
+6Table2: Winratesofpromptadaptationandpromptoptimizationonmodelversionadaptationand
+model family adaptation: accuracy on BBH tasks for last iteration prompt (Last) versus the best
+promptonthetrainingset(Best). BlueindicatesoverallbestresultsforLastorBest.
+Source→Target LCPAdaptation LCPOptimizationonTarget SourceOptimized
+Last/Best Last/Best Last/Best
+Claude3Haiku→Claude3Sonnet(Table 9)
+AlgorithmicandMulti-StepArithmeticReasoning 55.00/50.00 75.00/65.00 20.00/40.00
+NaturalLanguageUnderstanding 62.5/100.00 25.00/0.00 62.5/50.00
+UseofWorldKnowledge 16.67/66.67 33.33/0.00 100.00/83.33
+MultilingualKnowledgeandReasoning 100.00/100.00 0.00/0.00 50.00/50.00
+Overall 50.00/67.65 55.88/38.24 44.12/50.00
+Claude3Sonnet→Claude3Haiku(Table 10)
+AlgorithmicandMulti-StepArithmeticReasoning 45.00/50.00 70.00/45.00 40.00/65.00
+NaturalLanguageUnderstanding 50.00/75.00 25.00/12.5 75.00/75.00
+UseofWorldKnowledge 50.00/33.33 50.00/83.33 50.00/50.00
+MultilingualKnowledgeandReasoning 50.00/50.00 0.00/0.00 100.00/100.00
+Overall 44.12/52.94 55.88/44.12 50.00/64.71
+Claude3Sonnet→LLAMA3(Table 11)
+AlgorithmicandMulti-StepArithmeticReasoning 40.00/55.00 60.00/40.00 50.00/55.00
+NaturalLanguageUnderstanding 37.50/25.00 37.50/100.0 75.00/25.00
+UseofWorldKnowledge 50.00/83.33 16.67/50.00 83.33/16.67
+MultilingualKnowledgeandReasoning 50.00/50.00 0.00/100.00 100.00/0.00
+Overall 41.18/52.94 47.06/55.88 61.76/41.18
+AsshowninTable1,ourLCPframeworkachievesthebestperformancewithawinrateof66.67%
+compared to AutoHint and OPRO when using the last iteration prompt, and 76.67% when using
+the best prompt on training set. We believe that the reason for LCP’s superior performance over
+AutoHint is that our method overcomes the limitation of AutoHint which struggles to summarize
+diversehints.IncontrasttoOPRO,wetakeadvantageofLLMs’inherentcapabilitytocontrastgood
+promptsandbadprompts,makingtheprocesseasierandmoredetailedthanrelyingonarankedlist.
+UsingcontrastivelearningdirectlyalignswiththewayLLMsarefine-tunedwithpreferencemod-
+eling,bylearningtorankanddistinguishbetweenbetterandworseoptions(Rafailovetal.,2024).
+Additionally, we pay more attention to failures than OPRO, which solely relies on the generated
+promptsandtheircorrespondingscores. Theresultshighlightourframework’sstrongperformance
+particularlyonalgorithmicandmulti-steparithmeticreasoningtasks. Thisisunderstandableasal-
+gorithmic and arithmetic tasks involve more detailed instructions versus the other three categories
+which LCP excels through its contrastive and diversity injection mechanisms. Evidence of this is
+presentedintheablationstudywhichshowsthatcontrastiveanddiversityinjectionmechanismshelp
+especiallyonalgorithmicandarithmetictasks.
+3.2.2 PromptAdaptation
+Next,wepresenttheresultsofourexperimentsonadaptingpromptsacrossdifferentmodelversions,
+modelfamilies,andlanguagesfromasourcemodel/languagetotargetmodel/language.
+Cross-modelversionandfamily. Table2presentsasummaryofadaptingpromptsgeneratedfrom
+Claude-3-haikutothemoreadvancedClaude-3-sonnet,andvice-versa.Wealsopresentcross-model
+familyresultswithClaude-3-sonnettoLLAMApromptadaptation. Detailedresultscanbefoundin
+Table9,Table10,andTable11inappendix. WecompareLCPadaptationwithdirectlyperforming
+thepromptoptimizationprocessonthetargetmodelfromscratch(LCPOptimizationonTarget)
+andbyusinganoptimizedprompt(lastiterationorbestpromptontrainingset)fromsourcemodel
+directlywithoutanychange.
+Theresultsshowthatouradaptationframeworkeffectivelyleveragesfeedbackfromthepriormodel
+version(evenitislesseffective)toenhanceperformanceonthenewmodelversion—itistypically
+better (best training prompt) or at par (last prompt) with prompt optimization from scratch on the
+targetmodel.Fromtheresultsintasktypes,oneclearobservationishowadaptationisafinebalance
+betweenthetargetmodelgeneratedprompts(LCPOptimizationonTarget)andsourcemodelgener-
+atedprompts(SourceOptimized). Forexample,inHaiku→Sonnetsetting,LCPAdaptationworks
+betterthansourcegeneratedpromptsbutworsethantargetgeneratedpromptsforAlgorithmicand
+multi-step Arithmetic reasoning tasks. Situation is completely reversed for Natural Language un-
+7Table3:Cross-lingualaccuracyon11languagesinXCOPAdataset.Wepresentthepromptwiththe
+bestperformanceontrainingset.Performancenumbersinblueshowsthebestresultsforalanguage
+whileinboldshowbestnumbersamongPromptRefinementmethods.
+Language
+Method ta sw it ht et tr zh id qu th vi
+PromptRefinement
+BlankPrompt 79.6 79.0 94.8 79.0 89.4 90.4 90.8 94.0 59.8 88.2 91.8
+OptimizedPrompt 82.4 79.4 91.4 80.0 91.6 90.6 88.8 94.2 54.0 86.0 91.6
+TranslatedPrompt 75.0 72.2 85.8 70.2 78.8 89.2 87.0 92.0 57.4 83.0 89.6
+LCP 80.8 80.8 96.8 83.2 92.2 92.6 93.4 93.4 62.0 85.8 91.2
+QueryTranslation
+BlankPrompt 89.6 83.6 96.6 80.8 92.4 94.2 94.2 94.4 61.4 86.6 92.2
+OptimizedPrompt 91.4 82.8 95.6 79.8 92.2 94.0 95.2 91.0 58.2 86.2 90.8
+derstandingtasks.Thisshowsthatpromptadaptationcanslightlydegradeperformancecomparedto
+sourceonthetaskswherethesourcemodelisrelativelystrongerwhileincreasingtheperformance
+comparedtosourcewherethetargetmodelisrelativelystronger.Thisobservationisrepeatedevenin
+thecrossmodelsetting.Hence,ourLCPadaptationframeworkcreatesabalancebetweenstrengths
+ofsourceandtargetmodels.
+This observation can be attributed to our framework’s ability to effectively leverage the strengths
+ofthesourcemodelandtransferthisknowledgetothepromptsfortargetmodelviafeedback. Our
+approachrefinesandtailorspromptstoalignwiththenuancesofthetargetmodel,complementing
+thetargetmodel. Thisisespeciallybeneficialforscenarioswherethetasksneedtargetandsource
+model’scomplementarycapabilitiesmakingourapproachavaluabletoolthatenablesthemtoim-
+proveresponsequalityevenwithweakerbutspecializedmodels,therebyexpandingitsapplicability
+toawiderrangeofscenarios.
+Cross-lingual. We report the results of our cross-lingual experiments in Table 3. We categorized
+themethodsintotwogroups: promptrefinementandquerytranslation. Whileourapproachfocuses
+onpromptrefinement,wealsopresenttheresultsofquerytranslationtoprovideadditionalinsights.
+Wecompareourmethodwithdirectlyinputtingthetestquery(BlankPrompt),addinganoptimized
+EnglishpromptgeneratedbyourpromptoptimizationmethodusingtheCOPAdataset(Optimized
+Prompt),andtranslatingtheoptimizedprompttothetargetlanguage. Theresultsindicatethatour
+promptadaptationapproachoutperformsthepromptbaselinesfor7outof11languages.
+Forquerytranslation,wetranslatetheinputnon-EnglishlanguagetestqueryintoEnglishandeither
+use a blank prompt or use the English prompt optimized by our method on the translated training
+data. Ourresultsshowthatquerytranslationworksbetterthanpromptrefinementmethodson7out
+of 11 tasks. This is in line with work from Lin et al. (2022), where query translated worked bet-
+terthanhumanexpertpromptsinthequerylanguage. ThisisafunctionofEnglishheavytraining
+of current LLMs. It is important to note that query translation methods come with an additional
+computational cost, as each querymust be translated into Englishbefore processing. However, as
+LLMscontinuetoimprovetheirperformanceonnon-Englishlanguages,weanticipateanarrowing
+ofthegapbetweenpromptrefinementandquerytranslationmethods. Importanttonotethatontwo
+low resource languages: Swahili (sw) and Southern Quechua (qu), LCP even beats query transla-
+tionmethods. Ourstudynotonlypresentsacomprehensiveanalysisofcross-lingualperformance
+but also introduces a novel prompt adaptation technique that bridges the gap between the prompt
+refinementandquerytranslationmethods.
+3.3 AblationStudy
+DiversityInjectionwithmultiplepromptcandidates Wegeneratemultiplepromptcandidates
+(N = 10) to explore the prompt space which is used for the our contrastive learning framework
+toidentifythepatternsbetweengoodandbadpromptsfromthesepromptcandidatesevaluatedon
+the training set. Multiple prompt candidates help us explore the diversity of the accuracy-prompt
+space, unlike previous methods dependent on single prompts. To explore the effectiveness of this
+mechanism, weuseN = 2,4, and6, withtop-⌊N⌋andbottom-⌊N⌋promptsusedforcontrastive
+2 2
+learning. WinratesareshowninFigure3anddetailedresultsinTable8. Weclearlyseethatthewin
+8100
+80
+60
+40
+20
+0
+AMAR NLU UWK MKR Overall
+etaR
+niW
+Number of Prompt Candidates
+N=2 100
+N=4
+N=6
+N=10 80
+60
+40
+20
+0
+AMAR NLU UWK MKR Overall
+etaR
+niW
+Contrastive Learning Effect
+LCP
+w/o LCP
+Figure3:Ablationstudywithnumberofpromptcandidates(N)ontheleftandEffectofcontrastive
+learning (w/ and w/o constrastive learning) on the right. Reported are win rates on the prompt
+selected with best training set performance (best). AMAR refers to Algorithmic and Arithmetic,
+NLUtoNaturalLanguageUnderstanding,UWKtoUnderstandingofWorldKnowledge,andMKR
+toMultilingualKnowledgeandReasoningcategories.
+rates increase as we increase N. This clearly demonstrates the effectiveness of injecting diversity
+whilegeneratingthepromptusingcontrastivelearningwithmultiplepromptcandidates. Increasing
+N further,wesawlimitedbenefitandamuchhighercomputationcost,soweuseN =10.
+Contrastive Learning One of the key contribution of our work is using contrastive learning to
+learnfrombothgoodandbadprompts, insteadofjustfocusingontopprompts(OPRO)orwrong
+samples(AutoHint).Weshowtheeffectivenessofcontrastivelearninginourframeworkbycompar-
+ingitwithasettingprovidingtheLLMwithjusttheN rankedpromptcandidatessimilartoOPRO.
+Win rates are shown in Figure 3 and detailed results in Table 7. Contrastive learning has a win
+rateof76%, especiallybenefiting thealgorithmicandarithmetictasks, whichneedmore involved
+instructionwriting.Theseresultscombinedwithdiversityinjectionablationclearlyshowthebenefit
+ofexploringandanalyzingthepromptmanifoldtoincorporateitinthepromptoptimization.
+Table 4: Cross-optimizer performance comparison on various tasks for Claude-3-Haiku using
+Claude-3-Haiku(weakerversion)versusClaude-3-Sonnet(strongermodel)aspromptoptimizer.
+Task Optimizer
+Haiku Sonnet
+Last/Best Last/Best
+date understanding 24.0/69.0 69.0/77.0
+reasoning about colored objects 67.5/69.0 70.0/71.0
+disambiguation qa 61.0/63.5 62.5/64.5
+logical deduction three objects 70.0/68.0 69.0/71.5
+Cross Optimizers. Based on the results from prompt adaptation, a natural question arises: can
+weusestrongermodelstooptimizepromptsforaweakermodel? Weaimedtoinvestigatewhether
+employing a more advanced model as the optimizer could further enhance performance. During
+thepromptoptimizationofClaude-3-Haiku,weutilizeClaude-3-Sonnettogeneratenewcandidate
+prompts,whilestillusingClaude-3-Haikuforevaluation. Werunthisonselectedfourtasksdueto
+costconstraintsasshowninTable4. Weobservethisapproachsignificantlyimprovesperformance
+duetothecapabilitiesofClaude-3-Sonnet.Claude-3-Sonnetasoptimizermoreeffectivelyimproved
+best/lastpromptsby3.5%/7%onthefourselectedtasks. Theseresultsdemonstratethepromising
+directionofleveragingmoreadvancedmodelstooptimizepromptsforweakermodels.
+Number of Training Examples. To provide insights into the number of examples required for
+our method to maintain effectiveness, we report the performance when using 5, 10, 25, and 50
+examplesfortraining,inFigure4forthreetasks. Wenoticeatrendwhenweanalyzedthetraining
+plots.Fortaskslikereasoning about colored objectswhosetrainingaccuracywasrelatively
+flat during the iterations, number of examples had little effect, while for tasks like geometric
+shapeswithtrainingcurvesshowingconsiderableimprovementacrosstrainingiterations,weseea
+consistentimprovementintheperformanceasnumberofexamplesincreased. Further,weobserve
+9100
+80
+60
+40
+20
+5 10 25 50
+Number of Training Examples
+ycaruccA
+geometric_shapes
+100
+LCP
+Autohint 80
+OPRO
+60
+40
+20
+5 10 25 50
+Number of Training Examples
+(a)geometric shapestask
+ycaruccA
+disambiguation_qa
+100
+LCP
+95 Autohint
+OPRO 90
+85
+80
+75
+5 10 25 50
+Number of Training Examples
+(b)disambiguation qatask
+ycaruccA
+reasoning_about_colored_objects
+LCP
+Autohint
+OPRO
+(c)reasoningcoloredobjects
+Figure4: AccuracyasafunctionofnumberoftrainingexamplesforLCP,AutoHint,andOPRO.
+thatLCPisrelativelymoresampleefficient,givingarelativelyhigherperformanceatlowernumber
+of samples versus AutoHint or OPRO. This can be attributed to our multiple candidate generation
+forcontrastivelearningthathelpsmodelexplorediversepromptstoderiveinsights.
+4 RelatedWork
+Soft prompt optimization. Recent studies have explored soft prompt-tuning, which involves
+prepending continuous vectors that are out of vocabulary and serve as prompts for specific tasks
+(Li&Liang,2021;Lesteretal.,2021;Liuetal.,2022;Qin&Eisner,2021;Ben-Davidetal.,2022).
+Theseapproachesaremodel-agnostic, buttheydonotfocusonadaptingpromptstoothermodels.
+Someworkdoesleveragesoftprompt-tuningforcross-lingualadaptation(Lietal.,2023b; Huang
+et al., 2022; Zhao et al., 2023; Park et al., 2023). However, these methods often require access to
+modellogits,whichcanbeaconstraintinpracticalapplicationswiththerecentproprietarymodels.
+Hard prompt optimization. Hard prompt optimization involves crafting discrete, human-
+interpretable prompts. Prior works have focused on prompt engineering, iterative refinement, and
+search-basedtechniquestoimproveperformance(Guoetal.,2024;Zhouetal.,2023;Pryzantetal.,
+2023; Wang et al., 2024; Sun et al., 2023; Yang et al., 2024; Wan et al., 2023; Li et al., 2023a;
+Yuksekgonul et al., 2024). Specifically, APE (Zhou et al., 2023) selects the top instructions with
+thehighestaccuraciesandthenpromptstheLLMtogeneratesemanticallysimilarvariantsforeach
+selected instruction. AutoHint (Sun et al., 2023) generates hints from incorrect samples, summa-
+rizes these hints, and uses the summary as the new prompt. OPRO (Yang et al., 2024) generates
+newpromptsbyleveraginghistoricalpromptsandtheircorrespondingscores,instructingtheLLM
+tocreateimprovedversions.
+While these works focused on prompt optimization they did not explore prompt adaptability to
+various model versions, model families, and languages. Our proposed approach bridges this gap
+by providing a novel comprehensive framework for prompt optimization and adaptation, ensuring
+effectivenessacrossdifferentmodelsandlinguisticcontextsusingcontrastivelearning.
+5 Conclusion
+Inthispaper,weproposedLearningfromContrastivePrompts(LCP),acomprehensiveframework
+for prompt optimization and adaptation. Our approach addresses the limitations of existing opti-
+mization methods and addresses an unexplored but common problem of adapting prompts across
+differentmodelversions,modelfamilies,andlanguages. Itinvolvesasystematicprocessofprompt
+candidate generation and new prompt generation through contrastive learning, and feedback for
+prompt adaptation setting to ensure that the prompts remain effective and relevant in diverse sce-
+narios. WeconductedextensiveexperimentsontheBig-BenchHarddataset,demonstratingthatour
+frameworksignificantlyoutperformsexistingmethods.
+Our results showed that our approach maintains high performance when adapting prompts across
+differentmodelversionscomplementingthestrengthsofthesourceandtargetmodels.Additionally,
+our framework proved robust in cross-lingual scenarios, effectively handling the challenges posed
+bydifferentlinguisticcontexts. Ourresultsalsoshowthatusingastrongermodelforpromptopti-
+10mizationandadaptationcouldsignificantlyboostperformanceonweakerLLMsinsteadofprompt
+adaptationfromscratchusingourframework.
+Oneofthekeyareasofinvestigationfromourworkisexplorationandexploitingpromptmanifold
+in a more systematic way. The current prompt optimization methods including ours are unstable
+overiterations,anditsnotclearhowtonavigatethepromptmanifold(seeAppendixA.2formore
+discussion). Someavenuescouldincludearicherfeedbackmechanismacrossiterations,asweonly
+relyonfeedbackfromthepromptgeneratedintheprecedingiterationorgivingahigherweightage
+tobetterhints.Further,lettingtheLLMsexplainthefeedbackandincorporatingthatreasoningcould
+alsobepotentiallyhelpful. Promptadaptation,whichcanbethoughtofthroughthelensofclassical
+domain adaptation can be helped by a more sophisticated feedback design to get best of both the
+targetmodelandsourcemodel,asweseeitcurrentlytriestostrikethebalancebetweenthetwo.Our
+cross-optimizerresultsalsoshowapromisingdirectionandneedsfurtherexploration,especiallyin
+domainslikelawormedicalwhereweakerbutdomainspecializedmodelcouldguideorbeguided
+inacollaborativefashionbymorepowerfulgeneralLLMstogeneratepowerfulprompts.
+11References
+AIAnthropic. Theclaude3modelfamily: Opus,sonnet,haiku. Claude-3ModelCard,1,2024.
+EyalBen-David,NadavOved,andRoiReichart. Pada: Example-basedpromptlearningforon-the-
+flyadaptationtounseendomains. TransactionsoftheAssociationforComputationalLinguistics,
+10:414–433,2022.
+TingChen,SimonKornblith,MohammadNorouzi,andGeoffreyHinton. Asimpleframeworkfor
+contrastivelearningofvisualrepresentations. InInternationalconferenceonmachinelearning,
+pp.1597–1607.PMLR,2020.
+AbhimanyuDubey,AbhinavJauhri,AbhinavPandey,AbhishekKadian,AhmadAl-Dahle,Aiesha
+Letman,AkhilMathur,AlanSchelten,AmyYang,AngelaFan,etal. Thellama3herdofmodels.
+arXivpreprintarXiv:2407.21783,2024.
+Qingyan Guo, Rui Wang, Junliang Guo, Bei Li, Kaitao Song, Xu Tan, Guoqing Liu, Jiang Bian,
+andYujiuYang. Connectinglargelanguagemodelswithevolutionaryalgorithmsyieldspowerful
+promptoptimizers. InTheTwelfthInternationalConferenceonLearningRepresentations,2024.
+URLhttps://openreview.net/forum?id=ZG3RaNIsO8.
+LianzheHuang, ShumingMa, DongdongZhang, Furu Wei, and HoufengWang. Zero-shotcross-
+lingual transfer of prompt-based tuning with a unified multilingual prompt. In Yoav Goldberg,
+Zornitsa Kozareva, and Yue Zhang (eds.), Proceedings of the 2022 Conference on Empirical
+MethodsinNaturalLanguageProcessing,pp.11488–11497,AbuDhabi,UnitedArabEmirates,
+December2022.AssociationforComputationalLinguistics.doi:10.18653/v1/2022.emnlp-main.
+790. URLhttps://aclanthology.org/2022.emnlp-main.790.
+Takeshi Kojima, Shixiang Shane Gu, Machel Reid, Yutaka Matsuo, and Yusuke Iwasawa. Large
+language models are zero-shot reasoners. Advances in neural information processing systems,
+35:22199–22213,2022.
+Brian Lester, Rami Al-Rfou, and Noah Constant. The power of scale for parameter-efficient
+prompt tuning. In Marie-Francine Moens, Xuanjing Huang, Lucia Specia, and Scott Wen-
+tau Yih (eds.), Proceedings of the 2021 Conference on Empirical Methods in Natural Lan-
+guage Processing, pp. 3045–3059, Online and Punta Cana, Dominican Republic, November
+2021.AssociationforComputationalLinguistics. doi: 10.18653/v1/2021.emnlp-main.243. URL
+https://aclanthology.org/2021.emnlp-main.243.
+Moxin Li, Wenjie Wang, Fuli Feng, Yixin Cao, Jizhi Zhang, and Tat-Seng Chua. Robust prompt
+optimizationforlargelanguagemodelsagainstdistributionshifts. InHoudaBouamor,JuanPino,
+and Kalika Bali (eds.), Proceedings of the 2023 Conference on Empirical Methods in Natural
+Language Processing, pp. 1539–1554, Singapore, December 2023a. Association for Computa-
+tionalLinguistics.doi:10.18653/v1/2023.emnlp-main.95.URLhttps://aclanthology.org/
+2023.emnlp-main.95.
+Shuang Li, Xuming Hu, Aiwei Liu, Yawen Yang, Fukun Ma, Philip S. Yu, and Lijie Wen. En-
+hancing cross-lingual natural language inference by soft prompting with multilingual verbal-
+izer. In Anna Rogers, Jordan Boyd-Graber, and Naoaki Okazaki (eds.), Findings of the As-
+sociation for Computational Linguistics: ACL 2023, pp. 1361–1374, Toronto, Canada, July
+2023b.AssociationforComputationalLinguistics. doi: 10.18653/v1/2023.findings-acl.88. URL
+https://aclanthology.org/2023.findings-acl.88.
+Xiang Lisa Li and Percy Liang. Prefix-tuning: Optimizing continuous prompts for generation.
+In Chengqing Zong, Fei Xia, Wenjie Li, and Roberto Navigli (eds.), Proceedings of the 59th
+AnnualMeetingoftheAssociationforComputationalLinguisticsandthe11thInternationalJoint
+ConferenceonNaturalLanguageProcessing(Volume1: LongPapers),pp.4582–4597,Online,
+August 2021. Association for Computational Linguistics. doi: 10.18653/v1/2021.acl-long.353.
+URLhttps://aclanthology.org/2021.acl-long.353.
+PercyLiang,RishiBommasani,TonyLee,DimitrisTsipras,DilaraSoylu,MichihiroYasunaga,Yian
+Zhang, Deepak Narayanan, Yuhuai Wu, Ananya Kumar, et al. Holistic evaluation of language
+models. arXivpreprintarXiv:2211.09110,2022.
+12XiVictoriaLin,TodorMihaylov,MikelArtetxe,TianluWang,ShuohuiChen,DanielSimig,Myle
+Ott,NamanGoyal,ShrutiBhosale,JingfeiDu,etal. Few-shotlearningwithmultilingualgener-
+ativelanguagemodels. InProceedingsofthe2022ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing,pp.9019–9052,2022.
+XiaoLiu,KaixuanJi,YichengFu,WengTam,ZhengxiaoDu,ZhilinYang,andJieTang. P-tuning:
+Prompttuningcanbecomparabletofine-tuningacrossscalesandtasks. InSmarandaMuresan,
+Preslav Nakov, and Aline Villavicencio (eds.), Proceedings of the 60th Annual Meeting of the
+AssociationforComputationalLinguistics(Volume2: ShortPapers),pp.61–68,Dublin,Ireland,
+May2022.AssociationforComputationalLinguistics. doi: 10.18653/v1/2022.acl-short.8. URL
+https://aclanthology.org/2022.acl-short.8.
+Nohil Park, Joonsuk Park, Kang Min Yoo, and Sungroh Yoon. On the analysis of cross-lingual
+prompttuningfordecoder-basedmultilingualmodel. arXivpreprintarXiv:2311.07820,2023.
+Edoardo Maria Ponti, Goran Glavasˇ, Olga Majewska, Qianchu Liu, Ivan Vulic´, and Anna Korho-
+nen. XCOPA: A multilingual dataset for causal commonsense reasoning. In Bonnie Webber,
+Trevor Cohn, Yulan He, and Yang Liu (eds.), Proceedings of the 2020 Conference on Empir-
+ical Methods in Natural Language Processing (EMNLP), pp. 2362–2376, Online, November
+2020.AssociationforComputationalLinguistics. doi: 10.18653/v1/2020.emnlp-main.185. URL
+https://aclanthology.org/2020.emnlp-main.185.
+ReidPryzant, DanIter, JerryLi, YinLee, ChenguangZhu, andMichaelZeng. Automaticprompt
+optimizationwith“gradientdescent”andbeamsearch. InHoudaBouamor, JuanPino, andKa-
+likaBali(eds.),Proceedingsofthe2023ConferenceonEmpiricalMethodsinNaturalLanguage
+Processing, pp. 7957–7968, Singapore, December 2023. Association for Computational Lin-
+guistics. doi: 10.18653/v1/2023.emnlp-main.494. URLhttps://aclanthology.org/2023.
+emnlp-main.494.
+Guanghui Qin and Jason Eisner. Learning how to ask: Querying LMs with mixtures of soft
+prompts.InKristinaToutanova,AnnaRumshisky,LukeZettlemoyer,DilekHakkani-Tur,IzBelt-
+agy, Steven Bethard, Ryan Cotterell, Tanmoy Chakraborty, and Yichao Zhou (eds.), Proceed-
+ings of the 2021 Conference of the North American Chapter of the Association for Computa-
+tional Linguistics: Human Language Technologies, pp. 5203–5212, Online, June 2021. Asso-
+ciation for Computational Linguistics. doi: 10.18653/v1/2021.naacl-main.410. URL https:
+//aclanthology.org/2021.naacl-main.410.
+RafaelRafailov,ArchitSharma,EricMitchell,ChristopherDManning,StefanoErmon,andChelsea
+Finn. Directpreferenceoptimization:Yourlanguagemodelissecretlyarewardmodel. Advances
+inNeuralInformationProcessingSystems,36,2024.
+Nils Reimers and Iryna Gurevych. Sentence-bert: Sentence embeddings using siamese bert-
+networks. In Proceedings of the 2019 Conference on Empirical Methods in Natural Language
+Processingandthe9thInternationalJointConferenceonNaturalLanguageProcessing(EMNLP-
+IJCNLP),pp.3982–3992,2019.
+AbelSalinasandFredMorstatter. Thebutterflyeffectofalteringprompts: Howsmallchangesand
+jailbreaksaffectlargelanguagemodelperformance. arXivpreprintarXiv:2401.03729,2024.
+HongSun,XueLi,YinchuanXu,YoukowHomma,QiCao,MinWu,JianJiao,andDenisCharles.
+Autohint:Automaticpromptoptimizationwithhintgeneration.arXivpreprintarXiv:2307.07415,
+2023.
+MiracSuzgun,NathanScales,NathanaelScha¨rli,SebastianGehrmann,YiTay,HyungWonChung,
+AakankshaChowdhery,QuocVLe,EdHChi,DennyZhou,etal. Challengingbig-benchtasks
+andwhetherchain-of-thoughtcansolvethem. arXivpreprintarXiv:2210.09261,2022.
+XingchenWan, RuoxiSun, HanjunDai, SercanArik, andTomasPfister. Betterzero-shotreason-
+ing with self-adaptive prompting. In Anna Rogers, Jordan Boyd-Graber, and Naoaki Okazaki
+(eds.), Findings of the Association for Computational Linguistics: ACL 2023, pp. 3493–3514,
+Toronto,Canada,July2023.AssociationforComputationalLinguistics. doi: 10.18653/v1/2023.
+findings-acl.216. URLhttps://aclanthology.org/2023.findings-acl.216.
+13Xinyuan Wang, Chenxi Li, Zhen Wang, Fan Bai, Haotian Luo, Jiayou Zhang, Nebojsa Jojic, Eric
+Xing, and Zhiting Hu. Promptagent: Strategic planning with language models enables expert-
+levelpromptoptimization.InTheTwelfthInternationalConferenceonLearningRepresentations,
+2024. URLhttps://openreview.net/forum?id=22pyNMuIoa.
+Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao Liu, Quoc V Le, Denny Zhou, and Xinyun
+Chen.Largelanguagemodelsasoptimizers.InTheTwelfthInternationalConferenceonLearning
+Representations,2024. URLhttps://openreview.net/forum?id=Bb4VGOWELI.
+Mert Yuksekgonul, Federico Bianchi, Joseph Boen, Sheng Liu, Zhi Huang, Carlos Guestrin, and
+James Zou. Textgrad: Automatic” differentiation” via text. arXiv preprint arXiv:2406.07496,
+2024.
+WanruZhao,YihongChen,RoysonLee,XinchiQiu,YanGao,HongxiangFan,andNicholasDon-
+ald Lane. Breaking physical and linguistic borders: Multilingual federated prompt tuning for
+low-resource languages. In International Workshop on Federated Learning in the Age of Foun-
+dation Models in Conjunction with NeurIPS 2023, 2023. URL https://openreview.net/
+forum?id=HyRwexERAo.
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han, Keiran Paster, Silviu Pitis, Harris Chan, and
+Jimmy Ba. Large language models are human-level prompt engineers. In The Eleventh Inter-
+national Conference on Learning Representations, 2023. URL https://openreview.net/
+forum?id=92gvk82DE-.
+14A Appendix
+A.1 DiscussionaboutValidationSet
+100
+90
+80
+70
+60
+50
+40
+0 10 20 30 40 50
+Iteration
+ycaruccA
+100
+Train
+90
+Valid
+80
+70
+60
+50
+40
+30
+0 10 20 30 40 50
+Iteration
+(a)geometric shapestask
+ycaruccA
+Train
+Valid
+(b)disambiguation qatask
+Figure5: AccuracyasafunctionofnumberoftrainingexamplesforLCP,AutoHint,andOPRO.
+WedidnotuseavalidationsetforourexperimentsfollowingOPRO(Yangetal.,2024)andAuto-
+Hint(Sunetal.,2023),andbasedonourexperiments. Weshowthetrainingandvalidationaccuracy
+curveswhenwedosetupavalidationsetasideinFigure5ontwotasks. Weuseasplitof33.33%
+training,33.33%validation,and33.33%testingsetstoshowtheseresults.
+Weobservethatthereisnoinherentbias-variancetrade-offbetweenthetraining/validationaccura-
+cies; typically validation accuracy follows training accuracy. We observe a moderate Spearman’s
+correlation between 0.45-0.55 (p-values<0.001), showing that they are quite correlated. Further,
+we see that our method does not really overfit; training accuracy is lower or similar to validation
+accuracy unlike overfitting exhibited by OPRO as noted by Yang et al. (2024). Unlike traditional
+fine-tuningmachinelearningregimewherethetrainingdatagetsembeddedintothemodelweights,
+itisquiteclearonhowtodefineoverfittinginpromptoptimizationexceptpromptsbecomingtoospe-
+cifictothetrainingsamples. Sincepromptaccuracieschangesignificantlyiteration-over-iteration,
+further exploration is needed in this space to devise a way of final prompt selection. To keep it
+consistentwithpriorworks(Yangetal.,2024;Sunetal.,2023)andtokeepthingssimpleinabsence
+ofanevidenceofover-fitting,wechosetouselastiterationpromptandpromptwithbestaccuracy
+ontrainingset.
+A.2 PromptSimilarityVisualization
+We visualize the performance over prompt embeddings in Figure 6. Using sentence trans-
+former (Reimers & Gurevych, 2019), we embed the prompts generated over 50 iterations on
+the snarks task. This three-dimensional histogram plots the distribution of prompts in a two-
+dimensional embedding space selected using the first two principal components representing a
+reduced-dimensional representation of the prompt space. The z-axis, represents the performance
+metricofeachprompt. Thevaryingheightsoftheuniformblue-graybarsillustratetheperformance
+landscapeacrosstheembeddingspace.
+Two regions appear prominently on this: low performing prompts facing us and high performing
+prompts facing away from us. There is a notion of a boundary line dividing the two regions. Our
+analysisofthisvisualizationrevealsthatsemanticallysimilarprompts,representedbynearbypoints
+intheembeddingspace,tendtoyieldcomparableperformanceresults. Thisisevidencedbyclusters
+ofbarswithsimilarheights. However,evenslightchangesintheprompt,especiallyfortheprompts
+closertotheboundary,canleadtosignificantvariationsinperformance,highlightingthesensitivity
+ofoptimizationmethodstopromptformulation.
+Itdemonstratesthatwhilesemanticsimilarityoftencorrelateswithperformancesimilarity,therela-
+tionshipisnotalwaysstraightforward. Thecomplexlandscapedepictedhereemphasizesthechal-
+lengesandopportunitiesinpromptoptimizationwithahardtomapprompt-accuracymanifold. Our
+diversity injection and contrastive learning framework helped explore and guide the prompt opti-
+15Figure 6: Visualization of prompt similarity: generated prompts in a 2D embedding space versus
+theperformanceonsnarkstaskonthez-axis.
+mizationthroughthisspace. Moreworkneedstobedonetounderstandhowtocreatemethodsto
+navigatethismanifold.
+A.3 NumberofContrastivePrompts
+Table5: PerformanceresultswithablationonnumberofpromptsusedforContrastivelearning. We
+presentthelast/bestperformanceforeachtask.
+Task 2 3 4 5
+date understanding 79.0/76.5 75.5/74.5 77.5/73.5 78.5/78.0
+reasoning about colored objects 85.5/83.5 85.3/84.4 84.5/81.0 85.5/84.0
+Table5showstheablationofnumberofselectedpromptsforcontrastivelearning’sfeedback. We
+observethereissomevariationintheperformanceacrossthenumberofpromptsbutnocleartrend.
+Hence, no clear choice of which number of prompts to select. We chose 3 as higher number of
+promptsincurmuchmorecomputationcosts.
+A.4 Numberofselectedwrongdatasamples
+AutoHint(Sunetal.,2023)observedthatusingnomorethan3samplesperiterationachievesthe
+bestperformance,asmoresamplescouldconfusetheLLMwhengeneratingthesummary. Wealso
+investigatehowtheperformancevarieswithdifferentnumbersofselectedwrongsamplesinTable6.
+Wedonotobserveaclearbenefitofincreasingthenumberfromthree. Hence,weusethreewrong
+samplesduringourexperimentsinaccordancewithAutoHint.
+Table6: Performanceresultswithablationonnumberofwrongsamplesperformance. Wepresent
+thelast/bestperformanceforeachtask.
+Task 3 4 5 6
+date understanding 75.5/74.5 70.5/75.0 77.0/72.5 77.0/74.0
+reasoning about colored objects 85.3/84.4 81.0/85.5 79.5/82.5 82.5/83.0
+16A.5 Metaprompt
+ReasonGenerationPrompt
+Giveninput: [INPUT]
+Anditsexpectedoutput: [OUTPUT]
+Explain the reason why the input corresponds to the given expected output. The reason
+shouldbeplacedwithintag<reason></reason>.
+SummarizationPrompt
+Given input and expected output pairs, along with the reason for generated outputs, pro-
+vide a summarized common reason applicable to all cases within tags <summary> and
+</summary>.
+Thesummaryshouldexplaintheunderlyingprinciples,logicormethodologygoverningthe
+relationship between the inputs and corresponding outputs. Avoid mentioning any specific
+details,numbers,orentitiesfromtheindividualexamples,andaimforageneralizedexpla-
+nation.
+High-levelContrastivePrompt
+Givenmexamplesofgoodpromptsandtheircorrespondingscoresandmexamplesofbad
+promptsandtheircorrespondingscores,exploretheunerlyingpatternofgoodprompts,gen-
+erate a new prompt based on this pattern. Put the new prompt within tag <prompt> and
+</prompt>.
+Goodpromptsandscores:
+Prompt1: [PROMPT1]
+Score: [SCORE1]
+...
+Promptm: [PROMPTm]
+Score: [SCOREm]
+Low-levelContrastivePrompts
+Givenmpromptpairsandtheircorrespondingscores,explainwhyonepromptisbetterthan
+others.
+Promptpairsandscores:
+Prompt1: [PROMPT1]
+Score: [SCORE1]
+...
+Promptm: [PROMPTm]
+Score: [SCOREm]
+Summarizetheseexplanationandgenerateanewpromptaccordingly. Putthenewprompt
+withintag<prompt>and</prompt>.
+17A.6 DetailedResultsonLCPAblations
+Table7andTable8showdetailedresultsonaccuraciesandwinratesoverthe17tasksfortheBBH
+dataforthetwoablationstudies: w/andw/ocontrastivelearning,andnumberofgeneratedprompt
+candidates,respectively.
+Table 7: Test accuracy of LCP with and w/o contrastive learning on four types of 17 BBH tasks
+forlastiterationprompt(Last)versusthepromptwithbesttrainingaccuracy(Best). Blueindicates
+overallbestwinratesforLastorBest.
+TASK LCP LCP(w/ocontrastivelearning)
+Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 51.25/61.00 53.50/56.00
+logical deduction three objects 92.50/90.25 93.00/93.00
+logical deduction five objects 71.50/74.50 71.00/70.00
+logical deduction seven objects 62.00/62.50 58.00/53.00
+penguins in a table 97.86/96.15 94.23/93.87
+reasoning about colored objects 85.30/84.40 80.50/83.50
+temporal sequences 98.25/97.00 94.50/98.50
+tracking shuffled objects three objects 92.00/99.00 89.50/90.00
+tracking shuffled objects five objects 90.50/95.50 94.50/92.50
+tracking shuffled objects seven objects 92.10/98.30 89.50/92.50
+WinRate(%) 70.00/80.00 30.00/20.00
+NaturalLanguageUnderstanding
+disambiguation qa 66.83/66.33 70.50/63.50
+hyperbaton 78.25/84.00 79.00/79.50
+salient translation error detection 57.25/69.50 66.50/66.00
+snarks 65.73/70.98 67.73/68.23
+WinRate(%) 0.00/100.00 100.00/0.00
+UseofWorldKnowledge
+date understanding 75.50/74.50 77.00/75.00
+movie recommendation 87.75/85.50 85.00/75.00
+ruin names 76.50/75.25 77.50/78.00
+WinRate(%) 33.00/33.00 67.00/67.00
+MultilingualKnowledgeandReasoning
+salient translation error detection 57.25/69.50 66.50/66.00
+WinRate(%) 0.00/100.00 100.00/0.00
+OverallWinRate(%) 47.06/76.47 52.94/23.53
+18Table 8: Test accuracy of LCP with different values of number of prompt candidates (N) on four
+typesof17BBHtasksforlastiterationprompt(Last)versusthepromptwithbesttrainingaccuracy
+(Best). BlueindicatesoverallbestwinratesforLastorBest.
+TASK N =10 N =6 N =4 N =2
+Last/Best Last/Best Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 51.25/61.00 54.00/58.50 50.50/60.00 52.00/56.50
+logical deduction three objects 92.50/90.25 84.00/90.50 87.00/87.00 82.00/80.50
+logical deduction five objects 71.50/74.50 62.00/62.00 59.00/59.00 60.00/60.50
+logical deduction seven objects 62.00/62.50 63.00/58.50 59.00/55.00 54.50/55.00
+penguins in a table 97.86/96.15 94.87/94.87 96.58/96.58 95.73/95.73
+reasoning about colored objects 85.30/84.40 83.00/87.00 86.50/83.50 82.50/82.50
+temporal sequences 98.25/97.00 99.50/96.50 96.00/96.00 95.50/99.50
+tracking shuffled objects three objects 92.00/99.00 94.50/94.50 94.00/99.00 95.50/95.50
+tracking shuffled objects five objects 90.50/95.50 78.50/78.50 92.50/92.50 98.50/95.00
+tracking shuffled objects seven objects 92.10/98.30 93.50/96.50 85.00/88.50 79.00/79.00
+WinRate(%) 63.00/83.00 60.00/47.00 43.00/37.00 33.00/27.00
+NaturalLanguageUnderstanding
+disambiguation qa 66.83/66.33 66.00/68.00 68.00/71.00 66.00/63.00
+hyperbaton 78.25/84.00 82.00/81.50 82.00/82.50 81.50/83.50
+salient translation error detection 57.25/69.50 70.00/70.00 65.50/68.50 67.50/65.50
+snarks 65.73/70.98 60.14/60.14 74.13/76.22 71.33/71.33
+WinRate(%) 25.00/58.00 42.00/42.00 75.00/67.00 42.00/33.00
+UseofWorldKnowledge
+date understanding 75.50/74.50 72.00/72.00 73.50/74.00 74.00/76.00
+movie recommendation 87.75/85.50 86.50/87.50 79.00/77.00 82.00/83.00
+ruin names 76.50/75.25 76.00/79.50 79.00/80.00 80.00/77.50
+WinRate(%) 78.00/44.00 22.00/56.00 33.00/44.00 67.00/56.00
+MultilingualKnowledgeandReasoning
+salient translation error detection 57.25/69.50 70.00/70.00 65.50/68.50 67.50/65.50
+WinRate(%) 0.00/67.00 100.0/100.0 33.00/33.00 67.00/0.00
+OverallWinRate(%) 56.86/70.59 49.02/47.06 49.02/45.10 41.18/33.33
+A.7 DetailedResultsofModelAdaptation
+19Table 9: Comparison of prompt adaptation and prompt optimization on Claude-3-Sonnet from
+Claude-3-Haiku:accuracyonBBHtasksforlastiterationpromptversusbestpromptonthetraining
+set. BlueindicatesoverallbestwinratesforLastorBest.
+TASK LCPAdaptation LCPOptimization HaikuOptimized
+Last/Best Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 70.50/68.00 44.80/63.40 44.50/50.50
+logical deduction three objects 95.50/91.50 90.80/91.30 65.00/87.50
+logical deduction five objects 61.00/71.50 70.50/70.00 51.00/62.00
+logical deduction seven objects 59.50/58.00 62.80/63.60 82.50/57.50
+penguins in a table 93.20/95.70 97.20/94.40 85.00/95.70
+reasoning about colored objects 82.50/84.00 85.30/84.50 66.50/84.50
+temporal sequences 96.50/97.00 96.80/95.50 25.50/98.00
+tracking shuffled objects three objects 91.00/96.50 96.80/98.80 84.50/97.00
+tracking shuffled objects five objects 93.00/93.50 94.90/95.70 95.70/94.50
+tracking shuffled objects seven objects 94.50/96.50 92.10/98.30 79.50/89.00
+WinRates(%) 55.00/55.00 75.00/65.00 20.00/40.00
+NaturalLanguageUnderstanding
+disambiguation qa 61.50/73.50 67.00/61.10 72.50/70.50
+hyperbaton 82.00/83.50 70.00/59.30 69.00/76.50
+salient translation error detection 68.50/69.00 53.10/42.40 63.60/65.00
+snarks 66.40/76.20 47.90/51.00 99.50/66.40
+WinRates(%) 62.50/100.0 25.00/0.00 62.50/50.00
+UseofWorldKnowledge
+date understanding 73.50/72.50 75.50/56.50 97.50/73.00
+movie recommendation 51.00/87.50 75.90/78.90 91.00/86.50
+ruin names 76.50/79.50 65.90/69.30 87.00/80.00
+WinRates(%) 16.67/66.67 33.33/0.00 100.0/83.33
+MultilingualKnowledgeandReasoning
+salient translation error detection 68.50/69.00 53.10/42.40 63.60/65.00
+WinRates(%) 100.0/100.0 0.00/0.00 50.00/50.00
+OverallWinRates(%) 50.00/67.65 55.88/38.24 44.12/50.00
+20Table 10: Comparison of prompt adaptation and prompt optimization on Claude-3-Haiku from
+Claude-3-Sonnet:accuracyonBBHtasksforlastiterationpromptversusbestpromptonthetraining
+set.
+TASK LCPAdaptation LCPOptimization SonnetOptimized
+Last/Best Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 51.50/51.60 46.00/52.50 71.50/54.00
+logical deduction three objects 76.00/78.50 70.00/68.00 67.00/76.50
+logical deduction five objects 50.00/52.50 55.00/50.00 47.50/54.50
+logical deduction seven objects 42.50/47.00 7.00/41.00 87.00/43.50
+penguins in a table 82.90/86.30 79.50/82.90 78.00/82.90
+reasoning about colored objects 64.50/66.50 67.50/69.00 53.50/67.00
+temporal sequences 83.50/91.80 93.00/94.20 44.50/88.50
+tracking shuffled objects three objects 64.00/66.00 67.00/66.00 66.00/73.50
+tracking shuffled objects five objects 43.00/71.00 67.50/64.00 85.50/71.50
+tracking shuffled objects seven objects 55.00/60.00 62.50/64.00 58.00/62.50
+WinRates(%) 40.00/50.00 70.00/45.00 40.00/65.00
+NaturalLanguageUnderstanding
+disambiguation qa 67.00/66.00 61.00/63.50 75.00/65.50
+hyperbaton 87.00/86.50 88.00/86.50 52.50/88.00
+salient translation error detection 56.50/54.00 51.50/53.50 67.80/54.50
+snarks 68.50/72.70 59.40/69.90 87.00/71.30
+WinRates(%) 50.00/75.00 25.00/12.50 75.00/75.00
+UseofWorldKnowledge
+date understanding 79.50/66.00 24.00/69.00 68.00/74.00
+movie recommendation 73.50/72.50 80.00/78.00 67.00/69.50
+ruin names 48.50/65.00 60.50/72.50 63.50/65.00
+WinRates(%) 50.00/33.33 50.00/83.33 50.00/50.00
+MultilingualKnowledgeandReasoning
+salient translation error detection 56.50/54.00 51.50/53.50 67.80/54.50
+WinRates(%) 50.00/50.00 0.00/0.00 100.0/100.0
+OverallWinRates(%) 44.12/52.94 55.88/44.12 50.00/64.71
+21Table11: ComparisonofpromptadaptationandpromptoptimizationonfromClaude3Sonnet→
+LLAMA3. :accuracyonBBHtasksforlastiterationpromptversusbestpromptonthetrainingset.
+BlueindicatesoverallbestwinratesforLastorBest.
+TASK LCPadaptation LCPoptimization SonnetOptimized
+Last/Best Last/Best Last/Best
+AlgorithmicandMulti-StepArithmeticReasoning
+geometric shapes 21.00/30.50 10.50/21.50 68.50/27.50
+logical deduction three objects 68.00/83.50 67.50/79.00 57.00/73.00
+logical deduction five objects 38.50/53.00 53.00/50.00 28.50/56.50
+logical deduction seven objects 40.50/50.50 37.00/43.00 58.00/42.50
+penguins in a table 59.80/66.70 67.50/72.60 73.50/73.50
+reasoning about colored objects 66.00/62.50 67.50/59.50 49.50/68.00
+temporal sequences 78.00/85.50 78.50/88.00 45.00/86.50
+tracking shuffled objects three objects 57.50/68.00 65.50/63.00 41.50/71.50
+tracking shuffled objects five objects 72.00/77.00 76.50/76.50 78.60/69.00
+tracking shuffled objects seven objects 38.00/53.50 59.00/59.50 71.50/58.00
+WinRate(%) 40.00/55.00 60.00/40.00 50.00/55.00
+NaturalLanguageUnderstanding
+disambiguation qa 56.50/62.50 51.00/63.50 67.00/59.50
+hyperbaton 52.50/55.50 53.50/60.50 36.00/60.00
+salient translation error detection 40.00/44.00 37.50/48.00 55.20/25.50
+snarks 36.40/46.90 45.50/64.30 80.00/52.40
+WinRate(%) 37.50/25.00 37.50/100.0 75.00/25.00
+UseofWorldKnowledge
+date understanding 58.50/69.50 42.50/62.50 71.00/67.00
+movie recommendation 44.00/63.00 60.00/62.50 75.00/42.50
+ruin names 72.00/70.50 55.00/74.50 69.00/65.00
+WinRate(%) 50.00/83.33 16.67/50.00 83.33/16.67
+MultilingualKnowledgeandReasoning
+salient translation error detection 40.00/44.00 37.50/48.00 55.20/25.50
+WinRate(%) 50.00/50.00 0.00/100.00 100.00/0.00
+OverallWinRate(%) 41.18/52.94 47.06/55.88 61.76/41.18
+22A.8 ExamplesofGeneratedPrompts
+Table12: ComparisonofpromptsgeneratedbyourproposedLCP,AutoHintandOPRO.
+TASK Method GeneratedPrompts
+geometric shapes LCP To determine the expected output shape from an SVG
+pathelement,followthesesteps:
+1. Parsethepathdatastringandidentifythedistinctline
+segmentsformedbythepathcommandsandcoordinates.
+2. Count the number of line segments, as each segment
+represents a side of the resulting polygon. 3. Map the
+numberofsidestothecorrespondingpolygonname(e.g.,
+3sides=triangle,4sides=quadrilateral,5sides=pen-
+tagon,6sides=hexagon,7sides=heptagon,andsoon).
+4. NotethatthepathdatatypicallystartswithamoveTo
+(M)commandtosettheinitialpoint,followedbylineTo
+(L) commands that define the sides of the polygon by
+connectingthevertices.
+Byfollowingthisprocess,youcanaccuratelyidentifythe
+expected output shape based on the number of sides de-
+terminedfromtheSVGpathdata.
+AutoHint The summarized reason for the expected outputs is that
+theSVGpathelementwiththegiven”d”attributevalue
+defines a series of line segments that connect specific
+points, forming a closed geometric shape. The coordi-
+natesspecifiedinthe”d”attributedeterminethevertices
+or corners of the shape, and the sequence of line seg-
+mentsconnectingthesepointsoutlinestheoverallgeom-
+etry. Byanalyzingthenumberofsidesoranglesformed
+bytheconnectedlinesegments,onecanidentifythetype
+of polygon or shape being drawn, such as a kite, trape-
+zoid,orpentagon.
+OPRO The SVG path element specifies a sequence of line seg-
+ments and coordinates that connect to form a closed
+polygonal shape. By analyzing the path data, which de-
+finestheverticesandlinesegments,thenumberofsides
+intheresultingpolygoncanbedetermined. Forexample,
+ifthepathdataformsaclosedshapewith3verticesand
+3linesegments,theexpectedoutputwouldbeatriangle.
+Similarly,shapeswith4,5,6,ormoresideswouldcorre-
+spondtoquadrilaterals,pentagons,hexagons,andsoon,
+respectively. The task is to examine the path data and
+identifythetypeofpolygoncreatedbasedonthenumber
+oflinesegmentsandverticesintheclosedshape.
+logical deduction three objects LCP 1)Carefullyanalyzingthegivencomparativestatements
+that describe relationships or ordering among three ob-
+jects.
+2)Usinglogicalreasoninganddeductiveskillstoestab-
+lishthecompleteorderorrankingoftheobjectsbasedon
+theprovidedinformation.
+3)Identifyingtheobjectthatsatisfiesthespecificcondi-
+tion or criteria mentioned in the question (e.g., second-
+oldest,second-mostexpensive)basedonthededucedor-
+derorranking.
+4) The reasons should explain how the correct option is
+determined by logically interpreting the statements and
+accurately reflecting the deduced order through careful
+analysisandreasoning.
+23AutoHint The summarized reasons are: In these types of ques-
+tions, the key is to carefully analyze the given state-
+ments and logically deduce the order or ranking of the
+objects/entities based on the provided information. The
+statements establish relationships between the objects,
+suchas”newerthan,””lessexpensivethan,”or”finished
+before/after.”Bypiecingtogethertheserelationships,one
+caninferthecorrectorderorranking,eliminatingthein-
+correctoptionsandidentifyingthevalidanswerchoice.
+OPRO Tosolvetheseproblems,thecrucialstepismeticulously
+analyzingtheprovidedstatementsthatdescribethecom-
+parisons or relative qualities among the three objects.
+By logically interpreting these clues and deducing their
+implications, we can establish the complete ordering or
+ranking of the objects. Once this order is determined,
+the task is to identify the object that satisfies the speci-
+fied condition, such as being the second-most expensive
+orsecond-newest,toarriveatthecorrectsolution.
+logical deduction five objects LCP Toreliablysolveorderingandsequenceproblemsthatre-
+quirededucingthecorrectarrangementbasedonlogical
+constraints,followthesesteps:
+1. Carefully read and analyze each given statement or
+conditiontoidentifyconstraintsontheordering,suchas
+explicit mentions of absolute positions (e.g. ”X is the
+first”), relative comparisons (e.g. ”Y is more expensive
+thanZ”),orranges(e.g.”Aisoneofthethreecheapest”).
+2. Translate each statement into a logical constraint on
+theorderingandusereasoningtodeducepartialorderings
+orrelationshipsbetweenobjectsorentitiesbasedonthese
+constraints.
+3. Systematically combine these partial orderings and
+relativerelationshipsbyconsideringallpossiblearrange-
+mentsandeliminatinganythatcontradictthegiveninfor-
+mation.
+4. Constructthecompletesequenceorrankingthatsatis-
+fiesallconstraintssimultaneously.
+5. Map this deduced ordering to the specific condition
+asked in the question (e.g. third from the left, second
+mostexpensive)todeterminetheexpectedoutputorcor-
+rectoption.
+Bymethodicallyidentifyingconstraints,applyinglogical
+reasoningtodeduceorderings,andmappingthesolution
+to the requested condition, you can reliably solve these
+typesoforderingproblems.
+AutoHint The summarized reasons are: The expected output is
+based on the explicit statements or logical implications
+provided in the given information, which establish the
+correct ordering or relationship among the entities in-
+volved.
+24OPRO Tosolveorderingproblemsbasedonlogicalstatements,
+followthissystematicapproach:
+1. Carefully read through all the given statements that
+describe relationships between objects or their positions
+relativetoeachotherortheends.
+2. Identifyanydirectstatementsabouttheexactposition
+ofanobject(e.g.,”Xisthethirdfromtheleft”).
+3. Look forcomparative statementsthat indicate theor-
+derbetweentwoobjects(e.g.,”YistotherightofZ”).
+4. Usetheidentifiedinformationtoreconstructtheover-
+all order by positioning objects based on their relation-
+shipsandconstraints.
+5. Whileconstructingtheorder,makevalidlogicalinfer-
+encesfromthegiveninformationtodeducethepositions
+ofobjectsnotdirectlyspecified.
+6. Checkifthededucedordersatisfiesallthegivenstate-
+mentsconsistentlywithoutviolatinganyconstraints.
+7. The option corresponding to this fully reconstructed
+orderthatmeetsalltheconditionsisthecorrectanswer.
+By meticulously following this step-by-step approach
+and making careful logical deductions, you can reliably
+solve ordering problems based on statements describing
+relativepositions.
+logical deduction seven objects LCP To solve logical reasoning problems involving the order
+orrelativepositionsofobjects,followthissystematicap-
+proach:
+1) Thoroughly read and comprehend all the given state-
+ments or constraints describing the relationships, posi-
+tions,orordersoftheobjects.
+2)Identifyanydefinitiveplacementsororderingsofob-
+jectsthatareexplicitlystatedintheconstraints.
+3)Uselogicaldeductiontoderiveadditionalconstraints,
+implications,orrelationshipsbasedonthegiveninforma-
+tionandthedefinitiveplacements/orderingsidentifiedin
+step2.
+4) Methodically evaluate each option, eliminating those
+that violate any of the stated constraints or logically de-
+ducedimplicationsfromstep3.
+5) The remaining option(s) that adheres to all the given
+constraintsanddeducedimplicationsistheexpectedcor-
+rectoutput.
+The key is to diligently analyze the information, recog-
+nize logical relationships between objects, employ de-
+ductivereasoningbasedontheconstraints,andarriveata
+solutionthatisconsistentwithalltheprovidedinforma-
+tion.
+AutoHint Understood,Iwillprovideageneralsummaryoftherea-
+sons for the expected outputs without referring to any
+specificexamplesorentitiesmentionedinthedata.
+25OPRO Tosolvelogicproblemsinvolvingtheorderingofasetof
+objects,thekeystepsare: 1. Carefullyreadandanalyze
+all the given statements describing the relative positions
+or characteristics of the objects. 2. Identify the logical
+constraintsandrelationshipsimposedbyeachstatement,
+suchas”XistotheleftofY”or”XistallerthanY”. 3.
+Uselogicalreasoningtodeducetheimplicationsofthese
+constraintsonthepositionsoftheobjectsrelativetoeach
+other. 4. Systematically combine the deduced informa-
+tion to reconstruct the complete order while ensuring it
+satisfies all the provided conditions. 5. Eliminate any
+options that violate the inferred order or the given con-
+straints. 6. Theoptionthatcorrectlyreflectsthededuced
+orderbasedonthegiveninformationisthesolution.
+penguins in a table LCP Tosolveaprobleminvolvingtabulardata,onemustcare-
+fully analyze the information presented in the given ta-
+ble(s). Identifythespecificcolumn(s)ordatapointsthat
+are relevant to answering the question. Then, perform
+anynecessaryoperationsonthatdata,suchassorting,fil-
+tering,counting,orcalculations,aspertherequirements
+statedinthequestion. Afterlogicallyprocessingtherel-
+evantdata, youcandeterminethecorrectanswerchoice
+orexpectedoutput.
+AutoHint Thesummarizedgeneralreasonfortheexpectedoutputs
+isthattheyarebasedoncarefullyanalyzingthegivenin-
+formationordataandapplyinglogicalreasoningtoarrive
+at the correct answer. The expected outputs are deter-
+minedbythoroughlyunderstandingthecontext,identify-
+ingtherelevantdetails, andmakingdeductionsorinfer-
+encesbasedontheprovidedfactsorconditions.
+OPRO To effectively solve questions involving tabular data,
+carefully analyze the structure and contents of the given
+table(s). Identify the column(s) containing information
+pertinent to the question asked. Based on the require-
+ments stated in the question, you may need to perform
+operations such as sorting the relevant column(s) in as-
+cending or descending order, filtering the data based on
+certain criteria, counting specific occurrences, or calcu-
+lating derived values using the data. Logically process
+thetabulardatabyapplyingthenecessaryoperations,and
+use the resulting information to arrive at the correct an-
+swerchoice.
+reasoning about colored objects LCP Todeterminetheexpectedoutput,studytheprovidedset
+of items and their descriptions (color, shape, size, etc.).
+Take note of the particular attribute or condition speci-
+fied in the question, such as ”items of a certain color”
+or”itemsremainingafterremovingaspecifictype.”Sys-
+tematically go through each item, checking if it fulfills
+thestatedcondition. Countthetotalnumberofitemsthat
+meetthecriteria. Theoptionthatmatchesthisfinalcount
+representstheexpectedoutput.
+26AutoHint The summarized reasons for the expected outputs are:
+The questions provide information about a set of items
+arranged in a specific order or position relative to each
+other.Theexpectedoutputisdeterminedbycarefullyan-
+alyzingthegivendetails,suchasthecolorsoftheitems,
+theirarrangement,andthespecificitemorpositionrefer-
+encedinthequestion.Bylogicallyinterpretingthespatial
+relationshipsandattributesdescribedintheinput,onecan
+deducethecorrectanswerchoicethatsatisfiesthecondi-
+tionsstatedinthequestion.
+OPRO Tosolvetheproblemaccurately,carefullyreadthegiven
+information to identify the set of items or objects de-
+scribed,alongwiththeirrelevantattributes(suchascolor,
+type,etc.).Understandthespecificconditionoroperation
+mentioned in the question (e.g., removing certain items,
+counting items with a particular attribute). Apply this
+conditionoroperationtotheidentifiedsetofitems,mod-
+ifying or filtering the set as instructed. Then, logically
+analyzetheresultingsetofitemstodeterminetheoption
+thatcorrectlymatchesthefinalcompositionorcountaf-
+terapplyingthespecifiedcondition.
+temporal sequences LCP The expected output represents the sole remaining time
+window that is not accounted for in the person’s daily
+schedule and activities as described. It is determined
+by meticulously considering all the provided informa-
+tion about the person’s whereabouts and commitments
+throughout the day, as well as any relevant constraints
+like opening/closing hours of the location. By system-
+atically eliminating all the other time slots occupied by
+the person’s observed activities or locations, the correct
+answeremergesastheonlyunoccupiedperiodwhenthe
+personcouldhavepotentiallyvisitedthespecifieddesti-
+nation.
+AutoHint I will provide a general summary of the reasons for the
+expectedoutputs,withoutreferringtoanyspecificexam-
+plesorentitiesmentionedinthedata.
+OPRO The solution involves carefully examining the timeline
+of events and activities provided in the problem. First,
+identifyallthetimeslotswheretheperson’swhereabouts
+and activities are explicitly stated. Then, determine the
+remaining time window that is not covered by any of
+these known activities or constraints, such as the oper-
+ating hours of the location mentioned. This unoccupied
+timeperiodrepresentstheonlyavailableopportunityfor
+thepersontohavevisitedthespecifieddestination(e.g.,
+bakery,library,movietheater)beforeitclosedfortheday.
+By process of elimination, this remaining time slot be-
+comesthemostlogicalanswerforwhenthepersoncould
+havegonetothelocationinquestion.
+27tracking shuffled objects three objects LCP Tosolveproblemsinvolvingasequenceofswapsorex-
+changesbetweenmultiplepeople,itiscrucialtocarefully
+trackthemovementofeachitemorpositionthroughthe
+entire series of swaps. Begin by noting the initial state,
+mappingwhichpersonorentityholdswhichitemorposi-
+tion. Then,systematicallyfolloweachswaporexchange
+step-by-step,updatingtheholdingsorpositionsaftereach
+swap according to the provided sequence. By meticu-
+lously tracking these changes through the entire set of
+swaps,youcandeterminethefinalstateandidentifythe
+correctanswercorrespondingtotheitemorpositionheld
+bythepersonorentityinquestionafterthelastswapin-
+volvingthemhasoccurred.
+AutoHint Understood,Iwillprovideageneralsummaryoftherea-
+sons for the expected outputs without referring to any
+specificexamplesorentitiesmentionedinthedata.
+OPRO Inthesetypesofquestions,therearetypicallyseveralin-
+dividuals(say,Alex,Maya,andSameer)whoareinitially
+assignedcertainrolesorpossessions(e.g.,playingasport
+position, holding a particular object). The problem then
+describesasequenceofswapsortradesbetweenpairsof
+theseindividuals,wheretheyexchangetheirrolesorpos-
+sessions. To determine the final role or possession of a
+specificindividualafteralltheswaps,itiscrucialtocare-
+fully follow the entire sequence, meticulously updating
+each individual’s state after every swap. By accurately
+tracingtheswapsfromtheinitialassignmentstotheend,
+youcanarriveatthecorrectfinalstateorpossessionfor
+thegivenindividual.
+tracking shuffled objects five objects LCP Inthesetypesofproblemsinvolvingswapsorexchanges,
+thekeytoarrivingatthecorrectsolutionistodiligently
+track the sequence of changes that occur. By methodi-
+cally following each swap or exchange step-by-step and
+updating the current state of assignments or positions,
+one can trace the path of how entities (people, objects,
+etc.) move from their initial state to the final outcome.
+Maintaining an organized record of the swaps and their
+effects allows you to meticulously trace the progression
+untiltheend,enablingyoutodeterminethefinalconfig-
+urationaccurately.
+AutoHint Understood,Iwillprovideageneralsummaryoftherea-
+sons for the expected outputs without referring to any
+specificexamplesorentitiesmentionedinthedata.
+OPRO In these types of problems involving swaps or trades, it
+iscrucialtofirstunderstandtheinitialdistributionofob-
+jects among a group of individuals. Then, methodically
+traceeachswaportradethatoccursbetweenpairsofin-
+dividuals,carefullyupdatingtheownershipofobjectsaf-
+ter each step. By systematically following the given se-
+quence of swaps from start to end, updating who holds
+whichobjectaftereachtransaction,thefinalstateorown-
+ershipofobjectscanbeaccuratelydetermined.
+28tracking shuffled objects seven objects LCP Thesetypesofproblemsinvolvetrackingthemovement
+of objects or assignments between a set of individuals
+throughagivensequenceofswapsortrades. Thekeyto
+findingthecorrectsolutionistostartfromtheinitialstate
+where objects or roles are assigned to individuals, and
+thenmeticulouslyfolloweachswapstep-by-step,updat-
+ingtheassociationsbetweenindividualsandobjects/roles
+asdictatedbytheswapinstructions. Bycarefullyapply-
+ingtheentiresequenceofswapstotheinitialstate,keep-
+inganaccuraterecordofhowobjectsorassignmentsare
+redistributedamongtheindividuals,thefinalstatecanbe
+determined, revealing the correct output option for the
+objectorroleassociatedwithaparticularindividualafter
+allswapshaveoccurred.
+AutoHint I will provide a general summary of the reasons for the
+expectedoutputs,withoutreferringtoanyspecificexam-
+plesorentitiesmentionedinthedata.
+OPRO Inthesetypesofproblemsinvolvingswapsorexchanges
+ofitems(e.g.,gifts,positions,partners)betweenindivid-
+uals, thekeytofindingthesolutionistodiligentlytrack
+the changes that occur after each swap. Start by under-
+standing the initial state or arrangement of items among
+theindividuals. Then,systematicallyfollowthegivense-
+quenceofswaps,updatingthestatebymovingtheitems
+between individuals as specified. After applying all the
+swaps in the correct order, you will arrive at the final
+state, allowingyoutodeterminetheultimatepositionor
+ownershipoftheparticularitemorindividualinquestion.
+disambiguation qa LCP To correctly identify the antecedent (the noun or noun
+phrasethatapronounrefersto)inasentence,followthese
+steps:
+1. Examine the context and meaning of the sentence
+to understand the logical relationships and actions de-
+scribed.
+2. Identify the nouns or noun phrases that the pronoun
+could potentially refer to based on grammatical agree-
+ment (number, gender, etc.) and proximity to the pro-
+noun.
+3. Evaluate each potential antecedent by substituting it
+forthepronoun. Theantecedentshouldmaintainthelog-
+icalflowandcoherenceofthesentence.
+4. If only one potential antecedent satisfies the criteria
+in step 3, that noun or noun phrase is the unambiguous
+antecedent.
+5. If multiple potential antecedents satisfy the criteria,
+and the context does not provide enough information to
+disambiguate, thenthepronounusageisconsideredam-
+biguous.
+AutoHint The summarized reasons for determining the antecedent
+of a pronoun in a sentence are as follows: The pronoun
+typicallyreferstothesubjectorobjectofthemainclause
+that logically connects to the clause containing the pro-
+noun. The context and logical flow of the sentence pro-
+videcluestoidentifytheantecedent. Ifthepronouncan
+reasonablyrefertomultipleentitiesmentionedinthesen-
+tence,thentheantecedentisconsideredambiguousdueto
+alackofsufficientcontextualinformation.
+29OPRO Tocorrectlyidentifytheantecedent(theentitythatapro-
+noun refers to) within a sentence, it is crucial to ana-
+lyze the context and relationships described. The pro-
+nounshouldlogicallyreferencethemostplausiblenoun
+or noun phrase based on the meaning conveyed by the
+sentence. Paycloseattentiontothesurroundinginforma-
+tionandflowofideastodeterminewhichentityperforms
+or is associated with the actions mentioned. If there are
+multiplepotentialantecedentsandthecontextlackssuf-
+ficientdetailstodisambiguate,thenthepronounusageis
+considered ambiguous, as the referent cannot be defini-
+tivelypinpointed.
+hyperbaton LCP In the English language, when multiple adjectives are
+usedtodescribeanoun,theymustfollowaspecificorder
+to construct grammatically correct sentences. This con-
+ventionalorderis:Opinion,Size,Age,Shape,Color,Ori-
+gin, Material, Qualifier/Purpose, Noun. Deviating from
+this standardized sequence results in unnatural and po-
+tentiallyincorrectphrasing.
+AutoHint Thesummarizedreasonis:Thereareestablishedconven-
+tionsorrulesforthecorrectorderofadjectiveswhenmul-
+tipleadjectivesareusedtomodifyanoun. Theexpected
+outputfollowstheseconventions,ensuringthattheadjec-
+tives are arranged in the proper sequence based on their
+specificcategoriesortypes.
+OPRO In the English language, when multiple adjectives are
+used to describe a noun, they are expected to follow a
+specificorderforclearandnaturalsentenceconstruction.
+Thisestablishedorderplacesopinionadjectivesfirst,fol-
+lowed by size, age, shape, color, origin, material, and
+purposeadjectivesmodifyingthenoun. Adheringtothis
+conventionaladjectiveorderiscrucialforcoherenceand
+propercomprehensionofthedescription.
+salient translation error detection LCP Theexpectedoutputcategoryshouldcapturethetypeof
+errororchangeintroducedintheEnglishtranslationcom-
+paredtotheoriginalGermantext.Considerthefollowing
+errorcategories:
+-NamedEntities: Incorrecttranslationofpropernames,
+locations,orotherentities.
+-NumericalValues: Missing,added,oralterednumbers,
+dates,measurements,ornumericalexpressions.
+- Modifiers/Adjectives: Changes to descriptive words,
+adjectives, or modifiers that alter the attributes or qual-
+itiesofanoun.
+-Negation/Antonyms:Introductionofnegation,orswap-
+ping comparatives with their opposites/antonyms, alter-
+ingtheintendedmeaning.
+-TrivialFactualErrors: Inaccuraciesormistakesinfac-
+tualinformationunrelatedtotheothercategories.
+- Dropped Content: Significant omission of phrases,
+clauses,orpartsoftheoriginaltextinthetranslation.
+Identifywhichoftheseerrorcategoriesbestdescribesthe
+change or discrepancy observed in the given translation
+comparedtothesourceGermantext.
+30AutoHint The summarized reasons for the expected outputs in the
+given examples are: The errors in the translations can
+be categorized into different types, such as Named En-
+tities, NumericalValues, ModifiersorAdjectives, Nega-
+tionorAntonyms,Facts,andDroppedContent. Theex-
+pected outputs identify the specific type of error present
+in each translation. The reasons provided explain how
+thetranslationdeviatesfromtheoriginalmeaningorcon-
+tent, leading to the identified error type. This could in-
+volvemissingoralteringcrucialinformationlikenames,
+numerical values, modifiers, introducing negations or
+antonyms, factual inaccuracies, or omitting significant
+clausesorcontentfromtheoriginaltext.
+OPRO 1) Clearly stating that the expected output focuses on
+identifyingthetypeoferrorintroducedinthetranslation
+comparedtotheoriginaltext.
+2) Listing and explaining the different categories of er-
+ror types, such as changes to named entities, numerical
+values,modifiers/adjectives,negations/antonyms,factual
+errors,ordroppedcontent.
+3)Emphasizingthattheexpectedoutputshouldcorrectly
+categorize the specific type of error present in the trans-
+lation.
+snarks LCP Sarcasm relies on creating an intentional contradiction
+betweentheliteralwordsusedandtheunderlyingsenti-
+mentbeingconveyed. Itleveragestechniqueslikehyper-
+bole, irony, and rhetorical questioning to juxtapose op-
+posingelementsthatclearlycontradictcommonsenseor
+reality. By expressing an exaggerated or mocking ver-
+sionoftheoppositeperspective,sarcasticstatementsun-
+mask their true critical or derisive meaning beneath the
+facade of the contradictory words themselves. This dis-
+crepancybetweenthestatedwordsandintendedmeaning
+isthehallmarkofsarcasticcommunication.
+AutoHint Thesummarizedgeneralreasonfortheexpectedsarcas-
+tic outputs in the given examples is that sarcasm is ex-
+pressedthroughstatementsthatcontradictorexaggerate
+the intended meaning in an ironic or critical way. Sar-
+casticstatementsoftenconveytheoppositeoftheirliteral
+meaning, using exaggeration, irony, or contradiction to
+imply criticism, mockery, or a different intended mean-
+ingthantheliteralwordssuggest.
+OPRO Sarcasticstatementsrelyoncreatingadeliberatecontra-
+diction or contrast between the literal meaning and the
+intended meaning conveyed through irony or mockery.
+Theyoftenemploytechniqueslikeexaggeration, rhetor-
+ical questions, and juxtaposing positive/negative senti-
+ments to highlight this incongruity. The sarcasm arises
+fromthisclashbetweenthestatedwordsandthetruecrit-
+icalintentbehindthem, suggestingtheoppositeofwhat
+isexpressedliterally.
+31date understanding LCP 1) Emphasize carefully analyzing the provided informa-
+tion, such as the current or starting date, time intervals
+(days,months,years),andanycontextaboutleapyears.
+2)Outlinethekeystepsofestablishingthereferencedate,
+calculatingthetargetdatebyproperlyapplyingthespec-
+ified time periods forward or backward, and handling
+factors like the number of days in each month and year
+boundaries.
+3) Highlight the importance of paying close atten-
+tion to details and performing accurate calculations
+to arrive at the correct date in the specified format
+(MM/DD/YYYY).
+AutoHint Thesummarizedgeneralreasonfortheexpectedoutputs
+isthatthequestionsprovidespecificdetailsaboutadate
+orevent,andthecorrectanswercorrespondstothedateor
+daythatlogicallyfollowsfromthosedetails, takinginto
+account the calendar system and conventions for repre-
+sentingdates.
+OPRO To accurately determine a date based on given informa-
+tion,itiscrucialtomethodicallyfollowthesesteps:
+1. Identify the provided reference date or starting point
+from the details given. This could be a birth date, an-
+niversary,orspecificcalendardate.
+2. Determine the time period or duration to calculate
+fromthereferencedate. Thismaybeanumberofdays,
+weeks,months,oryearstobeaddedorsubtracted.
+3. Consider if the time period should be added to the
+referencedatetogetafuturedate, orsubtractedtogeta
+pastdate. Carefullyaccountforthisdirection.
+4. Perform the date calculation, properly applying the
+timeperiodwhiletakingintoaccountfactorslikenumber
+ofdaysineachmonthandadjustingforleapyearswhen
+necessary.
+5. Ensurethefinalcalculateddateispresentedintheex-
+actformatrequested(e.g. MM/DD/YYYY).
+Bydiligentlyanalyzingallprovidedinformationandim-
+plementingprecisestep-by-stepcalculationswhileadher-
+ingtocalendarconventions,thecorrectdatecanbedeter-
+minedreliably.
+movie recommendation LCP -Highlypopularandcriticallyacclaimed-Culturallyim-
+pactfulandbecameaphenomenon
+-Achievedmainstreamsuccessandglobalrecognition
+-Fromacomparabletimeperiodoreraasthereference
+movies
+-Representsasignificantworkinthecontextofpopular
+cinemawithbroadappeal
+32AutoHint The summarized reasons for the expected outputs are:
+The expected output is chosen because it shares simi-
+lar genres, tones, themes, and overall cinematic styles
+withthegivenexamples. Theselectedmoviealignswith
+the general mood, narrative elements, and target audi-
+ence of the reference films, making it the most appro-
+priate choice among the provided options. Factors like
+genre (drama, action, thriller, etc.), tone (serious, light-
+hearted, suspenseful, etc.), andthematicelements(over-
+coming adversity, romance, historical events, etc.) are
+consideredtodeterminethemostsuitableoptionthatres-
+onateswiththegivenexamplesintermsofoverallcine-
+maticexperience.
+OPRO The expected output is a movie that aligns closely with
+the examples provided in terms of genre (e.g. ac-
+tion, drama, comedy), tone/mood (e.g. lighthearted,
+gritty, emotional), level of critical praise and cultural
+significance, as well as overall production values and
+widespread appeal. The reasoning involves identifying
+thecommonalitiesbetweenthelistedmoviesintermsof
+factorslikestorytellingapproach,themesexplored,film-
+making techniques, and target audience, then selecting
+the option that best matches that collective profile in a
+waythatwouldbeconsideredacomparablecinematicex-
+perienceforviewersfamiliarwiththegivenexamples.
+ruin names LCP The expected output involves humorous edits that play-
+fullymodifytheoriginalnamesorphrasesthroughclever
+linguistic techniques. These may include substituting a
+wordwithonethatcontrastshumorously,splittingwords
+and recombining the parts to create new meanings, or
+introducing elements from wildly different contexts to
+generateanamusing,incongruousjuxtapositionwiththe
+original. Thekeyistointroduceanelementofwordplay,
+unexpectedmeaning,orabsurditythatcreatesacomedic
+effect,whilestillmaintainingenoughfamiliaritywiththe
+sourcematerialforthereadertorecognizeandappreciate
+thecreativetwist.
+AutoHint The summarized reasons are: The expected outputs are
+considered humorous edits because they involve word-
+play or puns created by slightly modifying the original
+word, phrase, or name in a clever or unexpected way.
+This can include replacing letters with similar-sounding
+ones, altering the spelling, or making slight changes to
+the wording. These types of edits are often used for
+comedic effect, as they play with the audience’s famil-
+iaritywiththeoriginaltextwhileintroducinganew,hu-
+morousinterpretationormeaning.
+OPRO The expected outputs demonstrate clever and humorous
+modificationsoffamiliarnames,titles,orphrases. These
+editsplayfullyreplaceoraltercertainwordsorlettersto
+createanamusingcontrastorincongruitywiththeorigi-
+nal source material. Through techniques like wordplay,
+puns, and subtle linguistic substitutions, the humorous
+outputs inject an element of witty absurdity while still
+retainingarecognizableconnectiontotheoriginal. This
+formofintelligentandcreativelinguisticmanipulationis
+aneffectivewaytosubvertexpectationsandelicitlaugh-
+terbytwistingthefamiliarintosomethingcomicallyun-
+expected.
+3334

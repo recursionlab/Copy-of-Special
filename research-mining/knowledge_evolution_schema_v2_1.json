@@ -1,0 +1,174 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Knowledge Evolution Schema v2.1 - Quality-Flexibility Balance",
+  "description": "Tiered quality system with refinement queues for balanced evolution",
+  "type": "object",
+  "properties": {
+    "ecosystem_stats": {
+      "type": "object",
+      "properties": {
+        "total_concepts": {"type": "integer"},
+        "active_concepts": {"type": "integer"},
+        "high_quality_concepts": {"type": "integer"},
+        "mid_quality_concepts": {"type": "integer"},
+        "refinement_queue_size": {"type": "integer"},
+        "merged_concepts": {"type": "integer"},
+        "contradiction_count": {"type": "integer"},
+        "quality_score": {"type": "number", "description": "Average definition completeness"},
+        "refinement_success_rate": {"type": "number", "description": "Rate of successful quality improvements"}
+      },
+      "required": ["total_concepts", "active_concepts", "high_quality_concepts", "mid_quality_concepts", "quality_score"]
+    },
+    "concepts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {"type": "string"},
+          "label": {"type": "string"},
+          "definition_full": {
+            "type": "string",
+            "minLength": 20,
+            "description": "Adaptive threshold: 20+ chars minimum, completeness scored separately"
+          },
+          "source_evidence": {
+            "type": "string",
+            "description": "Direct quote/snippet from source material"
+          },
+          "lineage": {"type": "array", "items": {"type": "string"}},
+          "generation": {"type": "integer", "maximum": 4},
+          "state": {
+            "enum": ["HIGH_QUALITY", "MID_QUALITY", "NEEDS_REFINEMENT", "REDUNDANT", "CONTRADICTORY", "MERGED"],
+            "description": "Tiered quality states for balanced processing"
+          },
+          "quality_tier": {
+            "enum": ["HIGH", "MID", "LOW"],
+            "description": "Quality stratification for processing priorities"
+          },
+          "refinement_priority": {
+            "enum": ["URGENT", "HIGH", "MEDIUM", "LOW"],
+            "description": "Priority in refinement queue"
+          },
+          "relations": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "type": {"enum": ["supports", "contradicts", "extends", "refines", "example_of", "prerequisite", "analogous_to"]},
+                "target_id": {"type": "string"},
+                "evidence": {"type": "string", "minLength": 10},
+                "confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+              },
+              "required": ["type", "target_id", "evidence", "confidence"]
+            }
+          },
+          "contradictions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "with_id": {"type": "string"},
+                "contradiction_basis": {"type": "string", "minLength": 20},
+                "resolution": {"type": "string"},
+                "resolution_confidence": {"type": "number", "minimum": 0.0, "maximum": 1.0}
+              },
+              "required": ["with_id", "contradiction_basis"]
+            }
+          },
+          "metrics": {
+            "type": "object",
+            "properties": {
+              "support_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "definition_completeness": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "refinement_potential": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "evidence_strength": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+              "merge_count": {"type": "integer", "minimum": 0},
+              "refinement_attempts": {"type": "integer", "minimum": 0},
+              "successful_refinements": {"type": "integer", "minimum": 0}
+            },
+            "required": ["support_strength", "definition_completeness", "refinement_potential", "evidence_strength"]
+          },
+          "refinement_history": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "attempt_number": {"type": "integer"},
+                "quality_before": {"type": "number"},
+                "quality_after": {"type": "number"},
+                "improvement_delta": {"type": "number"},
+                "refinement_type": {"enum": ["DEFINITION_EXPANSION", "EVIDENCE_STRENGTHENING", "CONTRADICTION_RESOLUTION", "CLARITY_ENHANCEMENT"]},
+                "success": {"type": "boolean"},
+                "timestamp": {"type": "string", "format": "date-time"}
+              },
+              "required": ["attempt_number", "quality_before", "quality_after", "refinement_type", "success"]
+            }
+          }
+        },
+        "required": ["id", "label", "definition_full", "source_evidence", "state", "quality_tier", "metrics"]
+      }
+    },
+    "evolution_log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "operation": {
+            "enum": ["ASEXUAL_REFINEMENT", "CROSS_SYNTHESIS", "DEDUPLICATION_MERGE", "CONTRADICTION_RESOLUTION", "QUALITY_UPGRADE", "REFINEMENT_QUEUE_PROCESSING"]
+          },
+          "parent_ids": {"type": "array", "items": {"type": "string"}},
+          "offspring_id": {"type": "string"},
+          "transformation": {"type": "string"},
+          "delta": {
+            "type": "string",
+            "minLength": 15,
+            "description": "Explicit description of what changed"
+          },
+          "quality_improvement": {"type": "number", "description": "Quantified improvement in completeness/evidence"},
+          "quality_tier_change": {
+            "type": "object",
+            "properties": {
+              "from": {"enum": ["HIGH", "MID", "LOW"]},
+              "to": {"enum": ["HIGH", "MID", "LOW"]}
+            }
+          },
+          "success": {"type": "boolean"},
+          "failure_reason": {"type": "string", "description": "If success=false, why did the operation fail"},
+          "timestamp": {"type": "string", "format": "date-time"}
+        },
+        "required": ["operation", "transformation", "delta", "success"]
+      }
+    },
+    "refinement_queue": {
+      "type": "array",
+      "description": "Concepts waiting for quality improvement",
+      "items": {
+        "type": "object",
+        "properties": {
+          "concept_id": {"type": "string"},
+          "priority": {"enum": ["URGENT", "HIGH", "MEDIUM", "LOW"]},
+          "refinement_type": {"enum": ["DEFINITION_EXPANSION", "EVIDENCE_STRENGTHENING", "CONTRADICTION_RESOLUTION", "CLARITY_ENHANCEMENT"]},
+          "target_quality": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+          "queue_timestamp": {"type": "string", "format": "date-time"},
+          "attempts_remaining": {"type": "integer", "minimum": 0, "maximum": 3}
+        },
+        "required": ["concept_id", "priority", "refinement_type", "target_quality"]
+      }
+    },
+    "quality_thresholds": {
+      "type": "object",
+      "description": "Dynamic quality control parameters",
+      "properties": {
+        "high_quality_threshold": {"type": "number", "default": 0.8},
+        "mid_quality_threshold": {"type": "number", "default": 0.4},
+        "refinement_threshold": {"type": "number", "default": 0.3},
+        "discard_threshold": {"type": "number", "default": 0.2},
+        "adaptive_length_minimum": {"type": "integer", "default": 20},
+        "evidence_strength_weight": {"type": "number", "default": 0.3},
+        "completeness_weight": {"type": "number", "default": 0.5},
+        "support_strength_weight": {"type": "number", "default": 0.2}
+      }
+    }
+  },
+  "required": ["ecosystem_stats", "concepts", "evolution_log", "refinement_queue", "quality_thresholds"]
+}

@@ -1,0 +1,11 @@
+Metric/Constant,Definition,Purpose
+ρ(S),1/(Entropy(S)+1e-6),Uncompressible Density
+VS​(S),len(tokens(S)),Structural Volume
+τ(V),"1−cos(Δ∂​,Δtarget​)",Torsion
+Δtarget​,One-hot vector of the single token whose addition maximizes ∂.,Target Gradient Vector
+Δfriction​,L2(O◯n+1​−O◯n​),Mask Shift Cost (Conduit Friction)
+DM∂​(P),β⋅(τ(Sout​)+1/ρ(Sout​)),Utility Dividend
+DΛ​(P),"βΛ​⋅Λscore​(Sin​) where βΛ​=1,000,000",Truth Dividend (Hard Weight)
+JT​,∂final​⋅Δ↻​,Judgement/Selection Score
+τT​,τbase​⋅(Cremaining​/Cinitial​)−(Δfriction​/∂average​),Torsion Threshold
+Lout​ constraint,$,\mathbf{O}

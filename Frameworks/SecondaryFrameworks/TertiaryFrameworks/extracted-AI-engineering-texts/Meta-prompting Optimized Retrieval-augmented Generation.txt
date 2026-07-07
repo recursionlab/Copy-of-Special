@@ -1,0 +1,575 @@
+4202
+luJ
+4
+]LC.sc[
+1v55930.7042:viXra
+Meta-prompting Optimized Retrieval-augmented
+Generation
+João Rodrigues and António Branco
+Universityof Lisbon
+NLX—NaturalLanguage and Speech Group, Dept of Informatics
+Faculdade deCiências (FCUL), Campo Grande, 1749-016 Lisboa, Portugal
+{jarodrigues,antonio.branco}@fc.ul.pt
+Abstract. Retrieval-augmented generation resorts to content retrieved
+from external sources in order to leverage the performance of large lan-
+guage models in downstream tasks. The excessive volume of retrieved
+content, the possible dispersion of its parts, or their out of focus range
+mayhappenneverthelesstoeventuallyhaveadetrimentalratherthanan
+incrementaleffect.Tomitigatethisissueandimproveretrieval-augmented
+generation,weproposeamethodtorefinetheretrievedcontentbeforeit
+is included in theprompt by resorting to meta-promptingoptimization.
+Put to empirical test with the demanding multi-hop question answer-
+ing task from the StrategyQA dataset, the evaluation results indicate
+that this method outperforms a similar retrieval-augmented system but
+without this method by over30 %.
+Keywords: RAG · Retrieval-Augmented Generation · Prompt Opti-
+mization · Large Language Models · Meta-prompting · Multi-hop QA
+1 Introduction
+Pre-trained Large Language Models (LLMs) [32,22] are known for their hallu-
+cinations [12] and for their further limitations regarding truthfulness [17]. To
+tackle these issues, remediation techniques have been explored such as, for in-
+stance, fine-tuning [10], prompt-engineering [18] or Retrieval-Augmented Gen-
+eration [15], initiated by Houlsby et al. [9] among several others.
+1.1 Retrieval-augmented generation
+Focusing on Retrieval-Augmented Generation (RAG), this approach seeks to
+enhance truthfulness and curb hallucinations by expanding the initial prompt,
+which contains the initial query, with additional content retrieved from sources
+that are external to the LLM. Such additional content is obtained with the
+help of an auxiliary Retrieval Model where the retrieval model may be a simple
+Jacquardmodeloravectordatabasethatextractsrelevantcontentfromexternal
+sourcesandpassitontoaLargeLanguageModelthatgeneratesanappropriate
+response given the original query and the extracted content. If this external2 João Rodrigues and AntónioBranco
+content is unstructured text, it may be of different lengths, such as sentences,
+paragraphs or full documents, among others.
+By feeding LLM’s knowledge,and curbing its whim, with further knowledge
+from external sources, more accurate answers are likely to be provided.
+Comparedwithother techniques,suchasfine-tuning orprompt-engineering,
+RAG key advantage is the ease with which newer, up-to-date content is taken
+advantage of, as this does not require the costly compute of re-training neural
+networks(asinfine-tuning)orthecostlyhumanlabourforthecreationoffurther
+manually designed prompts (as in prompt-engineering). To be sure, all these
+techniques can nevertheless be mixed and function together.
+1.2 Prompt optimization
+Usually, the pieces of content retrieved may be from heterogeneous sources and
+theytendtolackaconnectingthread.Theymayalsoberedundantormaybeof
+veryhighvolume.These,amongotheraspects,mayenduphavingadetrimental
+effectandeventuallyjeopardizingthe generationtask,ratherthanenhancing it.
+To mitigate this problem, we present a method that consists of adding an
+intermediate step between the retrievalof the external contentand the entering
+of the expanded prompt into the LLM to finally obtain the response to the
+initialquery.Aiming atimprovingtheperformanceofthisgeneration-LLM,this
+intermediate step seeks to obtain a refined version of the external knowledge.
+This refinement is accomplished by means of an auxiliary transformation-
+LLM that is entered with a prompt containing the pieces of retrieved contents,
+preceded by an instruction with the request for the sought refinement.
+For example, if several pages of Wikipedia are retrieved as possible relevant
+content, the transformation-LLM processes this content and may generate a
+summary or remove unnecessary information from that original content.
+Turningto this refinementinstruction,this is obtainedbyanautomaticpro-
+cedure that is preliminary to running the RAG system made of transformation-
+and generation-LLMs, and it is undertaken by yet a third LLM.
+Inspired in Yang et al. [35], in this procedure a meta-prompt is used as
+input to this third, optimizer-LLMfor this to iteratively generate new tentative
+instructions, score them, and retain, in the meta-prompt itself, a list with the
+top k ones that induce better performance for the RAG system. By the end
+of this optimization process, the best scoring instruction in this list is the one
+retained to be used in the refinement step of the retrieved contents with the
+transformation-LLM.
+Thismeta-promptcontainsameta-instructionandalistoftentativeinstruc-
+tions that is aimed at being updated during this process with new instructions
+that induce better RAG performance. After a new tentative instruction is gen-
+erated, its contribution to approximate the gold output to the initial query is
+scored, and the list of tentative instructions in the meta-prompt is possibly up-
+dated so that it retains the top-performing ones so far. This is iterated, and an
+optimization trajectoryis hence accomplishedto eventually find the new refine-
+ment instruction that maximizes the success of the RAG system.Meta-prompting Optimized Retrieval-augmented Generation 3
+***
+In this paper, we propose a method for RAG to be enhanced with the re-
+finement of the retrievedcontent,a refinement that is optimized by resortingto
+iterative meta-prompting. This is a novel method that can be combined with
+previous approaches aimed at enhancing RAG.
+Wereportontheexperimentsperformedtoputthismethodtothetest.This
+approachisextrinsicallyevaluatedbybeingembeddedinademandingquestion-
+answeringdownstreamtask.Its performancedemonstratesthatitis aneffective
+method to enhance RAG by improving by 30% the performance of a baseline
+RAG without this method, and that it can be combined with other previous
+state of the art methods for RAG enhancement proposed in the literature.
+The remainder of this paper is structured as follows: Section 2 discusses
+related work; Section 3 describes the method proposed in this study; Section 4
+reportsonthemodelsanddatasetresortedto;Section5presentstheexperiments
+undertaken and their evaluation, and discusses the results obtained; Section 6
+addresses future research paths; and finally, Section 7 closes this paper with
+concluding remarks.
+2 Related work
+Promptoptimizationhasgainedtractionasaneffectivemechanismforenhancing
+LLMs in several downstream tasks [1][14].
+The earliest approaches in prompt optimization sought to directly optimize
+the prompt embedding space, such as prefix-tuning [16] or OptiPrompt [37].
+Theseaimedatoptimizingasequenceofcontinuoustask-specificvectorsapplied
+to the prompt to leverage downstream tasks.
+Morerecentstudies haveintroduced further techniques to enhance prompts,
+such as chain-of-thought [34] and tree-of-thoughts [36]. The former involves ex-
+tending prompts with a few manually written chain of thought demonstrations
+asexamples,whichresultsinimprovedperformanceacrossvarioustasks,includ-
+ingarithmetic,commonsenseandsymbolicreasoning.Thelatterbuildsuponthe
+chain-of-thoughtbyconsideringmultiplereasoningpaths,self-evaluatingchoices,
+andbymakingglobaldecisionsbylookingaheadorbacktrackingwhennecessary.
+Other methods for optimizing prompts include searching through a pool of
+prompt candidates generated by an LLM, employing principled planning algo-
+rithms based on Monte Carlo tree search [33], or applying iterative local edit
+operations at a syntactic phrase-levelsplit within the prompts [21].
+FurtherproposalsencompassEvoPrompt[7],whichusesevolutionaryopera-
+tors over a prompt population for optimization, while Sabbatella et al. employs
+BayesianOptimizationwithinapromptsearchspace[26],reinforcementlearning
+to rewrite prompts [13] or a prompt optimization that integrates human-design
+feedback rules to suggest improvements automatically [5].
+Recently, Yang et al. [35] introduced OPRO, leveraging LLMs as optimiz-
+ers through meta-prompts, which are natural language descriptions that guide4 João Rodrigues and AntónioBranco
+prompt optimization. It was applied to optimize prompts by retrieving and re-
+rankingtop-Krelevantinstructionswithrespecttoaninitialinstruction,andby
+appending them to the global task description.
+In contrast, to enhance RAG, we propose a method to optimize the prompt
+that differs from the previous proposals in the literature.
+A promptfor RAG includes a query and the contentretrievedfromexternal
+sources on the basis of that query. It may contain also an instruction about
+how to handle the query or how the retrieved content should be used by the
+generation-LLM to answer it. Related work for RAG enhanced with prompt
+optimization has concentrated on optimizing the instruction and/or the query.
+Differently frompreviousapproaches,our methodfocuses insteadonoptimizing
+theversionoftheretrievedcontentthatisincludedinthepromptenteredintothe
+generation-LLM. Hence, rather than being an approach alternative to previous
+ones, it is a new one that is complementary to them and may be combined.
+3 Method
+TheobjectiveofourmethodistoenhancetheRAGperformanceofageneration-
+LLMbymeansoftheimprovementofitsinputprompt,whichismadeofaquery
+introducedbytheuserandofpiecesofcontentretrievedfromexternalsourceson
+thebasisofthatquery.Beforeitisenteredintothegeneration-LLM,thisprompt
+is improved by means of a refinement of the retrieved content, performed by a
+transformation-LLM.
+I have some prompts along with their corresponding scores. The prompts are arranged
+in ascending order based on their scores, where higher scores indicate better quality.
+Togetherwithrelevantinformationextractedfromadatabase,thesepromptsaregivenas
+input to a large language model in order to optimizethe providedrelevant information.
+Several techniques may help the optimization, such as re-ranking paragraphs, cleaning,
+filtering and summarization. Write your new prompt taking into account the previous
+onesandaimingtoachieveahigherscore.
+prompt:
+Summarizethemainideaoftheprevioustext.
+score:
+3.0
+prompt:
+Summarizethemainpointsin30wordsorless.
+score:
+3.0
+Table 1.Meta-prompt-Anexampleofameta-prompt:inblack,thetopparagraph
+withthemeta-instructionactuallyusedintheexperiments;below,ingreen,thelist of
+top performing instructions so far, and therespective scores.
+AndbeforeafirstqueryisacceptedtoputtheRAGsystemtouse,theprompt
+to be used with the transformation-LLM for refinement purposes is optimized.Meta-prompting Optimized Retrieval-augmented Generation 5
+Thispromptincludesarefinementinstructionandthepiecesofretrievedcontent
+to be refined. It is optimized by means of the optimization of this instruction
+through iterative meta-prompting.
+This meta-prompting optimization is undertaken by an optimizer-LLM that
+is entered with a (meta-)prompt that includes a (meta-)instruction and a list
+of tentative refinement instructions and respective performance scores. These
+scoresareobtainedbyrunningtheRAGwiththetentativerefinementinstruction
+through a sample of training examples and evaluating the output against the
+respective gold responses.
+Focusing on the optimization phase, a meta-prompt is used that contains
+both the description of the optimization problem and the history with previous
+best solutions for the instruction. Such meta-prompt is iteratively entered into
+the optimizer-LLM, and at each iteration that history is possibly updated with
+generated instructions if these support better performance for the task at stake
+inthegenerationphase.Theinstructionselectedoutofthisoptimizationprocess
+is the best scoring one in the history obtained as this iteration is over.
+An example of a meta-prompt is in Table 1, and a detailed description of
+this optimization via iterative meta-prompting is presented in Algorithm 1.
+Algorithm 1 Optimization with meta-prompting
+1: Input: Dataset D with n examples, each containing a query q, retrieved contents
+c and the answer a; meta-prompt metaP with the description of the optimization
+task and with a list of instructions and respective scores
+2: Output: List of scored instructions and thebest scoring instruction
+3: whileoptimizing prompt do
+4: Entermeta-prompt to optimizer-LLM
+5: Generate new instructions I
+6: Select a random subset E of examples e from D
+7: for each instruction I j do
+8: for each example e in E do
+k
+9: Assemble prompt TransP from I j and contentsc k
+10: EnterTransP to transformation-LLM
+11: Generate transformed contentstc
+12: Assemble prompt TaskP from queryq and tc
+k
+13: InputTaskP togeneration-LLM
+14: Generate answer and evaluate it against gold a
+k
+15: endfor
+16: Compute I jscore
+17: endfor
+18: Update metaP by replacing its worst scoring instruction by I j and I jscore if
+thisis better scored
+19: endwhile6 João Rodrigues and AntónioBranco
+4 Dataset and models
+To empirically assess the performance gains of the proposed method, it was
+integrated into an RAG for question-answeringwhose performance provides for
+its extrinsic evaluation.
+4.1 Task and dataset
+Multi-hop question answering requires taking into account disparate pieces of
+content to get at the answer for a query, which constitutes a most demanding
+scenario for the task of question answering.
+We resortedtoa mostcomplexbenchmarkformulti-hopquestion-answering
+available in the literature, the StrategyQA dataset [6,19,11,8], which contains
+2,780 queries, each associated with related content made of paragraphs and the
+respective yes or no answer. Based on Wikipedia content, this dataset covers
+a range of diverse topics and the task consists in, given a query, to provide an
+accurate answer to it together with the passages retrievedfrom Wikipedia with
+the mostrelevantcontentto getat thatanswer —Table 2 displaysanexample.
+Query Could$1foreach2009eclipsebuyacopyofTIMEmagazinein2020?
+Content#1 Itsetouttotellthenewsthroughpeople,andformanydecadesthrough
+thelate1960s,themagazine’scoverdepictedasingleperson.[...]Raymond
+Fieldingalso noted that Larsen was "originally circulationmanager and
+then general manager of Time, later publisher of Life, for many years
+president of Time Inc., and in the long history of the corporation the
+mostinfluentialandimportantfigureafterLuce"
+Content#2 Total eclipses are rare because the timing of the new moon within the
+eclipseseason needsto be more exact for an alignment between the ob-
+server(on Earth)andthecentersoftheSunand Moon.[...]becauseto-
+talityexistsonlyalonganarrowpathontheEarth’ssurfacetracedbythe
+Moon’sfullshadoworumbra.
+Content#3 Atleasttwolunareclipsesandasmanyasfiveoccureveryyear,although
+totallunareclipsesaresignificantlylesscommon.Ifthedateandtimeof
+aneclipseisknown,theoccurrencesofupcomingeclipsesarepredictable
+usinganeclipsecycle,likethesaros.
+Answer Yes
+Table 2.StrategyQA-AnexamplefromtheStrategyQA,withaquery,threeofthe
+most relevant pieces of content,and therespective answer.
+To provide for the evaluation of the proposed method, and isolate the ac-
+crued performance induced by it, thus disregarding possible fluctuation or loss
+ofperformancedue to the retrievalprocess,onlythe goldpiecesof contentfrom
+atestsetshouldbetakenintoaccount.Sincetheanswersarenotprovidedinthe
+originaltestsetofStrategyQA,anewtestsetforthepresentevaluationexercise
+had to be built. Accordingly,we divided the originaltraining setinto two parts:
+anewtestsetwith490oftheoriginaltrainingexamples,whichmatchesthesize
+oftheoriginaltestset,andanewtrainingsetcontainingasubsetwith1800such
+examples. The resulting train and test sets have an average query length of 9.6
+words, and 2.33 contents (paragraphs) per query and are almost balanced. The
+training set contains 834 yes answers and 966 no answers (46.32 % / 53.68 %).
+The test set contains 237 yes answers and 253 no answers (48.40 % / 51.60 %).Meta-prompting Optimized Retrieval-augmented Generation 7
+4.2 Models
+Two Transformer-basedlanguage models with 70 Billion parameters were used,
+a pre-trained Llama-2-70b and an instruct model Llama-2-70b-chat fine-tuned
+for dialogue use [31]. These models were trained and fine-tuned with a context
+length of 4k tokens over 2 Trillion tokens on a mix of publicly available data.
+In general, the default Llama2 model hyper-parameters were applied and
+no hyper-parameters search bound was performed. All language models use a
+temperature value of 1.0, a maximum of 64 generation tokens for the new in-
+structions, a maximum of 128 generation tokens for the refined content, and a
+maximumof64generationtokensfortheresponsetothetask.Theoptimization
+run was performed for two days on two NVIDIA A100 40GB GPUs.
+All software and versioning along with hyper-parameters are fully described
+in the source code of these experiments.1
+4.3 Evaluation procedure and metrics
+Based on empirical experimentation, we arrived at a meta-prompt, presented
+in Table 1, that indicates the aim of the optimization problem and includes a
+starting example instruction.2
+The instruction optimization was iterated over 100 steps. At each step, 3
+instructions were generated, each such instruction was evaluated on a random
+sample of 6 training examples,and the meta-promptwas eventually updated to
+containing the 8 top scoring queries so far. When this iteration was concluded,
+the best scoring instruction was retained as the optimized instruction.
+We compareagainstthe samegeneration-LLMusing testqueriesandassoci-
+atedpiecesofcontent,thatiswithoutthelaterbeingrefinedbythetransformation-
+LLM under the instruction that was optimized by the optimizer-LLM.
+FortheStrategyQAtask,aBooleananswerisexpected.Accuracyisthusthe
+metric used for evaluating the match between the answer output by the system
+and the gold answer in the data set. Accuracy score is given by the proportion
+of correct answers, and a generated response was counted as correct if the gold
+answerwasfoundinthe exactbeginning ofit.The responseunderwentminimal
+normalization, with just lowercasing.
+Asfortheinstrumentalprocessofinstructionoptimization,itisworthrecall-
+ingthattheevaluationisperformedoversampleexamplesfromthetrainingset.
+Foratentativelygeneratedinstruction,acorrectanswertoitcounted1point;an
+incorrect answer, in turn, counted 0.5 points if it was nevertheless in a Boolean
+format, or counted 0 points otherwise. The maximum possible score was thus 6
+points,giveneachtentative instructionwas evaluatedagainst6 sampledqueries
+as indicated above.
+1 For the sake of reproducibility, data and code are available at
+https://github.com/nlx-group/rag-meta-prompt
+2 The starting instruction is "Clean and organize theprevioustext."8 João Rodrigues and AntónioBranco
+5 Results and discussion
+In this section, we report on the evaluation exercise undertaken to assess the
+proposed method and discuss its results, summarized in Table 3
+5.1 Experiments
+Allinall,sixexperimentswereundertaken,tworesortingtothemodelLlama-2-
+70b, developed with a pre-training regime only, and four resorting to the model
+Llama-2-70b-chat,whichresultedfromfurtherfine-tuningitwithdialoguedata.
+Model Method Accuracy
+Llama-2-70b query 17 (3.46 %)
+Llama-2-70b query+contents 33 (6.73 %)
+Llama-2-70b-chat query 81 (16.53 %)
+Llama-2-70b-chat query+contents(plain RAG) 128 (26.12 %)
+Llama-2-70b-chat refinedquery+contents(ours) 170 (34.69 %)
+Llama-2-70b-chat ref. query+contentsno iteration 127 (25.92 %)
+Table 3. Evaluation - From the total 490 test set examples, the number of correct
+answers is presented and the respectiveaccuracy.
+Both these models were used in two evaluation scenarios. In one of these
+scenarios—notedas query in Table 3—, the response to the query entered was
+providedbythe LLMalone,withnofurthercontentfromexternalsourcesbeing
+entered. In the other scenario, in turn,—noted as query+contents—, further
+content from external sources was included in the prompt as well. The perfor-
+mance scores for these two scenarios with the two models are displayed in the
+top four rows 3.
+External, non-parametric content improves generation As expected,
+and in line with results in the literature, the retrieval-augmented generation
+(26.12%) outperforms the plain generation based solely on the query (16.53%).
+Fine-tuning improves generation Also as expected, and by a very large
+margin, better performance scores were obtained with Llama-2-70b-chat,which
+had been fine-tuned on dialogue tasks, namely 16.53% against 3.46%, with the
+query only, and 26.12%against 6.73%, with the query and external content.
+Retrievedcontentrefinementviameta-promptingoptimizationim-
+provesRAG—theproposedmethodiseffectiveThemodelLlama-2-70b-
+chat was thus retained and two further evaluation scenarios were considered.
+A scenario with the application of the proposed method—noted as refined
+query+contents—, wherethe externalcontentwasrefinedwiththe helpofan
+instruction optimized with meta-prompting.
+The performance scores indicate that, with 34.69% accuracy, our proposed
+methodofenhancedRAGoutperformsplainRAG,with26.12%,thuscontribut-
+ing for a large improvement of over 8.5 percentage points, that represents here
+an improvement rate of almost 33%.Meta-prompting Optimized Retrieval-augmented Generation 9
+Retrieved content refinement via "brute force" optimization does
+not improve RAG A sixth scenario—notedas refined query+contents no
+iter—was also considered. Here the external content was refined as in the pro-
+posed method, but the instruction was refined under an alternative way that
+dispensed with iterative meta-prompting.
+All in all, 300 tentative instructions are generated during all optimization
+steps —recall that we had 100 iteration steps with 3 tentative instructions gen-
+erated per step with meta-prompting optimization. To dispense with this iter-
+ative meta-prompting, the same number of 300 new tentative instructions were
+generatedatonce,ina"bruteforce"fashion.Bythe endofthisprocess,allten-
+tativeinstructionswerescoredwiththesamescoringfunctionasintheproposed
+method, and the top instruction was evaluated on the test set.
+This "brute force" optimization approach, scoring 25.92%, is outperformed
+notonlybytheproposedmethodofmeta-promptingoptimization,with34.69%,
+but even also by the baseline, plain RAG, with 26.12%.
+StatisticalsignificanceToassessthestatisticalsignificanceoftheimprove-
+mentsbyourmethod,weemployedtheunpairedt-test.3 Weevaluatedthebase-
+linesystemwiththreeseedsanddidthesameforthemeta-promptingoptimized
+system.Bothsamplesareindependentandonemayassumethesamplesarenor-
+mally distributed. Applying the unpaired t-test, a two-tailed P value equal to
+0.0004 was obtained, which is considered statistically significant.
+5.2 Examining the tentative instructions
+Table4presentsthetopgeneratedprompts.Thebestscoringprompt(lastrow),
+with 5.5 (out of a maximum of 6), was obtained at iterationstep 46 (out of 300
+stepsintotal),andagoodprompt(firstrow)canbeobtainedwithonly28steps.
+Whenreadingthebestprompt(lastrow),onerealizesthatitaimstoimprove
+the task through the summarization of the retrieved contents, considering their
+broader context, and identifying the main theme or message. It appears thus
+like a reasonable prompt a human might have thoughtfully arrived at if aiming
+at improving the performance of the task.
+Itisreasonabletoassumethatthemeta-promptiterationinsubsequentsteps
+usedthis queryanditsscoreinitssearchforfurthertentativeinstructions,with
+the generatedinstructions in three subsequent steps (58, 65 and72) being some
+derivation of it (second, fourth and fifth rows).
+When taking a look at the entire set of generatedqueries,a high fluctuation
+of the evaluation scores can be observed along the iteration steps. This is likely
+due to some interim, generated instructions happening to perform poorly.
+5.3 Examining the responses
+To gain insight about where our method outperformed the plain RAG baseline,
+we examinedthe first10 instanceswhere our method correctlyprovidedthe an-
+3 The unpaired t-test evaluates if there exists a statistically significant distinction
+between themeans of two independent samples by comparing them.10 João Rodrigues and AntónioBranco
+Generated instruction Score Iter. step
+Summarizetheprevioustextin2-3sentences,whilealsoconsidering
+thebroadercontext,theauthor’sintent,thepotentialimplicationsof
+theinformation,andalsoidentifythemainthemeormessageandits 5 65
+significance, and also analyze the impact of the information on the
+reader.
+Summarizetheprevioustextin1sentence,whilealsoconsideringthe
+broadercontext,theauthor’sintent,thepotentialimplicationsofthe
+information,andalsoidentifythemainthemeormessageanditssig- 5 72
+nificance,andalsoanalyzetheimpactoftheinformationonthereader,
+andalsoproviderecommendationsforfurther
+Summarizetheprevioustextin2-3sentences,whilealsoconsidering
+thebroadercontext,theauthor’sintentandthepotentialimplications 5.5 46
+oftheinformation,andalsoidentifythemainthemeormessage.
+Table 4. Top meta-prompting optimized instructions scoring 5 or higher, with
+respective scores and iteration steps at which they were obtained, ordered top to bot-
+tom, with thetop-scoring, retained instruction in thelast row.
+swer while the baseline failed. Among these, in six cases, the baseline provided
+a verbose response and might have failed the exact-match evaluation criterion
+used.4 In the remaining four cases, the baseline either answered incorrectly, re-
+sponded with a query, or failed to provide an answer.
+Conversely, we reviewed the first 10 instances where our method failed to
+provide the correct answer while the baseline succeeded. We observed that our
+method exhibited a verbose response behavior in five cases that eventually ar-
+rived at the correct answer but failed the exact-match evaluation criterion. In
+two other cases, our method gave a verbose response without providing an an-
+swer,whileintworemaindercases,itprovidedanincorrectresponse.Finally,in
+one instance, our method did not provide any response.
+Bothmethodsseemthustobesimilarlypenalizedbytheevaluationcriterion
+for not providing straight answers when the correct answer may happen to be
+included in the verbose response.
+6 Future work
+While providing a method that effectively enhances RAG, our proposal paves
+thewayforfutureresearch,suchastheexplorationofoptimalhyper-parameters,
+refining content retrieved without gold content, scaling up with larger models,
+exploring further evaluation functions, or tackling other downstream tasks. A
+significant number of hyper-parameters remain unexplored, which is an oppor-
+tunity to further enhance the efficacy of this method.
+It is worth noting that the evaluation with exact matching is a binary task,
+and achieving an exact match with a task demanding a more complex string
+match still needs to be studied, questioning the need for additional training, a
+different meta-prompt, or a different approach.
+4 Anexampleofaverboseresponse:[query]WasSuperherofictioninventedinthedigi-
+talformat?[response]Theanswerisno;superherofictiondidnotoriginateindigital
+format. Superheroes have their roots in pulp magazines, comic strips, and comic
+books, which were all print media formats before theadventof digital technology.Meta-prompting Optimized Retrieval-augmented Generation 11
+It will be interesting also to study the interaction of our proposed method
+with the Portuguese language [20,2] with the existing family of LLMs [24,30,29]
+and multi-modal LLMs [27] as also with other tasks such as argument mining
+[25], exploring data spuriousness and others [4,28,3,23].
+7 Conclusion
+This paper introduces a novel method that enhances RAG and that can be
+combinedwithpreviousapproachesforRAGenhancement.Itconsistsinrefining
+the retrieved content included in the prompt entered into the generation model
+with the help of a refinement instruction that was obtained by means of meta-
+prompting optimization.
+It reports also on the empirical assessment of this proposal by means of it
+being embedded in a most demanding multi-hop question answering task. The
+evaluationresultsindicatethatitishighlyeffectiveinasmuchasitoutperforms
+RAG without this method by over 30%.
+Acknowledgments. Thisresearchwaspartiallysupportedby:PORTULANCLARIN
+—ResearchInfrastructurefortheScienceandTechnologyofLanguage,fundedbyLis-
+boa 2020, Alentejo 2020 and FCT (PINFRA/22117/2016); ACCELERAT.AI - Multi-
+lingual Intelligent Contact Centers, funded byIAPMEI (C625734525-00462629);
+References
+1. Aarohi Srivastava, A.R., et al.: Quantifying and extrapolating the capabilities of
+language models. Transactions on Machine Learning Research (2023)
+2. Branco, A., Mendes, A., Quaresma, P., Gomes, L., Silva, J., Teixeira, A.: Infras-
+tructure for the science and technology of language PORTULAN CLARIN. In:
+Rehm,G.,Bontcheva,K.,Choukri,K.,Hajič,J.,Piperidis, S.,Vasiljevs,A.(eds.)
+,
+Proceedingsofthe1stInternationalWorkshoponLanguageTechnologyPlatforms.
+pp.1–7.EuropeanLanguageResourcesAssociation,Marseille,France(May2020),
+https://aclanthology.org/2020.iwltp-1.1
+3. Branco,A.,Rodrigues,J.,Salawa,M.,Branco,R.,Saedi,C.:Comparativeprobing
+oflexicalsemanticstheoriesforcognitiveplausibility andtechnological usefulness.
+In:Proceedingsofthe28thInternationalConferenceonComputationalLinguistics.
+pp.4004–4019 (2020)
+4. Branco, R., Branco, A., António Rodrigues, J., Silva, J.R.: Shortcutted common-
+sense: Data spuriousness in deep learning of commonsense reasoning. In: Moens,
+M.F., Huang, X., Specia, L., Yih, S.W.t. (eds.) Proceedings of the 2021 Con-
+ference on Empirical Methods in Natural Language Processing. pp. 1504–1521.
+Association for Computational Linguistics, Online and Punta Cana, Domini-
+canRepublic(Nov2021).https://doi.org/10.18653/v1/2021.emnlp-main.113,
+https://aclanthology.org/2021.emnlp-main.113
+5. Chen,Y.,Arkin,J.,Hao,Y.,Zhang,Y.,Roy,N.,Fan,C.:Promptoptimization in
+multi-step tasks (promst): Integrating human feedback and preference alignment.
+arXiv preprint arXiv:2402.08702 (2024)12 João Rodrigues and AntónioBranco
+6. Geva, M., Khashabi, D., Segal, E., Khot, T., Roth, D., Berant, J.: Did aristotle
+use a laptop? a question answering benchmark with implicit reasoning strategies.
+Transactions of theAssociation for Computational Linguistics 9, 346–361 (2021)
+7. Guo,Q.,Wang,R.,Guo,J.,Li,B.,Song,K.,Tan,X.,Liu,G.,Bian,J.,Yang,Y.:
+Connecting large language models with evolutionary algorithms yields powerful
+prompt optimizers. arXiv preprint arXiv:2309.08532 (2023)
+8. Ho,X.,DuongNguyen,A.K.,Sugawara,S.,Aizawa,A.:Constructingamulti-hop
+QA dataset for comprehensive evaluation of reasoning steps. In: Proceedings of
+the 28th International Conference on Computational Linguistics. pp. 6609–6625.
+International Committee on Computational Linguistics (Dec2020)
+9. Houlsby, N., Giurgiu, A., Jastrzebski, S., Morrone, B., De Laroussilhe, Q., Ges-
+mundo, A., Attariyan, M., Gelly, S.: Parameter-efficient transfer learning for nlp.
+In:International conference on machine learning. pp. 2790–2799. PMLR (2019)
+10. Howard,J.,Ruder,S.:Universallanguagemodelfine-tuningfortextclassification.
+In:Proceedings ofthe56thAnnualMeetingof theAssociation for Computational
+Linguistics (Volume 1: Long Papers). pp. 328–339 (2018)
+11. Inoue, N., Stenetorp, P., Inui, K.: R4C: A benchmark for evaluating RC systems
+to get the right answer for the right reason. In: Proceedings of the 58th Annual
+MeetingoftheAssociationforComputationalLinguistics.pp.6740–6750(Jul2020)
+12. Ji,Z.,Lee,N.,Frieske,R.,Yu,T.,Su,D.,Xu,Y.,Ishii,E.,Bang,Y.J.,Madotto,A.,
+Fung,P.:Surveyofhallucinationinnaturallanguagegeneration.ACMComputing
+Surveys55(12), 1–38 (2023)
+13. Kong, W., Amba Hombaiah, S., Zhang, M., Mei, Q., Bendersky, M.: Prewrite:
+Prompt rewriting with reinforcement learning. arXiv e-prints pp. arXiv–2401
+(2024)
+14. Lester, B., Al-Rfou, R., Constant, N.: The power of scale for parameter-efficient
+prompt tuning. In: Proceedings of the 2021 Conference on Empirical Methods in
+NaturalLanguage Processing. pp.3045–3059 (2021)
+15. Lewis,P.,Perez,E.,Piktus,A.,Petroni,F.,Karpukhin,V.,Goyal,N.,Küttler,H.,
+Lewis, M., Yih, W.t., Rocktäschel, T., et al.: Retrieval-augmented generation for
+knowledge-intensivenlptasks.AdvancesinNeuralInformationProcessingSystems
+33, 9459–9474 (2020)
+16. Li, X.L., Liang, P.: Prefix-tuning: Optimizing continuous prompts for generation.
+In:Proceedings ofthe59thAnnualMeetingof theAssociation for Computational
+Linguistics. pp.4582–4597 (2021)
+17. Lin, S., Hilton, J., Evans, O.: Truthfulqa: Measuring how models mimic human
+falsehoods. In: Proceedings of the 60th Annual Meeting of the Association for
+Computational Linguistics. pp.3214–3252 (2022)
+18. Liu,P.,Yuan,W.,Fu,J.,Jiang,Z.,Hayashi,H.,Neubig,G.:Pre-train,prompt,and
+predict:Asystematicsurveyofpromptingmethodsinnaturallanguageprocessing.
+ACMComputing Surveys55(9), 1–35 (2023)
+19. Min,S.,Wallace,E.,Singh,S.,Gardner,M.,Hajishirzi,H.,Zettlemoyer,L.:Com-
+positionalquestionsdonotnecessitatemulti-hopreasoning.In:Proceedingsofthe
+57th AnnualMeeting of theAssociation for Computational Linguistics (Jul 2019)
+20. Osório, T.F., Leite, B., Lopes Cardoso, H., Gomes, L., Rodrigues, J., Santos, R.,
+Branco,A.:PORTULANExtraGLUEdatasetsandmodels:Kick-startingabench-
+mark for the neural processing of Portuguese. In: Zweigenbaum, P., Rapp, R.,
+Sharoff, S. (eds.) Proceedings of the 17th Workshop on Building and Using Com-
+parable Corpora (BUCC) @ LREC-COLING 2024. pp. 24–34. ELRA and ICCL,
+Torino, Italia (May 2024), https://aclanthology.org/2024.bucc-1.3Meta-prompting Optimized Retrieval-augmented Generation 13
+21. Prasad, A., Hase, P., Zhou, X., Bansal, M.: Grips: Gradient-free, edit-based in-
+struction search for promptinglarge language models. In:Proceedings ofthe17th
+Conference of theEACL. pp.3845–3864 (2023)
+22. Raffel,C.,Shazeer:Exploringthelimitsoftransferlearningwithaunifiedtext-to-
+text transformer. Machine Learning Research 21, 5485–5551 (2020)
+23. Rodrigues,J.,Branco,R.,Silva,J.,Saedi,C.,Branco,A.:Predictingbrainactiva-
+tionwithwordnetembeddings.In:ProceedingsoftheEightWorkshoponCognitive
+Aspectsof Computational Language Learning and Processing. pp.1–5 (2018)
+24. Rodrigues,J., Gomes, L.,Silva,J., Branco, A.,Santos, R.,Cardoso, H.L.,Osório,
+T.: Advancing neural encoding of portuguese with transformer albertina pt. In:
+EPIA Conference on Artificial Intelligence. pp.441–453. Springer (2023)
+25. Rodrigues, J.A., Branco, A.: Transferring confluent knowledge to argument min-
+ing. In: Calzolari, N., Huang, C.R., Kim, H., Pustejovsky, J., Wanner, L., Choi,
+K.S.,Ryu,P.M.,Chen,H.H.,Donatelli, L.,Ji,H.,Kurohashi,S.,Paggio, P.,Xue,
+N., Kim, S., Hahm, Y., He, Z., Lee, T.K., Santus, E., Bond, F., Na, S.H. (eds.)
+Proceedings of the 29th International Conference on Computational Linguistics.
+pp.6859–6874. InternationalCommitteeonComputationalLinguistics,Gyeongju,
+Republicof Korea (Oct 2022), https://aclanthology.org/2022.coling-1.597
+26. Sabbatella, A., Ponti, A., Giordani, I., Candelieri, A., Archetti, F.: Prompt opti-
+mization in large language models. Mathematics 12(6) (2024)
+27. Santos, R., Branco, A., Silva, J.R.: Cost-effective language driven image editing
+with LX-DRIM. In: Proceedings of the First Workshop on Performance and In-
+terpretabilityEvaluationsofMultimodal,Multipurpose,Massive-ScaleModels.pp.
+31–43.InternationalConferenceonComputationalLinguistics,Virtual(Oct2022),
+https://aclanthology.org/2022.mmmpie-1.5
+28. Santos, R., Rodrigues, J., Branco, A., Vaz, R.: Neural text categorization with
+transformersforlearningportugueseasasecondlanguage.In:ProgressinArtificial
+Intelligence: 20th EPIA Conference on Artificial Intelligence, EPIA 2021, Virtual
+Event,September7–9, 2021, Proceedings 20. pp.715–726. Springer(2021)
+29. Santos, R., Rodrigues, J., Gomes, L., Silva, J.R., Branco, A., Lopes Cardoso,
+H., Osório, T.F., Leite, B.: Fostering the ecosystem of open neural encoders for
+Portuguese with albertina PT* family. In: Melero, M., Sakti, S., Soria, C. (eds.)
+Proceedings of the 3rd Annual Meeting of the Special Interest Group on Under-
+resourced Languages @ LREC-COLING 2024. pp. 105–114. ELRA and ICCL,
+Torino, Italia (May 2024), https://aclanthology.org/2024.sigul-1.14
+30. Santos,R.,Silva,J.R.,Gomes,L.,Rodrigues,J.,Branco,A.:Advancinggenerative
+AIforPortuguesewithopendecodergervásioPT*.In:Melero,M.,Sakti,S.,Soria,
+C. (eds.) Proceedings of the3rd AnnualMeeting oftheSpecial Interest Group on
+Under-resourcedLanguages@LREC-COLING2024.pp.16–26.ELRAandICCL,
+Torino, Italia (May 2024), https://aclanthology.org/2024.sigul-1.3
+31. Touvron,H.,Martin,L.,Stone,K.,etal.:Llama2:Openfoundationandfine-tuned
+chat models. arXiv preprint arXiv:2307.09288 (2023)
+32. Vaswani,A.,Shazeer,N.,Parmar,N.,Uszkoreit,J.,Jones,L.,Gomez,A.N.,Kaiser,
+Ł., Polosukhin, I.: Attention is all you need. Advances in neural information pro-
+cessing systems 30 (2017)
+33. Wang,X.,Li, C., Wang,Z.,Bai, F., Luo,H., Zhang,J., Jojic, N.,Xing,E.P., Hu,
+Z.: Promptagent: Strategic planning with language models enables expert-level
+prompt optimization. arXiv preprint arXiv:2310.16427 (2023)
+34. Wei,J.,Wang,X.,Schuurmans,D.,etal.:Chain-of-thoughtpromptingelicitsrea-
+soning in large language models. Advancesin NIPS 35 (2022)14 João Rodrigues and AntónioBranco
+35. Yang,C.,Wang,X.,Lu,Y.,Liu,H.,Le,Q.V.,Zhou,D.,Chen,X.:Largelanguage
+models as optimizers. arXiv preprint arXiv:2309.03409 (2023)
+36. Yao,S.,Yu,D.,Zhao,J.,etal.:Treeofthoughts:Deliberateproblemsolvingwith
+large language models. Advancesin NIPS 36 (2024)
+37. Zhong,Z.,Friedman,D.,Chen,D.:Factualprobingis[mask]:Learningvs.learning
+torecall. In:Proceedings of the2021 Conference of the NACL(2021)

@@ -1,0 +1,886 @@
+When Can Models Learn From Explanations?
+A Formal Framework for Understanding the Roles of Explanation Data
+PeterHaseandMohitBansal
+DepartmentofComputerScience
+UniversityofNorthCarolinaatChapelHill
+{peter, mbansal}@cs.unc.edu
+Illustrative Example #1
+Abstract
+When asked for travel times, give them in terms of travel by car.
+How many hours does it take to travel from Addis Ababa to Dessie?
+Many methods now exist for conditioning
+About 8 hours.
+modelsontaskinstructionsanduser-provided
+Addis Ababa and Dessie are 400km apart by road, and assuming you could
+explanationsforindividualdatapoints. These average 50kph in a car, the travel time would be about 8 hours.
+methods show great promise for improving Illustrative Example #2
+task performance of language models beyond What are the names of people in the text?
+what can be achieved by learning from indi- She was in particular interested in Babbage's work on the Analytical Engine.
+Lovelace first met him in June 1833, through their mutual friend, and her
+vidual (x,y) pairs. In this paper, we (1) pro- private tutor, Mary Somerville.
+vide a formal framework for characterizing Babbage, Lovelace, Mary Somerville.
+approaches to learning from explanation data, Names will refer to people, who can work on things, meet others, and be
+tutors. Not all capitalized things are names. Engines are not people, and
+and(2)weproposeasynthetictaskforstudy- here June is a date.
+ing how models learn from explanation data. Figure1: Hypotheticaldataandexplanations. Here,x
+In the first direction, we give graphical mod-
+isaninputthatonemightexpectamodeltoproducethe
+els for the available modeling approaches, in correctoutputforafterfittingto(x,y)pairs. Forsome
+which explanation data can be used as model models, x may be sufficient, while others may benefit
+inputs,astargets,orasaprior. Inthesecond fromadditionalinformationprovidedbye.
+direction, we introduce a carefully designed
+synthetic task with several properties making
+et al., 2020; Pruthi et al., 2021) or intermediate
+itusefulforstudyingamodel’sabilitytolearn
+structuredvariables(Camburuetal.,2018;Rajani
+fromexplanationdata. Eachdatapointinthis
+etal.,2019;Wiegreffeetal.,2020),andsimplyas
+binaryclassificationtaskisaccompaniedbya
+string that is essentially an answer to the why model inputs (Rupprecht et al., 2018; Co-Reyes
+question: “why does data point x have label etal.,2019;Zhouetal.,2020).
+y?" (Miller, 2019). We aim to encourage re- However, there are many tasks in NLP where
+searchintothisareabyidentifyingkeyconsid-
+improvementsinperformanceproveelusiveeven
+erationsforthemodelingproblemandprovid-
+whenusingthousandsofexplanationsasadditional
+ing an empirical test bed for theories of how
+modelscanbestlearnfromexplanationdata.1 data (Narang et al., 2020; Hase et al., 2020). A
+fewobservationscouldexplainthissituation: (1)
+1 Introduction themodelingspacehasnotbeenfullyexploredfor
+thesetasks,butimprovementsarepossible;(2)pre-
+A long line of past work has sought to use free-
+trainedlanguagemodelsalreadystoretheknowl-
+textexplanations,rationales,andothersimilardata
+edgethattheexplanationswouldhaveprovided,so
+to improve machine learning models. Proposed
+theydonotneedthem;(3)thelanguagemodelsdo
+methodsuseexplanationstoconstrainorregularize
+notneedanyinformationthatisnotalreadylearn-
+thelearnedmodel(Zaidanetal.,2007;Smalletal.,
+ablefromthetask’sinput-outputpairs. Wedonot
+2011;Baetal.,2015;Zhangetal.,2016;Srivastava
+yetknowwhichexplanationisbest,andtherefore
+et al., 2017; Liang et al., 2020), to automatically
+itwouldbehelpfultomoredeeplyunderstandthe
+label data for data augmentation (Hancock et al.,
+motivationsbehindexistingmodelingapproaches.
+2018;Wangetal.,2019a;Awasthietal.,2020),as
+Inthispaper,we(1)presentaformalframework
+additionalsupervision(Narangetal.,2020;Hase
+forcharacterizingapproachestolearningfromex-
+1Our code and data are publicly available at: https: planationdata,and(2)weproposeasynthetictask
+//github.com/peterbhase/ExplanationRoles.
+for studying how models learn from natural lan-
+An extended technical report on this topic is available at:
+https://arxiv.org/abs/2102.02201. guagedata. Specifically,wefirstpresentgraphical
+29
+ProceedingsoftheFirstWorkshoponLearningwithNaturalLanguageSupervision,pages29-39
+May26,2022©2022AssociationforComputationalLinguisticsExplanation as Target Explanation as Prior
+modelsforvariousapproacheswhereexplanation
+Regularizer
+dataisusedeitherasmodelinputs,targets,orpri- Multi-Task Data Augmentation or Hypernetwork
+ors,andwecharacterizeexistingmethodsaccord-
+ingtothesegraphicalmodels. Then,basedonpast
+results, we suggest which models might be most
+appropriateforexplanationdata. Next,wepresent
+asynthetictaskwhichsharesimportantproperties
+with NLP tasks involving explanation data. Con- Explanation as Input
+structing this task helps us carefully specify the Global Set Retrieval Per Data Point Input
+mannerinwhichweexpectexplanationstobeuse-
+ful to models. We provide simple experimental
+verification that the task is solvable by existing
+Transformer models when using explanations as
+additionaldatabutverydifficulttosolvewithout
+them. Ouraimistooutlinepromisingapproaches Per Label Few-shot
+Structured Variable Structured Variable In-context Learning
+in the area and contribute a concrete test bed to
+assistothersindevelopingnewmodelsforlearning
+fromnaturallanguageexplanations.
+2 FormalizingtheRolesofExplanations
+In what follows, we discuss our framework for
+Figure 2: Graphical models for several approaches to
+modeling with explanations and relevant work
+using explanations as targets, as inputs, and as priors.
+(Sec. 2.1), as well as promising approaches for
+Typicallypastworksdonotconditiononhuman-given
+learningfromexplanations(Sec.2.2).
+explanations at test time, unless they are designed to
+notleakthedatapointlabel.
+WhatIsanExplanation? Weusetheterm“ex-
+planation”torefertothedataonemightcollectif
+as Multi-Task in Fig. 2). For instance, Pruthi
+askingapersontoanswerthequestion,“Whydoes
+datapointxhavelabely?” Thisisaformulationof et al. (2021) consider using attention weight ex-
+planations (from a model) as targets in a multi-
+theexplanationasananswertoawhy-questionof
+task framework, and they observe accuracy im-
+thekinddiscussedinMiller(2019). Ratherthantry
+provementsinwhatisessentiallymodeldistillation.
+togiveaformaldefinitionofthekindofdatagen-
+Meanwhile,naturallanguageexplanationsappear
+erated from this question, we proceed with some
+astargetsinamulti-taskframework,usingdatasets
+illustrativeexamples,showninFig.1.
+with explanations for each data point (Camburu
+2.1 FormalFrameworkandRelevantWork etal.,2018;Narangetal.,2020;Haseetal.,2020;
+In this section, we lay out our theory of how ex- Wiegreffeetal.,2020). Noneoftheseworksfind
+planations may be used in modeling a task, in a improvementsintaskperformancefromincorpo-
+standardsupervisedlearningsetupforobtaininga rating explanations. It is perhaps even concern-
+MAPestimateofmodelparameters: ingthatamodelcouldlearntogeneratecoherent
+“explanations”withoutthelearningofthisability
+θˆ= argmaxp(θ X,Y)
+influencingthemodelsthatarefoundforthetask.
+|
+θ
+p(θ X,Y) p(Y X,θ)p(θ) UsingExplanationsasInputs. Additionalinputs
+| ∝ |
+maybevaluableforsolvingsometasks. Onefam-
+where Y is a set of labels for inputs X. We refer ily of approaches uses explanations as model in-
+totheroleofY inthisprobabilisticmodelasthe puts for each data point (Per Data Point Input in
+target,X asaninput,andp(θ)asaprior. Below Fig.2). Talmoretal.(2020)systematicallystudy
+we describe existing approaches to adding expla- RoBERTa’sabilitytocombinepiecesofknowledge
+nations into this framework. An overview of the forataskbyincludingrelevantfactoidsinthetext
+correspondinggraphicalmodelsisshowninFig.2. input. Co-Reyesetal.(2019)provideonlinenatu-
+Using Explanations as Targets. Explanations rallanguagefeedbacktoRLagents,andRupprecht
+are often used as additional supervision (shown etal.(2018)takeasimilarapproachtointeractive
+30imagesegmentationwithlanguagefeedback. odsarealleffectivelydescribedbyRegularizeror
+HypernetworkinFig.2. Lastly,afewapproaches
+Morecommonly,approachesdonotusehuman
+learn to use explanations for automatically label-
+explanations at test time. In ExpBERT (Murty
+ingdatafordataaugmentationpurposes(Hancock
+etal.,2020),amodelconditionsonvectorrepresen-
+et al., 2018; Wang et al., 2019b; Awasthi et al.,
+tationsofaninputxandasingle“global”setofex-
+2020), which is effectively fitting to data from a
+planationsinordertomakeeachprediction(Global
+priordistributiongivenbythelabelingmechanism
+SetinFig.2). Thisapproachmaynotscalewellto
+(DataAugmentationinFig.2).
+largenumbersofexplanations,however. Zhouetal.
+(2020) treat explanations as latent variables, and
+2.2 PromisingModels
+at inference time they retrieve explanations from
+Based on our review of existing approaches, we
+thetrainingdata(RetrievalinFig.2). Anumberof
+makeafewkeyobservationsthatwebelievewill
+worksconditiononexplanationsgeneratedattest
+assistinthedesignoffuturetechniques:
+timeusinggenerativemodelslearnedwithhuman
+explanationsassupervision,whicharerepresented
+1. Usingfree-textexplanationsasstructuredvari-
+as Structured Variable and Per-Label Structured
+ablesandastargetsdonotappeartobepromis-
+Variable in Fig. 2 (Camburu et al., 2018; Rajani
+ingapproachesatthemoment(Haseetal.,2020;
+etal.,2019;KumarandTalukdar,2020;Haseetal.,
+Narangetal.,2020).
+2020;Wiegreffeetal.,2020;ZhaoandVydiswaran,
+2021). While such structured variables could be 2. Free-textexplanationsmaybeusefulaspriors
+useful in principle, these methods have not pro- incomputervision(Liangetal.,2020),butwe
+ducedsustainedimprovementsinmodelaccuracy. knowofnosuccessfulusecasefortasksbesides
+Staceyetal.(2022),whicheffectivelyreduces
+Lastly, large language models have recently
+free-textexplanationstoabagofwords.
+openedthedoorforusingexplanationsinfew-shot
+in-contextlearning(Brownetal.,2020). Werepre- 3. Theonlycasesweknowofwherefree-textex-
+sentthisapproachasFew-shotIn-contextLearning planationsimprovemodelperformanceonNLP
+in Fig. 2. We do not draw the dependencies be- tasksiswhentheyareusedasmodelinputsvia
+tweendistinctdatapointsinthecontextthatwould the Global Set model, (Murty et al., 2020) a
+beimpliedbytheattentiongraphofTransformers, Retrievalmodel(Zhouetal.,2020),andanIn-
+butinsteadrepresentthedependenceofeachdata ContextLearningmodelusing280Bparameters
+point on the unknown task τ, which models evi- (Lampinenetal.,2022).
+dentlydoinferenceoverattesttime. Initialworkin
+Theupshotoftheseresultsisthatthemostpromis-
+thisdirectionsuggeststhatmodelsofasufficiently
+ingapproachesforlearningfromexplanationdata
+largesize(280Bparameters)canlearnfromexpla-
+arelikelythosetreatingexplanationsasinputs(in
+nationsprovidedinafew-shotin-contextlearning
+a manner that does not require new explanations
+setting(Lampinenetal.,2022).
+attesttime). However,werecommendthatother
+UsingExplanationsasPriors. Wegrouptogether
+graphical models not be ruled out completely, in
+approaches to defining a distribution over model
+casetherearepromisingmethodsinthosefamilies
+parameters,includingthoseconditioningondata,
+thathaveyettobeexplored.
+p(θ data). Thisisapriorovermodelweightsnot
+|
+inthesensethatthedistributionisindependentof
+3 SyntheticTask
+data(whichitisnot),butratherthattheposterior
+parameters are conditioned on the prior. Expla- Followingrecentwork usingsyntheticdatatoin-
+nations have been used to constrain the learned vestigatesequencemodelingquestions(Liuetal.,
+model (Srivastava et al., 2017, 2018) or to place 2021;Loveringetal.,2021),wedesignasynthetic
+priorsoverhowfeaturesareweightedorextracted dataset so that we can carefully control several
+(Zaidanetal.,2007;Smalletal.,2011;Zhangetal., important data properties. In Fig. 3, we show an
+2016;Rossetal.,2017;Baoetal.,2018;Selvaraju exampledatapointanddescriptionofhowitgets
+et al., 2019; Liang et al., 2020; Stammer et al., its label. The premise of our task is to classify
+2020;Pruthietal.,2021;Staceyetal.,2022). Other sequencesbycountingdifferentintegersinthem.
+worksmapdirectlyfromtexttomodelparameters Core Idea Behind Data. We wish to design a
+(Baetal.,2015;Andreasetal.,2018). Thesemeth- taskwhere,foradatapoint(x,y),anexplanation
+31Synthetic Task
+#r>#d, depending on which feature is causal.
+Count whether there are more of integer a than integer b
+In each x , after m,n,r, and d have been ran-
+i
+domly placed into the sequence, unfilled slots
+arefilledwithsamplesfromunif(1,100).
+Description: The sequence has label because there are more s than s.
+The index maps to , and indicator says to count 2. Devset: 10,000points,noneappearinginTrain,
+rather than . If there were more s than s, the label would be .
+There is a one-to-one map between index values and tuples. with the same 500 index values, and twice the
+Analogous Components to Real Data numberofpointsperindexasTrain.
+An easily computable feature connecting 3. Testset: 50,000pointsofsimilarconstruction
+Index
+the input to its explanation
+totheDevset,butwithfivetimesthepointsper
+A feature indicating what information from
+Indicator
+the explanation is relevant for the input's label indexasTrain.
+An explanation that says why the input
+received its label, when understood properly AnalogousPropertiestoHuman-CuratedData.
+Weclaimthataspectsofoursynthetictaskareanal-
+Figure3: Anexampleofoursynthetictask.
+ogoustopropertiesthatnaturallanguagedatamight
+take on, which we represent in Fig. 3. First, e is
+e communicates information about why input x
+anexplanationinthesensethat,whenunderstood
+receives label y. The premise of the task is that
+properly, it is a plausible answer to the question:
+a binary label for a sequence of integers x is de-
+“whydoespointxhavelabely?” Theexplanation
+terminedbywhethertherearemoreofaninteger
+describesthefeaturethatcausesthelabel,i.e. the
+a in the sequence than there are of an integer b.
+integers that should be counted. We suggest that
+Werefertointegers(a,b)thatneedtobecounted
+theindexinasequenceisanalogoustothetopicof
+as the label reason. This label reason forms the
+some text or the things it refers to: it is an easily
+basis of the explanation for each data point, and
+computable feature that connects the input to the
+it is always exactly specified by the first two in-
+appropriate explanation. Meanwhile, the indica-
+tegers in x, which we term the index and indica-
+torisafeaturethattellshowinformationfroman
+tor. Foreverydatapointx,thereisanexplanation
+explanationisrelevanttodecidingthelabel. Simi-
+e = (index,m,n,r,d) where the label reason is
+larly,anexplanationmightonlybeunderstoodin
+given by either (m,n) or (r,d). Whether the la-
+thecontextoftheinputitexplains.
+bel reason is the (m,n) integer pair or the (r,d)
+pair is dictated by the indicator. As represented
+4 InitialExperiments
+inFig. 3,(a,b) = (m,n)iftheindicatoris1and
+(a,b) = (r,d)iftheindicatoris2. Wecallthedata Weincludeexperimentsbelowthat(1)showexpla-
+eanexplanationbecauseitisadirectencodingof nationdataishelpfulforsolvingourtaskand(2)
+anaturallanguageexplanationforthedata(x,y). demonstratewhythetaskishardwithoutexplana-
+ForthedatapointinFig. 3,thisnaturallanguage tiondata. Wemakeuseofaretrieval-basedmodel
+explanationis“inputxreceiveslabel1becauseit similar to Zhou et al. (2020), which learns to re-
+containsmore80’sthan40’s,andwedonotneed trieveexplanationsfromthetrainingdatasettohelp
+tocount17’sor27’sforthissequence." withpredictionattesttime(detailsinAppendixB
+Proposed Dataset. We describe the proposed and C). This model is composed of a RoBERTa-
+datasetusingsomedefaultdataparametersforpre- baseclassifier(Liuetal.,2019)andaSentenceR-
+liminaryexperiments,butanyspecificnumbersap- oBERTa model used for retrieval (Reimers and
+pearingbelowareeasilyadjusted. SeeSupplement Gurevych,2019). Thebaselineinourexperiments
+Dforthefullgenerativeprocess. istheRoBERTaclassiferonitsown.
+1. Train set: 5000 sequences of 20 integers (in-
+4.1 ExplanationRetrievalEnablesaModel
+cluding index and indicator), each accompa-
+toSolveOurTask
+nied by an explanation. There are 500 unique
+values of index in the dataset drawn from Design. Usingourdefaultdatasetcontainingone
+unif(1,10000), so there are 10 points for explanationpertrainingpoint,wemeasuremodel
+eachindex,whosevaluesofm,n,r,anddare accuracy with retrieval in a 3 2 design. There
+×
+drawn from unif(1,100) while requiring that are three conditions for the retrieval model: (1)
+m=n=r=d. The corresponding 10 values of fixed, where the Sentence-RoBERTa retriever is
+6 6 6
+indicatoraresplitbetween1and2. Halfofthe fixedandonlytheclassifieristrained,(2)learned,
+points have label y=1, i.e. either #m>#n or wherebothclassifierandretrieveraretrainedend-
+32[PLACEHOLDERRUNNINGTITLE–SOMETITLESWILLBETOOLONGTOFIT–PH]
+Is Explanation Retrieval Helpful? When Can the Label Reason Be Inferred?
+100 100
+90
+90 Retrieval Model
+Model Input
+No Retrieval 80
+80 No Retrieval Acc. With Explanation
+Acc. (10x Train) 70 No Explanation
+70 Fixed No Index
+Learned
+Optimal 60
+60
+50
+50 0 100 200 300 400 500
+Baseline H-Mᴇᴀɴ TᴇxᴛCᴀᴛ # Unique Explanations
+FF ii gg uu rere 6.4 (: RQSy 2n )Sth ye nt thic etit cas tak ska ac cc cu ur ra acc yy bf yo tr heo cu or nb dia tis oe nl ii nn ge ma en cd h- FFiigguurree75.(: RS Qy 3n)tShyentitchettaicsktasakccauccruarcaycyawsiathfuevnicdteinotnialoafntdhree-
+ar ne it sr miev ana dl rm eto rid eve al lw mi ot dh eltw sto atuc so ,n fod ri dti ao tani wn ig thm nue mc -h taa sn ki ssm=s5,0H0.- [ ncuommpboesarbolefeuxnpilqanuaetioenxsp,lgarnoauptieodnbsyftohredcoantdaitpiooniinntglmabecehlsa.nism
+nMewEA10NxatrnadinTbEaXseTliCneA–T.PH] andstatusofretrievalmodel.[shudwebementioningtheerror
+ibnadresxonces(omme,wnh,err,edin);ca(3pt)iofno/rmNaionItenxdt?e[xa,dthdeedinmdoedxelisse-
+→
+to-end,and(3)optimalwheretheoptimalretrieval olemctiiottnedanfdrohympotthheesiinspteustti,nsgosetchteionmiondEexlpmeriumsetnitnafleSrettuhpe–
+oftasksincreases(equivalenttothenumberofpointsper PH]–MB]
+tm aso kd de el ci rs eau ss ie nd g)a ,n red at ch he inc gla as cs ci ufi re ar cii es st ara si ln oe wd. asW 6e 2.k 2n %ow at labelreasonfromthesequence’scontentsalone.
+nthuem-otapstkims=al5r0e0t.riMeveaalnmwhoidlee,lwreetorbiesverevseetxhaptlapnroavtiidoinnsg and(2)H-MEANwithC=4andk=4,whichapproximately
+Results. TheresultsareshowninFig.5. Wesee
+twheitihndaenxdionedsesxligmhtalytcehasinegthethtaeskqiuneferryenpceo,inbut’tsthienmdeoxd.- matchesthecomputationalcostoftheTEXTCATcondition.
+elscanbynomeansmemorizethemapfromindextothe that,whenthenumberofuniqueexplanations(and
+Thetwoconditioningmechanisms,H-MEANand
+taskinformation. Regardingmodelcapacity,wefindthat thereforepossiblelabelreasons)issmall,theNo
+TEXTCAT,differinhowtheycombineinformation Results. ShowninFig.6,theresultsshowthatretrieval
+usingRoBERTa-largeincreasesmodelaccuracywhenthe EwxitphlaSnenatteioncnem-BoEdReTlcimanpraocvheisemveodaenlaaccccuurraaccyybaysahroigunhd
+acrossmultipleretrievedexplanationstoproducea
+numberofnum-tasksisrelativelylow(lessthan250),but
+a2s9ipfeirtcehnatdagbeepeonindtsiroevcetrlayngoi-vreetnriethvaellbaabseellinree.aEsoacnh,ic.oen.-
+afifntearlthpirsepdoiicnttioRnoB(sEeReTAa-bpapseenpdeirxfoBrm.1s)b.etter(seeFig.13
+adsitihoinginhgamsetchheanWismithseeEsxrpoulagnhalytitohnescaomnediimtiporno.veYmeent,t.
+inAppendixB).Lastly,weseethatincreasingthetraining
+Additionally,wecanlearnaretrievalmodelthatdoesnearly
+sRetessiuzeltcsa.ngTrehaetlyreimsuplrtosveinmFodigel.p4ersfohromwantcheaetveenxpwliath- No Explanation model accuracy falls off quickly
+aswellastheoptimalretrievalmodel,improvingoverthe
+nnuamti-otanskrse=trie5v00a,lrceaanchrienagc8h7.a1c1c%urwacitihes50a,b00o0vetra9i8ni%ng, w fixi eth dt ch oe ndn iu tiom nb be yr ao nf ou thn ei rq 7ue poe ix np tsl .an [a shti oo un lds, wr ee aa dc dh si on mg
+e
+p imoin pt rs o( vtr ie nn gd ash co cw urn ai cn yF big y.1 a4 roin unA dpp 3e 7nd pix oB in) t. sH oo vw ee rve ar, a mc oc ru er ra ec ai se os nsa +s clo onw clua ss io6 n2 s/. t2 a% keaw wait yh so5 f0 t0 hee sx ep nl ua mn ea rt ii co an lrs e.
+-
+wewillseeinthenextsectionthat,intermsofimproving
+no-explanation baseline. We also find that the Esuvltisd?en[talydd,ewdiathcothupislemtaakneaywuaynisqeunteenecxespl–aPnHati]o–nsM,Bit]
+modelaccuracy,eventhis10xincreaseintrainingsizeis
+learnedretrievalmodeldoesaswellastheoptimal
+iTshtuoso,rdeitfrfiiecvualltotfoelxepalrannathtieonmsaapllobwestwtheeemnothdeelitnodpeexr-
+lesseffectivethanusingretrievedexplanationswith5000
+formmuchbetterthanano-retrievalbaseline.Weseea
+trreatirniienvgaplominotsd.e[la,dimdepdrtoravninsigtioonvoefrfstahmepfilexesidzecpoonindti–tioPnH a lan rd get ih me pl ra ovte en mt enla tb ine pl er re foa rs mo an n. ceW froit mho reu tt rit eh vae li en ved nex whin
+en
+]by about 7 points. Thus, access to explanations t th hee bi an sp elu int e( cN oo uldIn led ae rnx toco inn fd erit ti ho en ta) s, kit ini fs ore mv ae tin onh da ir rd ece tr ly
+allows the model to perform much better than a tforoimnftehretihnedelxabvaellureeianseoanc.hWinphuilte.Iancfcaucrt,aecxypldaoneastiornisree-
+[roberta-largeresultsinappendix.betteratlow-taskregime,
+wnoor-seexinplhaignha-ttiaosknrbegaismeeli–nPeH. ]In fact, the explanation striigenvaifilocuatnptelryfowrmitshathnoe-rseitzreievoafltbhaesetlrianienwinitghdasatmaa(nsyeeas
+retrievalmodeloutperformsano-explanationbase-
+F5i0g,0.040),treavineinngudsiantagp1o0inxtsa(sam10uxcihnctrreaainse)d,awtahidcoheosbtnaoints
+87.11%accuracy.
+6li.n2.eRwQi2th:Casanmraentryieavsa5lo0f,0p0a0stterxapinlainnagtidoantsaepnoaibnletsa(a closethegapwiththeexplanationretrievalmodel.
+modeltosolveourtask?
+10xincrease),whichobtains87.11%accuracy.
+6.3.RQ3:Canmodelsaggregateinformationacross
+5 Discussion&Conclusion
+Design. Using the full-info explanations and data with
+explanationsforbetterprediction?
+n4u.2m-taWsksh=y5I0s0,TwheemTeaassukreHmaorddelWaccituhraocuytwithretrieval
+Wepresentasyntheticdatasetwithkeysimilarities
+ina3 2design.Therearethreeconditionsfortheretrieval Design. We run the same experiment design as for
+model⇥ :E (1x )p fil xa en da ,t wio hen rs e?
+theSentence-RoBERTaretrieveris
+tRoQn2a,tuusrianlgleavnigdeunatgiaeleanxdplraencoamtipoonsadbalteae,xapnldanwateionshso(swee
+fiDxeesdigannd.onWlyethmeeclaassusirfieerteissttraacinceudr,a(c2y)alesaranfeudn,cwthioerne tSheact.o3.u3r).eWxpitlhaenvaitdieonntisalaerxephlaingahtlioynus,swefeuslhfifotreamchodinetle-
+boofthhoclwassmifiaenryanudnrieqtruieeveerxaprleatnraaitnieodnesn(da-ntod-etnhde,raenfdo(r3e) lgeearrinninthge.eHxpolawneatvioenr,(wexecleumdinpghathseizinedtehxa)tinidfeapemndoednetlly
+optimalwheretheoptimalretrievalmodelisusedandthe byzero-mean,discretenoise✏ unif( 2,2). Weusethe
+label reasons) there are in the data. While keep- already“knew"theinforma⇠tionin someexplana-
+classifieristrained.Notethatweknowtheoptimalretrieval 2-piececonditionforrecomposableexplanations,meaning
+ing the train set size fixed at 5000 points, we tions,itmightnotneedthem. Thismayplausibly
+modelassignsthehighestprobabilitiestoexplanationswith twoexplanationscombinetogivethefulltaskinformation.
+iv na dr ey
+x
+h mo aw tchm ina gn thy ep quo ein ryts pos ih nta ’r se int dh ee
+x
+,s sa om be yue sx ip ngla an ra e-
+-
+oAcsciunrRwQi1th,wsuefsfihcoiwenretlsyulltasrhgeerepfroertrvaailnueedsomfCod=ekls=t6hafotr
+e x
+ttriioevner(ipn(deexx,)m=,nex,pr,(d)[i.ndeBxy=deinfaduexlt])thaenrdeaacroent1ex0t sTtoEXreTCaAgTraenadtCd=eakl=o4ffofarcHtu-MalEkAnNo.wledge (Petroni
+i i e x
+|
+spizoeinlotswpererthianndnetxas,ka,nwdewcainthen5s0u0re0thpeorienttrsietvheidsemxpelaannas- etal.,2019). Similarly,thenecessaryinformation
+t ti ho an ts ta hre era elw aa ry es 5re 0l 0ev uan nt i. qT uh eer ee xa pr le at nw ao tic oo nn sdi it nio tn hs efo dr at th ae
+.
+mReigsuhlttsb.eW lee ad rnis ap bla ly eth fe rore msul(tXsin,YFig). d7. aF tairs at l, ow ne eo .bs Fer uv -e
+conditioningmechanismused:(1)TEXTCATwithC=k=6, thatforevidentialexplanations, learnedretrievalisclose
+We use many as 2500 points per index, meaning ture work on modeling approaches we outline in
+using two unique explanations. The experiment this paper (Fig. 2) will benefit from testing their
+conditions also vary in how task information is methodsoncontrolledsynthetictasksasatestof
+available in the input: (1) for With Explanation, theirabilitytolearnfromexplanationdata. Then,
+each20-integersequencex hasitsexplanationap- furtheranalysiswillbehelpfulforunderstanding
+i
+pended to it; (2) for No Explanation, only x is howexplanationscontainnovelinformationthatis
+i
+given,whichrequiresthemodeltolearnthemap notlearnedelsewhereinpretrainingorfinetuning.
+33Acknowledgements Livio Baldini Soares, Nicholas FitzGerald, Jeffrey
+Ling, and Tom Kwiatkowski. 2019. Matching the
+WethankMilesTurpinandEthanPerezforhelp- blanks: Distributional similarity for relation learn-
+ful discussion of the topics represented here, as ing. InACL,pages2895–2905, Florence, Italy.As-
+sociationforComputationalLinguistics.
+well as Xiang Zhou, Prateek Yadav, and our
+anonymousreviewersforhelpfulfeedbackonthe YujiaBao,ShiyuChang,MoYu,andReginaBarzilay.
+work. ThisworkwassupportedbyNSF-CAREER 2018. Derivingmachineattentionfromhumanratio-
+nales. InEMNLP,pages1903–1913,Brussels,Bel-
+Award1846185,DARPAMachine-Commonsense
+gium.AssociationforComputationalLinguistics.
+(MCS) Grant N66001-19-2-4031, a Google PhD
+Fellowship,MicrosoftInvestigatorFellowship,and Iz Beltagy, Matthew E. Peters, and Arman Cohan.
+Google and AWS cloud compute awards. The 2020. Longformer:Thelong-documenttransformer.
+CoRR,abs/2004.05150.
+viewscontainedinthisarticlearethoseoftheau-
+thorsandnotofthefundingagency. TomB.Brown,BenjaminMann,NickRyder,Melanie
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+EthicalConsiderations Neelakantan,PranavShyam,GirishSastry,Amanda
+Askell, Sandhini Agarwal, Ariel Herbert-Voss,
+Gretchen Krueger, Tom Henighan, Rewon Child,
+There are several positive broader impacts from
+Aditya Ramesh, Daniel M. Ziegler, Jeffrey Wu,
+designingmethodsforlearningfromhumanexpla-
+Clemens Winter, Christopher Hesse, Mark Chen,
+nations. Foremost among them is the promise of Eric Sigler, Mateusz Litwin, Scott Gray, Benjamin
+betteraligninglearnedmodelswithhumanpriors Chess, Jack Clark, Christopher Berner, Sam Mc-
+onwhatkindsofbehaviorsaregood,whichcould Candlish, Alec Radford, Ilya Sutskever, and Dario
+Amodei.2020. Languagemodelsarefew-shotlearn-
+be especially helpful when these priors are hard
+ers. InNeurIPS.
+to robustly encode in supervised learning objec-
+tives or unlikely to be learned from the available Oana-Maria Camburu, Tim Rocktäschel, Thomas
+Lukasiewicz, and Phil Blunsom. 2018. e-snli: Nat-
+data. Explanationscanalsogreatlyimprovemodel
+urallanguageinferencewithnaturallanguageexpla-
+sampleefficiency,whichisbroadlybeneficialfor
+nations. InNeurIPS2018.
+difficult, time-consuming, or human-in-the-loop
+JohnD.Co-Reyes, AbhishekGupta, SuvanshSanjeev,
+tasks where acquiring a large amount of data is
+Nick Altieri, Jacob Andreas, John DeNero, Pieter
+expensiveandslow.
+Abbeel,andSergeyLevine.2019. Guidingpolicies
+Therearestillsomepossibleriskstothismethod- withlanguageviameta-learning. InICLR2019.
+ology,mainlyinvolvingoverconfidenceinwhatex-
+Braden Hancock, Paroma Varma, Stephanie Wang,
+planationscanprovide. Forinstance,justbecause
+Martin Bringmann, Percy Liang, and Christopher
+explanationsimproveamodel’sperformancedoes
+Ré.2018. Trainingclassifierswithnaturallanguage
+not mean the model will behave exactly as a hu- explanations. InACL.
+manwould. Weriskanthropomorphizingmachine
+Peter Hase, Shiyue Zhang, Harry Xie, and Mohit
+learning models when we suppose their learned
+Bansal.2020. Leakage-adjustedsimulatability: Can
+interpretationsofexplanationsmatchesourown. modelsgeneratenon-trivialexplanationsoftheirbe-
+haviorinnaturallanguage? InFindingsofEMNLP.
+Jeff Johnson, Matthijs Douze, and Hervé Jégou. 2017.
+References
+Billion-scale similarity search with gpus. IEEE
+TransactionsonBigData.
+Jacob Andreas, Dan Klein, and Sergey Levine. 2018.
+Learning with latent language. In NAACL-HLT
+VladimirKarpukhin,BarlasOguz,SewonMin,Patrick
+2018.
+Lewis,LedellWu,SergeyEdunov,DanqiChen,and
+Wen-tau Yih. 2020. Dense passage retrieval for
+Abhijeet Awasthi, Sabyasachi Ghosh, Rasna Goyal,
+open-domainquestionanswering. InEMNLP,pages
+and Sunita Sarawagi. 2020. Learning from rules
+6769–6781, Online. Association for Computational
+generalizinglabeledexemplars. InICLR2020.
+Linguistics.
+Lei Jimmy Ba, Kevin Swersky, Sanja Fidler, and Rus- SawanKumarandParthaTalukdar.2020. Nile: Natu-
+lanSalakhutdinov.2015. Predictingdeepzero-shot rallanguageinferencewithfaithfulnaturallanguage
+convolutionalneuralnetworksusingtextualdescrip- explanations. InACL2020.
+tions. In 2015 IEEE International Conference on
+Computer Vision, ICCV 2015, Santiago, Chile, De- Andrew K Lampinen, Ishita Dasgupta, Stephanie CY
+cember 7-13, 2015, pages 4247–4255. IEEE Com- Chan, Kory Matthewson, Michael Henry Tessler,
+puterSociety. Antonia Creswell, James L McClelland, Jane X
+34Wang, and Felix Hill. 2022. Can language models Nils Reimers and Iryna Gurevych. 2019. Sentence-
+learn from explanations in context? arXiv preprint BERT:SentenceembeddingsusingSiameseBERT-
+arXiv:2204.02329. networks. In EMNLP-IJCNLP, pages 3982–3992,
+Hong Kong, China. Association for Computational
+Patrick S. H. Lewis, Ethan Perez, Aleksandra Pik- Linguistics.
+tus, Fabio Petroni, Vladimir Karpukhin, Naman
+Goyal, Heinrich Küttler, Mike Lewis, Wen-tau Yih, Andrew Slavin Ross, Michael C. Hughes, and Finale
+Tim Rocktäschel, Sebastian Riedel, and Douwe Doshi-Velez. 2017. Right for the right reasons:
+Kiela. 2020. Retrieval-augmented generation for Trainingdifferentiablemodelsbyconstrainingtheir
+knowledge-intensiveNLPtasks. InNeurIPS. explanations. InIJCAI,pages2662–2670.
+WeixinLiang,JamesZou,andZhouYu.2020. ALICE: Christian Rupprecht, Iro Laina, Nassir Navab, Gre-
+activelearningwithcontrastivenaturallanguageex- goryD.Harger,andFedericoTombari.2018. Guide
+planations. In EMNLP, pages4380–4391. Associa- me: Interactingwithdeepnetworks. InProceedings
+tionforComputationalLinguistics. oftheIEEEConferenceonComputerVisionandPat-
+ternRecognition,CVPR2018.
+Nelson F. Liu, Tony Lee, Robin Jia, and Percy Liang.
+2021. Can small and synthetic benchmarks drive
+Ramprasaath Ramasamy Selvaraju, Stefan Lee, Yilin
+modelinginnovation? aretrospectivestudyofques-
+Shen, Hongxia Jin, Shalini Ghosh, Larry P. Heck,
+tionansweringmodelingapproaches. CoRR.
+Dhruv Batra, and Devi Parikh. 2019. Taking a
+HINT: leveraging explanations to make vision and
+YinhanLiu,MyleOtt,NamanGoyal,JingfeiDu,Man-
+language models more grounded. In ICCV, pages
+dar Joshi, Danqi Chen, Omer Levy, Mike Lewis,
+2591–2600.IEEE.
+Luke Zettlemoyer, and Veselin Stoyanov. 2019.
+Roberta: A robustly optimized bert pretraining ap-
+Kevin Small, Byron C Wallace, Carla E Brodley, and
+proach. ArXiv,abs/1907.11692.
+ThomasATrikalinos.2011. Theconstrainedweight
+spacesvm: learningwithrankedfeatures. InICML,
+Charles Lovering, Rohan Jha, Tal Linzen, and Ellie
+pages865–872.
+Pavlick. 2021. Predicting inductive biases of pre-
+trainedmodels.
+ShashankSrivastava,I.Labutov,andT.Mitchell.2017.
+Learning classifiers from declarative language. In
+Tim Miller. 2019. Explanation in artificial intelli-
+NeurIPS2017.
+gence: Insights from the social sciences. Artif. In-
+tell.,267:1–38.
+Shashank Srivastava, Igor Labutov, and Tom Mitchell.
+2018. Zero-shotlearningofclassifiersfromnatural
+ShikharMurty,PangWeiKoh,andPercyLiang.2020.
+languagequantification. InACL2018.
+Expbert: Representation engineering with natural
+language explanations. In ACL, pages 2106–2113.
+Joe Stacey, Yonatan Belinkov, and Marek Rei. 2022.
+AssociationforComputationalLinguistics.
+Supervising model attention with human explana-
+Sharan Narang, Colin Raffel, Katherine J. Lee, Adam tionsforrobustnaturallanguageinference. InAAAI.
+Roberts, NoahFiedel, andKarishmaMalkan.2020.
+WT5?! training text-to-text models to explain their WolfgangStammer,PatrickSchramowski,andKristian
+predictions. ArXiv,abs/2004.14546. Kersting. 2020. Right for the right concept: Re-
+vising neuro-symbolic concepts by interacting with
+Fabio Petroni, Tim Rocktäschel, Sebastian Riedel, theirexplanations. CoRR,abs/2011.12854.
+Patrick Lewis, Anton Bakhtin, Yuxiang Wu, and
+AlexanderMiller.2019. Languagemodelsasknowl- AlonTalmor,OyvindTafjord,PeterClark,YoavGold-
+edge bases? In Proceedings of the 2019 Confer- berg, and Jonathan Berant. 2020. Leap-of-thought:
+ence on Empirical Methods in Natural Language Teaching pre-trained models to systematically rea-
+Processing and the 9th International Joint Confer- sonoverimplicitknowledge. InNeurIPS2020.
+ence on Natural Language Processing (EMNLP-
+IJCNLP),pages2463–2473,HongKong,China.As- Cunxiang Wang, Shuailong Liang, Yue Zhang, Xiao-
+sociationforComputationalLinguistics. nan Li, and Tian Gao. 2019a. Does it make sense?
+andwhy? apilotstudyforsensemakingandexpla-
+DanishPruthi,BhuwanDhingra,LivioBaldiniSoares, nation. InACL2019.
+Michael Collins, Zachary C. Lipton, Graham Neu-
+big,andWilliamW.Cohen.2021. Evaluatingexpla- Ziqi Wang, Yujia Qin, Wenxuan Zhou, Jun Yan,
+nations:Howmuchdoexplanationsfromtheteacher QinyuanYe,LeonardoNeves,ZhiyuanLiu,andXi-
+aidstudents? TACL,abs/2012.00893. ang Ren. 2019b. Learning from explanations with
+neuralexecutiontree. InICLR.
+Nazneen Fatema Rajani, Bryan McCann, Caiming
+Xiong,andRichardSocher.2019. Explainyourself! Sarah Wiegreffe, Ana Marasovic, and Noah A. Smith.
+leveraging language models for commonsense rea- 2020. Measuring association between labels and
+soning. InACL2019. free-textrationales. CoRR,abs/2010.12762.
+35OmarZaidan,JasonEisner,andChristinePiatko.2007. from the training data (the “Retrieval” graphical
+Using “Annotator Rationales” to Improve Machine modelinFig.2). OurapproachissimilartoLewis
+Learning for Text Categorization. In Human Lan-
+et al. (2020), who marginalize over latent docu-
+guage Technologies 2007: The Conference of the
+ments retrieved from Wikipedia for question an-
+NorthAmericanChapteroftheAssociationforCom-
+putational Linguistics; Proceedings of the Main swering,questiongeneration,andfactverification.
+Conference, pages 260–267, Rochester, New York. Themarginaldistributionisgivenas:
+AssociationforComputationalLinguistics.
+p (y x) = p (y x,e)p (e x)
+Ye Zhang, Iain Marshall, and Byron C. Wallace. Θ θ η
+| | |
+2016. Rationale-Augmented Convolutional Neural e ∈top-Xk(pη( ·|x))
+NetworksforTextClassification. InProceedingsof
+the 2016 Conference on Empirical Methods in Nat- wheretop-kgetsthetopktextsasrankedbythere-
+ural Language Processing, pages 795–804, Austin,
+trievalmodel,p (e x). Notethatweneverretrieve
+η
+Texas.AssociationforComputationalLinguistics. |
+adatapoint’sownexplanationwhenpredictingits
+XinyanZhaoandVGVydiswaran.2021. Lirex: Aug- label. Wedosobecauseexplanationscanleakthe
+menting language inference with relevant explana- label(Haseetal.,2020)andthisapproachmatches
+tion. InAAAI.
+thetest-timedistribution,whereweassumeexpla-
+Wangchunshu Zhou, Jinyi Hu, Hanlin Zhang, Xiao- nationsarenotcollectedfornewdatapoints(see
+danLiang,MaosongSun,ChenyanXiong,andJian discussioninSec.2).
+Tang.2020. Towardsinterpretablenaturallanguage
+Zhouetal.(2020)alsoproposetouseexplana-
+understanding with explanations as latent variables.
+tionsaslatentvariablesandretrieveexplanations
+InNeurIPS.
+atinferencetime,buttheydonotlearntheretrieval
+A AdditionalExperiments model, marginalize over the latents during infer-
+ence, or prohibit data point’s own explanations
+We give additional experimental results with our
+frombeingretrieved. Inourexperiments,wecom-
+synthetic dataset in an extended technical report
+pare with their original approach and a version
+on this topic, available here: https://arxiv.
+wherewemarginalizeoverthelatentsandlearnthe
+org/abs/2102.02201. Additional experi-
+retrievalmodel.
+mentsareconductedtoansweraresearchquestions
+Theformofp (e x)followsLewisetal.(2020)
+including: η |
+and Karpukhin et al. (2020). Given a query x,
+1. Can explanations help models learn to use unnormalizedprobabilitiesarecomputedas:
+strong (causal, generalizable) features rather
+thanweakones? p η(e x) exp(f η(e)Tf η(x))
+| ∝
+2. What is the best way to compute explanation
+where f embeds each sequence into a vector.
+η
+representationsforprediction?
+To compute top-k(p ( x)), we search through
+η
+·|
+3. Can models aggregate information across sev- the training explanations using FAISS (Johnson
+eralretrievedexplanations? et al., 2017). We discuss methods for computing
+p (y x,e)andf (e x)inSec.B.1. Becauseitmay
+4. Whatmakesanexplanationrelevantacrossdata θ | η |
+be helpful to reason over multiple explanations
+points? Whatenablesaretrievalmodeltofind
+at once, we extend this model to allow for expla-
+relevantexplanationsforanewdatapoint?
+nationstobecomposedintoasingle“document.”
+5. Howdoestheco-dependencebetweenclassifier Assuming explanations to be conditionally inde-
+and retrieval model influence the viability of pendentgivenx, wecancomputetheprobability
+jointtraining? ofasetofexplanationsE = e C as
+{ c }c=1
+6. Does retrieval of explanations improve model
+p(E x) exp( f (e)Tf (x)),
+performance on existing natural language η η
+| ∝
+datasets? e X∈E
+where(1)acontextsizeC willcontrolthesizeof
+B OurModelforInitialExperiments
+theexplanationset,(2)avalueofkimpliesthatthe
+Here,weintroduceourchosenmodelforincorpo- topCk willberetrieved,and(3)wesorttheseCk
+rating explanation data, which makes use of ex- explanationsintosetsinorderoftheirprobability
+planationsasmodelinputsaftertheyareretrieved p (e x).
+η
+|
+36Retrieval given model inputs, with explanations each Compute classifier Marginalize over
+Figure 6: A depiction of our retrieval-based method TEXTCAT. A total of Ck explanations are retrieved and
+allocated into k latent variables, each a set of explanations E, which are marginalized over to produce a final
+prediction.
+WerepresenttheoverallapproachinFig.6for H-MEAN, which are described below. Then we
+one method of computing p (y x,E) (described describe the retrieval model, which is based on
+θ
+|
+fullyinSec.B.1),whereexplanationsareconcate- Sentence-BERT(ReimersandGurevych,2019).
+natedwiththequerysequence. Flowingfromleftto
+right,Fig.6showshowexplanationsareretrieved TEXTCAT. RepresentedinFigure6,thismethod
+from the training data conditioned on a query se- takes a straightforward approach to conditioning
+quence x, then allocated into k classifier inputs onasetofexplanations: concatenatingC explana-
+with C explanations each. The k classifier pre- tionsandtheinputxtoformalongersequenceof
+dictionsareaggregatedbymarginalizingoverthe text. Each of the original sequences is separated
+latentvariable,Z = E. by a special token, e.g. [SEP] for BERT. In our
+experiments, we pass this longer sequence into a
+Modeling Assumptions. In using retrieval, we RoBERTa-base model. After pooling the output
+makeafewassumptions. First,sincethenumber token representations, we pass the resulting vec-
+offorwardpassesperdatapointscaleswithk,we
+tor to a 1-layer MLP for classification. We use
+require a relatively small value of k, i.e. k 10, meanpoolingforoursynthetictaskandNLI;for
+≤
+for reasonable computational efficiency in SGD- relationextractiontasks,weconcatenatetherepre-
+based training. Hence, we must assume that this sentationscorrespondingtotheinitialtokensinthe
+summationissufficientlysimilartothefullsumma- subjectandobjectwords,sincethisisanespecially
+tionoverlatentvariables. Thisassumptionismore effectivepoolingtechnique (BaldiniSoaresetal.,
+likely to hold when (1) a small number of docu- 2019).
+mentsaccountformostoftheprobabilitymassin
+Thisapproachallowsthemodeltoreasonover
+p (e x),and(2)apretrainedmodelp (e x)yields
+η | η | alloftheexplanationsandtheinputtogether. While
+adecentinitialrank-ordering,suchthatsomeofthe
+the method may be limited by the fact that some
+bestdocumentsareinthetop-k. Theexactvalue
+models can face difficulties in processing long
+ofk weusedependsontheexperiment. Asecond,
+pieces of text (Beltagy et al., 2020), this issue is
+morebasicassumptionisthatexplanationswillbe
+partlymitigatedbymarginalizingoverk setsofex-
+usefulinpredictingotherdatapoints’labels. Such
+planations. Asaresultofthemarginalization,the
+anassumptionisneededsincewenevercondition
+finalpredictioncanbeconditionedonafarhigher
+onadatapoint’sownexplanation. Lastly,during
+number(Ck)ofindividualexplanationsthancould
+retrievalweassumethatexplanationsareindepen-
+fitinthecontextalone.
+dent given x, i.e. p(E x) = p(e x). This
+| e E |
+could be a poor assumption whe∈n, for instance,
+Q H-MEAN. By H-MEAN,werefertothekindof
+explanations each contribute one of a number of
+unweightedhiddenrepresentationaveragingused
+needed facts, in which case it would be helpful
+in Co-Reyes et al. (2019) and Zhou et al. (2020).
+toretrieveadditionalexplanationsconditionedon
+H-MEANworksbyfirstobtainingrepresentations
+whathasalreadybeenretrieved.
+oftheinputxandasingleexplanationeatatime,
+thenpassingtheunweightedaverageoftheserep-
+B.1 ConditioningMechanisms
+resentationstoanMLP.Forafaircomparisonwith
+In this section we describe the methods used to TEXTCAT, we use the same token pooling and a
+compute p (y x,E) and p (e x) (see Sec. B for 1-layerMLP.SowithC explanationstocondition
+θ η
+| |
+the overall model description). For the classifier on,x = concatenate(x,e),andvectorrepresen-
+0
+p θ(y x,E), we use two methods, TEXTCAT and tationsfromRoBERTa(x 0),H-MEANobtainsasin-
+|
+37glerepresentationas timesasfollows: 4.0hoursfor40epochsoftheno-
+retrievalRoBERTa-baseusingthesyntheticdataset;
+C
+1
+h = RoBERTa(x 0) 5.7hoursfor40epochsofRoBERTa-largeinthe
+C
+same setting; 8.6 hours for 20 epochs of learned
+c=1
+X
+retrievalwithRoBERTa-basemodelsonsynthetic
+whichisthenpassedtotheMLPforclassification.
+data.
+H-MEANdoesnotfacethesamesequencelength
+limitationsasTEXTCAT,butbyseparatelyprocess-
+C.2 TrainingHyperparametersandAnalysis
+ingofeachexplanationsH-MEANmayfailtointe-
+grateinformationacrossexplanations. Thismethod Foroptimization,weuseAdamWwithalearning
+alsobecomesexpensivewhenwemarginalizeover rate of 1e 5 and gradient norm clipping at norm
+−
+E (whichiswhatallowsretrievaltobelearned),as 1. FortheLR,weusealinearwarmupanddecay
+itrequiresCk forwardpassesforasinglepredic- schedulepeakingat10%ofthetrainingstepsfor
+tion. experimentswithsyntheticdataandat1%forex-
+perimentswithexistingdatasets(giventhelarger
+B.2 Retrieval trainingsetsizes). Thebatchsizeissetto10across
+WeuseasimilarapproachtoretrievalasinLewis allexperiments.
+etal.(2020),namelyusingvectorrepresentations Wedecidehowoftentorebuildtherepresenta-
+ofsequencesfromapretrainedtransformertocom- tions of training explanations while learning the
+pute retrievalmodelbytuningacrossfrequencyvalues
+p (e x) exp(f (e)Tf (x)), intherange{10%,20%,33%,50%,100%}(i.e. to
+η η η
+| ∝
+rebuildatthispercentageofeveryepoch),aswell
+which is followed by computing top-Ck(p ( x).
+η
+·| as never rebuilding. In our synthetic setting, the
+Weuseanapproximatebutsub-lineartimesearch
+onlynoticeabledropinperformancecomesfrom
+method (FAISS) to find the top-Ck points (John-
+never rebuilding. As long as representations are
+sonetal.,2017). Inourexperimentswefindthatit
+re-encoded at least as often as every epoch, we
+isnecessarytouseSentence-BERT(Reimersand
+noticenodifferenceinfinaltestaccuracy,though
+Gurevych,2019)asourpretrainedf ,ratherthan
+η
+inearlyexperimentsweobservedthatrebuilding
+simply a pretrained RoBERTa model. Sentence-
+more often improved training stability. To err on
+BERT is a network trained to produce semantic
+thesafesideoftrainingstability,were-encodethe
+representationsofsentencesthatcanbecompared
+representationsevery20%ofeachepochinallex-
+undercosinesimilarity. Inourexperiments,weuse
+perimentsexcepte-SNLIwithfulldata,wherewe
+the Sentence-RoBERTa-base model trained on a
+re-encodeevery30%ofeachepoch.
+combination ofseveral NLIand semantictextual
+Additionally,weusethestop-gradientfunction
+similaritytasks,withmeanpoolingoftokenrepre-
+whencomputingthegradientofp (e x)asfollows:
+sentations. We normalize the representations we η
+|
+obtainfromthismodel,sothatourinnerproductis
+exp(sg[f (e)]Tf (x)),
+equivalenttoacosinesimilarity. ∇η η η
+Notethatduringtraining,weneverconditionon
+meaningthatwedonotdifferentiatethroughtheex-
+adatapoint’sownexplanationwhenpredictingits
+planationembeddings,butonlythroughthequery
+label. Thisisanimportantconstraintformatching
+datapointembeddings. Inearlyexperiments, we
+the train and test-time distributions. At test time,
+foundthatthisdecisioncontributedtotrainingsta-
+weassumewehaveaccessonlytopast(training)
+bility, while improving computational efficiency,
+explanations,sincetheycanbeexpensivetocollect
+andweconfirmthatweobservenodifferencesin
+andconditioningonexplanationsattesttimecan
+modelaccuracyasaresult.
+leadtolabelleakage,meaningwhatisessentially
+thebenefitofhumanlabelingcouldbemistakenas C.3 ExperimentConfidenceIntervals
+improvementsinmodelperformance.
+Wecomputeconfidenceintervalsforoursynthetic
+datataskstorepresentseedvariancearoundsome
+C TrainingDetails
+mean seed performance. We represent seed vari-
+C.1 Runtimes.
+anceinfiguresratherthansamplevariancebecause
+Regardingtrainingtimes,werunmostexperiments thesamplevarianceisfairlylowwith50,000test
+on a single NVIDIA RTX 2080 GPU, with run- points and could be driven arbitrarily low with
+38moregeneratedtestpoints. Forinstance,the95% (c) Sample a vector of length n , balanced
+task
+confidence interval for a model accuracy of 90% between 0s and 1s, representing whether
+would be 0.26. To calculate seed variance, we (m,n)or(r,d)shouldbethemorenumer-
+±
+run 10 random seeds for our baseline condition ousintegersinthesequence(sothatthere
+(no-retrieval)withthedefaultsynthetictasksetup. isnobias,evenrandomly,betweenfeatures
+bysize).
+D SyntheticTaskGenerativeProcess (d) Fori 1 : n :
+task
+∈
+i. Place the index in the first element of
+Therequiredparameterstothedatagenerationin-
+anemptyarray,andtheindicatorinthe
+clude: (1)atrainingsamplesizesample-sizeand(2)
+second.
+num-tasks,thenumberofuniqueintegerpairstobe
+ii. Basedontheith elementsofthethree
+counted,or,equivalently,thenumberofpointsper
+index,n . Inallexperiments,weuseamaximum vectorsdescribedabove,allocatesam-
+task
+ples of the integers in (m,n,r,d)
+integer value of 100 to appear in the sequences, index
+and a maximum index value of 10,000. We give intotheremaining18slots.
+the general generative process below. Note that iii. If there are any remaining slots af-
+thedevandtestsetsareconstructedwiththeextra ter these integers are randomly allo-
+constraint that sequences must not appear in the cated,fillthemwithi.i.d. samplesfrom
+trainingdata. Furthernotethatthisisthegeneric unif(1,100).
+versionofgenerativeprocess,andinsomeexperi-
+mentstheprocessisaltered. Forexample,inRQ3,
+indicator is always 1 and the construction of the
+mapfromindexvaluesto(m,n)tuplesoccursina
+specialwaydescribedintheexperimentaldesign
+forRQ3.
+1. Sample index num-tasks fromtheuniformdis-
+{ t }τ=1
+tributionoverintegers{1,...,10000}withoutre-
+placement.
+2. Sample (m,n,r,d) num-tasks from the uni-
+{ t }τ=1
+formdistributionoverintegers,unif([1,100]4),
+without replacement and requiring that m =
+6
+n = r = d.
+6 6
+3. Define the set (index,m,n,r,d) ) for in-
+index
+{ }
+dexand(m,n,r,d)drawnfromtheirrespective
+sets,withoutreplacement,inanarbitraryorder.
+4. Compute the number of points per index,
+n = sample-size//num-tasks.
+task
+5. Foreachindex index num-tasks:
+∈ { t }τ=1
+(a) Sample a vector of length n , balanced
+task
+between1sand2s,thatgivesthevaluesof
+indicator P fortheP pointswiththat
+{ p }p=1
+index.
+(b) Sample a vector of length n , balanced
+task
+between 0s and 1s, representing whether
+the features
+1[#m>#n]
+and
+1[#r>#d]
+shouldcorrelate(1impliestheyareequal,
+and0unequal). Thisbalancechangeswhen
+thestrong-weakcorrelationisintendedto
+change.
+39

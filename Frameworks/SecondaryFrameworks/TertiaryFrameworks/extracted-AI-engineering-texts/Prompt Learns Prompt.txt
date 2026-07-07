@@ -1,0 +1,749 @@
+Prompt Learns Prompt: Exploring Knowledge-Aware Generative
+Prompt Collaboration for Video Captioning
+LiqiYan1∗, ChengHan2∗, ZenglinXu3, DongfangLiu2† and QifanWang4
+1WestlakeInstituteforAdvancedStudy,FudanUniversity
+2ChesterF.CarlsonCenterforImagingScience,RochesterInstituteofTechnology
+3SchoolofComputerScienceandTechnology,HarbinInstituteofTechnology
+4MetaAI,Meta
+lqyan18@fudan.edu.cn,{ch7858,dongfang.liu}@rit.edu,wqfcr@fb.com
+Abstract Knowledge-Aware
+Prompt
+Fine-tuninglargevision-languagemodelsisachal- “A[n.] is [v.]a [n.]
+on the [n.]”
+lengingtask. Prompttuningapproacheshavebeen
+introduced to learn fixed textual or visual prompts
+whilefreezingthepre-trainedmodelindownstream
+tasks. Despite the effectiveness of prompt tun-
+ing,whatdothoselearnablepromptslearnremains
+unexplained. In this work, we explore whether <pad> man <pad> riding <pad> bike <pad> <pad> road
+prompts in the fine-tuning can learn knowledge- (1) Key Information Learning: Extraction
+aware prompts from the pre-training, by design- Video-Language
+Prompt
+ingtwosetsofprompts—oneinpre-trainingand
+the other in fine-tuning. Specifically, we present
+a Video-Language Prompt tuning (VL-Prompt)
+approach for video captioning, which first effi-
+ciently pre-train a video-language model to ex-
+tract key information (e.g., actions and objects)
+A man is riding a bike on the road
+with flexibly generated Knowledge-Aware Prompt
+(2) Context Prompt Recovery: Diffusion
+(KAP).Then,wedesignaVideo-LanguagePrompt
+(VLP)toutilizetheknowledgefromKAPandfine-
+tune the model to generate full captions. Exper-
+imental results show the superior performance of
+ourapproachoverseveralstate-of-the-artbaselines.
+We further demonstrate that the video-language
+prompts are well learned from the knowledge-
+awareprompts.
+1 Introduction
+In 1959, three computer science pioneers envisioned that
+AI is to create a computer program that simulated human
+problem-solving behavior. Humans can process novel tasks
+effortlessly by using existing knowledge and learning from
+new information. Artificial systems, however, need a heav-
+ilypre-trainedbasemodel(e.g.,CNNs[Heetal.,2016]and
+Transformers[Dosovitskiyetal.,2021;Wangetal.,2022a])
+withextensivefine-tuningoncurateddataforeachproblem.
+Thispracticeiscommonindeeplearning. Butadaptingthese
+large-scale models to downstream tasks is hard. Full fine-
+tuningrequiresstoringanddeployingaseparatecopyofthe
+backbone parameters for every task, which is expensive and
+∗Equalcontributions.
+†Correspondingauthor.
+snraeL
+ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+Figure 1: Our method includes two phases: 1) Key Information
+Learning: model pre-training to extract key information for each
+videowithaknowledge-awareprompt. 2)ContextPromptRecov-
+ery: modelfine-tuningtorecoverthepre-trainedknowledge-aware
+promptforeachvideoandgeneratethefullcaption.
+impractical, especially for modern Transformer-based archi-
+tectures such as Swin-L [Liu et al., 2021d] (284M param-
+eters), ViT-Huge [Dosovitskiy et al., 2021] (632M parame-
+ters), and iGPT-L [Chen et al., 2020] (1362M parameters).
+Inspiredbyhuman-likelearning,asubstantialamountofcon-
+currentscientificeffortsforintelligentsystemshavebeende-
+votedtothedevelopmentofanoveltrainingstrategyinboth
+naturallanguageprocessing(NLP)andcomputervision(CV)
+toefficientlytransferknowledgeacrossdomains.
+This appetite for training has been successfully addressed
+in natural language processing (NLP) by prompt tuning.
+The solutions are based on generative language modeling in
+GPT [Alec and Karthik, 2018] and masked language pre-
+training in BERT [Devlin et al., 2018]. The idea is to re-
+formulate downstream tasks to look more like those solved
+during the language model (LM) pre-training with the help
+of a textual prompt [Liu et al., 2021b]. For example, when
+recognizingtheemotionofasocialmediapost,wemaycon-
+tinue with a prompt “I felt so ”, and ask the LM to fill
+1622ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+the blank with an emotion-bearing word. Creating and ex- plainabilityofthelearnedprompts. KAPusessyntactic
+perimenting with these prompts takes time and experience, knowledgetoguidesentencegenerationinpre-training.
+so methods have been proposed to automate the template VLP inserts context prompts between keywords to de-
+design process. These methods can be separated into two code captions in fine-tuning. VLP recovers KAP’s in-
+broad types: a) discrete prompts, which automate search formation and learns the mutual information in the key
+for templates described in a discrete space, usually corre- information.
+spondingtonaturallanguagephrases[Zhengbaoetal.,2019;
+• Ourmethodhastwomainbenefits.First,inpre-training,
+Shinetal., 2020], andb)continuousprompts, whicharedi-
+it trains the Transformer model to extract key informa-
+rectlydescribedintheembeddingspace[LiandLiang,2021;
+tionwithsparseattentions,simplifyingthemodel. Sec-
+Lester et al., 2021]. These emerging methods enable quick
+ond,infine-tuning,itcanhandlemoreframesonalim-
+training of generalizable NLP models containing over one
+ited GPU memory, because the main network is frozen
+hundredbillionparametersfornoveltasks[Liuetal.,2021c].
+anddoesnotneedgradientstorage.
+Prompt tuning is a generic form of prefix virtual tokens
+VL-Prompt is an intuitive yet general video-language
+construction that is natural and applicable in computer vi-
+sion as well [Lester et al., 2021] [Li and Liang, 2021]. Vi- framework; it is compatible with different video-language
+sualPromptTuning(VPT)[Jiaetal., 2022]introducesonly network architectures and tasks. We experimentally show:
+In §4.2, with efficient video-language Transformer [Tay et
+asmallamountoftrainableparametersintotheimagefeature
+al.,2020],VL-PromptoutperformsotherTransformer-based
+inputspacewhilekeepingthemodelbackbonefrozen. Sev-
+eral CLIP-based [Radford et al., 2021] methods adopt VPT-
+counterparts,O2NA[Liuetal., 2021a]andSwinBERT[Lin
+like architectures into their image encoders [Uzair Khattak
+etal.,2022],↑7.5∼31.7intermsofCIDErand↑5.3∼8.1
+et al., 2022; Huang et al., 2022], achieving impressive per- intermsofB@4,onMSVDbenchmark. In§4.4,VL-Prompt
+acquires further improvement by applying our pre-training
+formance in terms of efficiency and accuracy. Researchers
+withKAPonalargerdatasetandtuningintoasmallerdataset,
+recentlybegantoinvestigatehowtojointlyoptimizeprompts
+acrossvisionandlanguage. Forexample, UPT[Zangetal., i.e.,forMSVDbenchmark,pre-trainedonMSR-VTT(↑ 0.6
+2022]trainsatinyneuralnetworktogeneratethepromptfor in B@4, ↑ 0.2 in M), and pre-trained on VATEX (↑ 1.4 in
+B@4, ↑ 0.4 in M). Theseresultsareparticularlyimpressive,
+CLIPtextandvisualencoders,bothofthemarestartedwith
+asharedinitialprompt. MVLPT[Shenetal.,2022]findsthat consideringthe number of parameters in the tunable prompt
+isverysmall.Wehopethisworkcouldbringfundamentalin-
+manytargettaskscanbenefiteachotherfromsharingprompt
+sightsintorelatedfields.
+vectorsandthuscanbesimultaneouslylearnedviamultitask
+prompttuning.
+2 RelatedWork
+Despite significant interest in this idea following the tri-
+umph of VPT, however, prompt tuning methods for cross- 2.1 VideoTransformerandVideoCaptioning
+domaintaskshavebeenlaggingandfacelimitations.: First,
+Recently, base on the impressive performance of Vision
+learnable prompts lack explainability and their embeddings
+Transformers (ViT) [Dosovitskiy et al., 2021], TimeS-
+aretooabstracttoprovideahuman-understandableexplana-
+former [Bertasius et al., 2021] and ViViT [Arnab et al.,
+tion. Concurrent work has not explored what these prompts
+2021] are two popular video Transformer method. More re-
+actually learn. Second, learnable prompts lack explainabil-
+cently, after Swin Transformer [Liu et al., 2021d] is intro-
+ity. The concurrent work fails to explore what those learn-
+ducedasageneral-purposevisionbackboneforimageunder-
+able prompts learn. The embeddings of these learnable
+standing,VideoSwinTransformer[Liuetal.,2022]extends
+promptsaresoabstractthatitisdifficulttoprovideahuman-
+the scope of local attention computation from only the spa-
+understandable explanation. Third, vision-language Trans-
+tialdomaintothespatio-temporaldomain. Traditionalvideo
+former models require extensive self-attention computation,
+captioning methods are based on CNN-RNN structure, in-
+leading to inefficiencies and lack of knowledge transferabil-
+cluding S2VT [Venugopalan et al., 2015], PickNet [Chen et
+ity due to the heavy parametric architecture. In light of this
+al.,2018],OA-BTG[ZhangandPeng,2019],SAAT[Zheng
+view, we ask: how to learn explainable prompts to enable
+et al., 2020], ORG-TRL [Zhang et al., 2020], GLR [Yan
+effectivelearningforacross-domainlanguage-visiontasks?
+et al., 2022a], etc. Most recently, SwinBERT [Lin et al.,
+To address these limitations, we present VL-Prompt, a
+2022] claims to be the first end-to-end fully Transformer-
+powerful,explainable,andefficientprompttuningapproach.
+basedmodelforvideocaptioning.
+Ourcontributionsarethree-fold,asshowninFig.1:
+• WeintroduceVL-Prompt, anovelframeworkforvideo 2.2 PromptTuning
+captioningthatsplitsthetaskintotwoparts: a)theKey Prompttuningmethodscanbedividedintotwocategories.
+Information,whichisextractedfromapre-trainingmod-
+Discrete Prompt Tuning can tune themselves for differ-
+ulewithflexibletextualprompts;b)theContextPrompt,
+ent tasks by manually constructing different prompts (e.g.,
+which is fine-tuned with the frozen pre-trained model.
+CLIP [Radford et al., 2021]) like “A photo of a [object]”.
+ThedesignenablesVL-Prompttohandlethetranslation
+This strategy has been widely used in recent researches, for
+ofalarge-scalevision-languagemodel.
+example, ALPRO [Li et al., 2021] and STALE [Nag et al.,
+• We propose Knowledge-Aware Prompt (KAP) and 2022]proposesapromptof“Avideoof[ENTITY]”forvideo
+Vision-Language Prompt (VLP) to investigate the ex- classificationandactiondetection. Agooddesignforprompt
+1623ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+Annotations Randomly Decoder: EfficientTransformer Layers
+Decoder: Efficient Masked Words
+Transformer Layers
+POS Tagging Keywords (Train)
+teacher Previous OutpO ur t Logit
+“A[n.] is[v.] a[n.] on a[n.]” Logit pw rori bti ln eg m Words (Test)
+Knowledge-Aware Prompt whiteboard
+Video-
+Encoder Language “Ateacher is
+Efficient
+…
+teacher w, w hi𝐿𝐿r ti e𝑋𝑋ti bn𝑋𝑋 og a, rp droblem, EP nro c𝒇𝒇om dp et
+r
+… p wr
+how
+ib
+tr eli et bi mn og
+a
+o
+ra
+dn
+.
+”a
+Video Swin 𝒯𝒯𝟏𝟏 𝒯𝒯𝟐𝟐 𝒯𝒯𝒍𝒍 𝒯𝒯𝟏𝟏 𝒯𝒯𝟐𝟐 𝒯𝒯𝒍𝒍
+Trans-
+former 𝑴𝑴 𝑴𝑴
+�𝒊𝒊=𝟏𝟏�𝒋𝒋=𝟏𝟏𝑪𝑪𝒊𝒊,𝒋𝒋 Efficient A𝐿𝐿n𝑋𝑋n𝑋𝑋otations
+Video Swin
+Video Input Trans-
+former
+Cropped Attention
+(1) Pre-TrainingWith Knowledge-Aware Prompt (KAP) (2) Fine-TuningWith Video-Language Prompt (VLP)
+Figure2:Theframeworkofourproposedmethod.Theknowledge-awarepromptisadiscreteprompt,whilethevideo-languagepromptis
+acontinuousprompt.Weusethecontinuousprompttolearnthediscreteprompt.
+sentencecanachieveabetterperformance.Forexample,Det- is shown in Fig. 2, which consists of two key phases, pre-
+Pro[Duetal.,2022]judgewhetherapredictedobjectdetec- training with Knowledge-Aware Prompt (KAP) and fine-
+tion box is good by two types of prompt: given a ground tuning with Video-Language Prompt (VLP). Intuitively, in
+truth bounding box of an object class, it says “a photo of the pre-training phase, the video encoder and decoder ef-
+[CLASS]”;whilegivenaforegroundproposalofapartialob- fectivelylearnsthecomplexknowledge(the“difficult”part)
+ject,itwouldinsteadsay“aphotoofpartial[CLASS]”.Other abouttheactionsandobjectsfromthevideos,withtheguid-
+methodssuchasKDDAug[Chenetal.,2022]designdiffer- anceoftextualknowledge-awarepromptsgeneratedfromthe
+entstrategiestogeneratepromptsfordifferentVQAquestion annotations. During fine-tuning, the model only needs to
+types(e.g., “[NUMBER][OBJECT]arethere”whenasking tuneafewtrainablevideo-languagepromptsrepresentingthe
+thenumberofanobject). Allofthesemethodsgeneratefixed structure of the caption (the “easy” part) while freezing the
+promptswithinvariantstructure. well-learnedencoderanddecoder. WeadoptanVideoSwin
+EfficientTransformer[Linetal.,2022]asthevideoencoder,
+Continuous Prompt Tuning automates the process by
+whilethedecoderisconstructedbyastackofEfficientTrans-
+learning soft prompts (e.g., embeddings). For example,
+formerLayers[Tayetal.,2020].
+CoOp [Zhou et al., 2022b] tries to learn a prompt content
+optimization for CLIP text encoder on image classification 3.2 Pre-TrainingwithKnowledge-AwarePrompt
+tasks. CoCoOp [Zhou et al., 2022a] optimizes that learn-
+The main responsibilities of the pre-training module is to
+able text prompt contents by the output of the CLIP image
+learn an efficient and effective video encoder for video rep-
+encoder. TPT [Shu et al., 2022] learns textual prompts in
+resentation. To this end, we introduce a novel pre-training
+a zero-shot manner, via different augmented views of a sin-
+approachwithknowledge-awareprompts.
+gle test image. For video tasks, [Ju et al., 2022] attempts
+tolearnpromptvectorsforCLIPtextencoderonsomesim- Textual Knowledge-Aware Prompt. A textual KAP is a
+ple video understanding tasks including action classification discrete prompt which is automatically generated from the
+and localisation. Recently, VPT [Jia et al., 2022] intro- annotations of caption. For example, the KAP from origi-
+duces only a small amount of trainable visual prompts in nalcaptionof“Ateacheriswritingamathematicalproblem
+the input space while keeping the model backbone frozen. on a whiteboard in a classroom” is “A is writing a math-
+MaPLe[UzairKhattaketal.,2022]usesVPTtofine-tunethe ematical ona ina ”. Thepipelineconsistsofthefol-
+textencoderandimageencoderintheCLIP[Radfordetal., lowing two steps: 1) Predict Part-Of-Speech (POS) tags on
+2021])model. VoP[Huangetal., 2022]alsoinsertsprompt thoseannotationsviaPOStaggingmodel(e.g.,FLAIR[Ak-
+embeddings into the CLIP network for text-video retrieval. bik et al., 2019]); 2) Select important types of POS tags
+However, to the best of our knowledge, all these methods (e.g., noun or verb) and mask the corresponding words in
+havenotexploredvision-languagegenerativetasks,andnone the original caption; 3) The knowledge-aware prompt X =
+ofthemhaveexploredwhatthepromptshavelearned. {x ,x ,...,x } (a.k.a., function words) contains remaining
+1 2 m
+wordsinthecaption. Thepurposeofpre-trainingistolearn
+3 VL-Prompt effective video encoder and decoder by recovering the se-
+quenceofthemarkedoutkeywordsY ={y ,y ,...,y }with
+1 2 n
+3.1 Overview the guidance of the KAP. Essentially, KAP helps reduce the
+search space of the target words, which provides additional
+The task of video captioning is to generate a text sequence
+supervisionforvideocaptioning.
+that summarizes a given video. In this work, we propose a
+video-languageprompttuningapproachforeffectivecaption SparseAttentionLearning. Denseattentionforvideofea-
+generation. The overall model architecture of VL-Prompt turesintheTransformerdecoderisverycomputationallyin-
+1624ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+tensive. To remove unnecessary attention and refine effi- whereE(k) representsthepromptembeddingscomputed
+prompt
+cientfeaturesinthemodel, thedecoderissupervisedbythe from the k Transformer layer (1 ≤ k < l), and Logit in-
+th
+above keywords to learn the sparse attention patterns [Belt- dicatestheTransformerheadwhichconvertembeddingsinto
+agy et al., 2020; Zaheer et al., 2020; Qin et al., 2023; thelog-likelihoodscoresZ forwordprediction.
+Wang et al., 2022b], which reduces redundancy among the
+VLP-Deep. Prompts are introduced at every Transformer
+learned video representation. Following SwinBERT [Lin et
+layer’sinputspace.Fork TransformerLayerT ,wedenote
+al.,2022],theattentionmaskisdefinedasalearnablematrix th k
+the collection of input learnable prompts as T(k) = {T =
+with a size of M ×M, where M is the length of the video j
+(t ,t ,...,t ,....,t ) | p ∈ R}N . As shown in Fig. 2, the
+embeddingfromtheencoder. EachvalueC i,j inthismatrix 0 1 i d i j=1
+deep-prompted decoder with l Transformer layers is formu-
+indicatestheattentionconnectionbetweenthei positionof
+th
+latedas:
+theinputvideoembeddingandthej positionoftheoutput.
+th
+This matrix is trained to be more sparse, with the loss de- [E(k) ,E(k) ,E(k) ]=T ([E(k−1),E(k−1),f(T(k−1))])
+signed to reduce the percentage of non-zero elements in the text video prompt k text video (3)
+attentionconnectionmaps. Z =Logit(E( tel) xt)
+Learning Objective. To sum up, the final training objec- Differentcolorsindicatelearnableandfrozenparameters.
+tiveofthepre-trainingmodelisdefinedastheCross-Entropy
+Fine-tuning Objective. During fine-tuning, the sparse at-
+(XE)losscollaboratedwiththenumberofnon-zeroelements
+tention mask is also frozen. The VLP linear projection and
+intheattentionconnectionmaps:
+the decoder head are trainable. Following BERT [Devlin
+" M M # et al., 2018], the ground-truth text sentence Zˆ is randomly
+X XX
+argmin p(yˆ)logp(y|X)+ω· |C i,j| (1) masked(e.g., “[MASK]teacheris[MASK]a[MASK]prob-
+y∈Y i=1j=1 lemon[MASK]whiteboardin[MASK]classroom”)andthe
+where y and yˆdenotes the predicted words and the ground- modelpredictionZtrytostorethemaskedtokens.Therefore,
+truthrespectively,andY representsthesetofnotionalwords thefine-tuningobjectivewithVLPbecomes:
+(e.g., noun or verb) that removed from the sentence in the
+X
+KAP.Theweightofattentionconnectioncountωwillbean- argmin p(zˆ)logp(z) (4)
+alyzedintheexperiments. z∈Z
+wherez andzˆdenotespredictedwordsandtheground-truth
+3.3 Fine-TuningwithVideo-LanguagePrompt
+respectively. Z denotesallpossiblewordsinvocabulary.
+WiththelimitedmemoryoftheGPU,itisoftenimpossibleto
+samplealargenumberofframesfromthevideowhentrain- 3.4 TheoreticalAnalysis-PromptLearnsPrompt
+ing a large video-language model. To reduce GPU memory
+Thecoreideaofoursystemisthatdifferentwordscarrydif-
+usageandincreasethemodelcapabilityforprocessingmore
+ferentamountsofinformation. Forexample,afrequentword
+frames,inspiredbyVPT[Jiaetal.,2022],weproposetofine-
+(e.g.,functionwordslike“on”)carriesverylittleinformation,
+tune thepre-trained large-scalemodel withVideo-Language
+whilearareword(e.g.,notionalwordslike“teacher”)ismuch
+Prompt (VLP), which introduces only a small amount of
+moreinformative.Inthefollowinganalysis,weshowthatthe
+trainable parameters while keeping the model backbone
+entropyofthevideo-languageprompt(VLP)andknowledge-
+frozen. WetransfertheVPTintoamulti-modalprompttun-
+awareprompt(KAP)areequivalent,indicatingthatourmodel
+ing framework via designing video-language prompt tokens
+isabletotransferthepromptknowledgefromKAPtoVLP.
+intothecollectionoftextembeddingsandvideoembeddings.
+AssumingthattheKAPonlycontainsfunctionwordswith
+We denote the collection of text embeddings and video em-
+all notional words (nouns and verbs) removed. Mathemati-
+beddingsasE andE respectively.
+text video cally,givenaninputvideoV andaknowledge-awareprompt
+Video-Language Prompt. The prompt content is defined X,ourpre-trainingmodelM istrainedtooutputasequence
+as a learnable d-dimensional vector as T ∈ Rd for the j ofnotionalwordsY,asshowninFig.3. Thosefunctionand
+j th
+prompttoken. Thoseprompttokensarefedintoafullycon- notionalwordsequencescanberepresentedbythesetworan-
+nectedlinearlayerf(·)togetvideo-languagepromptembed- domvariables. AccordingtotheShannon’stheory[Shannon,
+dings. FollowingVPT,ourtuningprocesswithVLPalsohas 1948], the information content or entropy of the pre-trained
+twovariants,VLP-ShallowandVLP-Deep. modelcanbedefinedasaconditionalentropy:
+VLP-Shallow. Prompts are inserted into the first Trans-
+H(M)=H(Y|X,V)
+formerlayerT only. Eachvideo-languagepromptisalearn-
+abled-dimensi1 onalvector. AcollectionofN prompttokens =− X p (x,y,V)logp X,Y(x,y,V) (5)
+is denoted as T(0) = {T j = (t 0,t 1,...,t i,....,t d) | t i ∈ x∈X,y∈Y X,Y p X(x)·p(V)
+R}N , the shallow-prompted decoder with l Transformer
+j=1 where X and Y denote the set of function words and no-
+layersisdefinedas:
+tional words respectively. When fine-tuning the model with
+[E(1) ,E(1) ,E(1) ]=T ([E(0) ,E(0) ,f(T(0))]) thevideo-languagepromptnetworkF,whichconsistsofthe
+text video prompt 1 text video learnable vectors T and the linear layer f(·), the final sen-
+[E( tek x) t,E( vk id) eo,E p(k r) ompt]=T k([E( tek x− t1),E( vk id− e1 o),E( pk r− om1) pt]) (2) tenceoutputZ canbeviewedasacombinationofX andY
+Z =Logit(E(l) ) (i.e., Z is the union distribution of X and Y). We denote
+text
+1625ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+4 Experiments
+4.1 ExperimentalSetup
+𝑉𝑉 𝑉𝑉
+Datasets. We conduct experiments on two public video
+𝑀𝑀 𝑌𝑌 𝑀𝑀 𝑋𝑋,𝑌𝑌 captioning datasets: a) MSR-VTT [Xu et al., 2016] con-
+sistsof10Kvideoclips. Eachvideocliphas20ground-truth
+𝑋𝑋(a) Pre-Training with KAP 𝐹𝐹(b) Fine-Tuning with VLP
+captions. We use the standard split, which has 6.5K train-
+Figure 3: Theoretical analysis of our pre-training and fine-tuning ingvideos,497validationvideosand2.9Ktestingvideos. b)
+models. V denotes the input video. M denotes the pre-training MSVD is a collection of 2K video clips downloaded from
+modelincludingtheencoderandthedecoder. Thepromptnetwork YouTube. Each video clip has roughly 40ground-truth cap-
+F containsthelearnableprompttokensT,andthelinearlayerf(·). tions written by humans. Similar to the prior articles [Chen
+X andY indicatestheknowledge-awarepromptwhichconsistsof
+et al., 2018; Zheng et al., 2020], we use the standard split
+functionwordsandthepredictednotionalwordsrespectively.
+which contains 1.2K training videos, 100 validation videos,
+and670testvideos. Wefurtherleveragealargerdataset,VA-
+p (z)=p (x,y).Thenthejointentropyofthefullmodel
+Z X,Y TEX, to study the effect of pre-training. VATEX contains
+isgivenby:
+41.3Kvideos. Eachvideocliphas20ground-truthcaptions.
+Weusetheofficialtrainingsetfortraining, andevaluatethe
+H(M,F)=H(X,Y|V)
+resultsusingthepublictestset.
+=− X p X,Y(x,y,V)logp X,Y p( (x V, )y,V) (6) Implementation Details. The number of the Swin Trans-
+x∈X,y∈Y former layers in the video encoder is set to 3. The output
+lengthofthevideofeatureembeddingfromtheencoderisset
+Then we can measure the expected entropy of the video-
+toM =392. Thedimensionofthevideofeatureembedding
+languagepromptF inconditionofM as:
+from the encoder is 768, while the dimension of the hidden
+H(F)=H(M,F)−H(M)+I(M;F) state of the decoder is 512. To ensure the same dimension-
+alityofthevideoembeddingintheencoderanddecoder,we
+=
+X
+p
+(x,y,V)logp X,Y(x,y,V)
+transformthevideoembeddingusingalinearfullyconnected
+X,Y p(V)
+x∈X,y∈Y network.Thenumberofthetransformerlayersinthedecoder
+−
+X
+p
+(x,y,V)logp X,Y(x,y,V)
++I(M;F)
+(7) issetto11. Thedimensionofthevideo-languagepromptis
+X,Y p (x)·p(V) settod = 1024. Thenumberofthevideo-languageprompt
+X
+x∈X,y∈Y tokens is set to 100. The max length of the text sequence is
+= X p (x,y,V)log 1 +I(M;F) set to 50. The max epoch number is set to 10 for both pre-
+X,Y p X(x) training and fine-tuning. The learning rate is set to 10−4 in
+x∈X,y∈Y
+pre-training,and10−5infine-tuning.
+whereI(M;F)denotesthemutualinformationbetweenthe
+distribution of the model M and the prompt parameters F. 4.2 MainResults
+Since M is pre-trained to predict notional words with the We compare our VL-Prompt with several state-of-the-art
+guidanceoffunctionwordsandthenfrozeninthefine-tuning methodsontheabovecommonlyusedbenchmarks. Follow-
+phase,themutualinformationI(M;F)isverysmall. There- ing previous research [Yan et al., 2022b; Lin et al., 2022],
+fore, we can approximate the expected information of our we provide detailed comparisons using a diverse set of per-
+proposed video-language prompt F to the information of formancemetrics, includingBLEU4[Papinenietal., 2002],
+knowledge-aware prompt X, according to the information METEOR [Banerjee and Lavie, 2005], ROUGE-L [Lin and
+theory[ThomasandJoy,2006]: Och, 2004] and CIDEr [Vedantam et al., 2015]. Table 1
+shows detailed comparisons with eleven LSTM-based and
+X 1
+H(F)≈ p (x,y,V)log fivetransformer-basedmethodsforvideocaptioning. Inour
+X,Y p (x)
+x∈X,y∈Y X method,wesamplealargenumberofframes(F =64)from
+=
+X
+p
+(x,y,V)logp X,Y(x,y,V) each video, since our Efficient VL Transformer can avoid
+X,Y p X(x) (8) overly dense features. It can be seen from the results that:
+x∈X,y∈Y a) Compared to those methods using 2D and 3D CNN en-
+X
+− p (x,y,V)logp (x,y,V) coders, Transformer based method can jointly learn the fea-
+X,Y X,Y
+x∈X,y∈Y tures of 2D appearance and 3D motion. For example, the
+=−H(y,V|x)+H(x,y,V)=H(X)
+popularSAAT[Zhengetal.,2020]usesspatialandtemporal
+featuretorepresentthestaticsceneandthedynamicmotions,
+Fromtheaboveanalysis, weshowthattheinformationcon- butitfailstojointlytrainthe2Dand3Drepresentation,which
+tentsinvideo-languageprompt(VLP)andknowledge-aware canbelearnedviaavisualTransformer. Thus,onMSR-VTT
+prompt (KAP) are equivalent, indicating that VLP learns test, our method outperforms SAAT ↑ 4.3 in B@4, ↑ 2.4
+fromKAP,toguidetherecoveryofthefullcaption. Thefull inM,↑ 1.5inR,and↑ 4.3intermsofCIDEr. b)Compared
+sentencerecoverycanbeviewedasadiffusionprocess,where tothosemethodsusingTransformerasdecoder,prompttun-
+function words are diffused among those predicted notional ingmethodsrelyonthewellpre-trainedlarge-scalemodels,
+wordsandthenrestored. whichisdifficulttobetrained. SwinBERT[Linetal.,2022]
+1626ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+Encoder MSR-VTT MSVD
+Method Decoder PT F
+2DAppearance 3DMotion B@4 M R C B@4 M R C
+SA-LSTM[Xuetal.,2016] VGG C3D × 16 36.3 25.5 58.3 39.9 45.3 31.9 64.2 76.2
+RecNet[Wangetal.,2018a] VGG C3D × - - 26.6 59.3 42.7 52.3 34.1 69.8 80.3
+ORG-TRL[Zhangetal.,2020] IncepResnetV2 C3D × 28 43.6 29.7 62.1 50.9 54.3 36.4 73.9 95.2
+STGraph[Panetal.,2020] ResNet-101 I3D × 10 40.5 28.3 60.9 47.1 52.2 36.9 73.9 93.0
+SGN[Ryuetal.,2021] ResNet-101 3D-ResNext × 30 40.8 28.3 60.8 49.5 52.8 35.5 72.9 94.3
+RCG[Zhangetal.,2021] ResNet-152 I3D × 28 42.8 29.3 61.7 52.9 - - - -
+LSTM
+HRL[Wangetal.,2018b] ResNet-152 - × - 41.3 28.7 61.7 48.0 - - - -
+PickNet[Chenetal.,2018] ResNet-152 - × 7 38.9 27.2 59.5 42.1 46.1 33.1 69.2 76.0
+POSRL[Wangetal.,2019] IncepResnetV2 I3D × 64 41.3 28.7 62.1 53.4 53.9 34.9 72.1 91.0
+SAAT[Zhengetal.,2020] IncepResnetV2 C3D × 28 39.9 27.7 61.2 51.0 46.5 33.5 69.4 81.0
+HMN[Yeetal.,2022] IncepResnetV2 C3D × 16 43.5 29.0 62.7 51.5 59.2 37.7 75.1 104.0
+GL-RG[Yanetal.,2022b] ResNeXt-101 3D-Resnet-18 × 30 42.9 29.9 62.2 54.3 60.5 38.9 76.4 101.0
+O2NA[Liuetal.,2021a] ResNet-101 3D-ResNext × 8 41.6 28.5 62.4 51.1 55.4 37.4 74.5 96.4
+SwinBERT[Linetal.,2022] VideoSwinTransformer × 64 41.9 29.9 62.1 53.8 58.2 41.3 77.5 120.6
+VPT[Jiaetal.,2022] ViT Trans. ✓ 32 41.2 27.9 61.5 50.3 54.6 36.0 73.1 94.7
+Prompting[Juetal.,2022] CLIPImageEncoder ✓ 16 42.0 28.8 62.3 52.2 56.4 38.6 75.4 99.8
+VoP[Huangetal.,2022] CLIPImageEncoder ✓ 12 42.1 28.9 61.9 51.7 57.9 40.2 76.3 105.9
+Ours(VL-Prompt) EfficientVLTransformer ✓ 64 43.2 30.1 62.7 55.3 63.5 41.6 78.9 128.1
+Table1: Comparisonswithstate-of-the-artmethodsonMSR-VTTtestandMSVDtest. PTmeansprompttuning. F denotesthe
+numberpfsampledframespervideo.AllofthoseVPT-basedimageorvideoanalysismethodsaretransferredintothevideocaptioningtask
+viareplacingthe[cls]tokenintothetextsequencetoken.Ourmethodisfirstpre-trainedon16framesandthentunedon64frames.
+Method B@4 M R C trainingfps Masking B@4 M R C Attn. trainingfps
+VL-Prompt 63.5 41.6 78.9 128.1 7.7 KAP 63.5 41.6 78.9 128.1 12% 7.7
+w/oKAP 53.1 34.6 72.4 102.9 8.1 Alternate 56.8 36.9 74.8 104.3 59% 7.5
+w/oVLP 59.3 37.8 76.1 115.6 8.0 Random 57.7 37.8 75.6 106.2 31% 7.5
+Noun 58.7 41.0 77.8 118.2 10% 7.8
+Table2:ImpactofKAPandVLPonMSVDtest. Verb 58.8 41.2 77.7 117.7 8% 7.9
+introducesaBERT-basedtrainingmethodwithsparseatten- Table 3: Different masking strategies of KAP on MSVD test.
+“Alternate” denotes masking words alternately (e.g., 1 ,3 ,5 ,
+tion,whichindeedbenefitsthepre-trainingofthelarge-scale st rd th
+etc.). “Random”strategyistorandomlymaskwords. “Noun”and
+video-language models, but fails to explore the inner rela-
+“Verb”denoteonlymaskingnounsandverbs,respectively.
+tionshipsoverthesemanticcontext. Thus,onMSVDtest,
+our method outperforms SwinBERT ↑ 5.3 in B@4, ↑ 0.3 in
+M, ↑ 1.4 in R, and ↑ 7.5 in terms of CIDEr. c) VL-Prompt Method B@4 M R C fps
+outperformsthoseprompttuningbaselines,indicatingtheef- FullFine-Tuning 65.2 41.3 80.6 147.0 7.6
+fectiveness of our prompt design and learning. The learned LinearProbing 62.3 41.1 80.1 140.3 8.0
+video-language prompts are more explainable [Wang et al., VLP-Shallow 65.5 42.0 80.3 150.2 8.1
+VLP-Deep 66.4 42.7 81.3 153.8 7.9
+2023], which effectively decouple the structured knowledge
+inthecaptionsandrestorethemefficiently.
+Table4: Differentfine-tuningstrategyonMSVDval. Thepre-
+trainingwithKAPandaframenumberof64isusedinallmethods.
+4.3 AblationStudy
+Prompt Design in KAP. We further conduct experiments
+We conduct a comprehensive ablation study on MSVD and
+ofdifferentmaskingstrategiesinlearningcontextprompt,in-
+MSR-VTT benchmarks to investigate the capability of the
+cludingalternativemasking,randommasking,nounmasking
+proposedmodel.
+andverbmasking,tounderstandtheeffectivenessofdifferent
+promptdesigns.Table3showstheablationresultsonMSVD.
+Impact of KAP and VLP. To analyze the impact of KAP
+It can be seen that our original KAP (Noun and Verb mask-
+andVLP,weconductablationexperimentsontwovariantsby
+ing)outperformsallotherstrategieswithbigmargins, while
+removing KAP and VLP from the VL-Prompt respectively.
+onlymaskingnounsorverbsachievesafasterspeed. Thisis
+As reported in Table 2, we observe significant performance
+consistentwithourexpectationasthesenounsandverbsare
+dropafterremovingeithertypeofprompts,indicatingtheim-
+the most informative words in the caption, representing the
+portance of both KAP and VLP in the model. This demon-
+objectsandactionsinthevideo.
+strates that our VLP prompts can capture the internal rela-
+tions,whichdenotethesemanticcorrelationbetweentokens VLP-Shallow vs. VLP-Deep vs. Full. We compare the
+withinasentence, byapplyingreasoningandlinkingthein- results of different VLPs with Linear Probing and Full fine-
+put keywords (nouns and verbs) together. Nevertheless, our tuning in Table 4. It is clear that VLP-Deep outperforms
+VL-Promptwithbothpromptsachievesthebestperformance all the other parameter-efficient tuning protocols, including
+withslightlylowertrainingfps. VLP-Shallow, Linear Probing, and even outperforms full
+1627ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+L Fine-Tune Add.Data B@4 M R C
+10 20 50 100 200
+D MSVD 43.6↑ 30.4↑ 62.9↑ 55.4↑
+MSR-VTT 0.4 0.3 0.2 0.1
+256 139.9 141.6 143.1 145.4 148.5 VATEX 44.2↑ 1.0 30.6↑ 0.5 63.4↑ 0.7 55.7↑ 0.4
+512 142.7 143.5 148.0 152.9 153.7 MSVD MSR-VTT 64.7↑ 1.2 42.2↑ 0.6 79.4↑ 0.5 128.4↑ 0.3
+1024 146.3 149.8 152.1 153.8 153.4 VATEX 65.2↑ 1.7 42.4↑ 0.8 79.8↑ 0.9 128.6↑ 0.5
+2048 147.2 150.1 152.9 153.0 153.6
+Table7: Effectsofpre-trainingwithadditionaldataforourVL-
+Table5: TheablationstudyofVLPonMSVDval. ‘D’denotes Prompt on MSR-VTT and MSVD test. Results show we could
+thedimensionofVLPand‘L’meansthelengthofVLP. furtherimprovetheperformancebypre-trainingonalargerdataset.
+The up-arrow (↑) number indicates the improvement compared to
+selfpre-training(asshowninTable1).
+F in F inFine-Tune
+Method
+Pre-Train 4 8 16 32 64
+ω 0 0.1 0.3 0.5 0.7
+4 125.3 126.8 127.6 129.1 131.1
+w/oKAP
+16 131.5 134.1 136.0 138.2 139.7 CIDEronMSVD 102.9 115.4 119.5 128.1 124.2
+4 136.0 139.9 146.5 150.3 152.7
+VL-Prompt 16 135.8 137.2 144.1 149.6 153.8 Table8: ImpactofdifferentvaluesofωonMSVDtest. ω =0
+meanskeepingtheattentionconnectionratioas100%.
+Table 6: The comparison of different number of frames F on
+MSVDval.CIDErisusedastheevaluationmetric. additional pre-training data. It can be seen that pre-training
+on a large dataset achieves better performance in all cases,
+especiallywhencombiningwithlargeVATEXdatasetinpre-
+training. Forexample,VL-Promptimprovestheperformance
+by↑1.2and↑1.7intermsofB@4onMSVDthroughadding
+OOM MSR-VTT and VATEX to pre-training, respectively. More-
+over,weevaluatetheefficiencyofourapproachbycomparing
+itwiththebaselines. Forexample,ontheMSVDdataset,our
+model attains an average fps of 7.7, and outperforms Swin-
+BERTandGL-RGintermsofefficiency(whichachieve7.2
+and 6.3 fps respectively). This observation validates the ef-
+fectivenessofpre-training, whichiscrucialinthelaterVLP
+fine-tuning.
+Figure 4: The memory used per GPU when the model is fine-
+4.5 Impactofω
+tunedwithdifferentstrategy. Thebatchsizeisfixedto1. When
+fullfine-tuningisadopted,theF = {32,64}frameswillcausean Tounderstandtheimpactofthehyper-parameterω,weeval-
+Out-Of-Memory(OOM)errorwithalargebatchsize. Incontrast, uatethemodelperformancebyvaryingthehyper-parameters
+theVLPcanreducetheGPUmemoryusagesincethegradientsof ω from{0,0.1,0.3,0.5,0.7}. Themodelperformanceswith
+theTransformerparametersdonotneedtobesaved. different hyper-parameter values are reported in Table 8. It
+canbeseenthatω = 0.5achievesthebestperformance, in-
+fine-tuning.VLP-Shallowachievesthefastspeedwithacom-
+dicatingthatthemodelneedstoidentifyagoodtrade-offbe-
+parable performance over all methods. Similar observations
+tweenefficiencyandeffectiveness.
+havebeenfoundinVPT[Jiaetal.,2022].
+Prompt Length & Dimension. To investigate the impact 5 Conclusion
+ofpromptlengthanddimensioninVLP,weconductablation
+Inthispaper,weproposeanovelprompttuningbasedvideo
+study of different combinations of VLP length and dimen-
+captioning approach, VL-Prompt, by designing two differ-
+sion. AsshowninTable5,thebestchoiceforprompttokens
+entsetsofpromptsinpre-trainingandfine-tuningphasesre-
+isalengthof100andadimensionof1024.
+spectively. We first pre-train a video-language model to ex-
+Sampled Frame Number. We uniformly sample F = tractkeyinformationwiththeguidanceofknowledge-aware
+{2,4,8,16,32,64}framesfromthegivenvideocliptotrain prompts. Then,wedesignavideo-languageprompttotrans-
+andtestourmethodonbothMSVDandMSR-VTTdatasets. fer the knowledge from the knowledge-aware prompts and
+Asweincreasethenumberofframes,weobserveconsistent fine-tune the model to generate full captions. Experimental
+performanceimprovementsintermsofCIDEr(seeTable6). results show the superior performance of our approach over
+WealsofindthatwithoutVLPfine-tuning,thenetworkistoo severalstate-of-the-artbaselines.Theoreticalanalysisonhow
+largeforF = {32,64}whichcausesanOut-Of-Memoryer- theinformationfromknowledge-awarepromptsistransferred
+ror, as shown in Fig. 4. In contrast, the network works well to the video-language prompts is also conducted. A poten-
+onthat11GBGPUduringfine-tuningwithourVLP,demon- tialdrawbackofourmethodisthelowgeneralizationability
+stratingtheefficiencyofourVL-Prompt. that may result from the limited number of parameters and
+data samples. In future, we plan to investigate VL-Prompt
+4.4 EffectofPre-training
+in zero-shot settings. We also plan to apply VL-Prompt in
+To further illustrate the effect of our proposed pre-training otherdownstreamtaskssuchasVQA.Wehopethisworkcan
+method, Table 7 shows the performance of VL-Prompt with inspirefuturestudiesinvideo-languageprompttuning.
+1628ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+References [Juetal.,2022] Chen Ju, Tengda Han, Kunhao Zheng,
+[Akbiketal.,2019] Alan Akbik, Tanja Bergmann, Duncan Ya Zhang, and Weidi Xie. Prompting visual-language
+modelsforefficientvideounderstanding. InECCV,2022.
+Blythe, Kashif Rasul, Stefan Schweter, and Roland Voll-
+graf. FLAIR:Aneasy-to-useframeworkforstate-of-the- [Lesteretal.,2021] Brian Lester, Rami Al-Rfou, and Noah
+artNLP. InNAACL,pages54–59,2019. Constant. The power of scale for parameter-efficient
+[AlecandKarthik,2018] Radford Alec and Narasimhan prompttuning. InEMNLP,pages3045–3059,2021.
+Karthik. Improvinglanguageunderstandingbygenerative [LiandLiang,2021] XiangLisaLiandPercyLiang. Prefix-
+pre-training. OpenAI,2018. tuning: Optimizingcontinuouspromptsforgeneration. In
+[Arnabetal.,2021] Anurag Arnab, Mostafa Dehghani, ACL-IJCNLP,pages4582–4597,2021.
+Georg Heigold, Chen Sun, Mario Lucˇic´, and Cordelia [Lietal.,2021] Dongxu Li, Junnan Li, Hongdong Li,
+Schmid.Vivit:Avideovisiontransformer.InICCV,2021. Juan Carlos Niebles, and Steven C. H. Hoi. Align
+[BanerjeeandLavie,2005] Satanjeev Banerjee and Alon and prompt: Video-and-language pre-training with entity
+Lavie. Meteor: An automatic metric for mt evaluation prompts. CVPR,pages4943–4953,2021.
+withimprovedcorrelationwithhumanjudgments. InACL [LinandOch,2004] Chin-Yew Lin and Franz Josef Och.
+workshop,pages65–72,2005. Automaticevaluationofmachinetranslationqualityusing
+[Beltagyetal.,2020] IzBeltagy,MatthewEPeters,andAr- longest common subsequence and skip-bigram statistics.
+man Cohan. Longformer: The long-document trans- InACL,pages605–612,2004.
+former. arXivpreprintarXiv:2004.05150,2020. [Linetal.,2022] Kevin Lin, Linjie Li, Chung-Ching Lin,
+[Bertasiusetal.,2021] Gedas Bertasius, Heng Wang, and Faisal Ahmed, Zhe Gan, Zicheng Liu, Yumao Lu, and
+LorenzoTorresani.Isspace-timeattentionallyouneedfor Lijuan Wang. Swinbert: End-to-end transformers with
+videounderstanding? InICML,volume2,page4,2021. sparseattentionforvideocaptioning. InCVPR,2022.
+[Chenetal.,2018] Yangyu Chen, Shuhui Wang, Weigang [Liuetal.,2021a] Fenglin Liu, Xuancheng Ren, Xian Wu,
+Zhang, and Qingming Huang. Less is more: Picking in- Bang Yang, Shen Ge, and Xu Sun. O2NA: an object-
+formativeframesforvideocaptioning. InECCV,2018. oriented non-autoregressive approach for controllable
+videocaptioning. InACL/IJCNLP,2021.
+[Chenetal.,2020] MarkChen,AlecRadford,RewonChild,
+JeffreyWu,HeewooJun,DavidLuan,andIlyaSutskever. [Liuetal.,2021b] Pengfei Liu, Weizhe Yuan, Jinlan Fu,
+Generativepretrainingfrompixels. InICML,2020. Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig.
+Pre-train, prompt, and predict: A systematic survey of
+[Chenetal.,2022] Long Chen, Yuhang Zheng, and Jun
+promptingmethodsinnaturallanguageprocessing. ACM
+Xiao. Rethinking data augmentation for robust visual
+ComputingSurveys,2021.
+questionanswering. InECCV,pages95–112,2022.
+[Liuetal.,2021c] Xiao Liu, Yanan Zheng, Zhengxiao Du,
+[Devlinetal.,2018] Jacob Devlin, Ming-Wei Chang, Ken-
+Ming Ding, Yujie Qian, Zhilin Yang, and Jie Tang. Gpt
+ton Lee, and Kristina Toutanova. Bert: Pre-training of
+understands,too. ArXiv,abs/2103.10385,2021.
+deep bidirectional transformers for language understand-
+ing. arXivpreprintarXiv:1810.04805,2018. [Liuetal.,2021d] Ze Liu, Yutong Lin, Yue Cao, Han Hu,
+YixuanWei,ZhengZhang,StephenLin,andBainingGuo.
+[Dosovitskiyetal.,2021] AlexeyDosovitskiy,LucasBeyer,
+Swin transformer: Hierarchical vision transformer using
+Alexander Kolesnikov, Dirk Weissenborn, Xiaohua Zhai,
+shiftedwindows. InICCV,pages10012–10022,2021.
+Thomas Unterthiner, Mostafa Dehghani, Matthias Min-
+derer,GeorgHeigold,SylvainGelly,JakobUszkoreit,and [Liuetal.,2022] Ze Liu, Jia Ning, Yue Cao, Yixuan Wei,
+Neil Houlsby. An image is worth 16x16 words: Trans- ZhengZhang,StephenLin,andHanHu.Videoswintrans-
+formersforimagerecognitionatscale. InICLR,2021. former. InCVPR,pages3202–3211,2022.
+[Duetal.,2022] Yu Du, Fangyun Wei, Zihe Zhang, Miao- [Nagetal.,2022] SauradipNag,XiatianZhu,Yi-ZheSong,
+jing Shi, Yue Gao, and Guoqi Li. Learning to prompt and Tao Xiang. Zero-shot temporal action detection via
+foropen-vocabularyobjectdetectionwithvision-language vision-languageprompting. InECCV,2022.
+model. InCVPR,pages14084–14093,2022. [Panetal.,2020] Boxiao Pan, Haoye Cai, De-An Huang,
+[Heetal.,2016] Kaiming He, Xiangyu Zhang, Shaoqing Kuan-HuiLee,AdrienGaidon,EhsanAdeli,andJuanCar-
+Ren,andJianSun.Deepresiduallearningforimagerecog- los Niebles. Spatio-temporal graph for video captioning
+nition. InCVPR,pages770–778,2016. withknowledgedistillation. InCVPR,2020.
+[Huangetal.,2022] Siteng Huang, Biao Gong, Yulin Pan, [Papinenietal.,2002] Kishore Papineni, Salim Roukos,
+JianwenJiang,YiliangLv,YuyuanLi,andDonglinWang. Todd Ward, and Wei-Jing Zhu. Bleu: a method for au-
+Vop: Text-video co-operative prompt tuning for cross- tomaticevaluationofmachinetranslation. InACL,2002.
+modalretrieval. arXivpreprintarXiv:2211.12764,2022. [Qinetal.,2023] Zheyun Qin, Xiankai Lu, Xiushan Nie,
+[Jiaetal.,2022] Menglin Jia, Luming Tang, Bor-Chun DongfangLiu, YilongYin, andWenguanWang. Coarse-
+Chen, Claire Cardie, Serge J. Belongie, Bharath Hariha- to-fine video instance segmentation with factorized con-
+ran, andSer-NamLim. Visualprompttuning. InECCV, ditional appearance flows. Journal of Automatica Sinica,
+pages709–727,2022. 10(5):1–17,2023.
+1629ProceedingsoftheThirty-SecondInternationalJointConferenceonArtificialIntelligence(IJCAI-23)
+[Radfordetal.,2021] AlecRadford,JongWookKim,Chris [Wangetal.,2022b] Wenguan Wang, James Liang, and
+Hallacy, Aditya Ramesh, Gabriel Goh, Sandhini Agar- Dongfang Liu. Learning equivariant segmentation with
+wal,GirishSastry,AmandaAskell,PamelaMishkin,Jack instance-uniquequerying. InNeurIPS,2022.
+Clark,etal. Learningtransferablevisualmodelsfromnat-
+[Wangetal.,2023] Wenguan Wang, Cheng Han, Tianfei
+urallanguagesupervision. InICML,2021.
+Zhou, and Dongfang Liu. Visual recognition with deep
+[Ryuetal.,2021] Hobin Ryu, Sunghun Kang, Haeyong nearestcentroids. InICLR,2023.
+Kang, andC.Yoo. Semanticgroupingnetworkforvideo
+[Xuetal.,2016] JunXu,TaoMei,TingYao,andYongRui.
+captioning. InAAAI,2021.
+Msr-vtt: A large video description dataset for bridging
+[Shannon,1948] Claude Elwood Shannon. A mathematical videoandlanguage. InCVPR,2016.
+theoryofcommunication. TheBellsystemtechnicaljour-
+[Yanetal.,2022a] Liqi Yan, Siqi Ma, Qifan Wang, Yingjie
+nal,27(3):379–423,1948.
+Chen, Xiangyu Zhang, Andreas Savakis, and Dongfang
+[Shenetal.,2022] ShengShen,ShijiaYang,TianjunZhang, Liu. Video captioning using global-local representation.
+BohanZhai,JosephEGonzalez,KurtKeutzer,andTrevor TCSVT,32(10):6642–6656,2022.
+Darrell. Multitask vision-language prompt tuning. arXiv
+[Yanetal.,2022b] LiqiYan, QifanWang, YimingCui, Fuli
+preprintarXiv:2211.11720,2022.
+Feng,XiaojunQuan,XiangyuZhang,andDongfangLiu.
+[Shinetal.,2020] TaylorShin, YasamanRazeghi, RobertL Gl-rg: Global-local representation granularity for video
+LoganIV,EricWallace,andSameerSingh. Autoprompt: captioning. InIJCAI,2022.
+Elicitingknowledgefromlanguagemodelswithautomat-
+[Yeetal.,2022] Hanhua Ye, Guorong Li, Yuankai Qi,
+icallygeneratedprompts. InEMNLP,2020.
+Shuhui Wang, Qingming Huang, and Ming-Hsuan Yang.
+[Shuetal.,2022] Manli Shu, Weili Nie, De-An Huang,
+Hierarchical modular network for video captioning. In
+Zhiding Yu, Tom Goldstein, Anima Anandkumar, and
+CVPR,pages17939–17948,2022.
+ChaoweiXiao.Test-timeprompttuningforzero-shotgen-
+[Zaheeretal.,2020] ManzilZaheer, GuruGuruganesh, Ku-
+eralizationinvision-languagemodels. InNeurIPS,2022.
+marAvinavaDubey,JoshuaAinslie,ChrisAlberti,Santi-
+[Tayetal.,2020] Yi Tay, Mostafa Dehghani, Dara Bahri,
+agoOntanon,PhilipPham,AnirudhRavula,QifanWang,
+and Donald Metzler. Efficient transformers: A survey.
+Li Yang, et al. Big bird: Transformers for longer se-
+ACMComputingSurveys,2020.
+quences. NeurIPS,33:17283–17297,2020.
+[ThomasandJoy,2006] MTCAJ Thomas and A Thomas
+[Zangetal.,2022] Yuhang Zang, Wei Li, Kaiyang Zhou,
+Joy. Elementsofinformationtheory. Wiley-Interscience,
+Chen Huang, and Chen Change Loy. Unified vi-
+2006.
+sion and language prompt learning. arXiv preprint
+[UzairKhattaketal.,2022] Muhammad Uzair Khattak, arXiv:2210.07225,2022.
+Hanoona Rasheed, Muhammad Maaz, Salman Khan,
+[ZhangandPeng,2019] Junchao Zhang and Yuxin Peng.
+and Fahad Shahbaz Khan. Maple: Multi-modal prompt
+Object-aware aggregation with bidirectional temporal
+learning. arXive-prints,pagesarXiv–2210,2022.
+graphforvideocaptioning. InCVPR,2019.
+[Vedantametal.,2015] Ramakrishna Vedantam,
+[Zhangetal.,2020] Ziqi Zhang, Yaya Shi, Chunfeng Yuan,
+CLawrenceZitnick,andDeviParikh. Cider: Consensus-
+Bing Li, Peijin Wang, Weiming Hu, and Zheng-Jun Zha.
+basedimagedescriptionevaluation. InCVPR,2015.
+Object relational graph with teacher-recommended learn-
+[Venugopalanetal.,2015] Subhashini Venugopalan, Mar- ingforvideocaptioning. InCVPR,2020.
+cus Rohrbach, Jeffrey Donahue, Raymond Mooney,
+[Zhangetal.,2021] Ziqi Zhang, Zhongang Qi, Chunfeng
+Trevor Darrell, and Kate Saenko. Sequence to sequence-
+Yuan, YingShan, BingLi, YingDeng, andWeimingHu.
+videototext. InCVPR,pages4534–4542,2015.
+Open-book video captioning with retrieve-copy-generate
+[Wangetal.,2018a] Bairui Wang, Lin Ma, Wei Zhang, and
+network. InCVPR,2021.
+WeiLiu. Reconstructionnetworkforvideocaptioning. In
+[Zhengetal.,2020] Qi Zheng, Chaoyue Wang, and D. Tao.
+CVPR,2018.
+Syntax-aware action targeting for video captioning. In
+[Wangetal.,2018b] Xin Wang, Wenhu Chen, Jiawei Wu,
+CVPR,2020.
+Yuan-Fang Wang, and William Yang Wang. Video cap-
+tioningviahierarchicalreinforcementlearning. InCVPR, [Zhengbaoetal.,2019] JiangZhengbao,XuFrank,F.,Araki
+2018. J.,andNeubigGraham. Howcanweknowwhatlanguage
+modelsknow? TACL,8:423–438,2019.
+[Wangetal.,2019] BairuiWang,L.Ma,W.Zhang,Wenhao
+Jiang,JunlingWang,andW.Liu. Controllablevideocap- [Zhouetal.,2022a] Kaiyang Zhou, Jingkang Yang,
+tioningwithpossequenceguidancebasedongatedfusion Chen Change Loy, and Ziwei Liu. Conditional prompt
+network. InICCV,2019. learningforvision-languagemodels. InCVPR,2022.
+[Wangetal.,2022a] QifanWang,YiFang,AnirudhRavula, [Zhouetal.,2022b] Kaiyang Zhou, Jingkang Yang,
+FuliFeng,XiaojunQuan,andDongfangLiu. Webformer: ChenChangeLoy,andZiweiLiu. Learningtopromptfor
+The web-page transformer for structure information ex- vision-languagemodels. IJCV,130(9):2337–2348,2022.
+traction. InACMWebConference,2022.
+1630

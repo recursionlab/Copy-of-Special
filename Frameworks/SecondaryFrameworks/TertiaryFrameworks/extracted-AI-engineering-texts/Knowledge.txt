@@ -1,0 +1,906 @@
+Encapsulating Knowledge in One Prompt
+Qi Li1 , Runpeng Yu1 , and Xinchao Wang1⋆
+National University of Singapore
+{liqi,r.yu}@u.nus.edu,{xinchao}@nus.edu.sg
+Abstract. Inthispaper,weproposeanewknowledgetransferparadigm
+called Knowledge in One Prompt (KiOP). This paradigm encapsulates
+knowledge from various models into a solitary prompt without altering
+theoriginalmodelsorrequiringaccesstothetrainingdata,whichenables
+ustoachieveefficientandconvenientknowledgetransferinmorerealistic
+scenarios.Fromapracticalitystandpoint,thisparadigmnotonlyforthe
+first time proves the effectiveness of Visual Prompt in data inaccessible
+contexts,butalsosolvestheproblemsoflowmodelreusabilityandhigh
+storageresourceconsumptionfacedbytraditionalData-FreeKnowledge
+Transfer, which means that we can realize the parallel knowledge trans-
+fer of multiple models without modifying any source model. Extensive
+experimentsacrossvariousdatasetsandmodelsdemonstratetheefficacy
+of the proposed KiOP knowledge transfer paradigm. Without access to
+real training data and with rigorous storage capacity constraints, it is
+also capable of yielding considerable outcomes when dealing with cross-
+model backbone setups and handling parallel knowledge transfer pro-
+cessingrequestswithmultiple(morethan2)models.Codeisavailableat
+https://github.com/LiQiiiii/Encapsulating-Knowledge-In-One-Prompt.
+Keywords: Efficient Learning · Knowledge Transfer · Visual Prompt
+1 Introduction
+In the past few years, the swift progress of large-scale pre-trained models across
+diverse fields [3,4,13,14,20,42] has given rise to a multitude of efficient knowl-
+edge transfer paradigms [2,24,27,29,32,33,53]. These paradigms are designed
+to enhance the models’ accessibility by making the transfer of knowledge more
+efficient, thereby extending their benefits to a broader audience. Among these
+paradigms, inspired by the success of prompt learning in NLP [27,29,33], the
+concept of visual prompt [2] has emerged for tasks in the vision field. Visual
+prompts involve trainable parameters directly into the input pixel space, facil-
+itating efficient knowledge transfer without altering the pre-trained model. Al-
+though it has not yet demonstrated a clear edge over the established knowledge
+transfer frameworks, many researchers have made considerable effort to unlock
+its properties and significantly enhance its utility [5,6,22,23,30,40,45,49,50]. It
+is expected that Prompt-as-a-Service (PaaS) [22,50] will gain popularity.
+⋆ Corresponding author.
+4202
+luJ
+61
+]VC.sc[
+1v20911.7042:viXra2 Q. Li et al.
+Visual Pre-trained
+Real Data Prompt Model LM
+Teacher
+Noise Generator
+Student
+Transfer
+Visual
+Model A Model B Prompt
+♼
+Visual Prompt Learning Noise
+Generator
+Transfer Transfer
+Data-Free Knowledge Distillation Store Knowledge in One Prompt
+Fig.1: The schematic illustrates Visual Prompt Learning, Conventional Data-Free
+Knowledge Distillation (DFKD), and our novel Data-free Knowledge Transfer Frame-
+work (KiOP). Visual Prompt Learning adjusts pre-trained models for various down-
+stream tasks by appending prompts to inputs while leaving the model frozen. DFKD
+facilitates knowledge transfer from a teacher model to a student model in the absence
+ofrealdata.OurKiOPframeworkensureseffectiveknowledgetransferwithoutmodi-
+fications to the pre-trained model or access to real data.
+As a new knowledge transfer context, unlike Machine Learning as a Service
+(MLaaS) [43,47], PaaS allows service providers to offer clients specific prompts.
+The data of user is combined with the provided prompt and fed into a pre-
+trainedmodelforpredictions,offeringamorestreamlinedandconvenientservice.
+Additionally, PaaS providers can leverage a single pre-trained model to handle
+multiple knowledge transfer service requests which helps to reduce the strain on
+storage resources and enables more efficient service to a wider range of users.
+However, owing to privacy concerns or the need for confidentiality, sensitive
+data typically aren’t publicly processed. This renders visual prompts, which
+necessitaterealtrainingdatasetaccesstoachieveknowledgetransfer,somewhat
+negligible in such practical scenario.
+Furthermore, researchers have thoroughly investigated the effectiveness of
+knowledgedistillation[11,19,21,25,41,52,54]—anotherknowledgetransferframe-
+work that is extensively utilized and holds significant potential—in situations
+lacking training data, which is known as ‘Data-Free Knowledge Distillation’
+(DFKD) [7,15,31,36–39,56] and have attained impressive outcomes. Neverthe-
+less, DFKD comes with three major drawbacks. Firstly, if the student model
+is already knowledgeable, as mimicking the teacher model’s behavior requires
+updating all its parameters, this process is not only computationally expen-
+sive but also risks the knowledge of the student model being catastrophically
+forgetting [17,18,26,44]. Moreover, DFKD is storage-intensive, as it necessi-
+tates maintaining individual copies of the student model for each corresponding
+teacher. Thirdly, most DFKD methods can not handle multi-model knowledge
+transfer simultaneously, instead, the requests are handled in turn, similar to a
+first-come-first-served process, which is especially difficult in data-free scenariosEncapsulating Knowledge in One Prompt 3
+where methods tend to consume much more computing resources. When faced
+withalargenumberofknowledgetransferrequests,runningthesemethodsfrom
+scratch for each request is absolutely intolerable.
+MergingthebenefitsofVP’sconvenienceinknowledgestorageandlightweight
+knowledge transfer with the advantages of DFKD in sensitive data protection
+raisesanintriguingpossibility:Whether VP can alleviate the problems of DFKD
+under the massive storage requirements, the lack of model reusability, and non-
+parallelism in multi-model knowledge transfer, while drawing intuitions from
+DFKD to alleviate its dependence on data?
+Inthispaper,wegiveanaffirmativeanswertotheabovequestion.Weintro-
+duceanovelparadigmforknowledgetransfernamedKnowledgeinOnePrompt
+(KiOP). This paradigm balances data autonomy with resource utilization effi-
+ciency,confirmingthefeasibilityofencapsulatingknowledgefromvariousmodels
+within a single prompt. Specifically, in our end-to-end training framework, we
+partition the visual prompt (VP) to more effectively accommodate the varying
+complexitiesinvolvedintransferringknowledgefromtwosourcemodels(referred
+toasmodelAandmodelBtoclarifyandavoidambiguity).Eachmodelispaired
+with its respective partitions of VP, and each model pair is then processed by
+a pre-defined synthesis system for data synthesis and storage in their respective
+databank.Finally,thetwomodelpairsarejointlytrainedusingthedatastored
+in their corresponding data bank. During this process, the parameters of the
+VP are updated while the source models are frozen. Consequently, we success-
+fully manage to encapsulate the knowledge from several source models into a
+single prompt, all without altering the models or requiring access to the actual
+trainingdata.Whennewrequirementsforknowledgetransferarereceived,since
+the source model is not modified, we can implement an effective reuse, which
+alleviates the storage overhead and the catastrophic forgetting problem faced in
+the traditional DFKD framework, and avoids the security risks caused by real
+data exposure in the process of visual prompt learning.
+Contribution. We highlight our main contributions as follows. We provide a
+new paradigm called Knowledge in One Prompt (KiOP), which solves the prob-
+lem of knowledge transfer in a more realistic scenario that was previously unre-
+solved:achievingefficientmodelreuseandknowledgetransferserviceparallelism
+with no access to real data and harsh storage resource constraints. We showcase
+the efficiency and adaptability of KiOP across over 10 dataset pairs, as well as
+its robustness with various backbones and multi-model (in excess of 2) parallel
+processing.
+2 Related Work
+Visual Prompt Learning. The notion of prompting originated in the realm
+of Natural Language Processing (NLP) [27,29,33,58,59], with the aim of re-
+configuring downstream data to mirror the insights garnered during a model’s
+pre-training phase. This process equips frozen pre-trained models with the abil-
+ity to interpret and adapt to novel tasks more effectively. Visual prompt was4 Q. Li et al.
+originally defined in [2] to imitate the cue idea in NLP, by using input tweaking
+and label mapping to re-adjust the use of frozen pre-trained vision models for
+new tasks. Compared with fully fine-tuning, it has the advantage of parameter
+efficiency and requires much less model storage space.
+Recently,manyworkshaveexploredtheeffectivenessofVP indifferenttasks
+and application scenarios. In order to further tap the potential of VP, [6] pro-
+posed a novel Iterative Label Mapping method to track the dynamics of VP in
+the training process, which greatly improves its performance. [40] explores an
+adaptive algorithm for VP when the pre-trained model is a black-box API. [23]
+proposed to design multiple meta-prompts for a dataset to better adapt to di-
+versity so as to reduce the difficulty of optimization. In the field of security and
+privacy, [30] explores the integration of VP into canonical differential privacy
+training methods and proves its effectiveness. [50] and [22] discussed the vul-
+nerability of VP to membership inference attacks and backdoor attacks. [28] for
+the first time explores the integration capability of VP on the robustness and
+generalization ability of the source model when the source model is a robust
+model. At present, all the works on VP requires access to the training dataset,
+the effectiveness of VP in data-free scenario is still an unexplored field.
+Data-Free Knowledge Distillation. Proposedby[21], knowledge distillation
+isawidely-usedknowledgetransferframeworkthatpairsa‘teacher’modelwith
+a ‘student’ model and manage to distill knowledge from the teacher. This tech-
+nique has seen applications in various domains [10,12,34,46,48]. As the field
+evolves, there is a growing focus on scenarios with greater practical relevance:
+in real-world situations, the initial training data are not available due to pri-
+vacyconcernsorcopyrightrestrictions.Consequently,theapproachofData-Free
+KnowledgeDistillationhasgainedpopularity.TheexistingDFKDsolutionscan
+be roughly divided into three categories [35]: Noise Optimization-based, Gener-
+ativeReconstruction-basedandAdversarialExploration-based.Inthiswork,we
+mainly draw intuitions from the series of method based on Generative Recon-
+struction. DAFL [7] pioneered the use of generative reconstruction in DFKD,
+introducingtworegularizationfunctionsconcerningactivationandpredictionto
+aidindatasynthesis.[55]suggestsastrategyfordata-freeknowledgeamalgama-
+tion, aimed at developing a proficient multi-task student network from various
+singleormulti-taskteachernetworks.KegNet[57]utilizesaconditionalgenerator
+along with an auxiliary decoder to distill knowledge from a neural network. [1]
+introduces the Data-enriching GAN (DeGAN) framework, which is designed to
+recoverrepresentativesamplesfromatrainedclassifierutilizingdatafromacor-
+related domain. [16] proposed contrastive model inversion (CMI), which treats
+data diversity as a goal that can be optimized to mitigate the problem of mode
+collapse during data reconstruction.
+3 Preliminaries
+Knowledge Transfer via Visual Prompt. VP is designed to directly add
+padding, strip, or patch with learnable parameters to the input image. SupposeEncapsulating Knowledge in One Prompt 5
+a VP parameterized by ϑ is represented as γ . Then the process of training this
+ϑ
+VP can be formalized as follows:
+ϑ∗ =min E [L(M(f (γ (x )),y ))] (1)
+ϑ
+(xd,yd)∼Dd ψ∗ ϑ d d
+where ψ∗ represents the weight of the pre-trained model, which is frozen this
+process; D represents the distribution of downstream dataset; M stands for
+d
+a predefined label mapping (LM) method, which is hard-coded and does not
+contain learnable parameters. The most commonly used LM methods are Ran-
+domLabelMapping(RLM)andIterativeLabelMapping(ILM);L(·)istheloss
+function for training ϑ, which is generally defined as cross-entropy loss.
+Data-FreeKnowledgeDistillationwithDataVariety.Aspreviouslynoted,
+our focus in this study is mainly on the Generative Reconstruction-based meth-
+ods within DFKD, since this set of techniques benefits from leveraging the
+teacher model’s prior knowledge as seen in Noise Optimization-based methods,
+while also informing the enhanced design of the discriminator found in Adver-
+sarial Exploration-based methods.
+Giventhatourframeworkultimatelyentailstheconcurrentlearningfromtwo
+distinct datasets, the variety of synthetic data is especially critical. Hence, we
+refer to the DFKD module outlined in [16]. This approach takes cues from prior
+works [8,9,51] and treat data diversity as an objective that can be optimized .
+It employs prior knowledge of batch normalization statistics (L (x)) from Noise
+b
+Optimization-basedmethods,andintegratesthiswiththeconceptofclasspriors
+(L (x)) and adversarial distillation (L (x)) to generate synthetic data. This
+c a
+process culminates the first part of the loss function in their method called
+inversion loss, which is expressed as:
+L (x)=ω·L (x)+υ·L (x)+µ·L (x) (2)
+inv b c a
+However, the use of the inversion loss alone would lead to the lost of sample
+diversity. Therefore, they introduce the idea of contrastive learning to model
+data diversity. The second part of the loss function can be formulated as:
+(cid:20) exp(sim(x ,x+,D)/µ) (cid:21)
+L (κ,D)=−E log m m (3)
+cr xm∈κ (cid:80) exp(sim(x ,x−,D)/µ)
+n m n
+where κ represents the dataset, and x+ represents the positive view of x after
+m m
+dataaugmentation,x− regardsallsamplesexceptx asnegativeview.µstands
+n m
+for the temperature. sim is the cosine similarity which is used to calculate the
+distinguishable level of image pairs. D stands for a discriminator which takes
+thelatentfeaturesoftheimagepairasinputanddistinguishthembyprojecting
+themintoanewembeddingspaceandcalculatethecosinesimilarity.Inaddition,
+adatabankB isbroughtintoincrementallystorethesynthesizeddatathatcan
+be easily distinguished from the historical ones. The final loss function is:
+min [α·L (g(z;θ )∪B,D)+β·L (g(z;θ ))] (4)
+cr g inv g
+θg,z,D
+where g(·) represents the generator parameterized by θ , α and β represent the
+g
+weight coefficients of the two terms.6 Q. Li et al.
+b
+Model A
+Prompt Periphery Model Synthesize Fusion System Model B AM ＋ CP PP ML CP AM AM ＋ CP PP ML
+Gradient Back-Propagation for Updating PP & PC
+SMA
+Model A z �푀  퐾  (�푀 ,��푀 )  퐾푖 � Model B 퐾 �(�푀�,��푀�)
+Pipeline for SMA
+Visual Prompt Prompted Input Set A Image A → Pre-trained → Model A ��푀  ＋ Prompt Core Pipeline for SMB Prompt Periphery P Ir mo am gp et e Bd ＋ ＋ → Pre-trained → Model A Input Set B ML
+Synthesize Period Knowledge Storing Period
+Synthesize System z GIn eit nia el ri az te od r ��푀� ataD ekaF retnemguA data bank rehcaeT tnedutS ledoM ledoM
+Model Pair A SMB T times
+BLoesttse?r update add current best data eerF ataD kcolB noitallitsiD
+Prompt Core data bank A ��푀  M Pao id r e Bl data bank B ��푀� �푀�
+Model
+Pair T times Back-Propagation T times ? eroC tpmorP yrehpireP tpmorP
+Knowledge Storing
+via Single Prompt
+CP AM
+(a) TheoverallpipelineoftheproposedKiOPparadigm.
+b Model A Prompt Periphery Model Synthesize Fusion System
+Model B
+CP PP AM ＋ ML CP PP AM ＋ ML
+Gradient Back-Propagation for Updating PP & PC
+SMA Model A z �푀  퐾  (�푀 ,��푀 )  퐾푖 �
+Model B 퐾 �(�푀�,��푀�)
+Pipeline for SMA Visual Prompt Prompted Input Set A Image A → Pre-trained → Model A ��푀  ＋ Prompt Core Pipeline for SMB Prompt Periphery P Ir mo am gp et e Bd ＋ ＋ → Pre-trained →
+Model A Input Set B
+ML
+Synthesize Period Knowledge Storing Period
+Synthesize System z GIn eit nia el ri az te od r
+��푀�
+ataD ekaF retnemguA
+data bank
+rehcaeT tnedutS ledoM ledoM
+Model Pair A SMB T times
+BLoesttse?r update
+add current best data
+eerF ataD kcolB noitallitsiD
+Prompt Core data bank A ��푀  M Pao id r e Bl data bank B ��푀�
+�푀�
+Model Pair T times Back-Propagation
+T times ?
+eroC tpmorP yrehpireP tpmorP Knowledge Storing via Single Prompt
+(b) Detailedillustrationofthemodelfusionandinput
+passinglogic.
+b Model A Prompt Periphery Model Synthesize Fusion System
+Model B
+AM ＋ CP PP ML CP AM AM ＋ CP PP ML
+Gradient Back-Propagation for Updating PP & PC
+SMA Model A z �푀  퐾  (�푀 ,��푀 )  퐾푖 � Model B 퐾 �(�푀�,��푀�)
+Pipeline for SMA Visual Prompt Prompted Input Set A Image A → → ��푀  ＋ Prompt Core Pipeline for SMB Prompt Periphery P Ir mo am gp et e Bd ＋ ＋ → →
+Input Set B
+ML
+Synthesize Period Knowledge Storing Period
+Synthesize System z GIn eit nia el ri az te od r
+��푀�
+ataD ekaF retnemguA
+data bank
+rehcaeT tnedutS ledoM ledoM
+Model Pair A SMB T times
+BLoesttse?r update
+add current best data
+eerF ataD kcolB noitallitsiD
+Prompt Core data bank A ��푀  M Pao id r e Bl data bank B ��푀�
+�푀�
+Model Pair T times Back-Propagation
+T times ?
+eroC tpmorP yrehpireP tpmorP Knowledge Storing via Single Prompt
+CP AM
+(c) TheSynthesizeSystemusedto
+generatesyntheticdata.
+Fig.2: A comprehensive illustration of the proposed paradigm: (a) Overall pipeline,
+(b) Model fusion and input logic, (c) Synthetic data generation.
+4 Method
+Figure 2a outlines the KiOP framework, which operates over two main phases:
+the Synthesize Period and the Knowledge Storing Period.
+4.1. Synthesize Period.
+Initially,thesystemtakesintwodistinctmodelsandsplitstheVP designatedfor
+trainingintotwocomponents:thePromptCore(PC)andthePromptPeriphery
+(PP). Model A assumes the role of a secondary transfer agent, serving as a
+backboneofVP fortheknowledgetransferprocess.Inaddition,ModelB iscast
+astheprimaryservicereceiveroftheknowledgebeingtransferredtoVP.Within
+oursystem,bothModelAandModelB aresetfrozen,meaningbothofthemdo
+notgoingthroughfurthertrainingduringthewholepipeline.ModelAundergoes
+adualModelFusionoperationtoyieldtwoderivativemodels—StudentofModel
+A (SMA) and Student of Model B (SMB). SMA emerges from the fusion of
+Model A with PC and is instrumental in imparting the knowledge of Model A
+to PC. Conversely, SMB is a composite of Model A, PC, and PP. Upon the
+integrationoftheseelements,apre-determinedlabelmappingstrategyisapplied
+to SMB’s output to align it with the source dataset associated with Model B.
+• Model Fusion and Input Passing. Figure 2b details the components of
+SMA and SMB and the procedure for dividing and utilizing VP. The left side
+ofFigure2bdepictsthedivisionofafullVP intoPC andPP,intendedforlater
+use. This split is strategic, with the goal of appropriately allocating parameter
+capacitytohandleknowledgetransfertasksofvaryingcomplexity.ForSMA,theEncapsulating Knowledge in One Prompt 7
+challenge is akin to transferring knowledge within the same domain. Although
+ModelA,whichwerefertoasthecoremodel,hasbeenpre-equippedwithaPC
+layer, SMA retains a fundamental grasp of the source data on which the core
+model was trained, making its task simpler than that of SMB. SMB, sharing
+the core model with SMA, faces a full-fledged cross-domain learning challenge,
+as the core model is unfamiliar with Model B’s source data. As shown in Figure
+2b, PC is utilized by both SMA and SMB, while PP is used exclusively by
+SMB.Inourexperiments,weassesstheimpactofvariousPC-PP configurations
+on overall performance. We discover that different source model pairs respond
+diversely to the size of PC-PP setups.
+• Synthesize System Design. Considering a more realistic and challenging
+data-freescenario,weadoptedideasfrompreviousDFKDworksasearliernoted
+inSec.3andintroducedaSynthesizeSystem.Thissystemisdesignedtoextract
+synthetic data from two source models to facilitate the learning process. As
+illustrated in Figure 2c, the system takes a model pair and a random Gaussian
+noisevectorzasinputsandusesaninitializedgeneratortocreatesyntheticdata.
+ForthedesignoftheData-FreeDistillationBlock,wedrawinspirationfrom[16]
+as previously stated, which incorporates contrastive learning to enhance the
+diversity of the synthetic samples, thus, we firstly pass the synthesized data
+through an augmenter for random augmentation, then feed it together with the
+datapreviouslystoredinthedatabanktothemodelpairandgetthejudgement
+for its quality, thereby ensuring the diversity of the synthetic data.
+4.2. Knowledge Storing Period.
+Ineachtrainingiteration,thetwomodelpairsarepassedthroughtheSynthesize
+System a total of T times. Note that with each iteration, we start with a freshly
+initialized generator. As shown in Figure 2c, during the T times, once we get a
+betterloss value, wewill updatethe currentoptimal data.Upon thecompletion
+of T times, the optimal data is then preserved in the data bank to assist with
+the training of the prompt in subsequent steps. As the data bank grows with
+eachadditionofthebestdatafromtheseiterations,thepromptisexposedtoan
+increasingly rich array of knowledge. This process ensures a progressively more
+effective knowledge transfer and storage, as the prompt harnesses a broader
+spectrum of information with each iteration.
+IntheKnowledgeStoringPeriodinFigure2a,wetrainthePC andPP with
+the synthetic data that has been curated in the data bank. It’s important to
+emphasize that before this period, all the models in the framework—the two
+source models and one prompt—are set frozen. Focusing on Model Pair A, the
+aimistofacilitatetheknowledgetransferfromModelAtoPC withintheSMA
+model. To do so, we feed the data from Data Bank A into both Model A and
+SMA. The outputs from both—termed P for the output of Model A, and
+MA
+P fortheoutputofSMA—arethenusedtocalculatethesimilaritysothat
+SMA
+SMA can imitate the behavior of Model A:
+(cid:88)
+LA = Sim(f (xˆ ),f (γ (xˆ ))) (5)
+k A A A PC,φ A
+xˆA∈B kA8 Q. Li et al.
+where Sim(·,·) is the pre-defined similarity measurement (i.e., KL-Divergance),
+BA represents the state of data bank A in the k-th iteration; f (·) denotes
+k A
+model A; xˆ stands for the data selected from BA; γ (·) is the Prompt Core
+A k PC,φ
+parameterizedbyφ.ForModelPairB,weusethesyntheticdatafromdatabank
+B asinputforbothmodelB andSMB,performingidenticaloperations.Dueto
+the pre-defined label mapping method, the output dimension of SMB matches
+that of Model B thus we can measure their similarity as follows:
+(cid:88)
+LB = Sim(f (xˆ ),M(f (γ (γ (xˆ ))))) (6)
+k B B A PP,η PC,φ B
+xˆB∈B kB
+whereBB representsthestateofdatabankB inthek-thiteration;f (·)denotes
+k B
+modelB;xˆ standsforthedataselectedfromBB;γ (·)isthePromptPeriphery
+B k PP
+parameterized by η; M is the predefined label mapping method.
+For xˆ and xˆ , they are all generated by the Synthesize System and stored
+A B
+in the corresponding data bank. For the k-th iteration of a Model Pair j, this
+process can be formally described as:
+(cid:16) (cid:17)
+Bj =S z,(fj (·),fj (·)),k,T (7)
+k tea stu
+whereSrepresentstheSynthesizeSystemasdescribedinEq.4,(fj (·),fj (·))
+tea stu
+represents the currently used Model Pair, in which fj (·) is the knowledge
+tea
+provider (teacher) of synthetic data, and T represents predefined round number
+for S. The final objective function can be defined as:
+L =α·L (B ,f ,γ ,S)
+KiOP A A A PC,φ
+(8)
++β·L (B ,f ,γ ,γ ,S,M)
+B B A PC,φ PP,η
+where α and β represent the coefficients that control the weight of the two
+components.Inourexperiment,unlessstateddifferently,wesetthembothto1.
+5 Experiments
+Models and Datasets. To comprehensively evaluate the efficacy of KiOP, we
+conducted experiments across various Models and datasets. Specifically, we em-
+ployed backbones from the ResNet series—ResNet-18 and ResNet-50—as well
+as VGG-13 from the VGG series. For a generalizable assessment, we consid-
+ered model pairs including (ResNet-18, ResNet-18), (ResNet-50, ResNet-18),
+(ResNet-18, VGG-13), and (VGG-13, ResNet-18). Moreover, we selected 6 di-
+versedatasetsforourexperiments:mnist,fashion-mnist(fmnist),cifar10,gtsrb,
+cifar100,andsvhn.Thisbreadthensuresourresultscaptureperformanceacross
+different image types and classification challenges.
+Settings of Visual Prompt. Without losing generality, we consider using the
+Padding-type of VP. We default set the size of VP to 128×128. For the label
+mapping method, we use the simplest random label mapping (RLM).Encapsulating Knowledge in One Prompt 9
+Baselines and Evaluations. For a more robust comparison of KiOP’s perfor-
+mance, we established multiple baselines:
+• Vanilla-KD. It represents the classical DFKD process, in which the student
+model(ModelAinourcase)isnotfrozen,allowingitsparameterstobeupdated
+basedontheknowledgeoftheteachermodel(ModelB)toemulateitsbehavior.
+WeadopttheDFKDframeworkasconceptualizedin[16].Giventhattheteacher
+and student datasets may vary in the class numbers, we preserve the weights of
+the student model’s fully connected layer prior to training. When assessing the
+impact on original performance of the student model, we revert this layer to its
+initial weights.
+• KiOP-Tenuous (KiOP-T). The weights of both models are frozen and a
+VP is introduced. However, it is exclusively employed in the knowledge transfer
+process for Model B: we utilize data from B as input to SMB, enabling it to
+B
+mimic the behavior of Model B and facilitate the transfer of knowledge from
+Model B to the VP.
+• KiOP-Bilateral (KiOP-B). It requires a single prompt to encapsulate the
+knowledgefromtwodistinctmodels—ModelAandModelB.However,thetrain-
+ing data for Model A is available, eliminating the need for SMA to utilize syn-
+thetic data from B for training purpose. As previously discussed, the VP here
+A
+is divided into two segments: the Prompt Core (PC) and the Prompt Periphery
+(PP). Unless explicitly stated, the default size for PC is set at 36×36, and PP
+at 128×128.
+• KiOP-Bilateral Fake (KiOP-BF). This setting is the most realistic and
+mainlyorientedscenarioforKiOP,whereinthetrainingdatasetsofbothmodels
+are inaccessible, and a single VP serves as the repository for the knowledge of
+both models. SMA and SMB are each trained using data from their respec-
+tive data bank. Despite being a more challenging scenario, empirical evidence
+suggests that KiOP-BF achieves comparable performance with KiOP-B.
+5.1. Performance on Various Difficulty Levels.
+Table1presentstheoutcomesofexperimentsconductedacrossvarioussetups.It
+canbeconsistentlyobservedthatVanilla-KDyieldsthemosteffectiveknowledge
+transfer for Model B, a result that is anticipated given that it leverages the
+substantial capacity of Model A itself for learning. Nonetheless, it comes at a
+significant cost. In the process of learning knowledge from Model B, Model A
+experiencesacatastrophicforgettingofitsoriginalknowledge,akintotheadage
+of robbing Peter to pay Paul.
+Subsequently,wedelveintovariousscenariosofKiOP.Initially,weconsidera
+lesscomplexcasewherethepromptencapsulatestheknowledgeofasinglemodel
+(KiOP-T). The outcomes consistently demonstrate the prompt’s capability for
+knowledge transfer. Note that Model B remains unaltered during this process,
+thereby preserving its initial knowledge and circumventing the catastrophic for-
+getting that could ensue from acquiring Model A’s knowledge. Furthermore, in
+assessing the predictive capabilities of SMB on dataset B, we observe that al-
+thoughtheresultsarenotentirelyencouraging,mostscenariosexhibitimproved
+performance over Vanilla-KD. For instance, when the dataset pair is (Dts.B,10 Q. Li et al.
+modelsettings ModelA:ResNet-18ModelB:ResNet-18 ModelA:ResNet-50ModelB:ResNet-18
+Dts.B
+metrics Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A
+Dts.A cifar100 gtsrb svhn cifar100 gtsrb svhn
+Vanilla 57.19% 0.15% 70.72% 1.37% 81.70% 56.02% 61.35% 0.15% 70.43% 6.47% 89.29% 79.07%
+KiOP-T 49.40% 4.30% 48.28% 12.60% 44.38% 16.19% 45.42% 4.70% 56.90% 20.90% 58.78% 16.37%
+mnist
+KiOP-B 44.49% 37.21% 46.48% 73.05% 42.77% 86.65% 41.14% 43.46% 51.58% 78.93% 52.40% 87.00%
+KiOP-BF 43.67% 36.17% 45.24% 73.31% 39.26% 83.15% 41.88% 41.49% 48.69% 78.08% 55.17% 83.84%
+Vanilla 44.13% 5.38% 47.52% 5.88% 44.41% 13.94% 43.31% 0.02% 48.86% 0.77% 44.67% 16.81%
+KiOP-T 43.28% 3.56% 38.80% 14.67% 41.28% 25.90% 38.88% 4.59% 42.18% 26.03% 41.16% 22.96%
+fmnist
+KiOP-B 37.28% 37.40% 34.82% 72.97% 34.19% 86.58% 38.77% 43.44% 39.04% 78.84% 38.79% 87.17%
+KiOP-BF 39.02% 36.51% 36.47% 73.64% 38.02% 83.53% 36.68% 41.25% 40.39% 77.89% 39.86% 84.29%
+Vanilla 79.55% 0.30% 79.13% 10.92% 79.46% 5.07% 77.60% 0.60% 77.14% 3.07% 75.60% 4.49%
+KiOP-T 44.07% 1.13% 33.82% 6.43% 32.80% 26.30% 44.74% 2.18% 37.96% 14.81% 38.77% 15.06%
+cifar10
+KiOP-B 42.82% 37.40% 28.69% 73.07% 27.23% 86.56% 43.62% 43.49% 37.56% 78.43% 37.10% 87.27%
+KiOP-BF 40.69% 36.76% 31.24% 73.86% 30.26% 83.16% 40.55% 39.82% 36.54% 77.25% 37.21% 84.08%
+Table 1: This table presents the outcomes of the KiOP paradigm across various sce-
+narios (under RLM), alongside a comparison with the traditional DFKD. Dts.A and
+Dts.B denote distinct datasets employed in the pre-training of Model A and Model
+B, respectively. Acc.A and Acc.B are indicators of the performance of VP in transfer-
+ring knowledge from the two models. The experiment utilizes two different backbones
+(ResNet18, ResNet50). Superior results achieved under the KiOP-B and KiOP-BF
+comparison is highlighted in bold.
+Dts.A) = (mnist, gtsrb), there is a notable increase in accuracy for Acc.A, typ-
+ically by around 10%. An outlier to this trend occurs with the pair (Dts.B,
+Dts.A) = (mnist, svhn), where the Vanilla-KD’s results on Acc.A remain el-
+evated. We hypothesize that this is due to the substantial similarities between
+thetwodatasets,suchasbothbeing10-classdatasetswithclassesthatrepresent
+largely analogous information.
+The findings from KiOP-T naturally prompted us to consider the possibil-
+ity of encapsulating the knowledge from several models within a single prompt.
+Results in Table 1 illustrates that a single VP can adeptly navigate more chal-
+lengingscenarios,suchasKiOP-BandKiOP-BF.OurframeworkequipstheVP
+to perform well on Dts.A while preserving its accuracy on Acc.B. For instance,
+with cifar100 as Dts.A, our framework elevates Acc.A from single digits to ap-
+proximately 40%. Moreover, with gtsrb and svhn as Dts.A, Acc.A witnesses a
+substantial rise from roughly 10–20% to 70–80%. We attribute the comparable
+outcomes between KiOP-BF and KiOP-B to the data-free distillation block uti-
+lized in conjunction with our comprehensive end-to-end framework. The former
+facilitates the generation of high-quality synthetic data from the source model,
+which in turn enhances the training of the VP, while the latter enables the two
+sets of synthetic data derived from a unified synthesis system to work better on
+VP, particularly when both datasets utilize a same PC.
+In order to verify the above conjecture, we visualize the Grad-Cam saliency
+maps of VP learned in KiOP-B and KiOP-BF respectively. Results are shown
+in Figure 3. We found that the saliency maps for both KiOP-BF and KiOP-B
+areremarkablysimilar,displayingasamepattern:thekeyareasforPC andPP
+seldom coincide and are predominantly distinct. This suggests that the model
+responds differently to the two datasets under these conditions, without anyEncapsulating Knowledge in One Prompt 11
+A.stD
+B.stD
+KiOP-B
+KiOP-T KiOP-B KiOP-BF
+lanigirO
+maC-darG
+KiOP-BF
+Dts. A Dts. B Dts. A Dts. B
+Fig.3: VP and its corresponding Grad-Cam when (Dts.A, Dts.B) = (cifar10, svhn),
+ResNet-18 as backbone. Size of PC is set to 64 and PP is 128.
+adverse interference between them. Furthermore, in the KiOP-BF scenario, the
+model focuses more intently on the key areas for PC and PP with less overlap
+between them, which implies that the two sets of synthetic data interact more
+effectively within our end-to-end framework.
+60
+40
+20
+0
+(gtsrb,mnist,svhn) (cifar100,mnist,fmnist) (cifar100,fmnist,mnist) (cifar100,svhn,mnist)
+Datasets
+)%(
+ycaruccA
+Prompt Accuracy by Dataset on Triple Models
+Model A
+Model B1
+Model B2
+Fig.4: VP manages the knowledge storage for three distinct models simultaneously.
+• KiOP on Multi Models. Moreover, our investigation extended to the fea-
+sibility of KiOP accommodating scenarios involving multiple (more than two)
+models. In practical scenarios, service providers frequently encounter simultane-
+ous service requests. Therefore, it is worthwhile to investigate the feasibility of
+processing multiple requests concurrently. Illustrated in Figure 4 is a case with
+three original models, designated as Model A, Model B , and Model B , where
+1 2
+Models B and B align with the Model B configurations depicted in Figure 2a.
+1 2
+Consequently, the VP is segmented into three portions sized 36, 128, and 224
+respectively,withthefirstportionbeingasharedcomponentamongstModelA,
+Model B , and Model B , and the second portion shared between Model B and
+1 2 1
+Model B . It can be observed that the learned VP still maintains considerable
+2
+performance.Forinstance,withthedatasettrio(ModelA,ModelB ,ModelB )
+1 2
+= (cifar100, mnist, fmnist), VP achieves an approximate 40% accuracy for all
+three models. The comparison between (cifar100, mnist, fmnist) and (cifar100,
+fmnist, mnist) demonstrates KiOP’s robustness to the sequence of B (i=1,2) in
+i
+multi-model scenerios.12 Q. Li et al.
+• Trainable Parameters and Memory Usage. As shown in Figure 5, tradi-
+tional GFKD obliges users to retain the original model, leading to considerable
+overhead with over 11 million trainable parameters and a memory footprint
+exceeding 43 MB. In stark contrast, KiOP significantly trims down this require-
+ment by slashing the number of trainable parameters to roughly 50K, thereby
+substantially reducing the storage resource demands. As a result, KiOP enables
+users to provide a mere 400 Kb of storage to access knowledge transfer services
+efficiently.
+45k 30k
+18k
+9k
+4k
+1.5k
+0.5k
+Vanilla-KD KiOP-T KiOP-B KiOP-BF KiOP-Triple
+Number of Trainable Parameters & Memory Usage
+)bK(
+egasU
+yromeM
+Mem. Usage
+12k 8k
+5k
+3k
+1.5k
+0.5k
+0.1k
+)k(
+sretemaraP
+fo
+rebmuN
+# Params.
+11181.642
+203.568
+49.152 53.04 53.04
+Fig.5: KiOP achieves low storage resource usage.
+5.2. Influence of Prompt Core Size.
+In our earlier experiments, we defaulted to setting the PC and PP sizes at 36
+and 128, respectively. We now conduct further investigations to ascertain how
+varying PC to PP size ratios influence the ability of VP to generalize across
+the two datasets. To this end, we compared four distinct PC sizes: 36, 48, 64,
+and 128. The experiment was conducted under the KiOP-B setting. Notably, a
+PC size of 128 implies an undifferentiated VP, where the two datasets share the
+entire VP without a distinct PC and PP division.
+modelsettings ModelA:ResNet-50ModelB:ResNet-18
+Dts.B
+metrics Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A
+Dts.A cifar100 gtsrb svhn
+36 41.14% 43.46% 51.58% 78.93% 52.40% 87.00%
+mnist 48 35.95% 26.11% 54.28% 50.23% 51.76% 73.08%
+64 41.58% 19.29% 53.82% 64.16% 52.57% 88.92%
+128* 33.94% 11.76% 46.66% 43.09% 41.44% 89.31%
+36 38.77% 43.44% 39.04% 78.84% 38.79% 87.17%
+fmnist 48 39.74% 26.13% 37.91% 51.29% 42.79% 73.19%
+64 36.21% 19.33% 36.11% 67.98% 40.92% 88.76%
+128* 36.19% 11.56% 40.79% 53.04% 24.78% 89.97%
+36 43.62% 43.49% 37.56% 78.43% 37.10% 87.27%
+48 43.59% 27.09% 36.16% 51.73% 35.28% 73.34%
+cifar10
+64 43.23% 21.00% 36.01% 68.65% 34.32% 89.19%
+128* 31.24% 11.16% 34.75% 44.44% 27.45% 91.31%
+Table 2: The effectiveness of VP in encapsulating the knowledge from two models
+varied with the size of the PC. We employed Model A with ResNet-50 and Model V
+with ResNet-18 as backbones, 9 different dataset pairs are considered.Encapsulating Knowledge in One Prompt 13
+80 70 60 50 40
+30 0 10 20 30Ep4o0chs50 60 70 80
+ycaruccA 2.4 2.2 2.0 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))111 ... 468 1.2
+1.0 0.8
+ssoL Dts. A: gtsrb, Dts. B: fmnist 50 45 40 35
+30 0 10 20 30Ep4o0chs50 60 70 80
+(a) Coresize=36
+ycaruccA AALLooccssccss (( DD((DDttssttss.. ..AB AB))))222 ... 233 505 2.20 2.15 2.10
+2.05
+ssoL Dts. A: gtsrb, Dts. B: fmnist 70 60 50 40
+30 0 10 20 30Ep4o0chs50 60 70 80
+(b) Coresize=48
+ycaruccA 2.4 2.2 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))112 ... 680
+1.4 1.2
+ssoL Dts. A: gtsrb, Dts. B: fmnist 55 50 45 40 35
+30 0 10 20 30Ep4o0chs50 60 70 80
+(c) Coresize=64
+ycaruccA AALLooccssccss (( DD((DDttssttss.. ..AB AB))))222 ... 123 2.0 1.9
+1.8
+ssoL Dts. A: gtsrb, Dts. B: fmnist
+(d) Coresize=128
+42.5 40.0 37.5 35.0 32.5 30.0 27.5 0 10 20 30Ep4o0chs50 60 70 80 ycaruccA 2.6 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))22 .. 24 2.0 1.8 ssoL Dts. A: cifar100, Dts. B: cifar10 42.5 40.0 37.5 35.0 32.5 30.0 27.5 25.0 0 10 20 30Ep4o0chs50 60 70 80
+(a) Coresize=36
+ycaruccA 4.0 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))33 .. 05 2.5 2.0 ssoL Dts. A: cifar100, Dts. B: cifar10 40 35 30 25 20 0 10 20 30Ep4o0chs50 60 70 80
+(b) Coresize=48
+ycaruccA 4.5 4.0 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))33 .. 05 2.5 2.0 ssoL Dts. A: cifar100, Dts. B: cifar10 30 25 20 15 10 0 10 20 30Ep4o0chs50 60 70 80
+(c) Coresize=64
+ycaruccA 4.5 4.0 AALLooccssccss (( DD((DDttssttss.. ..AB AB))))33 .. 05 2.5 2.0 ssoL Dts. A: cifar100, Dts. B: cifar10
+(d) Coresize=128
+Fig.6: Overall comparison across different datasets and PC sizes.The first line is the
+result when (Dts.A, Dts.B) = (gtsrb, fmnist), and the second line is the result when
+(Dts.A, Dts.B) = (cifar100, cifar10). The size of PC is set to 36,48,64 and 128.
+Table 2 presents the outcomes for the four aforementioned configurations
+across 9 distinct dataset pairs. We observed that the performance of the VP
+varied with the size of PC depending on the specific pairing of datasets. For
+instance, with Dst.A set to svhn, the VP’s efficacy initially diminishes (36→48)
+before it begins to improve (48→64→128). Meanwhile, the trends for the cor-
+responding Dts.B are diverse: for mnist, the first three PC sizes show negligible
+differences in performance, but a notable decrease of about 10% is observed
+when the PC size is increased to 128; for fmnist, there’s an initial enhancement
+followed by a dip, with the PC size of 48 yielding the optimal results; and for
+cifar10, a continual decline in performance is noted as the PC size increases.
+We highlight the best results for each dataset within every dataset pair using
+boldface, and distinguish the highest overall performance for each dataset pair
+with a grey background. This clearly demonstrates that, when Dts.A remains
+the same, the overall optimal outcomes across different dataset pairs exhibit a
+consistent trend. Figure 6 depicts the training dynamics with various PC sizes
+for the dataset pair (Dts.A, Dts.B) = (gtsrb, fmnist) and (Dts.A, Dts.B) =
+(cifar100,cifar10).ItisobservedthatasmallerPC size(36)leadstheVP topri-
+oritize preserving its original performance on Dts.A. Conversely, as the PC size
+expands, the VP increasingly focuses on relearning and assimilating knowledge
+from Dts.A. Regarding Dts.B, as it shares a larger PC with Dts.A, the train-
+ing trajectory experiences some fluctuations, yet ultimately stabilizes to reach a
+satisfactory outcome.
+Moreover,anobservabletrendisthatVP tendstoyieldsuperiorperformance
+when the data across the two datasets bear resemblance(i.e.,(Dts.A, Dts.B) =
+(cifar100,cifar10)or(svhn,mnist)).Thiscanbeascribedtothesemanticparal-
+lelspresentinthetwodatasets.Modelstrainedondatasetswithsimilarsemantic
+content tend to develop more comparable knowledge, making it easier for a VP
+to assimilate and learn from them.
+5.3. KiOP Cross Architectures.14 Q. Li et al.
+modelsettings ModelA:ResNet-18ModelB:VGG-13
+Dts.B
+metrics Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A
+Dts.A mnist cifar100 gtsrb
+cifar10 KiOP-B 30.15% 98.30% 36.57% 37.28% 27.84% 73.08%
+KiOP-BF 30.05% 97.32% 37.17% 36.36% 28.37% 73.73%
+modelsettings ModelA:VGG-13ModelB:ResNet-18
+Dts.A
+metrics Acc.B Acc.A Acc.B Acc.A Acc.B Acc.A
+Dts.B mnist fmnist cifar10
+gtsrb KiOP-B 39.54% 94.18% 40.60% 93.90% 35.30% 94.09%
+KiOP-BF 40.00% 94.34% 42.93% 94.35% 35.94% 93.56%
+Table 3: Even with dissimilar backbones, KiOP consistently delivers outstanding re-
+sults. This experiment was conducted using VGG-13 and ResNet-18. We evaluated 6
+diverse dataset pairs. The sizes of PC and PP are 36 and 128, respectively.
+To further validate the efficacy of KiOP, we expanded our experiments to in-
+cludedifferentbackbonepairs.WespecificallytestedcombinationsofResNet-18
+and VGG-13, in both (model A, model B) = (ResNet-18, VGG-13) and (VGG-
+13, ResNet-18). KiOP’s performance was rigorously evaluated across six varied
+dataset pairs, with the outcomes detailed in Table 3. When the backbone pair
+is reversed to (ResNet-18, VGG-13) with cifar10 as Dts. B, we observed that
+KiOP’s performance remained consistent with previous results under homoge-
+neousbackboneconditionsinTable1.Forinstance,with(Dts.A,Dts.B)=(gtsrb,
+cifar10), both Acc.A and Acc.B stayed largely the same as those obtained with
+same backbones. On the other hand, when the model pair is (VGG-13, ResNet-
+18) with gtsrb as Dts.A, there was a noticeable improvement in Acc.A by ap-
+proximately20%,whilethereweregainsofabout5%forAcc.B.Thesevariations
+likely reflect the complex interplay between differing model backbones and the
+datasets they are applied to.
+6 Conclusion
+WeproposeanewknowledgetransferparadigmnamedKnowledgeinOnePrompt
+(KiOP),whichachievesknowledgetransferofn(n≥2)modelstoasingleprompt.
+Ourparadigmeliminatestheneedforaccesstorealdata.Moreover,owingtoits
+reliance on training a prompt with a small set of parameters, and its capability
+to efficiently reuse the original model, it offers significant benefits in terms of
+storage resource efficiency and the processing of concurrent knowledge trans-
+fer requests. Sufficient experiments under different setups and different datasets
+proved its efficiency and adaptability. We believe that KiOP can inject new vi-
+tality into (data-free) knowledge transfer and makes a substantial move toward
+facilitating knowledge transfer in serving more realistic application scenarios.Encapsulating Knowledge in One Prompt 15
+Acknowledgement
+This work is supported by the Advanced Research and Technology Innovation
+Centre (ARTIC), the National University of Singapore under Grant (project
+number:A-0005947-21-00,projectreference:ECT-RP2),andtheSingaporeMin-
+istry of Education Academic Research Fund Tier 1 (WBS: A-0009440-01-00).16 Q. Li et al.
+References
+1. Addepalli, S., Nayak, G.K., Chakraborty, A., Radhakrishnan, V.B.: Degan: Data-
+enriching gan for retrieving representative samples from a trained classifier. In:
+Proceedings of the AAAI Conference on Artificial Intelligence. vol. 34, pp. 3130–
+3137 (2020)
+2. Bahng,H.,Jahanian,A.,Sankaranarayanan,S.,Isola,P.:Exploringvisualprompts
+for adapting large-scale models. arXiv preprint arXiv:2203.17274 (2022)
+3. Bao,H.,Dong,L.,Piao,S.,Wei,F.:Beit:Bertpre-trainingofimagetransformers.
+arXiv preprint arXiv:2106.08254 (2021)
+4. Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan, J.D., Dhariwal, P., Nee-
+lakantan,A.,Shyam,P.,Sastry,G.,Askell,A.,etal.:Languagemodelsarefew-shot
+learners.Advancesinneuralinformationprocessingsystems33,1877–1901(2020)
+5. Chen,A.,Lorenz,P.,Yao,Y.,Chen,P.Y.,Liu,S.:Visualpromptingforadversarial
+robustness. In: ICASSP 2023-2023 IEEE International Conference on Acoustics,
+Speech and Signal Processing (ICASSP). pp. 1–5. IEEE (2023)
+6. Chen, A., Yao, Y., Chen, P.Y., Zhang, Y., Liu, S.: Understanding and improving
+visualprompting:Alabel-mappingperspective.In:ProceedingsoftheIEEE/CVF
+ConferenceonComputerVisionandPatternRecognition.pp.19133–19143(2023)
+7. Chen, H., Wang, Y., Xu, C., Yang, Z., Liu, C., Shi, B., Xu, C., Xu, C., Tian,
+Q.: Data-free learning of student networks. In: Proceedings of the IEEE/CVF
+international conference on computer vision. pp. 3514–3522 (2019)
+8. Chen, T., Kornblith, S., Norouzi, M., Hinton, G.: A simple framework for con-
+trastivelearningofvisualrepresentations.In:Internationalconferenceonmachine
+learning. pp. 1597–1607. PMLR (2020)
+9. Chen,X.,He,K.:Exploringsimplesiameserepresentationlearning.In:Proceedings
+of the IEEE/CVF conference on computer vision and pattern recognition. pp.
+15750–15758 (2021)
+10. Chen, Y., Chen, P., Liu, S., Wang, L., Jia, J.: Deep structured instance graph for
+distilling object detectors. In: Proceedings of the IEEE/CVF International Con-
+ference on Computer Vision. pp. 4359–4368 (2021)
+11. Cho, J.H., Hariharan, B.: On the efficacy of knowledge distillation. In: Proceed-
+ingsoftheIEEE/CVFinternationalconferenceoncomputervision.pp.4794–4802
+(2019)
+12. Deng, J., Pan, Y., Yao, T., Zhou, W., Li, H., Mei, T.: Relation distillation net-
+works for video object detection. In: Proceedings of the IEEE/CVF international
+conference on computer vision. pp. 7023–7032 (2019)
+13. Devlin,J.,Chang,M.W.,Lee,K.,Toutanova,K.:Bert:Pre-trainingofdeepbidirec-
+tional transformers for language understanding. arXiv preprint arXiv:1810.04805
+(2018)
+14. Dosovitskiy,A.,Beyer,L.,Kolesnikov,A.,Weissenborn,D.,Zhai,X.,Unterthiner,
+T., Dehghani, M., Minderer, M., Heigold, G., Gelly, S., et al.: An image is
+worth 16x16 words: Transformers for image recognition at scale. arXiv preprint
+arXiv:2010.11929 (2020)
+15. Fang,G.,Song,J.,Shen,C.,Wang,X.,Chen,D.,Song,M.:Data-freeadversarial
+distillation. arXiv preprint arXiv:1912.11006 (2019)
+16. Fang,G.,Song,J.,Wang,X.,Shen,C.,Wang,X.,Song,M.:Contrastivemodelin-
+versionfordata-freeknowledgedistillation.arXivpreprintarXiv:2105.08584(2021)
+17. French, R.M.: Catastrophic forgetting in connectionist networks. Trends in cogni-
+tive sciences 3(4), 128–135 (1999)Encapsulating Knowledge in One Prompt 17
+18. Goodfellow, I.J., Mirza, M., Xiao, D., Courville, A., Bengio, Y.: An empirical
+investigation of catastrophic forgetting in gradient-based neural networks. arXiv
+preprint arXiv:1312.6211 (2013)
+19. Gou, J., Yu, B., Maybank, S.J., Tao, D.: Knowledge distillation: A survey. Inter-
+national Journal of Computer Vision 129, 1789–1819 (2021)
+20. He,K.,Chen,X.,Xie,S.,Li,Y.,Dollár,P.,Girshick,R.:Maskedautoencodersare
+scalablevisionlearners.In:ProceedingsoftheIEEE/CVFconferenceoncomputer
+vision and pattern recognition. pp. 16000–16009 (2022)
+21. Hinton, G., Vinyals, O., Dean, J.: Distilling the knowledge in a neural network.
+arXiv preprint arXiv:1503.02531 (2015)
+22. Huang,H.,Zhao,Z.,Backes,M.,Shen,Y.,Zhang,Y.:Promptbackdoorsinvisual
+prompt learning. arXiv preprint arXiv:2310.07632 (2023)
+23. Huang,Q.,Dong,X.,Chen,D.,Zhang,W.,Wang,F.,Hua,G.,Yu,N.:Diversity-
+aware meta visual prompting. In: Proceedings of the IEEE/CVF Conference on
+Computer Vision and Pattern Recognition. pp. 10878–10887 (2023)
+24. Jia, M., Tang, L., Chen, B.C., Cardie, C., Belongie, S., Hariharan, B., Lim, S.N.:
+Visualprompttuning.In:EuropeanConferenceonComputerVision.pp.709–727.
+Springer (2022)
+25. Kim, Y., Rush, A.M.: Sequence-level knowledge distillation. arXiv preprint
+arXiv:1606.07947 (2016)
+26. Kirkpatrick, J., Pascanu, R., Rabinowitz, N., Veness, J., Desjardins, G., Rusu,
+A.A.,Milan,K.,Quan,J.,Ramalho,T.,Grabska-Barwinska,A.,etal.:Overcoming
+catastrophicforgettinginneuralnetworks.Proceedingsofthenationalacademyof
+sciences 114(13), 3521–3526 (2017)
+27. Lester, B., Al-Rfou, R., Constant, N.: The power of scale for parameter-efficient
+prompt tuning. arXiv preprint arXiv:2104.08691 (2021)
+28. Li,Q.,Li,L.,Jiang,Z.,Wang,B.:Towardsrobustandaccuratevisualprompting.
+arXiv preprint arXiv:2311.10992 (2023)
+29. Li, X.L., Liang, P.: Prefix-tuning: Optimizing continuous prompts for generation.
+arXiv preprint arXiv:2101.00190 (2021)
+30. Li,Y.,Tsai,Y.L.,Yu,C.M.,Chen,P.Y.,Ren,X.:Exploringthebenefitsofvisual
+prompting in differential privacy. In: Proceedings of the IEEE/CVF International
+Conference on Computer Vision. pp. 5158–5167 (2023)
+31. Li, Y., Zhu, F., Gong, R., Shen, M., Yu, F., Lu, S., Gu, S.: Learning in school:
+Multi-teacher knowledge inversion for data-free quantization. arXiv preprint
+arXiv:2011.09899 (2020)
+32. Lian, D., Zhou, D., Feng, J., Wang, X.: Scaling & shifting your features: A new
+baselineforefficientmodeltuning.In:AdvancesinNeuralInformationProcessing
+Systems (NeurIPS) (2022)
+33. Liu,X.,Ji,K.,Fu,Y.,Tam,W.L.,Du,Z.,Yang,Z.,Tang,J.:P-tuningv2:Prompt
+tuningcanbecomparabletofine-tuninguniversallyacrossscalesandtasks.arXiv
+preprint arXiv:2110.07602 (2021)
+34. Liu, Y., Chen, K., Liu, C., Qin, Z., Luo, Z., Wang, J.: Structured knowledge dis-
+tillation for semantic segmentation. In: Proceedings of the IEEE/CVF conference
+on computer vision and pattern recognition. pp. 2604–2613 (2019)
+35. Liu, Y., Zhang, W., Wang, J., Wang, J.: Data-free knowledge transfer: A survey.
+arXiv preprint arXiv:2112.15278 (2021)
+36. Lopes,R.G.,Fenu,S.,Starner,T.:Data-freeknowledgedistillationfordeepneural
+networks. arXiv preprint arXiv:1710.07535 (2017)
+37. Ma, X., Shen, Y., Fang, G., Chen, C., Jia, C., Lu, W.: Adversarial self-supervised
+data-freedistillationfortextclassification.arXivpreprintarXiv:2010.04883(2020)18 Q. Li et al.
+38. Micaelli, P., Storkey, A.J.: Zero-shot knowledge transfer via adversarial belief
+matching. Advances in Neural Information Processing Systems 32 (2019)
+39. Nayak,G.K.,Mopuri,K.R.,Shaj,V.,Radhakrishnan,V.B.,Chakraborty,A.:Zero-
+shotknowledgedistillationindeepnetworks.In:InternationalConferenceonMa-
+chine Learning. pp. 4743–4751. PMLR (2019)
+40. Oh, C., Hwang, H., Lee, H.y., Lim, Y., Jung, G., Jung, J., Choi, H., Song, K.:
+Blackvip:Black-boxvisualpromptingforrobusttransferlearning.In:Proceedings
+of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. pp.
+24224–24235 (2023)
+41. Park, W., Kim, D., Lu, Y., Cho, M.: Relational knowledge distillation. In: Pro-
+ceedingsoftheIEEE/CVFconferenceoncomputervisionandpatternrecognition.
+pp. 3967–3976 (2019)
+42. Radford,A.,Kim,J.W.,Hallacy,C.,Ramesh,A.,Goh,G.,Agarwal,S.,Sastry,G.,
+Askell, A., Mishkin, P., Clark, J., et al.: Learning transferable visual models from
+naturallanguagesupervision.In:Internationalconferenceonmachinelearning.pp.
+8748–8763. PMLR (2021)
+43. Ribeiro, M., Grolinger, K., Capretz, M.A.: Mlaas: Machine learning as a service.
+In:2015IEEE14thinternationalconferenceonmachinelearningandapplications
+(ICMLA). pp. 896–902. IEEE (2015)
+44. Robins, A.: Catastrophic forgetting, rehearsal and pseudorehearsal. Connection
+Science 7(2), 123–146 (1995)
+45. Sohn, K., Chang, H., Lezama, J., Polania, L., Zhang, H., Hao, Y., Essa, I., Jiang,
+L.: Visual prompt tuning for generative transfer learning. In: Proceedings of the
+IEEE/CVFConferenceonComputerVisionandPatternRecognition.pp.19840–
+19851 (2023)
+46. Tang, J., Wang, K.: Ranking distillation: Learning compact ranking models with
+high performance for recommender system. In: Proceedings of the 24th ACM
+SIGKDD international conference on knowledge discovery & data mining. pp.
+2289–2298 (2018)
+47. Wang,C.L.,Li,Q.,Xiang,Z.,Wang,D.:Hasapproximatemachineunlearningbeen
+evaluatedproperly?fromauditingtosideeffects.arXivpreprintarXiv:2403.12830
+(2024)
+48. Weinzaepfel, P., Brégier, R., Combaluzier, H., Leroy, V., Rogez, G.: Dope: Distil-
+lationofpartexpertsforwhole-body3dposeestimationinthewild.In:Computer
+Vision–ECCV2020:16thEuropeanConference,Glasgow,UK,August23–28,2020,
+Proceedings, Part XXVI 16. pp. 380–397. Springer (2020)
+49. Wu, J., Li, X., Wei, C., Wang, H., Yuille, A., Zhou, Y., Xie, C.: Unleashing the
+power of visual prompting at the pixel level. arXiv preprint arXiv:2212.10556
+(2022)
+50. Wu, Y., Wen, R., Backes, M., Berrang, P., Humbert, M., Shen, Y., Zhang, Y.:
+Quantifying privacy risks of prompts in visual prompt learning. arXiv preprint
+arXiv:2310.11970 (2023)
+51. Wu, Z., Xiong, Y., Yu, S.X., Lin, D.: Unsupervised feature learning via non-
+parametric instance discrimination. In: Proceedings of the IEEE conference on
+computer vision and pattern recognition. pp. 3733–3742 (2018)
+52. Yang,X.,Ye,J.,Wang,X.:Factorizingknowledgeinneuralnetworks.In:European
+Conference on Computer Vision. pp. 73–91. Springer (2022)
+53. Yang, X., Zhou, D., Liu, S., Ye, J., Wang, X.: Deep model reassembly. Advances
+in neural information processing systems 35, 25739–25753 (2022)Encapsulating Knowledge in One Prompt 19
+54. Yao,X.,Lu,F.,Zhang,Y.,Zhang,X.,Zhao,W.,Yu,B.:Progressivelyknowledge
+distillation via re-parameterizing diffusion reverse process. In: Proceedings of the
+AAAI Conference on Artificial Intelligence. vol. 38, pp. 16425–16432 (2024)
+55. Ye,J.,Ji,Y.,Wang,X.,Gao,X.,Song,M.:Data-freeknowledgeamalgamationvia
+group-stackdual-gan.In:ProceedingsoftheIEEE/CVFConferenceonComputer
+Vision and Pattern Recognition. pp. 12516–12525 (2020)
+56. Yin, H., Molchanov, P., Alvarez, J.M., Li, Z., Mallya, A., Hoiem, D., Jha, N.K.,
+Kautz, J.: Dreaming to distill: Data-free knowledge transfer via deepinversion.
+In: Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern
+Recognition. pp. 8715–8724 (2020)
+57. Yoo, J., Cho, M., Kim, T., Kang, U.: Knowledge extraction with no observable
+data. Advances in Neural Information Processing Systems 32 (2019)
+58. Zhou, K., Yang, J., Loy, C.C., Liu, Z.: Conditional prompt learning for vision-
+language models. In: Proceedings of the IEEE/CVF Conference on Computer Vi-
+sion and Pattern Recognition. pp. 16816–16825 (2022)
+59. Zhou, K., Yang, J., Loy, C.C., Liu, Z.: Learning to prompt for vision-language
+models. International Journal of Computer Vision 130(9), 2337–2348 (2022)

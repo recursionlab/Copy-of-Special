@@ -1,0 +1,404 @@
+DIGEST a1dbf6266bc458d3b48dc42600f8bd2b
+FMetaAxiomMonad
+R129:132 Coq.Lists.List <> <> lib
+R142:154 Coq.Lists.List ListNotations <> mod
+R172:182 ProofSystem <> <> lib
+ind 398:406 <> MetaAxiom
+constr 440:443 <> base
+constr 475:478 <> meta
+R413:423 ProofSystem <> ProofSystem rec
+binder 409:409 <> A:1
+R455:458 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R447:452 ProofSystem <> axioms proj
+R454:454 MetaAxiomMonad <> A:1 var
+R459:467 MetaAxiomMonad <> MetaAxiom:2 ind
+R469:469 MetaAxiomMonad <> A:1 var
+R482:482 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R503:507 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R491:494 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R483:488 ProofSystem <> axioms proj
+R490:490 MetaAxiomMonad <> A:1 var
+R495:500 ProofSystem <> axioms proj
+R502:502 MetaAxiomMonad <> A:1 var
+R508:516 MetaAxiomMonad <> MetaAxiom:2 ind
+R518:518 MetaAxiomMonad <> A:1 var
+scheme 398:406 <> MetaAxiom_rect
+scheme 398:406 <> MetaAxiom_ind
+scheme 398:406 <> MetaAxiom_rec
+scheme 398:406 <> MetaAxiom_sind
+ind 532:539 <> MetaRule
+constr 603:609 <> mr_base
+constr 692:698 <> mr_meta
+R546:556 ProofSystem <> ProofSystem rec
+binder 542:542 <> A:4
+R572:575 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R561:569 MetaAxiomMonad <> MetaAxiom ind
+R587:590 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R576:584 MetaAxiomMonad <> MetaAxiom ind
+R627:632 ProofSystem <> axioms proj
+R634:634 MetaAxiomMonad <> A:4 var
+binder 621:621 <> p:7
+binder 623:623 <> q:8
+R649:652 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R638:642 ProofSystem <> rules proj
+R644:644 MetaAxiomMonad <> A:4 var
+R646:646 MetaAxiomMonad <> p:7 var
+R648:648 MetaAxiomMonad <> q:8 var
+R653:660 MetaAxiomMonad <> MetaRule:5 ind
+R678:681 MetaAxiomMonad <> base constr
+R683:683 MetaAxiomMonad <> A:4 var
+R685:685 MetaAxiomMonad <> q:8 var
+R666:669 MetaAxiomMonad <> base constr
+R671:671 MetaAxiomMonad <> A:4 var
+R673:673 MetaAxiomMonad <> p:7 var
+R662:662 MetaAxiomMonad <> A:4 var
+R724:727 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R716:721 ProofSystem <> axioms proj
+R723:723 MetaAxiomMonad <> A:4 var
+R728:733 ProofSystem <> axioms proj
+R735:735 MetaAxiomMonad <> A:4 var
+binder 710:710 <> f:9
+binder 712:712 <> g:10
+R743:743 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R777:781 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+binder 751:751 <> x:11
+R754:762 ProofSystem <> derivable proj
+R764:764 MetaAxiomMonad <> A:4 var
+R767:767 MetaAxiomMonad <> f:9 var
+R769:769 MetaAxiomMonad <> x:11 var
+R773:773 MetaAxiomMonad <> g:10 var
+R775:775 MetaAxiomMonad <> x:11 var
+R782:789 MetaAxiomMonad <> MetaRule:5 ind
+R807:810 MetaAxiomMonad <> meta constr
+R812:812 MetaAxiomMonad <> A:4 var
+R814:814 MetaAxiomMonad <> g:10 var
+R795:798 MetaAxiomMonad <> meta constr
+R800:800 MetaAxiomMonad <> A:4 var
+R802:802 MetaAxiomMonad <> f:9 var
+R791:791 MetaAxiomMonad <> A:4 var
+scheme 532:539 <> MetaRule_ind
+scheme 532:539 <> MetaRule_sind
+ind 829:837 <> MetaDeriv
+constr 901:907 <> md_refl
+constr 941:948 <> md_trans
+constr 1024:1030 <> md_rule
+R844:854 ProofSystem <> ProofSystem rec
+binder 840:840 <> A:12
+R870:873 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R859:867 MetaAxiomMonad <> MetaAxiom ind
+R885:888 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R874:882 MetaAxiomMonad <> MetaAxiom ind
+binder 918:918 <> p:15
+R921:929 MetaAxiomMonad <> MetaDeriv:13 ind
+R935:935 MetaAxiomMonad <> p:15 var
+R933:933 MetaAxiomMonad <> p:15 var
+R931:931 MetaAxiomMonad <> A:12 var
+binder 959:959 <> p:16
+binder 961:961 <> q:17
+binder 963:963 <> r:18
+R981:984 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R966:974 MetaAxiomMonad <> MetaDeriv:13 ind
+R980:980 MetaAxiomMonad <> q:17 var
+R978:978 MetaAxiomMonad <> p:16 var
+R976:976 MetaAxiomMonad <> A:12 var
+R1000:1003 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R985:993 MetaAxiomMonad <> MetaDeriv:13 ind
+R999:999 MetaAxiomMonad <> r:18 var
+R997:997 MetaAxiomMonad <> q:17 var
+R995:995 MetaAxiomMonad <> A:12 var
+R1004:1012 MetaAxiomMonad <> MetaDeriv:13 ind
+R1018:1018 MetaAxiomMonad <> r:18 var
+R1016:1016 MetaAxiomMonad <> p:16 var
+R1014:1014 MetaAxiomMonad <> A:12 var
+binder 1041:1041 <> p:19
+binder 1043:1043 <> q:20
+R1060:1063 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1046:1053 MetaAxiomMonad <> MetaRule ind
+R1055:1055 MetaAxiomMonad <> A:12 var
+R1057:1057 MetaAxiomMonad <> p:19 var
+R1059:1059 MetaAxiomMonad <> q:20 var
+R1064:1072 MetaAxiomMonad <> MetaDeriv:13 ind
+R1078:1078 MetaAxiomMonad <> q:20 var
+R1076:1076 MetaAxiomMonad <> p:19 var
+R1074:1074 MetaAxiomMonad <> A:12 var
+scheme 829:837 <> MetaDeriv_ind
+scheme 829:837 <> MetaDeriv_sind
+def 1093:1106 <> MetaAxiomMonad
+R1113:1123 ProofSystem <> ProofSystem rec
+binder 1109:1109 <> A:21
+R1128:1138 ProofSystem <> ProofSystem rec
+R1164:1169 ProofSystem <> axioms proj
+R1164:1169 ProofSystem <> axioms proj
+R1164:1169 ProofSystem <> axioms proj
+R1191:1195 ProofSystem <> rules proj
+R1191:1195 ProofSystem <> rules proj
+R1216:1224 ProofSystem <> derivable proj
+R1216:1224 ProofSystem <> derivable proj
+R1246:1255 ProofSystem <> refl_deriv proj
+R1246:1255 ProofSystem <> refl_deriv proj
+R1275:1285 ProofSystem <> trans_deriv proj
+R1275:1285 ProofSystem <> trans_deriv proj
+R1306:1315 ProofSystem <> rule_deriv proj
+R1306:1315 ProofSystem <> rule_deriv proj
+R1174:1182 MetaAxiomMonad <> MetaAxiom ind
+R1200:1207 MetaAxiomMonad <> MetaRule ind
+R1229:1237 MetaAxiomMonad <> MetaDeriv ind
+R1260:1266 MetaAxiomMonad <> md_refl constr
+R1290:1297 MetaAxiomMonad <> md_trans constr
+R1320:1326 MetaAxiomMonad <> md_rule constr
+R1164:1169 ProofSystem <> axioms proj
+R1164:1169 ProofSystem <> axioms proj
+R1164:1169 ProofSystem <> axioms proj
+R1191:1195 ProofSystem <> rules proj
+R1191:1195 ProofSystem <> rules proj
+R1216:1224 ProofSystem <> derivable proj
+R1216:1224 ProofSystem <> derivable proj
+R1246:1255 ProofSystem <> refl_deriv proj
+R1246:1255 ProofSystem <> refl_deriv proj
+R1275:1285 ProofSystem <> trans_deriv proj
+R1275:1285 ProofSystem <> trans_deriv proj
+R1306:1315 ProofSystem <> rule_deriv proj
+R1306:1315 ProofSystem <> rule_deriv proj
+R1174:1182 MetaAxiomMonad <> MetaAxiom ind
+R1200:1207 MetaAxiomMonad <> MetaRule ind
+R1229:1237 MetaAxiomMonad <> MetaDeriv ind
+R1260:1266 MetaAxiomMonad <> md_refl constr
+R1290:1297 MetaAxiomMonad <> md_trans constr
+R1320:1326 MetaAxiomMonad <> md_rule constr
+def 1560:1567 <> eta_fobj
+R1574:1584 ProofSystem <> ProofSystem rec
+binder 1570:1570 <> A:22
+R1592:1597 ProofSystem <> axioms proj
+R1599:1599 MetaAxiomMonad <> A:22 var
+binder 1588:1588 <> p:23
+R1604:1609 ProofSystem <> axioms proj
+R1612:1625 MetaAxiomMonad <> MetaAxiomMonad def
+R1627:1627 MetaAxiomMonad <> A:22 var
+R1646:1649 MetaAxiomMonad <> base constr
+R1646:1649 MetaAxiomMonad <> base constr
+prf 1673:1681 <> eta_frule
+R1697:1707 ProofSystem <> ProofSystem rec
+binder 1693:1693 <> A:24
+R1717:1722 ProofSystem <> axioms proj
+R1724:1724 MetaAxiomMonad <> A:24 var
+binder 1711:1711 <> p:25
+binder 1713:1713 <> q:26
+R1741:1744 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1730:1734 ProofSystem <> rules proj
+R1736:1736 MetaAxiomMonad <> A:24 var
+R1738:1738 MetaAxiomMonad <> p:25 var
+R1740:1740 MetaAxiomMonad <> q:26 var
+R1745:1749 ProofSystem <> rules proj
+R1752:1765 MetaAxiomMonad <> MetaAxiomMonad def
+R1767:1767 MetaAxiomMonad <> A:24 var
+R1771:1778 MetaAxiomMonad <> eta_fobj def
+R1780:1780 MetaAxiomMonad <> A:24 var
+R1782:1782 MetaAxiomMonad <> p:25 var
+R1786:1793 MetaAxiomMonad <> eta_fobj def
+R1795:1795 MetaAxiomMonad <> A:24 var
+R1797:1797 MetaAxiomMonad <> q:26 var
+R1833:1840 MetaAxiomMonad <> eta_fobj def
+R1851:1857 MetaAxiomMonad <> mr_base constr
+R1851:1857 MetaAxiomMonad <> mr_base constr
+prf 1881:1890 <> eta_fderiv
+R1906:1916 ProofSystem <> ProofSystem rec
+binder 1902:1902 <> A:27
+R1926:1931 ProofSystem <> axioms proj
+R1933:1933 MetaAxiomMonad <> A:27 var
+binder 1920:1920 <> p:28
+binder 1922:1922 <> q:29
+R1954:1957 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R1939:1947 ProofSystem <> derivable proj
+R1949:1949 MetaAxiomMonad <> A:27 var
+R1951:1951 MetaAxiomMonad <> p:28 var
+R1953:1953 MetaAxiomMonad <> q:29 var
+R1958:1966 ProofSystem <> derivable proj
+R1969:1982 MetaAxiomMonad <> MetaAxiomMonad def
+R1984:1984 MetaAxiomMonad <> A:27 var
+R1988:1995 MetaAxiomMonad <> eta_fobj def
+R1997:1997 MetaAxiomMonad <> A:27 var
+R1999:1999 MetaAxiomMonad <> p:28 var
+R2003:2010 MetaAxiomMonad <> eta_fobj def
+R2012:2012 MetaAxiomMonad <> A:27 var
+R2014:2014 MetaAxiomMonad <> q:29 var
+R2050:2057 MetaAxiomMonad <> eta_fobj def
+def 2184:2191 <> eta_func
+R2198:2208 ProofSystem <> ProofSystem rec
+binder 2194:2194 <> A:30
+R2213:2224 ProofSystem <> ProofFunctor rec
+R2226:2226 MetaAxiomMonad <> A:30 var
+R2229:2242 MetaAxiomMonad <> MetaAxiomMonad def
+R2244:2244 MetaAxiomMonad <> A:30 var
+R2255:2258 ProofSystem <> fobj proj
+R2255:2258 ProofSystem <> fobj proj
+R2255:2258 ProofSystem <> fobj proj
+R2280:2284 ProofSystem <> frule proj
+R2280:2284 ProofSystem <> frule proj
+R2307:2312 ProofSystem <> fderiv proj
+R2307:2312 ProofSystem <> fderiv proj
+R2263:2270 MetaAxiomMonad <> eta_fobj def
+R2272:2272 MetaAxiomMonad <> A:30 var
+R2289:2297 MetaAxiomMonad <> eta_frule thm
+R2299:2299 MetaAxiomMonad <> A:30 var
+R2317:2326 MetaAxiomMonad <> eta_fderiv prfax
+R2328:2328 MetaAxiomMonad <> A:30 var
+def 2550:2561 <> flatten_meta
+R2568:2578 ProofSystem <> ProofSystem rec
+binder 2564:2564 <> A:31
+R2586:2591 ProofSystem <> axioms proj
+R2594:2607 MetaAxiomMonad <> MetaAxiomMonad def
+R2610:2623 MetaAxiomMonad <> MetaAxiomMonad def
+R2625:2625 MetaAxiomMonad <> A:31 var
+binder 2582:2582 <> p:32
+R2632:2637 ProofSystem <> axioms proj
+R2640:2653 MetaAxiomMonad <> MetaAxiomMonad def
+R2655:2655 MetaAxiomMonad <> A:31 var
+R2734:2737 MetaAxiomMonad <> base constr
+R2734:2737 MetaAxiomMonad <> base constr
+R2760:2763 MetaAxiomMonad <> meta constr
+R2760:2763 MetaAxiomMonad <> meta constr
+R2784:2787 MetaAxiomMonad <> meta constr
+R2800:2805 ProofSystem <> axioms proj
+binder 2796:2796 <> x:33
+R2828:2831 MetaAxiomMonad <> base constr
+R2835:2835 MetaAxiomMonad <> x:33 var
+R2852:2855 MetaAxiomMonad <> base constr
+R2877:2880 MetaAxiomMonad <> meta constr
+R2893:2893 MetaAxiomMonad <> x:33 var
+R2784:2787 MetaAxiomMonad <> meta constr
+R2800:2805 ProofSystem <> axioms proj
+binder 2796:2796 <> x:34
+R2828:2831 MetaAxiomMonad <> base constr
+R2835:2835 MetaAxiomMonad <> x:34 var
+R2852:2855 MetaAxiomMonad <> base constr
+R2877:2880 MetaAxiomMonad <> meta constr
+R2893:2893 MetaAxiomMonad <> x:34 var
+def 2929:2935 <> mu_fobj
+R2941:2952 MetaAxiomMonad <> flatten_meta def
+ax 2962:2969 <> mu_frule
+R2985:2995 ProofSystem <> ProofSystem rec
+binder 2981:2981 <> A:35
+R3005:3010 ProofSystem <> axioms proj
+R3013:3026 MetaAxiomMonad <> MetaAxiomMonad def
+R3029:3042 MetaAxiomMonad <> MetaAxiomMonad def
+R3044:3044 MetaAxiomMonad <> A:35 var
+binder 2999:2999 <> p:36
+binder 3001:3001 <> q:37
+R3097:3102 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3052:3056 ProofSystem <> rules proj
+R3059:3072 MetaAxiomMonad <> MetaAxiomMonad def
+R3075:3088 MetaAxiomMonad <> MetaAxiomMonad def
+R3090:3090 MetaAxiomMonad <> A:35 var
+R3094:3094 MetaAxiomMonad <> p:36 var
+R3096:3096 MetaAxiomMonad <> q:37 var
+R3103:3107 ProofSystem <> rules proj
+R3110:3123 MetaAxiomMonad <> MetaAxiomMonad def
+R3125:3125 MetaAxiomMonad <> A:35 var
+R3129:3135 MetaAxiomMonad <> mu_fobj def
+R3137:3137 MetaAxiomMonad <> A:35 var
+R3139:3139 MetaAxiomMonad <> p:36 var
+R3143:3149 MetaAxiomMonad <> mu_fobj def
+R3151:3151 MetaAxiomMonad <> A:35 var
+R3153:3153 MetaAxiomMonad <> q:37 var
+ax 3164:3172 <> mu_fderiv
+R3188:3198 ProofSystem <> ProofSystem rec
+binder 3184:3184 <> A:39
+R3208:3213 ProofSystem <> axioms proj
+R3216:3229 MetaAxiomMonad <> MetaAxiomMonad def
+R3232:3245 MetaAxiomMonad <> MetaAxiomMonad def
+R3247:3247 MetaAxiomMonad <> A:39 var
+binder 3202:3202 <> p:40
+binder 3204:3204 <> q:41
+R3304:3309 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R3255:3263 ProofSystem <> derivable proj
+R3266:3279 MetaAxiomMonad <> MetaAxiomMonad def
+R3282:3295 MetaAxiomMonad <> MetaAxiomMonad def
+R3297:3297 MetaAxiomMonad <> A:39 var
+R3301:3301 MetaAxiomMonad <> p:40 var
+R3303:3303 MetaAxiomMonad <> q:41 var
+R3310:3318 ProofSystem <> derivable proj
+R3321:3334 MetaAxiomMonad <> MetaAxiomMonad def
+R3336:3336 MetaAxiomMonad <> A:39 var
+R3340:3346 MetaAxiomMonad <> mu_fobj def
+R3348:3348 MetaAxiomMonad <> A:39 var
+R3350:3350 MetaAxiomMonad <> p:40 var
+R3354:3360 MetaAxiomMonad <> mu_fobj def
+R3362:3362 MetaAxiomMonad <> A:39 var
+R3364:3364 MetaAxiomMonad <> q:41 var
+def 3380:3386 <> mu_func
+R3393:3403 ProofSystem <> ProofSystem rec
+binder 3389:3389 <> A:43
+R3408:3419 ProofSystem <> ProofFunctor rec
+R3422:3435 MetaAxiomMonad <> MetaAxiomMonad def
+R3438:3451 MetaAxiomMonad <> MetaAxiomMonad def
+R3453:3453 MetaAxiomMonad <> A:43 var
+R3458:3471 MetaAxiomMonad <> MetaAxiomMonad def
+R3473:3473 MetaAxiomMonad <> A:43 var
+R3484:3487 ProofSystem <> fobj proj
+R3484:3487 ProofSystem <> fobj proj
+R3484:3487 ProofSystem <> fobj proj
+R3508:3512 ProofSystem <> frule proj
+R3508:3512 ProofSystem <> frule proj
+R3534:3539 ProofSystem <> fderiv proj
+R3534:3539 ProofSystem <> fderiv proj
+R3492:3498 MetaAxiomMonad <> mu_fobj def
+R3500:3500 MetaAxiomMonad <> A:43 var
+R3517:3524 MetaAxiomMonad <> mu_frule prfax
+R3526:3526 MetaAxiomMonad <> A:43 var
+R3544:3552 MetaAxiomMonad <> mu_fderiv prfax
+R3554:3554 MetaAxiomMonad <> A:43 var
+ax 3769:3781 <> left_unit_law
+R3799:3809 ProofSystem <> ProofSystem rec
+binder 3795:3795 <> A:44
+R3817:3822 ProofSystem <> axioms proj
+R3824:3824 MetaAxiomMonad <> A:44 var
+binder 3813:3813 <> p:45
+R3830:3838 MetaAxiomMonad <> MetaDeriv ind
+R3840:3840 MetaAxiomMonad <> A:44 var
+R3843:3854 MetaAxiomMonad <> flatten_meta def
+R3858:3861 MetaAxiomMonad <> base constr
+R3864:3877 MetaAxiomMonad <> MetaAxiomMonad def
+R3879:3879 MetaAxiomMonad <> A:44 var
+R3884:3887 MetaAxiomMonad <> base constr
+R3889:3889 MetaAxiomMonad <> A:44 var
+R3891:3891 MetaAxiomMonad <> p:45 var
+R3898:3901 MetaAxiomMonad <> base constr
+R3903:3903 MetaAxiomMonad <> A:44 var
+R3905:3905 MetaAxiomMonad <> p:45 var
+ax 3916:3929 <> right_unit_law
+R3947:3957 ProofSystem <> ProofSystem rec
+binder 3943:3943 <> A:47
+R3963:3971 MetaAxiomMonad <> MetaDeriv ind
+R3973:3973 MetaAxiomMonad <> A:47 var
+R3976:3987 MetaAxiomMonad <> flatten_meta def
+R3991:3994 MetaAxiomMonad <> meta constr
+R3997:4010 MetaAxiomMonad <> MetaAxiomMonad def
+R4012:4012 MetaAxiomMonad <> A:47 var
+R4024:4029 ProofSystem <> axioms proj
+R4032:4045 MetaAxiomMonad <> MetaAxiomMonad def
+R4047:4047 MetaAxiomMonad <> A:47 var
+binder 4020:4020 <> x:48
+R4053:4053 MetaAxiomMonad <> x:48 var
+R4064:4067 MetaAxiomMonad <> meta constr
+R4069:4069 MetaAxiomMonad <> A:47 var
+R4080:4085 ProofSystem <> axioms proj
+R4087:4087 MetaAxiomMonad <> A:47 var
+binder 4076:4076 <> x:49
+R4092:4092 MetaAxiomMonad <> x:49 var
+ax 4104:4120 <> associativity_law
+R4138:4148 ProofSystem <> ProofSystem rec
+binder 4134:4134 <> A:51
+R4156:4161 ProofSystem <> axioms proj
+R4164:4177 MetaAxiomMonad <> MetaAxiomMonad def
+R4180:4193 MetaAxiomMonad <> MetaAxiomMonad def
+R4196:4209 MetaAxiomMonad <> MetaAxiomMonad def
+R4211:4211 MetaAxiomMonad <> A:51 var
+binder 4152:4152 <> p:52
+R4220:4228 MetaAxiomMonad <> MetaDeriv ind
+R4230:4230 MetaAxiomMonad <> A:51 var
+R4233:4244 MetaAxiomMonad <> flatten_meta def
+R4247:4258 MetaAxiomMonad <> flatten_meta def
+R4260:4260 MetaAxiomMonad <> p:52 var
+R4265:4276 MetaAxiomMonad <> flatten_meta def
+R4279:4290 MetaAxiomMonad <> flatten_meta def
+R4292:4292 MetaAxiomMonad <> p:52 var

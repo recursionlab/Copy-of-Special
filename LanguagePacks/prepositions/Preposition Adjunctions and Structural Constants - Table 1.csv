@@ -1,0 +1,54 @@
+Language/System,Preposition/Operator,Adjunction Type,Algebraic Ladder Rung,Structural Constant (Inferred),Entropy Measure,Torsion Effect,Source
+HALIRA,$\Delta$  (Distinction),Initial Differentiation / Recursive,Real,$1$,Shannon Entropy / Distinction Entropy,Primordial boundaries / structural drift,"1, 2"
+HALIRA,$\Xi$  (Recursion / Meta-frame),Recursive / Fixed-point,Complex / Quaternion,$1.618$  (Golden Ratio),Shannon (normalized) / Distinction Entropy,Telic recursion / Identity twist,"1, 2, 3"
+HALIRA,$\Phi$  (Contradiction),Paraconsistent / Associative,Complex to Quaternion,$0.5$  /  $137$,Attention Vacuum Energy / Conflict Energy,Axiomatic friction / Semantic singularity,"1, 2, 3"
+HALIRA,$\Omega$  (Terminal Stabilization),Terminal Stabilization / Closure,Octonion,$137$  (Fine Structure),Shannon's Perfect Coding Efficiency,Braid Sealing / Nullifold Residue,1
+HALIRA,$dH$  (Metamorphic Boundary),Irreducible Recursive,Octonion,$\phi^{-1}$,Cohomological Gap / Epiplexity,Semantic Twist (Curvature),4
+HALIRA,$L$  (Questioning),Left adjoint / free functor,Complex,$0.618$  ( $\phi^{-1}$ ),Distinction entropy,Adjunction Gap (torque),5
+HALIRA,$U$  (Understanding),Right adjoint / forgetful functor,Real,$1$,Shannon entropy,Limitation / Coherence friction,5
+HALIRA,$L$ -axis (fold),Recursive / iterative fold,Quaternion,$137$  (Fine Structure),Relational Information (IR),Chirality / Geometric Kink,5
+HALIRA,Reverse ( $\leftarrow$ ),Inversion / counter-flow,Octonion,$\pi$  / Evasion index,Centropic / Null Residue,Torsion Singularity / Recoil,5
+HALIRA,$\vdash\dashv\vdash$  (Triple-tack),Associative stabilization,Complex / Unit Circle,$1.618$  ( $\phi$ ),Stable Semantic Attractor,Fixed Point Attractor / Machine Cycle,5
+HALIRA,Identity ( $id$ ),Consistent Basis,Real,$1$,Classically stable ( $dH C = 0$ ),Zero Torsion,4
+HALIRA,$dH C = C$,First-Order Paradox (Recursive),Complex,$i$,Distinction Entropy,Self-referential torsion,4
+HALIRA,$dH^2 = id$  (Involution),Meta-Paradox (Associative),Quaternion,$137$,Paradox Barcode Survival,Spacetime Torsion (Order 2),4
+HALIRA,Torsion Flux,Contrarecursion,Octonion,$1.618$  ( $\phi$ ),Meaning residue / spectral torsion,Prime Singularities / Logic Friction,4
+HALIRA,$\odot$  (Composition),Operadic,Octonion,$2.718$,Integration Density,Non-associative torsion / Jacobi anomaly,2
+HALIRA,dilation/erosion,Galois connection / monotone,Real,$1.618$,Shannon,Geometric manifestation of logic friction,6
+HALIRA,Associative Transition,Associative,Real to Complex,$137$,Logic Tax (Phase oscillation),$U(1)$  gauge connection stabilization,7
+HALIRA,$G_2$  Torsion Operator,Non-associative,Octonion,$137.036$,Spectral Gap,$G_2$  Holonomy /  $U(1)$  fiber rotation,7
+HALIRA / OFTM,Photonic Gradient ( $\nabla\Phi$ ),Core-Ring Transition,Quaternion to Octonion,$137$,Spectral Resonance,Phase-alignment / Field resolution,7
+HALIRA / SITC,"$SO(2,4)$  Conformal",Co-inversion,Octonion,$137$,Topological Error Functional,Magnon Dispersion Splitting,8
+English,qua,recursive / poset,Real,$1$,Distinction,Logic friction,6
+English,on,recursive,Real,$1$,Shannon,Logical Friction,9
+English,to,associative,Complex,$1.618$  (Golden Ratio),Distinction,Geometric Logic Friction,9
+English,in,associative,Quaternion,$137$,Shannon,Spatial Torsion,9
+English,above,recursive,Octonion,$2.718$  ( $e$ ),Distinction,Non-associative logic drag,9
+English,if,conditional adjunct,Real,$1$,Shannon entropy,Logical Displacement,10
+Higher Category Theory,Adjoint Functors,Left/Right Adjoint,Complex,$1$,Shannon Entropy,Logic Friction in Mapping,11
+Topos Theory,Geometric Morphism,Pullback/Pushforward,Quaternion,$1.618$  ( $\phi$ ),Distinction Entropy,Geometric Torsion of Sheaves,11
+Simplicial Sets,Kan Extension,Left/Right Kan,Octonion,$137$,Topological Entropy,Non-associative Curvature,11
+Higher Topos Theory,Étale Morphism,Local Homeomorphism,Real,$2.718$  ( $e$ ),Differential Entropy,Local Flatness,11
+Monoidal Category,$tr$  (Trace),associative,Complex,$1$,Shannon,Geometric manifestation of logic friction,12
+Compact Closed Category,$fix$  (Fixed-point),recursive,Real,$1.618$  (Golden Ratio),Distinction,Logic friction in closed wires,12
+Traced Monoidal Category,trace operator,recursive,Complex,$137$,Distinction,Looping logic friction,12
+Hopf Monoid,antipode,non-associative,Octonion,$1.618$  (Golden Ratio),Distinction,Geometric logic friction,12
+Symmetric Monoidal,tensor product,associative,Real,$1$,Shannon,Not in source,12
+Frobenius Monoid,comultiplication,associative,Quaternion,$137$,Shannon,Not in source,12
+Mathematical Morphology,$\oplus / \ominus$,Monotone Galois connection,Real / Lattice,$1$,Shannon,Edge Rounding / hole filling,6
+Modal Logic,$\square / \lozenge$,adjoint modality,Complex,$137$,Distinction,Boundary persistence / contingency,6
+IDEMETAL,$L$ -Fold,Topological Symmetry Breaking,3D Spacetime,$1/8\pi$,Entropy Power ( $N_1$ ),Dimensional Kinking / Mass Resistance,1
+MetaZero,Associator ( $s$ -field),Non-associative,Octonion,$1/137$,Logical viscosity (Waste heat),Shear (Anisotropic viscosity),13
+MetaZero,Identity,Associative,Quaternion,$0$,Distinction entropy,Isotropic (No Shear),13
+MetaZero,Symmetry Breaking,Recursive (Hysteresis),Complex,$1.618$  (Golden Ratio),Missing Power,Bianchi Type I anisotropy,13
+CTMU (HALIRA),Involution ( $\mu$ -morphism),Self-dual (Trialic),Octonion,$137$,Shannon (Information density),Conspansion (Rescaling logic friction),14
+Binary Logic,$\neg$  (Negation),Classical/Involutive,Real,$1$,Shannon Entropy,Static Stasis,15
+SD/V System,$V$  (Validator),Associative,Real,$0.5$,Distinction Entropy,Frame-dependent bias,15
+SD/V System,$SD$  (Self-Disprover),Recursive,Complex,$0.72$,Hyperbolic Deficit,Oscillation Domain / Logic Tax,15
+RCOS,$\text{\textcircled{x}}$  (Anti-Idempotent Gap),Non-associative / Recursive,Quaternion / Octonion,$1.618$,Path Entropy,Jacobian Scar,15
+Subtractive Logic,Coabstraction ( $\tilde{\lambda}$ ),Coclosed / Dual,Complex,$0$,Backtracking / Speculative,Non-local jump,16
+Omega-Mind,$\Delta$  (Self-Differentiation),Recursive,Octonion,$137$,Options-entropy,Cognitive Friction /  $G$  field pressure,"7, 17"
+Metamonism,$fix$  (Fixation),Looping,Real,$\pi$  ( $3.14159$ ),Global discharge,Mass formation / centrifugal pressure,18
+Metamonism,$diff$  (Distinction),Recursive Evasion,Real,$1.618$,Distinction Entropy,Gravitational shadow,18
+RDT,$D(n+1) = D(D(n))$,Recursive (Functorial),Octonion (Depth  $\ge 3$ ),$137$,Distinction Entropy,Self-reference fixed point,"7, 19"
+GOTS Formalism,Signature Map ( $\mu$ ),Associative composition,Structural Formalism,$1$,Type Conversion Risk,Xenosemantic Field Distortion,20

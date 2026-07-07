@@ -1,0 +1,649 @@
+Understanding the Impact of Negative Prompts: When
+and How Do They Take Effect?
+YuanhaoBan RuochenWang TianyiZhou
+UCLA UCLA UMD
+banyh2000@gmail.com ruocwang@g.ucla.edu tianyi@umd.edu
+MinhaoCheng BoqingGong Cho-JuiHsieh
+PSU Google UCLA
+mmc7149@psu.edu bgong@google.com chohsieh@cs.ucla.edu
+Abstract
+Theconceptofnegativeprompts,emergingfromconditionalgenerationmodels
+likeStableDiffusion,allowsuserstospecifywhattoexcludefromthegenerated
+images.Despitethewidespreaduseofnegativeprompts,theirintrinsicmechanisms
+remainlargelyunexplored. Thispaperpresentsthefirstcomprehensivestudyto
+uncover how and when negative prompts take effect. Our extensive empirical
+analysisidentifiestwoprimarybehaviorsofnegativeprompts. DelayedEffect: The
+impactofnegativepromptsisobservedafterpositivepromptsrendercorresponding
+content. Deletion Through Neutralization: Negative prompts delete concepts
+fromthegeneratedimagethroughamutualcancellationeffectinlatentspacewith
+positiveprompts.Theseinsightsrevealsignificantpotentialreal-worldapplications;
+forexample,wedemonstratethatnegativepromptscanfacilitateobjectinpainting
+withminimalalterationstothebackgroundviaasimpleadaptivealgorithm. We
+believeourfindingswilloffervaluableinsightsforthecommunityincapitalizing
+onthepotentialofnegativeprompts.
+1 Introduction
+Ithasbeenwidelyacknowledgedthatdiffusionmodelshavemadetremendousbreakthroughsin
+image and video generation Saharia et al. [2022], Rombach et al. [2022b], Dhariwal and Nichol
+[2021], Nichol et al. [2021], Ho and Salimans [2022]. Despite their capabilities, these models
+sometimesproduceimagesthatdonotfullyalignwiththeintendedmeaningoftheirtextualprompts,
+motivatingasurgeinresearchaimedatenhancingimagefidelityandrelevanceCheferetal.[2023],
+Hertzetal.[2022],Wangetal.[2022]. Notableadvancementsincludethedevelopmentofclassifier-
+freeguidanceHoandSalimans[2022],manipulationofcross-attentionmapKawaretal.[2023],
+Cheferetal.[2023],integrationwithlargelanguagemodelsLianetal.[2023],Zhongetal.[2023],
+andusageofthesemanticinformationofthepromptsFengetal.[2022],Hertzetal.[2022]. Among
+these innovations, the conceptof negative prompts — guidingmodels by specifying whatnot to
+generate — has gained great attention for its effectiveness Armandpour et al. [2023], O’Connor
+[2023], Andrew [2023], mukund kapoor [2023], Woolf [2023]. However, most of the works are
+merelyrelyingonexperimentalresultsandlackadeepunderstandingonhownegativepromptswork.
+Suchalackofanalysisofthenegativepromptsfurtherpreventspeoplefromdesigningmoreeffective
+negativepromptstoobtainbetterpromptsalignment.
+Inourwork,weperformasystemicstudyonnegativepromptstofillthisgap. Withafocusonthe
+dynamicsofthediffusionsteps,ourcentralresearchquestionis,"Whenandhowdonegativeprompts
+takeeffect?". Ourinvestigationbreaksdownthemechanismofnegativepromptsintonoun-based
+removalandadjective-basedalterationtasks,leadingtointriguinginsightsthroughexperimentation.
+Specifically, to investigate when negative prompts start to exert their influence, we analyze the
+model’scross-attentionmapsthatillustratethelikelihoodofspecifictokensappearingintheimage
+Preprint.Underreview.
+4202
+nuJ
+5
+]VC.sc[
+1v56920.6042:viXratimesteps 0,1,2,3 4,5,6,7 8,9,10,11 12,13,14,15 16,17,18,19 20,21,22,23 24,25,26,27
++:“Professional office woman wearing glasses” -:“” word: Glasses (in the positive prompt)
++:“Pofessional office woman” -:“Glasses” word: Glasses (in the negative prompt)
++:“An rusty coin on the street” -:“” word Rusty (in the positive prompt)
++:“An coin on the street” -:“Rusty” word: Rusty (in the negative prompt)
+Figure1: Illustrationonwhenthenegativepromptsattendtothe"right"place. Forexample,we
+considerthefaceofthepersonasthe"rightplace"forthe"glasses"token. Everyrowrepresents
+anindependentdiffusionprocesswherethefirstandthethirdrowsshowthetokensinthepositive
+promptandthesecondandfourthrowsvisualizethoseinthenegativeprompt.Thepositiveprompt(+),
+negativeprompt(-),andthecorrespondingtokenoftheattentionmaparelistedontopofeachofthe
+rows. Everycolumndenotesthedifferentdiffusionstepsusedtovisualizethecross-attentionheat
+maps. Wealsoenclosethefeaturemapwhichattendstothe"right"placeforthefirsttime,witha
+squarebox .
+pixels. Weidentifythecriticalstepatwhichnegativepromptsbegintoinfluencethegeneration
+process, highlightingthedramaticdifferenceinhownegativeandpositivepromptsoperate. The
+studyrevealsasignificantdelayinthecriticalstepofnegativepromptscomparedtopositiveones,as
+clearlyillustratedinFigure1.
+Tofigureouthownegativepromptstakeeffect,wedelveintothearchitectureofmainstreamtext-to-
+imagediffusionmodelstouncoverapossiblecause: aninsufficientexchangeofinformationbetween
+thepathwaysdealingwithpositiveandnegativeprompts. Analyzingthepatternsofestimatednoises
+in object deleting tasks, we find that negative prompts initially generate a target object at a
+specificlocationwithintheimage,whichneutralizesthepositivenoisethroughasubtractive
+process,effectivelyerasingtheobject. Furthermore,weobserveacounter-intuitivemodelbehavior
+“ReverseActivation”asshowninFig2. Thatis,introducinganegativepromptintheearlystagesof
+diffusionparadoxicallyresultsinthegenerationofthespecifiedobjectintheinitialgenerationstage.
+Wegiveadetailedexplanationforthismodelbehaviorbasedontwofindingsofdiffusiondynamics:
+theInducingEffectandtheMomentumEffect. Theformereffectrevealsthatthenegativepromptcan
+inducethepositiveestimatednoisestoincreaseinsomespecificdirections,whilethelattershows
+thattheestimatednoisestendtokeepinthesamedirectioninthediffusionprocess,whichmeans
+noisesexhibitasignificantcorrelationwiththeirprecedingsegments. Wealsopointoutthepotential
+hazardsofapplyingnegativepromptstooearly,thattheymaydistorttheoriginalstructureofthe
+image.
+Buildingonourinsights,weintroduceanovelcontrollableinpaintingapproachaimedatdeleting
+undesiredelementswhilepreservingasmuchoftheremainingcontentaspossible. Asshownin
+Fig8,applyingthenegativepromptstooearlycandisruptthelayoutofanimagethathasnotyetbeen
+fullyformed. Thebesttimingforintroducingthesepromptsshouldbeafterthecriticalstep. Based
+ontheinsights,weproposetoinvolvethenegativepromptsinthemiddleofthereverse-diffusion
+processwhichshowsgreatsuccess. Notethatourmethoddoesnotneedanymodelretrainingand
+modificationsinthesamplingstepduringinference.
+2no negative 0 0,1 0,1,2 0,1,2,3 0,1,2,3,4 0,1,2,3,4,5 0,1,2,3,4,5,6 0,1,2,3,4,5,6,7
++:“Professional office woman” -:“Glasses”
++:“A couple walking along the riverside in Paris ” -:“Eiffel Tower”
+Figure 2: Illustration: Reverse activation. Each column shows an image generated by applying
+negative prompts in some specific steps which is shown at the top of the picture. In these two
+examples, the diffusion process without applying a negative prompt does not produce the object
+mentionedinthenegativeprompt. Butinterestingly,introducinganegativepromptintheearlystages
+resultsinthegenerationofthespecifiedobject,whichismarkedwith .
+Our contributions can be summarized as follows: (1) We have uncovered the critical steps and
+underlyingdynamicsthatgoverntheeffectivenessofnegativeprompts(2)Wehaveidentifiedand
+highlightedthefundamentalissueofinformationlagthatoccursbetweentheactivationofnegative
+and positive prompts. (3) We provide insights into the strategic design of negative prompts and
+introduceanovelapproachforcontrollableimageinpaintingtasks.
+2 RelatedWork
+Prompts Analysis: Since the development of text-to-image diffusion models, there has been a
+surge of interests in understanding its image generation mechanism through the lens of prompts.
+Tang Tang et al. [2022] employed cross-attention maps to analyze prompts through the lens of
+computationallinguistics. HertzHertzetal.[2022]revealedthatcross-attentionlayersareimbued
+with significant semantic content derived from text prompts. Tumanyan Tumanyan et al. [2023]
+demonstratedthatself-attentionlayersencodelayoutinformation. Furthermore,BalajiBalajietal.
+[2022] and Mahajan Mahajan et al. [2023] showed that different stages in the process focus on
+differentkindsoffeaturesincludingcolor,texture,andshape. Incontrasttotheextensivefocuson
+positiveprompts,researchonnegativepromptsremainsunexplored,letalonetheirdynamicsalong
+thetemporaldimension. Ourresearchprimarilydelvesintonegativeprompts,exploringtheinterplay
+betweennegativeandpositivepromptsthroughthelensoftemporalevolution.
+ObjectRemoval: Objectremovalistheprocessofeliminatingundesiredobjectsfromanimage.
+CriminisiCriminisietal.[2004]initiallyconceptualizedobjectremovalasanimageinpaintingtask.
+YuYuetal.[2018]proposedanoveldeepgenerativemodel-basedapproachthatcansynthesizenovel
+imagestructuresandutilizesurroundingimagefeaturestoboostperformance. YildirimYildirim
+etal.[2023]trainedadiffusionmodelthatcanremoveobjectsbasedontheinstructionsgivenas
+text prompts. Yang Yang et al. [2023] introduces an attention guidance strategy to constrain the
+samplingprocessofdiffusionmodelstoenableefficientremoval. Existingmethodsprimarilyaimto
+deleteaspecificobjectfromagivenimage. Incontrast,ourapproachadoptsadifferentperspective,
+tailoredtotheneedsoftext-to-imagemodelusers. Startingwithatextualdescription,weinitially
+createanimageusingtext-to-imagediffusionmodels. Subsequently,weadjustthetexttoproducea
+revisedimage,effectivelyremovinganyundesiredobjectspresentintheoriginal. Therehavealready
+beensomeattemptsinthisfield. Forexample,WoolfWoolf[2023],O’ConnorO’Connor[2023],
+AndrewAndrew[2023]andKapoormukundkapoor[2023]haveproposedtoutilizenegativeprompts
+to do the task. However, their approaches tend to significantly alter the context of the generated
+imagecomparedtotheoriginal. Incontrast,ourfindingssuggestthatnegativepromptscanbeused
+toeffectivelyremovetheobject,whileatthesametimepreservingthebackgroundinformationif
+theyareappliedonlywithinacriticalperiodofthegenerationprocess. Moreover,thisapproachis
+training-freeandassumeszeromodificationtothestructureofdiffusionmodels.
+3 Preliminary
+DenoisingDiffusionProbabilisticModels(DDPM)Asanewfamilyofpowerfulgenerativemodels,
+diffusionmodelscouldachievesuperbperformanceonhigh-qualityimagesynthesis. Thecomplete
+modelingofDDPMconsistsof1). aforwardprocessand2). areverseprocess. Givenasamplefrom
+datadistributionx ∼p (x),theforwardprocessgraduallyinjectsGaussiannoisetotheoriginal
+0 data
+3data(x ):
+0
+(cid:0) (cid:112) (cid:1)
+q(x |x )=N x ; 1−β x ,β I , (1)
+t t−1 t−1 t t−1 t
+whereβ isaschedulerdesignedsothattheMarkovchainconvergestostandardGaussiannoise
+t
+(x ∼ N) after T steps. The reverse process then starts with this standard Gaussian noise and
+T
+repeatedlyappliesamodel(θ)todenoiseitbacktotherealdata:
+T
+(cid:89)
+p (x )=p(x ) p (x |x ), (2)
+θ 0:T T θ t−1 t
+t=1
+wherep (x |x )=N(x ;µ (x ,t),Σ). (3)
+θ t−1 t t−1 θ t
+Classifer-freeguidanceforconditionalgenerationText-to-imagediffusionmodelsintroducethe
+classifier-freecontextinformationintothereversediffusionprocessthroughcrossattentionmap. At
+eachsamplingstep,thepredictederrorisobtainedbysubtractingtheunconditionalerrorfromthe
+conditionalerrorwithaguidancestrengthw:
+ϵˆ ((x ),c(s),t)=(1+w)ϵ (x ,c(s),t)−wϵ (x ,c(∅),t), (4)
+θ t θ t θ t
+wherec(s)istheconditionalsignaloftexts,c(∅)isobtainedbypassinganemptystringtothetext
+encoder.
+NegativepromptsWoolfWoolf[2023]findsthatthegenerativeprocesscouldbebetterguidedwith
+textpromptsthatinstructtheAImodelthatitshouldnotincludecertainelementsinitsgenerated
+images. Specifically, whentheemptystring∅intheunconditionalerrorisreplacedbyanactual
+prompt,itrepresentswhattoremovefromthe(generated)imageduetothenegativesign. Thiscan
+beformallywrittenas:
+ϵˆ ((x ),c(s),t)=(1+w)ϵ (x ,c(p ),t)−wϵ (x ,c(p ),t), (5)
+θ t θ t + θ t −
+wherep istheregularuserprompt(positiveprompt)andp isthenegativeprompt.
++ −
+StablediffusionRombachetal.[2022b]isalatenttext-to-imagediffusionmodelfeaturingprocessing
+overalowerdimensionallatentspacetoreducememoryandcomputecomplexity. Inourexperiments,
+weadoptStableDiffusionv2Rombachetal.[2022a]providedbydiffusersvonPlatenetal.[2022]
+andsetthediffusionstepsas30inalloftheexperiments.
+4 Whendonegativepromptstakeeffect
+4.1 QualitiveAnalysis
+Visualisingcross-attentionmapsacrossdiffusionsteps. Inconditionaldiffusionmodels,cross-
+attentionlayerscontextualizetextembeddingswithcoordinate-awarelatentrepresentationsofthe
+imageandoutputscoresforeachtoken-imagepatchpair. Hence,eachelementinthecross-attention
+mapcanbeviewedastheprobabilitythatthespecifictokenappearsinthatposition. Followingthe
+approachofDaamTangetal.[2022],wegatherthescoresfromvariouslayersforeachtokenwe
+focuson. Thenweresizethefeaturemapstothesamesizeandaveragethem. Notably,differentfrom
+Daamwhichaveragesthescoresacrossallthetimesteps,wecollectandpresentmapsofdifferent
+stepsindividually. TheseheatmapsarethenorganizedintosetsoffourandshowninFig1.
+Thereexistsadelayintheeffectofnegativepromptsfollowingtheimpactofpositiveprompts
+forbothnounsandadjectives. AsshowninFig1,weobserveadelayedeffectofnegativeprompts.
+Taketheimagesof"womanwithglasses"asanexample(top2rows). Inthefirstrow,theglasses
+inthepositivepromptarecorrectlyattendedtothewoman’sheadfromtheverybeginning,within
+thefirstfoursteps. Conversely,theglassesinthenegativepromptcannotattendtotherightposition
+untiltheeighthstep. Intuitively,thisdelaystemsfromclassifier-freeguidanceinEquation(5): at
+everystep,bothnegativeandpositivepromptsattendtothesamenoisemapindependently,with
+theirinteractionoccurringonlyindirectlyafterthesubtractionstep. Asaresult,thenegativeprompt
+hastowaitforthetargetobject(woman’sface)specifiedinthepositiveprompttoappearbeforeit
+canattendtoit. Theaboveanalysisalsoappliestothecasewherethenegativepromptspecifiesan
+adjective(bottomtworoles): Thenegativeprompt"rusty"canonlyattendtothecoinafterthecoinis
+beengenerated.
+44.2 QuantitativeAnalysis
+In this subsection, we quantify the exact step at which the word in the negative prompt aligns
+accuratelywiththetargetobjective.
+Newmetrictomeasurethestrengthofthenegativeprompt. Denotingcrossattentionmapofthe
+k-thlayerforthei-thtokeninthetextsattimestept,asF(t) ,wefurtherdefinethestrengthof
+k,s(i)
+negativepromptatsteptastheratioofthemeanofthesquaredvalueoftheheatmapsofthenegative
+promptatstepttothatofthepositiveprompt. Notably,wespecificallyselectthetokeninthepositive
+promptthatismostrelevanttothenegativepromptanddisregardtheunrelatedones. Forexample,
+wechoosetheword"woman"inthepositiveprompttocomparewiththenegativeprompt"glasses".
+Theratiocanbeformulatedas:
+Σ ∥F(t) ∥
+r =
+k k,p−(i) F
+(6)
+t Σ ∥F(t) ∥
+k k,p+(r(i)) F
+where p , and p denote the positive and negative prompt respectively. And r(·) represents the
++ −
+mappingfunctionfromthenegativeprompttoitsmostrelevanttokeninthepositiveprompt. We
+categorizethenegativepromptsintotwodistinctgroupsforourexamination:nouns,suchas’glasses’,
+whichareutilizedinobjectremovaltasks,andadjectives,like’ugly’,aimedatrefiningthevisual
+qualityofimages. weselectasetof10correspondingpromptpairs. Theexperimentsareconducted
+across 10 distinct random seeds to ensure robustness in our findings. We plot the r ∼ t curves
+t
+averaged on the seeds in Fig 3. Peak at the 5th step for the noun-based negative prompt as
+(a)Nounsforremovaltask (b)Adjectivesforpicturerefinement
+Figure3: IllustrationofEffectivenessofNegativePromptsOverTime. Thex-axisrepresentsthe
+timestep. They-axisdenotesthestrengthofthenegativeprompt. Intheleftfigure,thereisapeak
+atthe5thstepforthenoun-basednegativeprompt,indicatingthecriticalstep. Meanwhile,Inthe
+rightfigure,weobserveaplateauaroundthe10th,astheobjecthavebeengeneratedandthenegative
+promptbeginstotakeeffect.
+illustratedinFig3a,indicatingacriticalstephere. Initially,theratioisnear1,possiblyduetothe
+Unetframeworktreatingnegativeandpositivepromptswithparity,asdiscussedinSection3. At
+thattime,thenegativepromptwantstogeneratesomeobjectsinthemiddleofthepicregardless
+of the context of the positive prompt. As we approach the peak, the negative prompt begins to
+assimilatelayoutcuesfromitspositivecounterpart,tryingtoremovetheobject. Thisresultsinthe
+peakrepresentingthezenithofitsinfluence. Followingthis,astheelementgraduallydisappears
+fromtheimage,theimpactofthenegativepromptdiminishes,withnoremainingelementsinthe
+imagetotriggertheneuralresponse. Aplateauaroundthe10thstepforadjective-basednegative
+promptsisdepictedinFig3b,indicatingtheexistenceofthecriticalstep. Duringtheinitialstages,
+theabsenceoftheobjectleadstoasubduedresponse,withthestrengthbelowone. Betweenthe5th
+and10thsteps,astheobjectbecomesclear,thenegativepromptaccuratelyfocusesontheintended
+areaandmaintainsitsinfluence.
+5 Howdonegativepromptstakeeffect
+Toexaminethedynamicsinthereverse-diffusionprocess,wefocusonanalyzingtheseriesofthe
+estimatednoises{ϵ(t)}T .
+t=0
+5without N with N 0,1,2,3 4,5,6,7 8,9,10,11 12,13,14,15 16,17,18,19 20,21,22,23
+Succeed! +:“A living room” -:“Couch” word:Couch (in the negative prompt)
+Fail! +:“A living room” -:“Couch” word:Couch (in the negative prompt)
+Succeed! +:“Office wall above a wooden desk” -:“Potted plant” word:Potted plant (in the negative prompt)
+Fail! +:“Office wall above a wooden desk” -:“Potted plant” word:Potted plant (in the negative prompt)
+Figure4: Illustration: Heatmapsshowcasingtheoutcomesofobjectremovalusingnegativeprompts,
+withbothsuccessesandfailures. Successfulremovalsareplacedinthefirstandthirdrows,while
+thefailedattemptsoccupythesecondandfourthrows. Thefirstcolumnshowsthepictureswithout
+applyingnegativepromptscontrastedbythesecondcolumn,whichfeaturesimageswithnegative
+prompts. Notably,thefeaturemapthatfirsttargetstherelevantlocationismarkedbyaredsquare
+box . It’sevidentthatthesuccessfulcasesexhibitearlierattentiontothetargetareas.
+5.1 NeutralizationHypothesis
+We hypothesize that the negative prompts perform deletion through the canceling effect, where
+positiveandnegativenoisesalignandnullifyeachotherpost-subtractioninEquation(5). Supporting
+this, weobserveinthefailurecasesofobjectdeletiondepictedinFig.4. Asuccessfulcaseisin
+thethirdrow,wheretheattentionmapstartstotargetthelocationofapottedplantbetweensteps
+4-7, effectively counteracting the positive noise that would otherwise materialize a potted plant.
+Conversely,inthebottomrow,attentiondoesn’tfocusonthelowerrightcorneruntilstep8. Bythis
+stage,withtheobjectnearlyfullyformed,it’stoolateforeffectivecancellation—resultinginonly
+minimalimpactonthefinerdetails.
+5.2 ReverseActivation
+ThephenomenonofReverseActivationisobservedwhenanegativeprompt,introducedintheearly
+stagesofthediffusionprocess,unexpectedlyleadstothegenerationofthespecifiedobjectwithin
+thecontextofthatnegativeprompt. Incontrast,omittingnegativepromptsresultsintheabsence
+oftheobject. AsdemonstratedinFigure2,ifweapply"Glasses"asnegativepromptsinthefirst3
+steps,itwillgeneratetheglassesinthefinaloutput. Inthissection,ourgoalistoshedlightonthis
+phenomenonbyanalyzingthemechanismbehindnegativeprompts. Westartbyexaminingthedata
+distribution,highlighttwointriguingobservations,andultimatelyofferanexplanation.
+Guidance signals We borrow the concept of the energy function from Energy-Based Models,
+as shown in Fig 5 to represent the data distribution. The function is designed to assign lower
+energylevelstomore’likely’or’natural’imagesaccordingtothemodel’strainingdata,andhigher
+energy levels to less likely ones. As Real-world distributions often feature elements like a clear
+blueskyorotheruniformbackgrounds,alongsidedistinctobjectssuchastheEiffelTower,these
+elements typically possess low energy scores, making the model inclined to generate them. To
+synthesize a specific object like a tower from scratch, the diffusion process necessarily traverses
+throughanintermediaryphasethatrepresentsablurryoutlineoftheobject. Giventhatsuchblurry
+representations are atypical in the training data, they present an ’energy barrier’ that hinders the
+seamlessgenerationofthedesiredobject. Sothemodelrequirestheguidanceofpromptstosurmount
+this barrier. We delve into the dynamics of distinct types of guidance as depicted in Figure 6.
+6To begin, Figure 6a demonstrates that in the absence of explicit guidance, the model struggles
+to overcome the energy function’s barrier, influenced by the natural data distribution, leading it
+back to generic backgrounds. Conversely, as depicted in Figure 6b, when explicit guidance is
+providedthroughtheinclusionoftheobjectinthepositiveprompt’scontext,themodelmanages
+to surpass the barrier, with real-world distribution guidance steering it towards the object region.
+Clear object region
+Low energy
+Clear background region
+Low energy
+noiger
+eniltuo
+tcejbo
+derrulB
+ygrene
+hgiH
+Inducing Effect The intriguing part is
+observedinFig6c. Here,weillustratean
+instancewheredirectnegativeprompts
+areapplied,yetthecontextisabsentfrom
+thepositiveprompt. Asaresult,theneg-
+ativepromptguidanceismuchstronger
+thanthepositivepromptguidance,mak-
+ingthispointataconsiderabledistance
+intheregionoppositetotheobject. Con-
+sequently, the distribution guidance
+demonstratesasubstantialalignment
+towardstheobjectanditssurrounding
+area. Without this, a tower-like struc-
+turewouldemergeatthatlocation. This
+is because adding or subtracting tower-
+likefeaturesagainstauniformbackdrop
+equallycontributestotheformationofa
+towerpattern. Asthedistributionguid-
+anceisencodedintotheestimatednoises,
+projectingthepositivenoisetowardsthe
+background-to-object direction reveals Figure5: Illustration: Theenergyfunctionintheimage
+an enhanced effect in this direction, as generation dynamics. The value atthe pixel represents
+opposedtothescenariowithoutanega- theenergyofthepointinthedatadistribution. Wemark
+tive prompt in ig 6a. We term the phe- thebackgroundregion,clearobjectregion,andblurred
+nomenonasthe"InducingEffect",indi- object outline region by circles. To generate an object
+catingthatthenegativeprompttriggers from the background, the model should overcome the
+thepositivenoiseinadirectionthatrepre- energybarrieroftheblurredobjectoutlineregion.
+sentsthecontextofthenegativeprompt.
+Positive prompt guidance Negative prompt guidance Real world distribution gudiance
+Weak implicit correlation
++: “a couple walking along Strong explicit correlation
+the river in Paris” +: “a couple walking along
+-: “” the river with the Eiffel tower”
+The negative prompt -: “”
+guidance is too weak to The positive prompt
+overcome the barrier. Real guidance is strong enough
+world distribution guidance to overcome the barrier.
+push it back to the Real world distribution
+background region. guidance leads it to the
+trageted object region.
+(a) (b)
+Momentum Effect
+Inducing Effect
+Removing negative prompt
+Applying negative prompts
+after several steps.
++: “a couple walking along
++: “a couple walking along
+the river”
+the river”
+-: “The Eiffel Tower”
+-: “”
+The strong negative prompt
+The strong distribution
+induces the real world
+guidance is memorized by
+distribution guidance to
+the model. The momentum
+direct at the target object
+term contributes to
+region and increases its
+surmanting the barrier in the
+strength to have a energy.
+next step.
+(c) (d)
+Figure6: Illustration: Distinctkindsofguidance. Thepurplearrowshowstheguidanceofthedata
+distribution,whichistheslopeoftheenergyfunction. Thered,brownarrowshowstheguidanceof
+thepositiveandnegativepromptsrespectively.
+7SimulationExperimentTovalidateourhypothesisontheinducingeffect,weconductedafollow-up
+quantitativeexperimentemployingavarietyofpromptpairs. Initially,wegenerateanimageusing
+positivepromptp alongwithanemptyunconditionalpromptp andrecordtheseriesofpositive
++ e
+noises{ϵ(t)(p ,p )}T . Simultaneously,wecalculateaseriesofnegativenoises,{ϵ(t)(p ,p )}T
+p+ + e t=1 p− + e t=1
+butrefrainfromapplyingitduringthesamplingprocess. Followingthis, wegenerateadditional
+noiseseries,{ϵ(t)(p ,p )}T and{ϵ(t)(p ,p )}T byapplyingboththepositivepromptp and
+p+ + − t=1 p+ + − t=1 +
+thenegativepromptp thistime. Toverifytheexistenceofinduction,weprojectthepositivenoise
+−
+ontothenegativenoisewhichrepresentsthedirectiontowardstheobjectregion,andcomputethe
+differencebetweenthetwosets. Thecomputationcanbeformulatedas:
+<ϵ(t)(p ,p ),ϵ(t)(p ,p )>
+P(t) = p+ + − p− + − ϵ(t)(p ,p ) (7)
+Ind ||ϵ(t)(p ,p )||2 p− + −
+p− + −
+<ϵ(t)(p ,p ),ϵ(t)(p ,p )>
+P(t) = p+ + e p− − e ϵ(t)(p ,p ) (8)
+Ori ||ϵ(t)(p ,p )||2 p− + e
+p− + e
+D(t) =P(t) −P(t) (9)
+Ind Ori
+Intuitively,P(t) andP(t) showsthedistributionguidanceinFig6aandFig6c,respectively. And
+Ind Ori
+D(t) suggeststhedifferenceintheobjectiondirectionifanegativepromptcontainingtheobject
+isapplied. Therefore, apositivedifferenceimpliesthatthepresenceofthenegativeprompt
+effectivelyinducestheinclusionofthiscomponentinthepositivenoise. Weperformexperiments
+on5promptpairs. Werun10randomseedsforeachpair,averagetheresults,andplottheD(t) ∼t
+curveinFig7a.Theresultsdemonstratethatthepresenceofanegativepromptpromotestheformation
+oftheobjectwithinthepositivenoise,therebyconfirmingourhypothesis.
+(b)MomentumEffect. Thex-axisdenotesthetime
+(a)InducingEffect. Thex-axisshowsthetimestep step. They-axismeasuresthecosinesimilaritybe-
+whilethey-axisquantifiestheamountinthedirection tweennoisesatconsecutivesteps.Thediffusionpro-
+towardstheobject.Theupwardtrajectoryofthered cessrevealsastrikinglyhighcorrelationupto99.5%
+arrowverifiestheInducingEffectphenomenon. inthefirst25steps.
+Figure7: Illustration: InducingEffectandMomentumEffect
+MomentumEffectAdditionally,weobserveabehaviorakintomomentum,wherethegenerated
+noises appear to sustain their trajectory in a specific direction. To confirm this phenomenon, we
+calculate the cosine similarity between the noise at step t ϵ ((x ),c(s),t) and the noise at the
+θ t
+precedingstept-1ϵ ((x −1),c(s),t−1). AsshowninFig7b,thereisanotablecorrelationbetween
+θ t
+eachnoiseanditsimmediatepredecessor,indicatingamomentum-likeeffect.
+Explanation Finally, we can come to an explanation of Reverse Activation in Fig 2. Figure 6a
+demonstratesthatwithoutthenegativeprompt,theimplicitguidanceisinsufficienttogeneratethe
+intendedobject,explainingwhytheobjectfailstoappearinthefirstcolumnofFigure2. Conversely,
+asillustratedinFigure6c,theapplicationofanegativepromptintensifiesthedistributionguidance
+towardstheobject,whichpreventstheobjectfrommaterializing,clarifyingtheabsenceoftheobject
+inthelastseveralcolumnsofFigure2. Intriguingly,assupportedbytheMomentumEffect,ifwe
+8+ -:: “ “P Gr lo af se ss es si ”onal office woman” + -:: ““ PO of tfi tc ee
+d
+w pla al nl ta ”bove a wooden desk”
+tpmorp
+evitagen
+tuohtiw
+lavomer
+laivirt
+dohtem
+ruo
++-:: ““SUtmreberte ilnla r”ainy day” + -:: ““ BIn
+e
+na
+c
+l hiv ”ely park.” + cr:“ eS ao tif otl ny
+.
+”s l -i :c “e Ks
+n
+t ifh er ”ough the culinary + tr: a“ iA
+l.
+”h i -k :e “Br are cs kt pin ag
+c
+ko ”n a mountain
+Figure8: Illustrationofourmethod’sabilitytoremoveunwantedobjectsinthegeneratedimage
+whilepreservingthemainconcept,forvariouscombinationsofpositive(+)andnegative(-)prompts.
+Fromtoptobottom: Initiallywithsolelyapositiveprompt,followedbytheintegrationofnegative
+promptsthroughoutalldiffusionstages,andfinally,applyingnegativepromptsduringpivotalstages.
+Identicalseedswereutilizedforeachcolumntoensureconsistency.
+removethenegativepromptafterseveralsteps,thereal-worlddistributionguidancewillmaintain
+alargecomponenttowardstheobject’sdirectioninthefollowingstepsasshowninFig6d. Sucha
+momentumeffectfinallyfacilitatestheobject’semergence,asshowninthemiddlecolumnsinFig2.
+6 EnhancedControllableInpainting
+Inthissection,weintroduceanoveltechniqueforcontrollableimageinpaintingthataimstoeliminate
+undesiredobjectsfromgeneratedimageswhilepreservingtheintegrityoftheoriginalbackground.
+Although Woolf Woolf [2023] highlights the effectiveness of using negative prompts to remove
+undesiredelementsfromimages,itoftenleadstosubstantialmodificationstothebackground,as
+showninthesecondrowofFig8.
+InSec5,weclaimthatthenegativeprompttakeseffectbyaneutralizationeffect. ButinSec4,we
+observeanotabledelayintheactivationofnegativepromptscomparedtotheirpositivecounterparts.
+Asaresultthenegativepromptsusuallydon’tattendtotherightplaceuntilstep5,wellafterthe
+applicationofpositiveprompts. Additionally,asdepictedinFig6c,theuseofnegativepromptsin
+theinitialstepscansignificantlyskewthediffusionprocess,potentiallyalteringthebackground. This
+earlyapplicationthroughouttheinferenceprocess,aspracticedbyWoolf,couldbethereasonbehind
+theirmethod’sshortcomings.
+Tomitigatetheseissues,weproposetodeploynegativepromptspost-’criticalstep’ratherthangetting
+itfromthebeginning. Accordingtoourfindings,sincenegativepromptsusuallydon’tattendtothe
+interestedregionuntilthecriticalstep,alltheneutralizationandremovalwouldthenhappenafterthe
+criticalstep. Meanwhile,thelateraddednegativepromptwouldfocusmoreonthetargetareawitha
+reducedeffectonsurroundingregionsinthelaterphase.
+6.1 Experiments
+Inthissection,weconductlarge-scaleexperimentstovalidatetheefficacyofourproposedmethod.
+FindingtheTimingforNegativePromptsinInpaintingWetestedvariouscombinationsofprompts
+andnegativeprompts. Theresults, depictedinFigure9, revealaU-shapedtrend, indicatingthat
+employingnegativepromptsduringintermediatestepsismosteffective. Takethebluelineasan
+example,initiatingwithnegativepromptsatthefirststepnecessitatesapproximately10stepsfortask
+completion. Incontrast,startingatthesixthstepsignificantlyreducesthisrequirementtoabout4
+steps. Notably,thecurves’nadirisaroundstep5,aligningwithearlierinsightsaboutthecriticalstep
+discussedinSection4. Beyondstep11,applyingnegativepromptsappearsineffectiveineliminating
+thedesiredobject. Thismaybebecause,inthelaterstageofdiffusion,theshapeandstructureofthe
+9Dataset RSR% RSR% RRSR% CR% Dataset RSR% RSR% RRSR% CR%
+COCO 54.41 65.02 83.67 83.32 COCO 87.27 90.90 96.01 92.68
+CC 54.81 64.24 85.31 82.75 CC 59.32 71.18 83.34 97.67
+MSVD 55.53 66.59 83.39 83.07 MSVD 61.11 81.48 75.00 83.67
+Places 49.83 57.21 87.20 84.12 Places 53.12 76.56 69.38 90.66
+Vatex 61.37 71.00 86.44 82.52 Vatex 57.57 73.53 78.29 80.12
+Nocaps 48.88 56.72 86.17 81.26 Nocaps 72.32 88.46 81.75 87.67
+Avg 54.16 63.46 85.37 82.84 Avg 65.11 80.35 80.62 88.45
+(a)MainResultsofGPT-4VEvaluation (b)MainResultsofHumanEvaluation
+Table 1: For both RRSR and CR, the higher the better. The first column shows the RSR of the
+baselinebyapplyingnegativepromptstoallsteps. ThesecondcolumnshowstheRSRofourmethod.
+imagehavebeenessentiallydetermined. Wesetsteps5-15tousenegativepromptsasdefaultinour
+laterexperiments.
+Constructing datasets for evaluation of negative
+prompts Due to the absence of pre-existing datasets in
+our settings, we adapt available datasets for our needs.
+WebeginbyselectingtextsamplesfromtheCOCOLin
+etal.[2014],CCNgetal.[2020],NocapsAgrawaletal.
+[2019], Places Zhou et al. [2017], MSVD Venugopalan
+et al. [2015], and Vatex Wang et al. [2019] datasets to
+serveaspromptsforimagegeneration. Theseimagesare
+thenanalyzedbyGPT-4VAchiametal.[2023]toidentify
+thecontainedobjects. Thenwetrytoremovetheseobjects
+whengeneratingtheimageagain. Foreachdataset,weuse
+1000textpromptsandeverypromptisrunwith5different
+Figure 9: Experiments on finding the
+seeds.
+best time to apply negative prompts.
+Evaluation We leverage GPT-4V to assess the success Each endpoint on the polyline graph
+of the inpainting process and to determine the relative represents a specific scenario: the x-
+distancebetweentheoriginalandinpaintedimages. We coordinatedenotesthestartingstepfor
+alsoconducthumanevaluationforfurtherverification. applyingnegativeprompts,whilethey-
+Moredetailsontheevaluationprotocolscanbefoundin coordinateindicatesthenumberofcon-
+theAppendix. secutive steps required to precisely re-
+movethetargetedobject. Whentheob-
+MetricsToassesstheefficacyofourapproach, weem-
+jectcannotberemoved,thecurvetermi-
+ploytwokeymetrics: TheRemovalSuccessRate(RSR)
+nates.
+indicatesthesuccessrateofthetargetobjectremoval.The
+RelativeRemovalSuccessRate(RRSR)gaugestheefficiencyofourmethodrelativetoabaseline
+bycalculatingtheratioofourRSRtothebaseline’sRSR.AhigherRRSRsuggeststhatourmethod
+remainseffectiveevenwhennegativepromptsareappliedoverfewersteps. Additionally,theCom-
+parisonRate(CR)measurestheextenttowhichourgeneratedimagesresembletheoriginalimages,as
+judgedbyGPT-4Vorhumanevaluators. WefirstaskGPT4Vandhumansifimagesgeneratedbyour
+methodaremoresimilartotheoriginofone. Thenwecomputetheratioofaffirmativeresponsesto
+thetotalnumberofevaluations. ThehighertheRR,thebetter. DetailscanbefoundintheAppendix.
+ResultsTable1asummarizestheresults. Aswecansee,ourmethodincursminimalimpactonthe
+removalsuccessrate. Infewerthan20%ofinstances,ourmethodfailstoremovethetargetobject
+wherethebaselinemethodsucceeds,addressingconcernsthatapplyingnegativepromptsinfewer
+stepsmightcompromiseinpaintingeffectiveness. Moreover,onaverage,ourmethodachievesupto
+82.64%similaritytotheoriginalimages,underscoringitsefficiency. Meanwhile,theresultsofthe
+humanevaluationcanbeseeninTable1bTheresultsshowtheeffectivenessofourmethod.
+7 Futurework
+Inourexperiments,wefocusprimarilyontasksinvolvingtheremovalofnounsandtheattribution
+basedonadjectives,deferringtheexplorationofotherpartsofspeechandtaskstofutureresearch.
+Our findings highlight the challenge of information lag between pairs of positive and negative
+10prompts. Astraightforwardremedycouldinvolveincreasinginteractionsduringthenoisegeneration
+phase. Additionally,ourmethodofcontrollableobjectremovalinimagegenerationpresentsanovel
+approachforcreatingimageinpaintingdatasets. Finally,applyingnegativepromptsinthetraining
+processasaformofdataaugmentationmaypotentiallyenhanceperformancefurther,whichisleftas
+futurework.
+8 Conclusion
+In conclusion, our research provides a comprehensive analysis of negative prompts in diffusion
+modelsforimagegeneration. Throughsystematicexperiments,wehaveidentifiedthecriticalsteps
+wherenegativepromptsbegintoinfluencetheimagegenerationprocess,uncoveringasignificant
+laginthetransitionfrompositivetonegativeprompteffects. Thisinsightledustodevelopanovel
+approach that strategically applies negative prompts at an optimal stage in the reverse-diffusion
+process, ensuringtheremovalofundesiredelementswhilepreservingtheimage’sintegrity. Our
+contributions not only shed light on the underlying dynamics of negative prompts but also offer
+apracticalsolutionforcontrollableimageinpaintingtasks,significantlyimprovinguponexisting
+methodswithouttheneedfornetworkretrainingormodificationsduringinference.
+References
+JoshAchiam,StevenAdler,SandhiniAgarwal,LamaAhmad,IlgeAkkaya,FlorenciaLeoniAleman,
+DiogoAlmeida,JankoAltenschmidt,SamAltman,ShyamalAnadkat,etal. Gpt-4technicalreport.
+arXivpreprintarXiv:2303.08774,2023.
+HarshAgrawal,KaranDesai,YufeiWang,XinleiChen,RishabhJain,MarkJohnson,DhruvBatra,
+Devi Parikh, Stefan Lee, and Peter Anderson. Nocaps: Novel object captioning at scale. In
+ProceedingsoftheIEEE/CVFinternationalconferenceoncomputervision,pages8948–8957,
+2019.
+Andrew. How to use negative prompts? https://stable-diffusion-art.com/
+how-to-use-negative-prompts/#Why_does_negative_prompt_become_more_
+important_in_v2,2023.
+MohammadrezaArmandpour,HuangjieZheng,AliSadeghian,AmirSadeghian,andMingyuanZhou.
+Re-imaginethenegativepromptalgorithm:Transform2ddiffusioninto3d,alleviatejanusproblem
+andbeyond. arXivpreprintarXiv:2304.04968,2023.
+YogeshBalaji,SeungjunNah,XunHuang,ArashVahdat,JiamingSong,KarstenKreis,MiikaAittala,
+TimoAila,SamuliLaine,BryanCatanzaro,etal. ediffi: Text-to-imagediffusionmodelswithan
+ensembleofexpertdenoisers. arXivpreprintarXiv:2211.01324,2022.
+Hila Chefer, Yuval Alaluf, Yael Vinker, Lior Wolf, and Daniel Cohen-Or. Attend-and-excite:
+Attention-based semantic guidance for text-to-image diffusion models. ACM Transactions on
+Graphics(TOG),42(4):1–10,2023.
+Antonio Criminisi, Patrick Pérez, and Kentaro Toyama. Region filling and object removal by
+exemplar-based image inpainting. IEEE Transactions on image processing, 13(9):1200–1212,
+2004.
+PrafullaDhariwalandAlexanderNichol. Diffusionmodelsbeatgansonimagesynthesis. Advances
+inneuralinformationprocessingsystems,34:8780–8794,2021.
+WeixiFeng,XuehaiHe,Tsu-JuiFu,VarunJampani,ArjunAkula,PradyumnaNarayana,Sugato
+Basu,XinEricWang,andWilliamYangWang. Training-freestructureddiffusionguidancefor
+compositionaltext-to-imagesynthesis. arXivpreprintarXiv:2212.05032,2022.
+AmirHertz,RonMokady,JayTenenbaum,KfirAberman,YaelPritch,andDanielCohen-Or. Prompt-
+to-promptimageeditingwithcrossattentioncontrol. arXivpreprintarXiv:2208.01626,2022.
+JonathanHoandTimSalimans. Classifier-freediffusionguidance. arXivpreprintarXiv:2207.12598,
+2022.
+11BahjatKawar,ShiranZada,OranLang,OmerTov,HuiwenChang,TaliDekel,InbarMosseri,and
+MichalIrani. Imagic: Text-basedrealimageeditingwithdiffusionmodels. InProceedingsofthe
+IEEE/CVFConferenceonComputerVisionandPatternRecognition,pages6007–6017,2023.
+LongLian,BoyiLi,AdamYala,andTrevorDarrell. Llm-groundeddiffusion: Enhancingprompt
+understanding of text-to-image diffusion models with large language models. arXiv preprint
+arXiv:2305.13655,2023.
+Tsung-YiLin,MichaelMaire,SergeBelongie,JamesHays,PietroPerona,DevaRamanan,Piotr
+Dollár,andCLawrenceZitnick. Microsoftcoco:Commonobjectsincontext. InComputerVision–
+ECCV2014: 13thEuropeanConference,Zurich,Switzerland,September6-12,2014,Proceedings,
+PartV13,pages740–755.Springer,2014.
+ShwetaMahajan,TanzilaRahman,KwangMooYi,andLeonidSigal. Promptinghardorhardly
+prompting: Promptinversionfortext-to-imagediffusionmodels. arXivpreprintarXiv:2312.12416,
+2023.
+mukund kapoor. Negative prompts in stable diffusion: A begin-
+ner’s guide. https://www.greataiprompts.com/imageprompt/
+what-is-negative-prompt-in-stable-diffusion/,2023.
+EdwinG.Ng,BoPang,PiyushSharma,andRaduSoricut. Understandingguidedimagecaptioning
+performanceacrossdomains. arXivpreprintarXiv:2012.02339,2020.
+AlexNichol, PrafullaDhariwal,AdityaRamesh, PranavShyam, PamelaMishkin,BobMcGrew,
+IlyaSutskever,andMarkChen. Glide: Towardsphotorealisticimagegenerationandeditingwith
+text-guideddiffusionmodels. arXivpreprintarXiv:2112.10741,2021.
+Ryan O’Connor. Stable diffusion 1 vs 2 - what you need to know. https://www.assemblyai.
+com/blog/stable-diffusion-1-vs-2-what-you-need-to-know/#negative-prompts,
+2023.
+Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Björn Ommer. High-
+resolutionimagesynthesiswithlatentdiffusionmodels. InProceedingsoftheIEEE/CVFConfer-
+enceonComputerVisionandPatternRecognition(CVPR),pages10684–10695,June2022a.
+Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Björn Ommer. High-
+resolutionimagesynthesiswithlatentdiffusionmodels. InProceedingsoftheIEEE/CVFconfer-
+enceoncomputervisionandpatternrecognition,pages10684–10695,2022b.
+ChitwanSaharia,WilliamChan,SaurabhSaxena,LalaLi,JayWhang,EmilyLDenton,Kamyar
+Ghasemipour,RaphaelGontijoLopes,BurcuKaragolAyan,TimSalimans,etal. Photorealistic
+text-to-imagediffusionmodelswithdeeplanguageunderstanding.AdvancesinNeuralInformation
+ProcessingSystems,35:36479–36494,2022.
+Raphael Tang, Linqing Liu, Akshat Pandey, Zhiying Jiang, Gefei Yang, Karun Kumar, Pontus
+Stenetorp,JimmyLin,andFerhanTure. Whatthedaam: Interpretingstablediffusionusingcross
+attention. arXivpreprintarXiv:2210.04885,2022.
+NarekTumanyan,MichalGeyer,ShaiBagon,andTaliDekel. Plug-and-playdiffusionfeaturesfor
+text-drivenimage-to-imagetranslation. InProceedingsoftheIEEE/CVFConferenceonComputer
+VisionandPatternRecognition,pages1921–1930,2023.
+SubhashiniVenugopalan,MarcusRohrbach,JeffreyDonahue,RaymondMooney,TrevorDarrell,
+andKateSaenko. Sequencetosequence-videototext. InProceedingsoftheIEEEinternational
+conferenceoncomputervision,pages4534–4542,2015.
+Patrick von Platen, Suraj Patil, Anton Lozhkov, Pedro Cuenca, Nathan Lambert, Kashif Rasul,
+Mishig Davaadorj, and Thomas Wolf. Diffusers: State-of-the-art diffusion models. https:
+//github.com/huggingface/diffusers,2022.
+XinWang,JiaweiWu,JunkunChen,LeiLi,Yuan-FangWang,andWilliamYangWang. Vatex: A
+large-scale,high-qualitymultilingualdatasetforvideo-and-languageresearch. InProceedingsof
+theIEEE/CVFInternationalConferenceonComputerVision,pages4581–4591,2019.
+12ZijieJWang,EvanMontoya,DavidMunechika,HaoyangYang,BenjaminHoover,andDuenHorng
+Chau. Diffusiondb: A large-scale prompt gallery dataset for text-to-image generative models.
+arXivpreprintarXiv:2210.14896,2022.
+MaxWoolf. Stablediffusion2.0andtheimportanceofnegativepromptsforgoodresults. https:
+//minimaxir.com/2022/11/stable-diffusion-negative-prompt/,2023.
+SiyuanYang,LuZhang,LiqianMa,YuLiu,JingJingFu,andYouHe. Magicremover: Tuning-free
+text-guidedimageinpaintingwithdiffusionmodels. arXivpreprintarXiv:2310.02848,2023.
+AhmetBurakYildirim,VedatBaday,ErkutErdem,AykutErdem,andAysegulDundar. Inst-inpaint:
+Instructingtoremoveobjectswithdiffusionmodels. arXivpreprintarXiv:2304.03246,2023.
+JiahuiYu,ZheLin,JimeiYang,XiaohuiShen,XinLu,andThomasSHuang. Generativeimage
+inpaintingwithcontextualattention. InProceedingsoftheIEEEconferenceoncomputervision
+andpatternrecognition,pages5505–5514,2018.
+Shanshan Zhong, Zhongzhan Huang, Weushao Wen, Jinghui Qin, and Liang Lin. Sur-adapter:
+Enhancingtext-to-imagepre-traineddiffusionmodelswithlargelanguagemodels. InProceedings
+ofthe31stACMInternationalConferenceonMultimedia,pages567–578,2023.
+Bolei Zhou, Agata Lapedriza, Aditya Khosla, Aude Oliva, and Antonio Torralba. Places: A 10
+millionimagedatabaseforscenerecognition. IEEEtransactionsonpatternanalysisandmachine
+intelligence,40(6):1452–1464,2017.
+13

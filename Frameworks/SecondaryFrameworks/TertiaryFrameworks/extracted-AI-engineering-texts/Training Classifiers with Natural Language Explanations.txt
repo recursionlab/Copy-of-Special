@@ -1,0 +1,780 @@
+Training Classifiers with Natural Language Explanations
+BradenHancock ParomaVarma StephanieWang
+ComputerScienceDept. ElectricalEngineeringDept. ComputerScienceDept.
+StanfordUniversity StanfordUniversity StanfordUniversity
+bradenjh@cs.stanford.edu paroma@stanford.edu steph17@stanford.edu
+MartinBringmann PercyLiang ChristopherRe´
+OccamzRazor ComputerScienceDept. ComputerScienceDept.
+SanFrancisco,CA StanfordUniversity StanfordUniversity
+martin@occamzrazor.com pliang@cs.stanford.edu chrismre@cs.stanford.edu
+Abstract
+Example
+Both cohorts showed signs of optic nerve toxicitydue
+Trainingaccurateclassifiersrequiresmany
+to ethambutol.
+labels, but each label provides only
+limited information (one bit for binary Label
+classification). In this work, we propose Does this chemicalcause this disease?
+BabbleLabble, a framework for training Y N
+classifiers in which an annotator provides
+Explanation
+a natural language explanation for each
+Why do you think so?
+labeling decision. A semantic parser
+Because the words “due to” occur between the
+converts these explanations into program- chemical and the disease.
+matic labeling functions that generate
+noisy labels for an arbitrary amount of Labeling Function
+def lf(x):
+unlabeled data, which is used to train a return(1 if “due to” in between(x.chemical, x.disease)
+else 0)
+classifier. On three relation extraction
+tasks, we find that users are able to Figure 1: In BabbleLabble, the user provides
+trainclassifierswithcomparableF1scores a natural language explanation for each label-
+from5–100×fasterbyprovidingexplana- ing decision. These explanations are parsed into
+tions instead of just labels. Furthermore, labelingfunctionsthatconvertunlabeleddatainto
+giventheinherentimperfectionoflabeling alargelabeleddatasetfortrainingaclassifier.
+functions,wefindthatasimplerule-based
+semanticparsersuffices.
+text(ZaidanandEisner,2008; AroraandNyberg,
+2009),ormarkingrelevantregionsinimages(Ahn
+1 Introduction
+et al., 2006). But there are certain types of infor-
+The standard protocol for obtaining a labeled mationwhichcannotbeeasilyreducedtoannotat-
+dataset is to have a human annotator view each ingaportionoftheinput,suchastheabsenceofa
+example, assess its relevance, and provide a label certainword,orthepresenceofatleasttwowords.
+(e.g.,positiveornegativeforbinaryclassification). Inthiswork,wetapintothepowerofnaturallan-
+However,thisonlyprovidesonebitofinformation guageandallowannotatorstoprovidesupervision
+per example. This invites the question: how can
+toaclassifiervianaturallanguageexplanations.
+we get more information per example, given that Specifically, we propose a framework in which
+the annotator has already spent the effort reading annotatorsprovideanaturallanguageexplanation
+andunderstandinganexample? for each label they assign to an example (see Fig-
+Previous works have relied on identifying rel- ure 1). These explanations are parsed into log-
+evant parts of the input such as labeling features ical forms representing labeling functions (LFs),
+(Druck et al., 2009; Raghavan et al., 2005; Liang functionsthatheuristicallymapexamplestolabels
+et al., 2009), highlighting rationale phrases in (Ratner et al., 2016). The labeling functions are
+8102
+guA
+52
+]LC.sc[
+4v81830.5081:viXraUnlabeled Examples + Explanations Labeling Functions Filters Label Matrix
+Label whether person 1 is married to person 2 def LF_1a(x): x x x x …
+return (1 if “his wife” in Correct 1 2 3 4
+x1Tom Bradyand his wife Gisele Bündchenwere left(x.person2, dist==1) else 0)
+LF 1
+spotted in New York City on Monday amid rumors def LF_1b(x): Semantic 1a
+of Brady’s alleged role in Deflategate. return (1 if “his wife” in Filter LF -1
+right(x.person2) else 0 (inconsistent) 2b
+True, because the words “his wife”
+are right before person 2. def LF_2a(x): LF 3a -1 -1
+return (-1 if x.person1 in Pragmatic x2None of us knows what happened at Kane‘s x x. .s se en nt te en nc ce
+e
+a en ld sex. 0p )erson2 in (alwF ai yl st e tr
+rue)
+LF 4c
+home Aug. 2, but it is telling that the NHLhas not
+suspended Kane. def LF_2b(x):
+return (-1 if x.person1 == Correct ỹ
+False, because person 1and person 2 x.person2) else 0)
+in the sentence are identical.
+def LF_3a(x):
+x3D inr s. uM rai nch cea e bl
+u
+R si ic nh ea sr sd ms aa nn d
+G
+r ae ra
+y
+l
+K
+e irs kt ea t e
+d
+ia dn nd
+o t attend
+ret xu .r pn er( s- o1 n1i .f
+tokens[-1] != Correct
+the event. x.person2.tokens[-1] else 0)
+False, because the last word of def LF_3b(x): Pragmatic person 1 is different than the last return (-1 if not ( Filter
+word of person 2. x x. .p pe er rs so on n1 2. .t to ok ke en ns s[ [- -1 1] ] )== e lse 0) (d ou fp l Li Fc _a 3t ae )
+…
+1 1 1
++ - - + …
+Noisy Labels Classifier
+(x ,ỹ )
+1 1
+(x ,ỹ )
+2 2 x ỹ (x ,ỹ) 3 3
+(x ,ỹ) 4 4
+Figure 2: Natural language explanations are parsed into candidate labeling functions (LFs). Many
+incorrectLFsarefilteredoutautomaticallybythefilterbank. Theremainingfunctionsprovideheuristic
+labelsovertheunlabeleddataset,whichareaggregatedintoonenoisylabelperexample,yieldingalarge,
+noisily-labeledtrainingsetforaclassifier.
+then executed on many unlabeled examples, re- simplerule-basedparser. InSection4,wefindthat
+sulting in a large, weakly-supervised training set inourweaksupervisionframework,therule-based
+thatisthenusedtotrainaclassifier. semanticparserandtheperfectparseryieldnearly
+identicaldownstreamperformance. Second,while
+Semantic parsing of natural language into log-
+they use the logical forms of explanations to pro-
+ical forms is recognized as a challenging prob-
+ducefeaturesthatarefeddirectlytoaclassifier,we
+lem and has been studied extensively (Zelle and
+use them as functions for labeling a much larger
+Mooney, 1996; Zettlemoyer and Collins, 2005;
+trainingset. InSection4,weshowthatusingfunc-
+Liang et al., 2011; Liang, 2016). One of our ma-
+tions yields a 9.5 F1 improvement (26% relative
+jor findings is that in our setting, even a simple
+improvement)overfeatures,andthattheF1score
+rule-based semantic parser suffices for three rea-
+scaleswiththeamountofavailableunlabeleddata.
+sons: First, we find that the majority of incorrect
+We validate our approach on two existing
+LFscanbeautomaticallyfilteredouteitherseman-
+datasets from the literature (extracting spouses
+tically(e.g.,isitconsistentwiththeassociatedex-
+from news articles and disease-causing chemi-
+ample?) or pragmatically (e.g., does it avoid as-
+cals from biomedical abstracts) and one real-
+signing the same label to the entire training set?).
+world use case with our biomedical collabora-
+Second,LFsnearthegoldLFinthespaceoflogi-
+tors at OccamzRazor to extract protein-kinase
+calformsareoftenjustasaccurate(andsometimes
+interactions related to Parkinson’s disease from
+even more accurate). Third, techniques for com-
+text. We find empirically that users are able to
+biningweaksupervisionsourcesarebuilttotoler-
+train classifiers with comparable F1 scores up to
+atesomenoise(Alfonsecaetal.,2012;Takamatsu
+100× faster when they provide natural language
+etal.,2012;Ratneretal.,2018). Thesignificance
+explanations instead of individual labels. Our
+of this is that we can deploy the same semantic
+code is available at https://github.com/
+parser across tasks without task-specific training.
+HazyResearch/babble.
+Weshowhowwecantackleareal-worldbiomedi-
+calapplicationwiththesamesemanticparserused
+2 TheBabbleLabbleFramework
+toextractinstancesofspouses.
+Our work is most similar to that of Srivastava The BabbleLabble framework converts natural
+etal.(2017),whoalsousenaturallanguageexpla- language explanations and unlabeled data into a
+nationstotrainaclassifier,butwithtwoimportant noisily-labeled training set (see Figure 2). There
+differences. First,theyjointlytrainatask-specific are three key components: a semantic parser, a
+semantic parser and classifier, whereas we use a filter bank, and a label aggregator. The semanticLF
+CONDITION
+BOOL ARGLIST ISEQUAL
+START LABEL FALSE BECAUSE ARG AND ARG IS EQUAL STOP
+<START> label false because X and Y are the same person <STOP>
+Lexical Rules Unary Rules Compositional Rules Ignored token
+START→ <START> BOOL→ FALSE LF → START LABEL BOOL BECAUSE CONDITION STOP
+LABEL → label BOOL→ TRUE CONDITION → ARGLIST ISEQUAL
+FALSE → false NUM → INT ARGLIST → ARG AND ARG
+Figure 3: Valid parses are found by iterating over increasingly large subspans of the input looking for
+matches among the right hand sides of the rules in the grammar. Rules are either lexical (converting
+tokensintosymbols),unary(convertingonesymbolintoanothersymbol),orcompositional(combining
+manysymbolsintoasinglehigher-ordersymbol). Arulemayoptionallyignoreunrecognizedtokensin
+aspan(denotedherewithadashedline).
+parserconvertsnaturallanguageexplanationsinto We choose a simple rule-based semantic parser
+a set of logical forms representing labeling func- that can be used without any training. Formally,
+tions (LFs). The filter bank removes as many in- the parser uses a set of rules of the form α → β,
+correct LFs as possible without requiring ground whereαcanbereplacedbythetoken(s)inβ (see
+truthlabels. TheremainingLFsareappliedtoun- Figure3forexamplerules). Toidentifycandidate
+labeled examples to produce a matrix of labels. LFs,werecursivelyconstructasetofvalidparses
+This label matrix is passed into the label aggre- foreachspanoftheexplanation,basedonthesub-
+gator, which combines these potentially conflict- stitutions defined by the grammar rules. At the
+ing and overlapping labels into one label for each end,theparserreturnsallvalidparses(LFsinour
+example. Theresultinglabeledexamplesarethen case)correspondingtotheentireexplanation.
+usedtotrainanarbitrarydiscriminativemodel. We also allow an arbitrary number of tokens in
+a given span to be ignored when looking for a
+2.1 Explanations
+matching rule. This improves the ability of the
+To create the input explanations, the user views a parser to handle unexpected input, such as un-
+subset S of an unlabeled dataset D (where |S| (cid:28) known words or typos, since the portions of the
+|D|) and provides for each input x ∈ S a label input that are parseable can still result in a valid
+i
+y and a natural language explanation e , a sen- parse. For example, in Figure 3, the word “per-
+i i
+tence explaining why the example should receive son”isignored.
+that label. The explanation e i generally refers to All predicates included in our grammar (sum-
+specific aspects of the example (e.g., in Figure 2, marized in Table 1) are provided to annota-
+thelocationofaspecificstring“hiswife”). tors, with minimal examples of each in use
+(AppendixA). Importantly, all rules are do-
+2.2 SemanticParser
+main independent (e.g., all three relation extrac-
+The semantic parser takes a natural language ex- tiontasksthatwetestedusedthesamegrammar),
+planatione andreturnsasetofLFs(logicalforms makingthesemanticparsereasilytransferrableto
+i
+or labeling functions) {f ,...,f } of the form new domains. Additionally, while this paper fo-
+1 k
+f : X → {−1,0,1} in a binary classification cuses on the task of relation extraction, in princi-
+i
+setting, with 0 representing abstention. We em- pletheBabbleLabbleframeworkcanbeapplied
+phasizethatthegoalofthissemanticparserisnot toothertasksorsettingsbyextendingthegrammar
+to generate the single correct parse, but rather to with the necessary primitives (e.g., adding primi-
+havecoverageovermanypotentiallyusefulLFs.1 tivesforrowsandcolumnstoenableexplanations
+aboutthealignmentsofwordsintables). Toguide
+1Indeed,wefindempiricallythatanincorrectLFnearby
+theconstructionofthegrammar,wecollected500
+the correct one in the space of logical forms actually has
+higherend-taskaccuracy57%ofthetime(seeSection4.2). explanationsfortheSpousedomainfromworkersright.” The latter interpretation results in a func-
+Predicate Description
+tionthatisinconsistentwiththeassociatedexam-
+bool, string, Standardprimitivedatatypes
+ple(since“hiswife”isactuallytotheleftofperson
+int, float, tuple,
+list, set 2),soitcanbesafelyremoved.
+and, or, not, any, Standardlogicoperators ThepragmaticfiltersremovesLFsthatarecon-
+all, none
+stant, redundant, or correlated. For example, in
+=,(cid:54)=,<,≤,>,≥ Standardcomparisonoperators
+Figure 2, LF 2a is constant, as it labels every ex-
+lower, upper, Return True for strings of the
+ample positively (since all examples contain two
+capital, all caps correspondingcase
+people from the same sentence). LF 3b is redun-
+starts with, Return True if the first string
+ends with, starts/endswithorcontainsthe dant, since even though it has a different syntax
+substring second tree from LF 3a, it labels the training set identi-
+person, location, Return True if a string has the callyandthereforeprovidesnonewsignal.
+date, number, correspondingNERtag
+Finally, out of all LFs from the same explana-
+organization
+alias Afrequentlyusedlistofwords tion that pass all the other filters, we keep only
+maybepredefinedandreferred the most specific (lowest coverage) LF. This pre-
+towithanalias
+ventsmultiplecorrelatedLFsfromasingleexam-
+count, contains, Operators for checking size,
+plefromdominating.
+intersection membership, or common ele-
+mentsofalist/set As we show in Section 4, over three tasks, the
+map, filter Applyafunctionalprimitiveto filter bank removes over 95% of incorrect parses,
+each member of list/set to
+and the incorrect ones that remain have average
+transformorfiltertheelements
+end-task accuracy within 2.5 points of the corre-
+word distance, Return the distance between
+character distance twostringsbywordsorcharac- spondingcorrectparses.
+ters
+left, right, Returnasastringthetextthatis 2.4 LabelAggregator
+between, within left/right/within some distance
+The label aggregator combines multiple (poten-
+ofastringorbetweentwodes-
+ignatedstrings tially conflicting) suggested labels from the LFs
+and combines them into a single probabilistic la-
+Table 1: Predicates in the grammar supported by
+bel per example. Concretely, if m LFs pass
+BabbleLabble’srule-basedsemanticparser.
+the filter bank and are applied to n examples,
+the label aggregator implements a function f :
+{−1,0,1}m×n → [0,1]n.
+on Amazon Mechanical Turk and added support
+A naive solution would be to use a simple ma-
+for the most commonly used predicates. These
+jority vote, but this fails to account for the fact
+were added before the experiments described in
+that LFs can vary widely in accuracy and cover-
+Section 4. The grammar contains a total of 200
+age. Instead, we use data programming (Ratner
+ruletemplates.
+et al., 2016), which models the relationship be-
+2.3 FilterBank tween the true labels and the output of the label-
+ingfunctionsasafactorgraph. Morespecifically,
+The input to the filter bank is a set of candidate giventhetruelabelsY ∈ {−1,1}n(latent)andla-
+LFs produced by the semantic parser. The pur- bel matrix Λ ∈ {−1,0,1}m×n (observed) where
+poseofthefilterbankistodiscardasmanyincor-
+Λ = LF (x ), we define two types of factors
+i,j i j
+rect LFs as possible without requiring additional
+representinglabelingpropensityandaccuracy:
+labels. Itconsistsoftwoclassesoffilters: seman-
+ticandpragmatic. φLab(Λ,Y) = 1{Λ (cid:54)= 0} (1)
+i,j i,j
+Recall that each explanation e is collected in
+i φAcc(Λ,Y) = 1{Λ = y }. (2)
+the context of a specific labeled example (x ,y ). i,j i,j j
+i i
+The semantic filter checks for LFs that are in-
+Denotingthevectoroffactorspertainingtoagiven
+consistent with their corresponding example; for- datapointx asφ (Λ,Y) ∈ Rm,definethemodel:
+j j
+mally,anyLFf forwhichf(x ) (cid:54)= y isdiscarded.
+i i
+For example, in the first explanation in Figure 2, n
+(cid:16)(cid:88) (cid:17)
+the word “right” can be interpreted as either “im- p w(Λ,Y) = Z w−1exp w·φ j(Λ,Y) , (3)
+mediately”(asin“rightbefore”)orsimply“tothe j=1Spouse Example They include Joan Ridsdale, a 62-year-old payroll administrator from County Durham who was hit with a €16,000 tax bill when her
+husband Gordondied.
+(person 1,
+person 2) Explanation True, because the phrase “her husband” is within three words of person 2.
+Disease Example Young women on replacement estrogens for ovarian failure after cancer therapy may also have increased risk of endometrial
+carcinomaand should be examined periodically.
+(chemical,
+disease) Explanation True, because “risk of” comes before the disease.
+Protein Example Here we show that c-Jun N-terminal kinases JNK1, JNK2 and JNK3 phosphorylate tauat many serine/threonine-prolines, as
+assessed by the generation of the epitopes of phosphorylation-dependent anti-tau antibodies.
+(protein,
+kinase) Explanation True, because at least one of the words 'phosphorylation', 'phosphorylate', 'phosphorylated', 'phosphorylates' is found in the
+sentence and the number of words between the protein and kinase is smaller than 8."
+Figure4: Anexampleandexplanationforeachofthethreedatasets.
+where w ∈ R2m is the weight vector and Z w is Task Train Dev Test %Pos.
+the normalization constant. To learn this model
+Spouse 22195 2796 2697 8%
+without knowing the true labels Y, we minimize
+Disease 6667 773 4101 23%
+thenegativelogmarginallikelihoodgiventheob-
+Protein 5546 1011 1058 22%
+servedlabelsΛ:
+(cid:88) Table 2: The total number of unlabeled train-
+wˆ = argmin−log p (Λ,Y) (4)
+w ing examples (a pair of annotated entities in a
+w
+Y
+sentence), labeleddevelopment examples(for hy-
+usingSGDandGibbssamplingforinference,and perparameter tuning), labeled test examples (for
+then usethe marginalsp wˆ(Y | Λ)as probabilistic assessment), and the fraction of positive labels in
+traininglabels. thetestsplit.
+Intuitively,weinferaccuraciesoftheLFsbased
+on the way they overlap and conflict with one an-
+classifierwithgenericfeaturesdefinedoverdepen-
+other. Since noisier LFs are more likely to have
+dency paths.3 These features include unigrams,
+high conflict rates with others, their correspond-
+bigrams, and trigrams of lemmas, dependency la-
+ing accuracy weights in w will be smaller, reduc-
+bels,andpartofspeechtagsfoundinthesiblings,
+ingtheirinfluenceontheaggregatedlabels.
+parents, and nodes between the entities in the de-
+2.5 DiscriminativeModel pendency parse of the sentence. We found this to
+performbetteronaveragethanabiLSTM,particu-
+The noisy training set that the label aggregator
+larlyforthetraditionalsupervisionbaselineswith
+outputsisusedtotrainanarbitrarydiscriminative
+small training set sizes; it also provided easily in-
+model. Oneadvantageoftrainingadiscriminative
+terpretablefeaturesforanalysis.
+model on the task instead of using the label ag-
+gregatorasaclassifierdirectlyisthatthelabelag-
+3 ExperimentalSetup
+gregator only takes into account those signals in-
+cludedintheLFs. Adiscriminativemodel,onthe We evaluate the accuracy of BabbleLabble on
+other hand, can incorporate features that were not three relation extraction tasks, which we refer to
+identifiedbytheuserbutareneverthelessinforma- as Spouse, Disease, and Protein. The goal
+tive.2 Consequently, even examples for which all of each task is to train a classifier for predicting
+LFsabstainedcanstillbeclassifiedcorrectly. Ad- whether the two entities in an example are partic-
+ditionally, passing supervision information from ipatingintherelationshipofinterest,asdescribed
+the user to the model in the form of a dataset— below.
+ratherthanhardrules—promotesgeneralizationin
+3.1 Datasets
+thenewmodel(ratherthanmemorization),similar
+todistantsupervision(Mintzetal.,2009). Onthe Statistics for each dataset are reported in Ta-
+three tasks we evaluate, using the discriminative ble 2, with one example and one explanation for
+modelaverages4.3F1pointshigherthanusingthe eachgiveninFigure4andadditionalexplanations
+labelaggregatordirectly. showninAppendixB.
+For the results reported in this paper, our dis- In the Spouse task, annotators were shown a
+criminative model is a simple logistic regression sentencewithtwohighlightednamesandaskedto
+2WegiveanexampleoftwosuchfeaturesinSection4.3. 3https://github.com/HazyResearch/treedlibBL TS
+#Inputs 30 30 60 150 300 1,000 3,000 10,000
+Spouse 50.1 15.5 15.9 16.4 17.2 22.8 41.8 55.0
+Disease 42.3 32.1 32.6 34.4 37.5 41.9 44.5 -
+Protein 47.3 39.3 42.1 46.8 51.0 57.6 - -
+Average 46.6 28.9 30.2 32.5 35.2 40.8 43.2 55.0
+Table 3: F1 scores obtained by a classifier trained with BabbleLabble (BL) using 30 explanations
+or with traditional supervision (TS) using the specified number of individually labeled examples.
+BabbleLabble achieves the same F1 score as traditional supervision while using fewer user inputs
+byafactorofover5(Protein)toover100(Spouse).
+label whether the sentence suggests that the two 3.2 ExperimentalSettings
+people are spouses. Sentences were pulled from
+Text documents are tokenized with spaCy.4 The
+theSignalMediadatasetofnewsarticles(Corney
+semanticparserisbuiltontopofthePython-based
+etal.,2016). Groundtruthdatawascollectedfrom
+implementation SippyCup.5 On a single core,
+Amazon Mechanical Turk workers, accepting the
+parsing360explanationstakesapproximatelytwo
+majority label over three annotations. The 30 ex-
+seconds. We use existing implementations of the
+planations we report on were sampled randomly
+label aggregator, feature library, and discrimina-
+fromapoolof200thatweregeneratedby10grad-
+tive classifier described in Sections 2.4–2.5 pro-
+uatestudentsunfamiliarwithBabbleLabble.
+vided by the open-source project Snorkel (Ratner
+etal.,2018).
+In the Disease task, annotators were shown a Hyperparameters for all methods we report
+sentencewithhighlightednamesofachemicaland were selected via random search over thirty con-
+a disease and asked to label whether the sentence figurationsonthesameheld-outdevelopmentset.
+suggeststhatthechemicalcausesthedisease. Sen- Wesearchedoverlearningrate,batchsize,L 2reg-
+tences and ground truth labels came from a por- ularization,andthesubsamplingrate(forimprov-
+tion of the 2015 BioCreative chemical-disease re- ing balance between classes).6 All reported F1
+lation dataset (Wei et al., 2015), which contains scores are the average value of 40 runs with ran-
+abstracts from PubMed. Because this task re- domseedsandotherwiseidenticalsettings.
+quires specialized domain expertise, we obtained
+4 ExperimentalResults
+explanations by having someone unfamiliar with
+BabbleLabble translate from Python to natural
+We evaluate the performance of BabbleLabble
+languagelabelingfunctionsfromanexistingpub-
+withrespecttoitsrateofimprovementbynumber
+lication that explored applying weak supervision
+of user inputs, its dependence on correctly parsed
+tothistask(Ratneretal.,2018).
+logicalforms,andthemechanismbywhichituti-
+lizeslogicalforms.
+The Protein task was completed in conjunc-
+tion with OccamzRazor, a neuroscience company 4.1 HighBandwidthSupervision
+targeting biological pathways of Parkinson’s dis- In Table 3 we report the average F1 score of a
+ease. For this task, annotators were shown a sen- classifiertrainedwithBabbleLabbleusing30ex-
+tence from the relevant biomedical literature with planationsortraditionalsupervisionwiththeindi-
+highlighted names of a protein and a kinase and cated number of labels. On average, it took the
+asked to label whether or not the kinase influ- same amount of time to collect 30 explanations
+ences the protein in terms of a physical interac-
+tion or phosphorylation. The annotators had do- 4https://github.com/explosion/spaCy
+main expertise but minimal programming experi-
+5https://github.com/wcmac/sippycup
+6Hyperparameter ranges: learning rate (1e-2 to 1e-4),
+ence,makingBabbleLabbleanaturalfitfortheir
+batchsize(32to128),L regularization(0to100),subsam-
+2
+usecase. plingrate(0to0.5)Pre-filters Discarded Post-filters BL-FB BL BL+PP
+LFs Correct Sem. Prag. LFs Correct Spouse 15.7 50.1 49.8
+Disease 39.8 42.3 43.2
+Spouse 156 10% 19 118 19 84%
+Protein 38.2 47.3 47.4
+Disease 102 23% 34 40 28 89%
+Protein 122 14% 44 58 20 85% Average 31.2 46.6 46.8
+Table 4: The number of LFs generated from 30 Table5: F1scoresobtainedusingBabbleLabble
+explanations (pre-filters), discarded by the filter with no filter bank (BL-FB), as normal (BL), and
+bank, and remaining (post-filters), along with the withaperfectparser(BL+PP)simulatedbyhand.
+percentageofLFsthatwerecorrectlyparsedfrom
+theircorrespondingexplanations.
+erage. Furthermore, among those LFs that pass
+through the filter bank, we found that the aver-
+as 60 labels.7 We observe that in all three tasks, age difference in end-task accuracy between cor-
+BabbleLabbleachievesagivenF1scorewithfar rect and incorrect parses is less than 2.5%. Intu-
+fewer user inputs than traditional supervision, by itively, the filters are effective because it is quite
+as much as 100 times in the case of the Spouse difficult for an LF to be parsed from the explana-
+task. Because explanations are applied to many tion, label its own example correctly (passing the
+unlabeled examples, each individual input from semantic filter), and not label all examples in the
+theusercanimplicitlycontributemany(noisy)la- training set with the same label or identically to
+belstothelearningalgorithm. anotherLF(passingthepragmaticfilter).
+We also observe, however, that once the num- We went one step further: using the LFs that
+ber of labeled examples is sufficiently large, tra- wouldbeproducedbyaperfectsemanticparseras
+ditional supervision once again dominates, since startingpoints,wesearchedfor“nearby”LFs(LFs
+ground truth labels are preferable to noisy ones differing by only one predicate) with higher end-
+generated by labeling functions. However, in do- task accuracy on the test set and succeeded 57%
+mains where there is much more unlabeled data ofthetime(seeFigure5foranexample). Inother
+available than labeled data (which in our experi- words, when users provide explanations, the sig-
+enceismostdomains),wecangaininsupervision nalstheydescribeprovidegoodstartingpoints,but
+efficiencyfromusingBabbleLabble. they are actually unlikely to be optimal. This ob-
+Of those explanations that did not produce a servation is further supported by Table 5, which
+correctLF,4%werecausedbytheexplanationre- shows that the filter bank is necessary to remove
+ferring to unsupported concepts (e.g., one expla- clearly irrelevant LFs, but with that in place, the
+nation referred to “the subject of the sentence,” simple rule-based semantic parser and a perfect
+which our simple parser doesn’t support). An- parserhavenearlyidenticalaverageF1scores.
+other 2% were caused by human errors (the cor-
+4.3 UsingLFsasFunctionsorFeatures
+rect LF for the explanation was inconsistent with
+theexample). Theremainderwereduetounrecog- Once we have relevant logical forms from user-
+nized paraphrases (e.g., the explanation said “the provided explanations, we have multiple options
+order of appearance is X, Y” instead of a sup- for how to use them. Srivastava et al. (2017) pro-
+portedphrasinglike“XcomesbeforeY”). poseusingtheselogicalformsasfeaturesinalin-
+earclassifier,essentiallyusingatraditionalsuper-
+4.2 UtilityofIncorrectParses
+vision approach with user-specified features. We
+In Table 4, we report LF summary statistics be- chooseinsteadtousethemasfunctionsforweakly
+fore and after filtering. LF correctness is based supervisingthecreationofalargertrainingsetvia
+on exact match with a manually generated parse data programming (Ratner et al., 2016). In Ta-
+for each explanation. Surprisingly, the simple ble 6, we compare the two approaches directly,
+heuristic-based filter bank successfully removes finding that the the data programming approach
+over 95% of incorrect LFs in all three tasks, re- outperforms a feature-based one by 9.5 F1 points
+sultinginfinalLFsetsthatare86%correctonav- on average with the rule-based parser, and by 4.5
+pointswithaperfectparser.
+7ZaidanandEisner(2008)alsofoundthatcollectingan-
+Weattributethisdifferenceprimarilytotheabil-
+notatorrationalesintheformofhighlightedsubstringsfrom
+thesentenceonlydoubledannotationtime. ity ofdata programmingto utilize alarger featureExplanation Labeling Function Correctness Accuracy
+F sa tl as re t, i nb ge c wa iu ts he “a i mw po rr od v e” def reL tF ur_ n1a( (x -) 1: if any(w.startswith(“improv”) for w in left(x.person2)) else 0) Correct 84.6%
+a cp hp ee ma ir cs a lb .efore the def reL tF ur_ n1b( (x -) 1: if “improv” in left(x.person2)) else 0) Incorrect 84.6%
+True, because “husband” def reL tF ur_ n2a( (x 1) i: f “husband” in left(x.person1, dist==1) else 0) Correct 13.6%
+occurs right before the
+person1. def reL tF u_ r2 nb( (x 1): if “husband” in left(x.person2, dist==1) else 0) Incorrect 66.2%
+Figure 5: Incorrect LFs often still provide useful signal. On top is an incorrect LF produced for the
+DiseasetaskthathadthesameaccuracyasthecorrectLF.OnbottomisacorrectLFfromtheSpouse
+task and a more accurate incorrect LF discovered by randomly perturbing one predicate at a time as
+describedinSection4.2. (Person2isalwaysthesecondpersoninthesentence).
+0.45
+0.40
+0.35
+0.30
+0.25
+0.20
+0.15
+0 1000 2000 3000 4000 5000
+Unlabeled Examples
+erocS
+1F
+BL-DM BL BL+PP Feat Feat+PP
+Spouse 46.5 50.1 49.8 33.9 39.2
+Disease 39.7 42.3 43.2 40.8 43.8
+Protein 40.6 47.3 47.4 36.7 44.0
+Average 42.3 46.6 46.8 37.1 42.3
+Spouse (BL) Table6: F1scoresobtainedusingexplanationsas
+Spouse (Feat)
+Disease (BL) functions for data programming (BL) or features
+Disease (Feat)
+(Feat), optionally with no discriminative model
+Protein (BL)
+Protein (Feat) (-DM)orusingaperfectparser(+PP).
+Figure6: Whenlogicalformsofnaturallanguage 5 RelatedWorkandDiscussion
+explanations are used as functions for data pro-
+Our work has two themes: modeling natural lan-
+gramming(astheyareinBabbleLabble),perfor-
+guageexplanations/instructionsandlearningfrom
+mancecanimprovewiththeadditionofunlabeled
+weak supervision. The closest body of work is
+data,whereasusingthemasfeaturesdoesnotben-
+on “learning from natural language.” As men-
+efitfromunlabeleddata.
+tionedearlier,Srivastavaetal.(2017)convertnat-
+ural language explanations into classifier features
+(whereasweconvertthemintolabelingfunctions).
+Goldwasser and Roth (2011) convert natural lan-
+guage into concepts (e.g., the rules of a card
+setandunlabeleddata. InFigure6,weshowhow game). Ling and Fidler (2017) use natural lan-
+thedataprogrammingapproachimproveswiththe guageexplanationstoassistinsupervisinganim-
+number of unlabeled examples, even as the num- age captioning model. Weston (2016); Li et al.
+ber of LFs remains constant. We also observe (2016) learn from natural language feedback in a
+qualitatively that data programming exposes the dialogue. Wang et al. (2017) convert natural lan-
+classifier to additional patterns that are correlated guage definitions to rules in a semantic parser to
+with our explanations but not mentioned directly. buildupprogressivelyhigher-levelconcepts.
+Forexample,intheDiseasetask,twoofthefea- We lean on the formalism of semantic pars-
+tures weighted most highly by the discriminative ing (Zelle and Mooney, 1996; Zettlemoyer and
+model were the presence of the trigrams “could Collins, 2005; Liang, 2016). One notable trend is
+produce a” or “support diagnosis of” between the to learn semantic parsers from weak supervision
+chemicalanddisease,despitenoneofthesewords (Clarke et al., 2010; Liang et al., 2011), whereas
+occurring in the explanations for that task. In Ta- ourgoalistoobtainweaksupervisionsignalfrom
+ble 6 we see a 4.3 F1 point improvement (10%) semanticparsers.
+when we use the discriminative model that can The broader topic of weak supervision has re-
+takeadvantageofthesefeaturesratherthanapply- ceived much attention; we mention some works
+ingtheLFsdirectlytothetestsetandmakingpre- most related to relation extraction. In distant su-
+dictionsbasedonthelabelaggregator’soutputs. pervision (Craven et al., 1999; Mintz et al., 2009)and multi-instance learning (Riedel et al., 2010; lowship under Grant No. DGE-114747, the Stan-
+Hoffmann et al., 2011), an existing knowledge ford Finch Family Fellowship, the Joseph W. and
+base is used to (probabilistically) impute a train- HonMaiGoodmanStanfordGraduateFellowship,
+ingset. Variousextensionshavefocusedonaggre- an NSF CAREER Award IIS-1552635, and the
+gating a variety of supervision sources by learn- members of the Stanford DAWN project: Face-
+ing generative models from noisy labels (Alfon- book, Google, Intel, Microsoft, NEC, Teradata,
+secaetal.,2012;Takamatsuetal.,2012;Rothand andVMware.
+Klakow, 2013; Ratner et al., 2016; Varma et al., We thank Alex Ratner for his assistance with
+2017). data programming, Jason Fries and the many
+Finally, while we have used natural language members of the Hazy Research group and Stan-
+explanationsasinputtotrainmodels,theycanalso fordNLPgroupwhoprovidedfeedbackandtested
+beoutputtointerpretmodels(Kreningetal.,2017; early prototyptes, Kaya Tilev from the Stanford
+Leietal.,2016). Moregenerally, fromamachine Graduate School of Business for helpful discus-
+learning perspective, labels are the primary asset, sions early on, and the OccamzRazor team: Tarik
+but they are a low bandwidth signal between an- Koc, Benjamin Angulo, Katharina S. Volz, and
+notators and the learning algorithm. Natural lan- CharlotteBrzozowski.
+guageopensupamuchhigher-bandwidthcommu- The U.S. Government is authorized to repro-
+nication channel. We have shown promising re- duce and distribute reprints for Governmental
+sultsinrelationextraction(whereoneexplanation purposes notwithstanding any copyright notation
+canbe“worth”100labels), anditwouldbeinter- thereon. Any opinions, findings, and conclusions
+esting to extend our framework to other tasks and orrecommendationsexpressedinthismaterialare
+moreinteractivesettings. those of the authors and do not necessarily reflect
+the views, policies, or endorsements, either ex-
+Reproducibility
+pressedorimplied,ofDARPA,DOE,NIH,ONR,
+AFOSR,NSF,ortheU.S.Government.
+The code, data, and experiments for this paper
+are available on the CodaLab platform at https:
+//worksheets.codalab.org/worksheets/ References
+0x900e7e41deaa4ec5b2fe41dc50594548/.
+L.V.Ahn,R.Liu,andM.Blum.2006. Peekaboom: a
+gameforlocatingobjectsinimages. InConference
+Refactored code with simplified dependencies, on Human Factors in Computing Systems (CHI).
+performance and speed improvements, and inter- pages55–64.
+activetutorialscanbefoundonGithub:
+E. Alfonseca, K. Filippova, J. Delort, and G. Garrido.
+https://github.com/HazyResearch/babble. 2012. Patternlearningforrelationextractionwitha
+hierarchicaltopicmodel. InAssociationforCompu-
+Acknowledgments tationalLinguistics(ACL).pages54–59.
+S. Arora and E. Nyberg. 2009. Interactive annotation
+We gratefully acknowledge the support of the
+learningwithindirectfeaturevoting. InAssociation
+following organizations: DARPA under No.
+forComputationalLinguistics(ACL).pages55–60.
+N66001-15-C-4043 (SIMPLEX), No. FA8750-
+J. Clarke, D. Goldwasser, M. Chang, and D. Roth.
+17-2-0095 (D3M), No. FA8750-12-2-0335
+2010. Drivingsemanticparsingfromtheworld’sre-
+(XDATA), and No. FA8750-13-2-0039 (DEFT),
+sponse. InComputationalNaturalLanguageLearn-
+DOE under No. 108845, NIH under No. ing(CoNLL).pages18–27.
+U54EB020405 (Mobilize), ONR under No.
+D. Corney, D. Albakour, M. Martinez-Alvarez, and
+N000141712266 and No. N000141310129,
+S. Moussa. 2016. What do a million news articles
+AFOSR under No. 580K753, the Intel/NSF CPS looklike? InNewsIR@ECIR.pages42–47.
+Security grant No. 1505728, the Michael J. Fox
+M. Craven, J. Kumlien, et al. 1999. Constructing bi-
+Foundation for Parkinsons Research under Grant
+ologicalknowledgebasesbyextractinginformation
+No. 14672, the Secure Internetof Things Project, fromtextsources. InISMB.pages77–86.
+Qualcomm,Ericsson,AnalogDevices,theMoore
+G.Druck,B.Settles,andA.McCallum.2009. Active
+Foundation, the Okawa Research Grant, Ameri-
+learningbylabelingfeatures. InEmpiricalMethods
+canFamilyInsurance,Accenture,Toshiba,theNa-
+in Natural Language Processing (EMNLP). pages
+tionalScienceFoundationGraduateResearchFel- 81–90.D.GoldwasserandD.Roth.2011. Learningfromnat- B. Roth and D. Klakow. 2013. Combining generative
+uralinstructions. InInternationalJointConference anddiscriminativemodelscoresfordistantsupervi-
+onArtificialIntelligence(IJCAI).pages1794–1800. sion. In Empirical Methods in Natural Language
+Processing(EMNLP).pages24–29.
+R. Hoffmann, C. Zhang, X. Ling, L. S. Zettlemoyer,
+and D. S. Weld. 2011. Knowledge-based weak su- S.Srivastava, I.Labutov, andT.Mitchell.2017. Joint
+pervision for information extraction of overlapping concept learning and semantic parsing from natu-
+relations. In Association for Computational Lin- ral language explanations. In Empirical Methods
+guistics(ACL).pages541–550. in Natural Language Processing (EMNLP). pages
+1528–1537.
+S. Krening, B. Harrison, K. M. Feigh, C. L. Isbell,
+M.Riedl,andA.Thomaz.2017. Learningfromex- S.Takamatsu,I.Sato,andH.Nakagawa.2012. Reduc-
+planationsusingsentimentandadviceinRL. IEEE ing wrong labels in distant supervision for relation
+Transactions on Cognitive and Developmental Sys- extraction. In Association for Computational Lin-
+tems9(1):44–55. guistics(ACL).pages721–729.
+T. Lei, R. Barzilay, and T. Jaakkola. 2016. Rational- P. Varma, B. He, D. Iter, P. Xu, R. Yu, C. D. Sa, and
+izing neural predictions. In Empirical Methods in C.R’e.2017. Socraticlearning:Augmentinggener-
+NaturalLanguageProcessing(EMNLP). ativemodelstoincorporatelatentsubsetsintraining
+data. arXivpreprintarXiv:1610.08123.
+J.Li,A.H.Miller,S.Chopra,M.Ranzato,andJ.We-
+ston.2016. Learningthroughdialogueinteractions. S. I. Wang, S. Ginn, P. Liang, and C. D. Manning.
+arXivpreprintarXiv:1612.04936. 2017. Naturalizingaprogramminglanguageviain-
+teractivelearning. InAssociationforComputational
+P. Liang. 2016. Learning executable semantic parsers
+Linguistics(ACL).
+for natural language understanding. Communica-
+tionsoftheACM59.
+C. Wei, Y. Peng, R. Leaman, A. P. Davis, C. J.
+Mattingly, J. Li, T. C. Wiegers, and Z. Lu. 2015.
+P. Liang, M. I. Jordan, and D. Klein. 2009. Learn-
+Overview of the biocreative V chemical disease re-
+ing from measurements in exponential families.
+lation(cdr)task. InProceedingsofthefifthBioCre-
+In International Conference on Machine Learning
+ative challenge evaluation workshop. pages 154–
+(ICML).
+166.
+P. Liang, M. I. Jordan, and D. Klein. 2011. Learn-
+J. E. Weston. 2016. Dialog-based language learning.
+ing dependency-based compositional semantics. In
+InAdvancesinNeuralInformationProcessingSys-
+Association for Computational Linguistics (ACL).
+tems(NIPS).pages829–837.
+pages590–599.
+O.F.ZaidanandJ.Eisner.2008. Modelingannotators:
+H. Ling and S. Fidler. 2017. Teaching machines to
+Agenerativeapproachtolearningfromannotatorra-
+describe images via natural language feedback. In
+tionales. InEmpiricalMethodsinNaturalLanguage
+AdvancesinNeuralInformationProcessingSystems
+Processing(EMNLP).
+(NIPS).
+M. Zelle and R. J. Mooney. 1996. Learning to parse
+M. Mintz, S. Bills, R. Snow, and D. Jurafsky. 2009.
+database queries using inductive logic program-
+Distant supervision for relation extraction without
+ming. In Association for the Advancement of Arti-
+labeleddata. InAssociationforComputationalLin-
+ficialIntelligence(AAAI).pages1050–1055.
+guistics(ACL).pages1003–1011.
+H. Raghavan, O. Madani, and R. Jones. 2005. Inter- L. S. Zettlemoyer and M. Collins. 2005. Learning to
+activefeatureselection. InInternationalJointCon- mapsentencestologicalform:Structuredclassifica-
+ferenceonArtificialIntelligence(IJCAI).volume5, tionwithprobabilisticcategorialgrammars. InUn-
+pages841–846. certaintyinArtificialIntelligence(UAI).pages658–
+666.
+A.J.Ratner,S.H.Bach,H.Ehrenberg,J.Fries,S.Wu,
+andC.R’e.2018. Snorkel: Rapidtrainingdatacre-
+ation with weak supervision. In Very Large Data
+Bases(VLDB).
+A.J.Ratner,C.M.D.Sa,S.Wu,D.Selsam,andC.R’e.
+2016. Data programming: Creating large training
+sets, quickly. In Advances in Neural Information
+ProcessingSystems(NIPS).pages3567–3575.
+S. Riedel, L. Yao, and A. McCallum. 2010. Model-
+ingrelationsandtheirmentionswithoutlabeledtext.
+In Machine Learning and Knowledge Discovery in
+Databases(ECMLPKDD).pages148–163.A PredicateExamples
+Below are the predicates in the rule-based semantic parser grammar, each of which may have many
+supportedparaphrases,onlyoneofwhichislistedhereinaminimalexample.
+Logic
+and: X is true and Y is true
+or: X is true or Y is true
+not: X is not true
+any: Any of X or Y or Z is true
+all: All of X and Y and Z are true
+none: None of X or Y or Z is true
+Comparison
+=: X is equal to Y
+(cid:54)=: X is not Y
+<: X is smaller than Y
+≤: X is no more than Y
+>: X is larger than Y
+≥: X is at least Y
+Syntax
+lower: X is lowercase
+upper: X is upper case
+capital: X is capitalized
+all caps: X is in all caps
+starts with: X starts with "cardio"
+ends with: X ends with "itis"
+substring: X contains "-induced"
+Named-entity Tags
+person: A person is between X and Y
+location: A place is within two words of X
+date: A date is between X and Y
+number: There are three numbers in the sentence
+organization: An organization is right after X
+Lists
+list: (X, Y) is in Z
+set: X, Y, and Z are true
+count: There is one word between X and Y
+contains: X is in Y
+intersection: At least two of X are in Y
+map: X is at the start of a word in Y
+filter: There are three capitalized words to the left of X
+alias: A spouse word is in the sentence (“spouse” is a predefined list from the user)
+Position
+word distance: X is two words before Y
+char distance: X is twenty characters after Y
+left: X is before Y
+right: X is after Y
+between: X is between Y and Z
+within: X is within five words of YB SampleExplanations
+Thefollowingareasampleoftheexplanationsprovidedbyusersforeachtask.
+Spouse
+Usersreferredtothefirstpersoninthesentenceas“X”andthesecondas“Y”.
+Label true because "and" occurs between X and Y and "marriage" occurs
+one word after person1.
+Label true because person Y is preceded by ‘beau’.
+Label false because the words "married", "spouse", "husband", and
+"wife" do not occur in the sentence.
+Label false because there are more than 2 people in the sentence and
+"actor" or "actress" is left of person1 or person2.
+Disease
+Label true because the disease is immediately after the chemical and
+’induc’ or ’assoc’ is in the chemical name.
+Label true because a word containing ’develop’ appears somewhere
+before the chemical, and the word ’following’ is between the disease
+and the chemical.
+Label true because "induced by", "caused by", or "due to" appears
+between the chemical and the disease."
+Label false because "none", "not", or "no" is within 30 characters to
+the left of the disease.
+Protein
+Label true because "Ser" or "Tyr" are within 10 characters of the
+protein.
+Label true because the words "by" or "with" are between the protein
+and kinase and the words "no", "not" or "none" are not in between
+the protein and kinase and the total number of words between them is
+smaller than 10.
+Label false because the sentence contains "mRNA", "DNA", or "RNA".
+Label false because there are two "," between the protein and the
+kinase with less than 30 characters between them.

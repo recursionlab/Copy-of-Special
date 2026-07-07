@@ -1,0 +1,810 @@
+P-FOLIO: Evaluating and Improving Logical Reasoning with Abundant
+Human-Written Reasoning Chains
+SimengHan1 AaronYu2 RuiShen2 ZhentingQi2
+MartinRiddell1 WenfeiZhou3 YujieQiao1 YilunZhao1
+SemihYavuz4 YeLiu4 ShafiqJoty4 YingboZhou4
+CaimingXiong4 DragomirRadev1,4 RexYing1 ArmanCohan1
+1YaleUniversity,2HarvardUniversity,3NVIDIA,4SalesforceResearch
+Abstract the premises (Russell and Norvig, 2010). How-
+ever, it cannot be determined whether a machine
+Existing methods on understanding the capa-
+isindeedequippedwithcapabilitiesoflogicalrea-
+bilities of LLMs in logical reasoning rely on
+soningevenifitisabletooutputthecorrecttruth
+binary entailment classification or syntheti-
+value. Generatingproofsorreasoningchainsthat
+cally derived rationales, which are not suffi-
+cient for proper investigation of model’s ca- supportitsdecisionisessentialforexplainability.
+pabilities. We present P-FOLIO, a human- Resolution-based symbolic proofs can be gener-
+annotated dataset consisting of diverse and ated automatically with a first-order logic solver
+complex reasoning chains for a set of realis-
+given explicit logic structures, but they are hard
+ticlogicalreasoningstoriesalsowrittenbyhu-
+toreadandcannotbewritteninnaturallanguage
+mans. P-FOLIO is collected with an annota-
+in a straightforward way in most cases (Russell
+tion protocol that facilitates humans to anno-
+and Norvig, 2010). Although studies on natural
+tatewell-structurednaturallanguageproofsfor
+first-orderlogicreasoningproblemsinastep- language proof generation for logical reasoning
+by-stepmanner.Thenumberofreasoningsteps havebeenconductedbefore,theyfocusonsyntheti-
+in P-FOLIO span from 0 to 20. We further callygeneratedlogicalreasoningdatasets(Saparov
+use P-FOLIO to evaluate and improve large- etal.,2023;Sahaetal.,2020;Tafjordetal.,2021;
+language-model(LLM)reasoningcapabilities.
+Sahaetal.,2021). Theselogicalreasoningchains
+We evaluate LLM reasoning capabilities at a
+containsmuchlessnaturallanguagevariationand
+finegranularityviasingle-stepinferencerule
+challengingreasoningpatternsthanrealisticlogic
+classification,withmorediverseinferencerules
+stories(Hanetal.,2022).
+ofmorediverseandhigherlevelsofcomplex-
+itiesthanpreviousworks. Giventhatasingle WepresentP-FOLIO,anewdatasetconsisting
+model-generated reasoning chain could take of human-written proofs for an existing popular
+a completely different path than the human-
+dataset of logical reasoning, FOLIO (Han et al.,
+annotatedone,wesamplemultiplereasoning
+2022)whichconsistsofrealisticlogicalreasoning
+chainsfromamodelandusepass@kmetrics
+storieswrittenbyhumans. P-FOLIOiscollected
+forevaluatingthequalityofmodel-generated
+reasoningchains. Weshowthathuman-written withanannotationprotocolforannotatorstowrite
+reasoning chains significantly boost the logi- proofsinastep-by-stepmannerwithoutusingproof
+calreasoningcapabilitiesofLLMsviamany- bycontradictionorproofbycase. Table2shows
+shotpromptingandfine-tuning. Furthermore, anexamplestoryinFOLIOandTable3showsits
+fine-tuningLlama3-7BonP-FOLIOimproves
+human-writtenreasoningchainsinP-FOLIO.
+the model performance by 10% or more on
+P-FOLIO proofs are expert-written. They are
+three other out-of-domain logical reasoning
+datasets. We also conduct detailed analysis morelogicallydiverseandchallengingthanprevi-
+toshowwheremostpowefulLLMsfallshort ouslogicalreasoning datasetsequippedwithrea-
+inreasoning. Wewillreleasethedatasetand soning chains. The number of proof steps in P-
+codepublicly. FOLIO spans from 0 to 20 and the proofs use di-
+verseinferencerules,containing12typesofwidely
+1 Introduction
+used and straightforward inference rules and an-
+A logical reasoning story consists of a series of other20typesofcomplexinferencerules. 26%of
+premisesandoneormoreconclusions(Hanetal., atotalof1430proofsinP-FOLIOconsistofmore
+2022). The goal of logical reasoning is to deter- than five reasoning steps and 4% of proofs con-
+minethetruthvaluesoftheconclusionsbasedon sistofmorethan10reasoningsteps. Weshowthe
+4202
+tcO
+11
+]IA.sc[
+1v70290.0142:viXraNaturalLanguage Logic
+Dataset
+TextSource Real-WorldResource #ReasoningStep #Inferencerule
+ProofWriter(Tafjordetal.,2021) Synthetic No 0-5 12
+ProntoQA-OOD(Saparovetal.,2023) Synthetic No × 6
+P-FOLIO Expert-written Yes 0-20 31
+Table1: ComparisonofP-FOLIOandotherdatasetsofproofs
+AFOLIOexample
+NLpremises NLConclusion->Label
+1.Therearenomansionhousesinanurbanarea. IftheLaLaurieHouseiseithera
+2.Allskyscrapersareinurbanareas. skyscraperoracreepyhauntedhouse,
+3.Everycreepyhauntedhouseisamansionhouse. thenitisnotamansionhouse.->F
+4.EveryterrifyingbuildingonHalloweenisacreepyhauntedhouse.
+5.TheLaLaurieHouseisacreepyhauntedhouseoraterrifyingHalloweenbuilding.
+Table2:AnexamplestoryinFOLIOconsistingoffivepremisesandoneconclusionwiththelabelfortheconclusion.
+comparsionofP-FOLIOandthepreviousproofcol- tuningonourproofcollectionyieldssubstantialim-
+lectionsforlogicalreasoning,ProofWriter(Tafjord provementsforLLMlogicalreasoningcapabilities
+et al., 2021) and ProntoQA-OOD(Saparov et al., onbothin-domainandout-of-domaintestsets. (4)
+2023),inTable1. BothProofWriterandProntoQA- WeidentifyweaknessesofLLMreasoningbased
+OOD are synthetically constructed. ProofWriter onourfindings.
+containsatmost5reasoningstepsandProntoQA-
+2 RelatedWork
+OODonlyuses6typesofinferencerules.
+We use P-FOLIO to provide a more in-depth
+Natural language reasoning Existing studies
+evaluation and to improve large-language-model
+on natural language reasoning (Wei et al., 2022;
+reasoningcapabilities. WefirstevaluateLLMrea-
+Creswelletal.,2022;Bangetal.,2023;Prystawski
+soning capabilities at a fine-grained granularity
+et al., 2023; Yao et al., 2023) focus on using dif-
+via single-step inference rule classification and
+ferentpromptingstrategiesonlargelanguagemod-
+single-step derivation reasoning. Given that the
+els (LLMs) for better results. Despite significant
+model-generatedreasoningchaincouldtakeacom-
+progress on the LLM prediction accuracy of the
+pletely different path than the human-annotated
+final answer, no work has been done to evaluate
+one,weusethepass@k(Chenetal.,2021b;Kulal
+the correctness of the intermediate steps. In our
+et al., 2019), a metric commonly used for evalu-
+work, we propose to evaluate intermediate steps
+ating code generation, for evaluating the overlap
+atdifferentlevelsofgranularityinordertobetter
+betweenthem. Weshowthathuman-writtenreason-
+probeintothereasoningcapabilitiesofLLMs.
+ingchainssignificantlyboostthelogicalreasoning
+capabilitiesofLLMsviamany-shotpromptingand ImprovingLLMLogicalreasoningcapabilities
+fine-tuning. Furthermore,fine-tuningLlama3-7B Luoetal.(2024);RanaldiandFreitas(2024)fine-
+onP-FOLIOimprovesthemodelperformanceby tunedlanguagemodelswithlogicalreasoningdata
+morethan10%onthreeotherout-of-domainlogi- toimprovelogicalreasoningcapabilitiesofLLMs.
+calreasoningdatasets. Finally,weconductdetailed Largelanguagemodelshavealsobeendirectlyused
+analysis to show where most poweful LLMs fall assoftlogicreasonersandavarietyofprompting
+shortinreasoning. techniquesareproposedinordertoimprovetheir
+Ourcontributionsareasfollow: (1)Wecollected performanceunderthisparadigm(Weietal.,2022;
+expert-writtenreasoningchainsforanexistingpop- Yaoetal.,2023;Zhouetal.,2024). Usinglargelan-
+ular logical reasoning dataset. The collected rea- guagemodelsassemanticparsershasalsoshown
+soningchainsaremorelogicallydiverseandchal- improvementonthereasoningperformance(Olaus-
+lenging than previous logical reasoning datasets son et al., 2023; Pan et al., 2023) where natural
+equippedwithreasoningchains. (2)Weevaluate languagereasoningproblemsarefirstparsedinto
+LLM-generated proofs with both automatic met- logical forms before being fed into an inference
+ricsandhumanevaluation. (3)Weshowthatfine- enginetooutputthefinalanswer.Natural language proof generation "A or A" is true then "A" is true. We therefore
+ProofWriter (Tafjord et al., 2021) and FLD allowtheusagesofbooleanidentities
+(Morishita et al., 2023) are logical reasoning
+Complexinferencerules. Somecomplexinfer-
+datasets equipped with natural language proofs,
+ence rules are intuitively correct and can also be
+howeverbothofthemaresyntheticallygenerated
+provedlogicallycorrectwithaninferenceengine.
+dataset which neither contains abundant natural
+Forexample,from"AXORB",weknowthat"A
+language variation nor encompasses challenging
+impliesnotB". WeincludeinTable4thedifferent
+logical reasoning patters. Previous studies on
+categoriesofinferencerulesusedinourprotocol.
+proofgenerationfocusonProofWriter(Morishita
+et al., 2023; Saha et al., 2020, 2021; Yang et al., 3.2 DatasetAnnotation
+2022) and ProntoQA (Saparov et al., 2023).
+Weofferanannotationprotocolthatfacilitatesan-
+LogicBench is a synthetically generated natural
+notatorstoannotatewell-structuredproofsforany
+language QA dataset and is used for evaluating
+logicalreasoningproblemsinastep-by-stepman-
+the logical reasoning ability of LLMs (Parmar
+ner. Ourannotatorsareselectedbasedonthethe
+et al., 2024). While FOLIO covers first-order
+followingcriteria: 1). Theyarecollegeorgraduate
+logicandoneormoreinferencerulesareusedin
+studentswhoareeithernativeEnglishspeakersor
+each example, LogicBench focuses on reasoning
+havenear-nativeEnglishproficiency. 2)Theyhave
+patterns covering propositional logic, first-order
+a formal background in first-order logic, gained
+logic,andnon-monotoniclogicandfocusesonthe
+througheitherrelevantcourseworkorself-directed
+useofasingleinferenceruleforeachexample.
+study in first-order logic or semantic parsing. 3).
+WecollectproofsforFOLIO(Hanetal.,2022)
+weconductedin-personinterviewswithallthean-
+instead, a realistic expert-written logical reason-
+notatorstounderstandiftheyaremotivatedabout
+ing dataset. Such proofs need to be written from
+completingthetaskbeforeweaddedthemintothe
+scratchandarehardandtime-consumingtowrite
+annotator pool. All the annotators selected have
+becausehumansneedtomanageboththelanguage
+expressedakeeninterestinsolvinglogicalpuzzles
+andreasoningcomplexityintheproof-writingpro-
+and are guaranteed to have a significant amount
+cessandmanuallyconstructmanystepsofreason-
+oftimecommitment. Wealsogivetheannotators
+ing. The resulting proofs contain more diverse
+several detailed tutorial sessions on how to write
+typesofinferencerulesandreasoningpatternsin
+aproofandgivedetailedannotationguidelinesto
+additiontocontainingmorenaturallanguagevaria-
+minimize possible ambiguities that can occur in
+tionandensuredsemanticrichness.
+theannotationprocessandmakesuretheannota-
+tion protocol is well-understood. A total of six
+3 P-FOLIO
+annotatorswereselectedthroughthisprocess.
+In this section we describe the construction and Annotationprotocol. Anannotatorispresented
+propertiesofourdatasetP-FOLIO. with a logical reasoning problem consisting of a
+series of premises and one conclusion. For each
+3.1 InferenceRules step of a proof, we ask the annotator to write the
+indices of the premises used, a natural language
+Wefirstdefineasetofinferencerulesthatcanbe
+derivationdeducedfromthepremisesusedandthe
+usedforderivationsofeachproofstep.
+inferenceruleusedforthederivation. Thenatural
+Widely-usedinferencerules. Themostwidely languagederivationcanthenbeusedasapremise
+usedlogicalreasoninginferencerulesincludeuni- for future proof steps. We also specify that only
+versalinstantiation,hypotheticalsyllogism,modus 1 or 2 premises should be used in each step. Ta-
+ponens,modustollens,disjunctivesyllogism,con- ble2showsanexampleoftheFOLIOdatasetand
+junction introduction, conjunction elimination, Table 3 shows the entire proof annotated for the
+transposition,disjunctionintroduction,materialim- example. The proof consists of 14 steps in total
+plicationandexistentialintroduction. with14naturallanguagederivationsandthefinal
+derivationistheconclusion. Thisannotationproto-
+Booleanidentities. Duringthepilotannotation colfacilitateshumanstoannotatewell-structured
+process, we found that boolean identities are proofsforfirst-orderlogicreasoningproblemsin
+needed for certain derivations. For example, if astep-by-stepmannerandtheresultingproofsarePNoUsed Derivation DNo. InferenceRule
+1 Ifthereisamansionhouseinthearea,thenitisnotanurbanarea. D1 ModusTollens
+2 Somethingthatisnotinanurbanareaisnotaskyscraper. D2 ModusTollens
+3,D1 Acreepyhauntedhouseisnotinanurbanarea. D3 HypotheticalSyllogism
+D3,2 Acreepyhauntedhouseisnotaskyscraper. D4 HypotheticalSyllogism
+4,D4 EveryterrifyingHalloweenbuildingisnotaskyscraper. D5 HypotheticalSyllogism
+D5,5 TheLaLaurieHouseisnotaskyscraperorisaterrifyingHalloweenbuilding. D6 UniversalInstantiation
+D6,D4 TheLaLaurieHouseisnotaskyscraperorisnotaskyscraper. D7 UniversalInstantiation
+D7 TheLaLaurieHouseisnotaskyscraper. D8 Idempotence
+5,4 TheLaLaurieHouseisacreepyhauntedhouseoracreepyhauntedhouse. D9 UniversalInstantiation
+D10 TheLaLaurieHouseisacreepyhauntedhouse. D11 Idempotence
+D11,3 TheLaLaurieHouseisamansionhouse. D12 UniversalInstantiation
+D8,D11 TheLaLaurieHouseisacreepyhauntedhouseandnotaskyscraper. D13 ConjunctionIntroduction
+D13,D12 TheLaLaurieHouseisacreepyhauntedhouseandamansionhouseandnotaskyscraper. D14 ConjunctionIntroduction
+Table3: ProofwrittenfortheexamplestoryinFOLIO.“PNo”ispremisenumberand“D”standsforderivation.
+Type Rules
+Widely-usedrules universalinstantiation(UI),hypotheticalsyllogism(HS),ModusPonens(MP),Modus
+Tollens(MT)
+disjunctivesyllogism(DS),disjunctionintroduction(DI),conjunctionintroduction(CI)
+conjunctionelimination(CE),transposition(TP),materialimplication(MI),existential
+introduction(EI)
+BooleanIdentities(Idempotent) "AorA"isequivalenttoA;AandAisequivalenttoA
+Complexrules Froma⊕b,weknowa→¬b;froma→bandb→a,weknow¬(a⊕b).
+¬b⊕bisalwaystrue;a⊕bisequivalentto¬a⊕¬b
+From∀x(A(x)→C(x))andA(paul)∧B(paul),weknowC(paul)∧B(paul).
+Table4: Categoriesofinferencerulesusedinourannotationprotocol.
+easier to read and evaluate than proofs written in thinkingandannotatorsneedtogothroughanin-
+pure natural language without being divided into termediatedeductionprocessbeforewritingdown
+individualsteps. theproofsteps.
+Forfirst-orderlogicalreasoningquestions,mul-
+Weprovidethedetailedguidelinesonproofan-
+tiplereasoningpathscanbeundertakentoderive
+notation in the appendix. The guideline contains
+thesameconclusion. Duetothetime-consuming
+detailed instructions on how to write the proofs.
+nature of the task, only one annotator annotates
+Multipleexampleswereprovidedtotheannotators
+eachsamplewithonereasoningpathinouranno-
+andweconductedin-persontutorialsfortheannota-
+tation procedure although in our pilot annotation
+tors. Wepromptlyasktheannotatorsforfeedback
+studyweidentifieddifferentannotatorssometimes
+and resolve their questions throughout the entire
+providedifferentproofsforthesameexample.
+annotationprocess. Wefoundthatannotatorsare
+well-versedinthewell-establishedinferencerules
+Quality control via cross checking. We con-
+and boolean identities. However, sometimes uni-
+ducted a comprehensive cross-checking process
+versalinstantiationinferencescanbewronglyiden-
+foralltheproofswrittenbydividingtheannotators
+tifiedashypotheticalsyllogism. Attheinitialstage
+into 3 groups, each comprised of 2 people. We
+ofannotation,annotatorssometimesidentifiedintu-
+askedthetwoannotatorsineachgrouptoreview
+itivelycorrectbutlogicallyincorrectcomplexrules.
+and validate each other’s work and address any
+Therefore,weaskthemtoverifyeachcomplexrule
+identifiederrors. Wealsoprovidedannotatorswith
+withalogicsolverbeforeusingit.
+crosscheckingguidelinestomaketheprocessmore
+Weaskedtheannotatorstokeeparecordofthe efficient. Thisapproachgreatlyreduceserrorsfor
+time taken for writing each proof. Most of the P-FOLIO.
+proofsrequiring1-5stepstakelessthan20minutes
+3.3 Datasetstatistics
+to annotate with five minutes being the average
+whilemorecomplicatedproofsrequiringsixsteps Number of proof steps. We show the distribu-
+ormoretake20minutesto90minutestoannotate tion of the number of proof steps in the entire P-
+with1hourbeingtheaveragesincetowritethese FOLIOdatasetinFigure2. wehavecarefullyvali-
+proofsrequiresasignificantamountofdeliberate datedthateachofthesplitsfollowsasimilardistri-butionwithlessthana2%differenceineachsplit. truthvalue. Thistaskaimstoevaluatetheoverall
+Themajorityofwrittenproofscontainfivestepsor proofgenerationcapability.
+lesswhilewrittenproofscomprisedof6-10steps
+also take up a significant portion. There are 55 4.4 Proofgenerationevaluation
+proofs which are comprised of 11 steps or more.
+Thisrepresentstheportionofthedatasetwiththe Pass@k. Considering that a model-generated
+highestcomplexity. reasoning chain can diverge significantly from
+a human-annotated one in logical reasoning, we
+Inferenceruledistribution. Thewidely-usedin- sample multiple reasoning chains from GPT-3.5
+ferenceruleandbooleanidentitiesdistributionis and GPT-4 and employ pass@k metrics (Chen
+showninFigure3. Amongthewidely-usedinfer- etal.,2021a)toassessthequalityofthesemodel-
+encerules,universalinstantiationandhypothetical generated chains. GPT-4 is utilized to evaluate
+syllogismarethemostcommoninferencerulesin whethertworeasoningchainsfollowasimilarpath
+P-FOLIOwhiledisjunctivesyllogism,conjunction toreachtheirconclusions. Weprovidetheprompts
+introduction,conjunctioneliminationandtranspo- used for this in the Appendix. If we sample k
+sition also appeared a large number of times. Al- proofsfromamodel,wedefinepass@ktobethe
+thoughModusponens,Modustollens,existential percentage of instances where at least one proof
+introduction,disjunctionintroduction,materialim- matchesthehuman-writtenproof.
+plication and idempotent are the least common,
+theirare50-150numberoftheminP-FOLIO.The
+4.5 Taskcomparison
+occurrences of complex inference rules all range
+from 1 to 29. The complex inference rules are Single-stepinference-ruleclassificationandsingle-
+essential for making certain derivations although step derivation allow for a more granular assess-
+theiroccurrencesarelessfrequent. mentofhowwellthemodelcanfollowlogicalrules
+andderiveconclusionsbybreakingdowncomplex
+4 ReasoningEvaluation reasoning chains into individual steps. By ana-
+lyzing each step independently, identify specific
+WeproposethreetaskstoevaluatingLLMreason-
+strengthsandweaknessescanbeidentifiedinthe
+ingcapabilitieswithP-FOLIOatdifferentlevelsof
+model’s reasoning processes, facilitating a better
+granularities.
+understandingofthemodel’soverallperformance
+andtargetedimprovements. Theentireproofgener-
+4.1 Single-stepinference-ruleclassification
+ationevaluatesthereasoningcapabilitiesofLLMs
+Given a single step of inference in a human- bychallengingthemwithcomplexreasoningprob-
+annotated proof which consists of the premises lems. Thisapproachrequiresthemodeltogenerate
+used P = {P 1,P 2} and a derivation d 1, single- acompleteprooffromstarttofinish,demonstrating
+step inference-rule classification aims to identify itsabilitytohandleintricatelogicalstructuresand
+whichinferencerulehasbeenusedtoarriveatd 1 multi-step derivations. By assessing the model’s
+fromP. Thistaskaimstoevaluatewhetheramodel performanceonentireproofs,wecangaugeitspro-
+knows the type of inference required for a single ficiencyinmaintaininglogicalcoherence,applying
+inferencestep. relevantrules,andeffectivelymanagingthecom-
+plexityinherentincomprehensivereasoningtasks.
+4.2 Single-stepderivationreasoning
+Thisevaluationmethodprovidesaholisticviewof
+Given a single step of inference in a human an- themodel’sreasoningabilities.
+notated proof, the goal of single-step derivation
+reasoningistoaskthemodeltogeneratethetruth 5 ExperimentalResults
+value of a derivation based on the corresponding
+premises. ThetruthvaluelabelisalwaysTrue. We conduct experiments using P-FOLIO. The
+train/dev/testsplitis70%/15%/15%,whichisthe
+4.3 Proofgeneration
+same as the split for FOLIO (Han et al., 2022).
+Given a series of premises P = {p ,p ,...,p } ForallexperimentsinvolvedwithGPT-4(OpenAI
+1 2 n
+andaconclusionc , thegoalofproofgeneration et al., 2023), we use gpt-4-0125-preview and the
+1
+isaskthemodeltogeneratetheproofandthefinal temperaturewassetto0.5.1 Single-stepevaluation
+Weconductsingle-stepinferenceruleclassification
+andsingle-stepderivationreasoningonindividual
+proofstepsinP-FOLIO.Forsingle-stepderivation
+reasoning, we prompt GPT-4 to output the clas-
+sification results in zero-shot setting and 5-shot
+prompting. The results of inference rule classifi-
+cationareshowninthefirsttwocolumnsofTable
+5. Giving GPT-4 a few examples leads to better
+results for complex inference rules while the im-
+provement is minimal for widely used inference
+rules. Forsingle-stepinferenceruleclassification,
+wetesttwosettings. WepromptGPT-4tooutput Figure1:Distributionofthenumberofcorrect&wrong
+thetruthvaluedirectlyinonesetting. Intheother answersvsthenumberofhuman-writtenproofsteps
+setting,wepromptGPT-4tooutputtheexplanation
+firstbeforegeneratingthefinaltruthvalue. There-
+window of GPT-4. We present the results using
+sultsofsingle-stepinferenceruleclassificationare
+ngram-overlap-basedmetrics,includingROUGE-
+showninthelasttwocolumnsofTable5. Prompt-
+1,ROUGE-2,andROUGE-L(Lin,2004),compar-
+ingGPT-4tooutputtheexplanationbeforegener-
+ingthemodel-generatedproofswithhuman-written
+atingthefinaltruthvalueleadstobetterresultsfor
+proofs. Additionally,wereportthefinalanswerpre-
+bothwidely-usedrulesandcomplexrules.
+dictionaccuracy. Table6demonstratesthatadding
+5 examples to the prompt improves GPT-4’s per-
+5.2 Proofgeneration
+formanceoverzero-shotprompting. Increasingthe
+Zero-shot Prompting LLM We use GPT-4
+numberofexamplesforin-contextlearningfrom
+(OpenAIetal.,2023)togenerateproofsandtruth
+5 to 20 results in a further performance improve-
+valueforalltheexamples. Byexplicitlyprompting
+ment of approximately 7%. Using 60 examples
+GPT-4togeneratethereasoningprocessbeforethe
+inthepromptsignificantlyenhancesperformance
+finalanswerincreasetheperformanceby5%over
+comparedtozero-shotprompting.
+promptingGPT-4togenerateonlythefinalanswer.
+We manually inspect all the generated proofs. Pass@kEvaluation Table9presentsthepass@k
+Among the examples with correct truth values, results for GPT-3.5 and GPT-4 on the P-FOLIO
+10.7%exhibitedincorrectreasoningprocesses. In dataset, illustratingthecomparativeperformance
+these cases, the model either struggled to form of these models in generating reasoning chains.
+thecorrectreasoningchainforcomplexproblems Pass@k metrics indicate the percentage of in-
+involvingmanyreasoningstepsorusedcommon- stances where at least one out of k sampled rea-
+sense reasoning as a shortcut. Among the exam- soningchainsmatchesthehuman-annotatedproof.
+pleswithincorrecttruthvalues,70%failedtoform The results show a clear performance improve-
+thecorrectreasoningchainforcomplexproblems. mentfromGPT-3.5toGPT-4acrossallvaluesofk.
+Additionally,10%containedwrongderivationsat Specifically,GPT-4achievesapass@1of55.3%,
+a certain steps in the reasoning process. About outperformingGPT-3.5’s49.5%. Thistrendcontin-
+15% of the examples presented conclusions with ues with GPT-4 attaining pass@5, pass@10, and
+languageorlogicalstructurestoointricateforthe pass@20 scores of 59.2%, 62.1%, and 66.9% re-
+model to fully comprehend. Another 5% incor- spectively,comparedtoGPT-3.5’s51.6%,53.9%,
+rectlyappliedcommonsensereasoningasashort- and55.7%. ThesefindingssuggestthatGPT-4is
+cut,leadingtoerrorsinthefinalconclusions. We moreeffectiveingeneratingreasoningchainsthat
+providemoreanalysisinsection6. align with human-annotated proofs, highlighting
+itsenhancedcapabilityinlogicalreasoningtasks.
+Many-shot prompting LLMs We conduct
+many-shotpromptingexperimentswithGPT-4us- Fine-tuningandOut-of-DomainGeneralization
+ing 5, 10, 20, 40, and 60 examples in in-context Wetesttheperformanceoffine-tuningwithFlan-
+learning. Sixty is the maximum number of ex- T5-Large (Chung et al., 2022) and Llama3-8B
+ample and proof pairs we can fit into the context (Dubeyetal.,2024)andtesttheout-of-domaingen-InferenceRuleClassification TruthValueClassification
+NoExamples WithExamples NoExplanation WithExplanation
+EstablishedRules 54.72 55.08 85.31 87.13
+ComplexRules 40.8 43.62 70.67 80.43
+Table5: Single-stepinferenceruleclassificationandsingle-stepderivationreasoningresults.
+#shot R-1 R-2 R-L Acc(%)
+0-shot 60.2 52.7 61.5 65.2
+5-shot 63.9 54.2 64.1 68.1
+10-shot 65.8 54.9 65.9 70.7
+20-shot 70.6 59.5 69.6 75.3
+40-shot 73.7 62.1 72.7 77.4
+60-shot 78.2 66.3 78.1 80.6
+Table6: Resultofmany-shotpromptingwithGPT-4.
+Figure2: Distributionofthenumberofproofsteps
+Method AnswerAcc ProofAcc
+w/oproofs. 60.2 -
+w/proofs. 65.2 58.2
+Table7:Comparisonoffinalansweraccuracyandproof
+accuracy(%).
+eralization capabilities of LLMs fine-tuned on P-
+FOLIO.Wecomparestwomodels,Flan-T5-Large
+andLlama3-7B(Dubeyetal.,2024),inbothzero-
+shot and fine-tuned configurations. We provide
+Figure3: Distributionofwidelyusedinferencerules
+thehyper-parametersettingsintheAppendix. Ta-
+ble 8 highlights that fine-tuning on FOLIO (w/o
+Proofs)andP-FOLIO(w/Proofs)significantlyen- 6 Analysis
+hancestheperformanceofbothmodelsacrossall
+Most powerful LLMs fail on examples with
+tasks. Llama3-7B consistently outperforms Flan-
+10 steps or more in human-written reasoning
+T5-Large.
+chains. Figure 1 illustrates the performance of
+Table 8 also shows that fine-tuning without
+GPT-4onlogicalreasoningtasksofvaryingcom-
+proofs using the FOLIO dataset and fine-tuning
+plexity. While GPT-4 accurately answers most
+with proofs boost the performance on the three
+questionsrequiring1-5human-writtenreasoning
+out-of-domain logical reasoning datasets tested,
+steps,itsaccuracydropssignificantlyformorecom-
+BirdElectricity (Tafjord et al., 2021), ProntoQA
+plextasks. Forquestionsinvolving6-10reasoning
+(SaparovandHe,2023)andbAbi-deductive(We-
+steps,GPT-4answerscorrectlyonlyabouthalfthe
+stonetal.,2015). Theinclusionofhuman-written
+time. Itsperformancefurtherdeclineswithexam-
+proofsconsistentlyimprovestheaccuracyforfine-
+plesrequiring11-15steps,whereitfailsmorethan
+tuned models, underscoring the importance of
+halfthetime. Fortaskswith16ormorereasoning
+proofsinbolsteringthegeneralizationcapabilities
+steps,GPT-4isunabletoprovidecorrectanswers
+ofLLMsinout-of-domaindatasets. Theseresults
+atall.
+suggestthatLLMsfine-tunedwithhuman-written
+rationalesareabletogeneralizelearnedreasoning Making new derivations with complex rules
+strategiestonew,unseentasks,demonstratingro- could be one of the bottlenecks for LLM rea-
+bustout-of-domaingeneralization. soning To gain a more detailed understandingFOLIO(2022) BirdElectricity(2021) ProntoQA(2023) bAbi-deductive(2015)
+w/oProofs w/Proofs w/oProofs w/Proofs w/oProofs w/Proofs w/oProofs w/Proofs
+Zero-ShotFlan-T5-Large 5.3% 5.3% 42.1% 40.9% 6.5% 5.0% 38.9% 40.4%
+Fine-TuneFlan-T5-Large 65.9% 67.5% 53.4% 60.8% 33% 41% 44.70% 50.30%
+Zero-ShotLlama3-8B 52.1% 54.1% 54.8% 57.5% 63.1% 64.9% 72.1% 75.7%
+Fine-tuneLlama3-8B 70.2% 76.3% 60.8% 66.7% 76.1% 80.6% 85.1% 87.9%
+Table8:Fine-tuningresultsandout-of-domaingeneralizationcapabilitiesofLLMstrainedonFOLIOandP-FOLIO.
+"w/oProofs"indicatesthemodelistrainedwithFOLIOand"w/Proofs"indicatesthemodelistrainedwithP-FOLIO.
+Model Pass@1 Pass@5 Pass@10 Pass@20 Faultyreasoning Weshowacasestudywhere
+GPT-3.5 49.5 51.6 53.9 55.7 GPT-4 makes a mistake in writing the proof and
+GPT-4 55.3 59.2 62.1 66.9
+producingthefinaltruthvalue. Thelogicalreason-
+ing example and the GPT-4 output are shown in
+Table9: Pass@kresultsforGPT-3.5andGPT-4
+Table11. Thismistakehappensduetothemodel’s
+inabilitytoformthecorrectreasoningchainfora
+AddedRuleType Accuracy(%)
+complexprobleminvolvinglotsofsteps,whichis
+Complexrules 70.60 also the main cause of most model failures. No-
+Widely-usedrules 63.20 tably, in this scenario, the model indeed follows
+formal rules in each step perfectly and can make
+Table10: FinalansweraccuracyofGPT-4withhuman- correctderivationsbasedonthepremisesprovided.
+writtenderivations
+However,itisunabletoreachaconclusionbecause
+itisunabletocorrectlyderivecertaincrucialinter-
+mediatestepsinthereasoningprocess. Weobserve
+of LLM reasoning capabilities, we conducted an
+asimilarpatternacrossdifferentexamplesthatre-
+experimentbyaugmentingtheoriginallogicalrea-
+quire 10 reasoning steps or more. As we can see
+soningexampleswithadditionalderivations. First,
+fromtheGPT-4output,themodelfailstofindthe
+wecreatedasetofexamplesbyaddingderivations
+correctreasoningchain,therebynotfindingthefi-
+derivedexclusivelyfromwidely-usedrules,ensur-
+nalconclusionandproducing"Uncertain"forthe
+ing that no complex or less common rules were
+truthvaluealthoughthecorrectanswershouldbe
+included. Next,wecreatedanothersetofexamples
+"True". Inparticular,themodelfailstoarriveatthe
+byincorporatingderivationsthatwerebasedsolely
+derivationthat"NoonebothhasvisitedIbizaand
+onwell-establishedrules,explicitlyexcludingany
+neverlefttheUnitedStates.",whichcanbederived
+derivationsthatoriginatedfromwidely-usedrules.
+from"IfsomeonehasvisitedIbiza,thentheyhave
+Thisapproachallowedustoisolatetheimpactof
+left the United States." using one of the complex
+differenttypesofinferencerulesonthereasoning
+rules: "froma → ¬b,weknow¬(a∧b)".
+performanceofLLMs.
+Table10reportsthezero-shotpromptingperfor-
+7 Conclusion
+manceofGPT-4onthetwonewsetofaugmented
+exampleswecreated. TheresultsrevealthatGPT- WepresentedP-FOLIO,anewdatasetconsisting
+4 achieves much higher accuracy on the set aug- ofhuman-writtenproofsforFOLIO,asetofreal-
+mented with complex inference rule derivations, istic logical reasoning stories written by humans.
+at 70.60%, compared to an accuracy of 63.20% 26% of a total of 1430 proofs in P-FOLIO con-
+onthesetwithwidely-usedrulederivations. This sist of more than five reasoning steps and 4% of
+indicates that while GPT-4 performs better when proofs consist of more than 10 reasoning steps.
+leveraging complex inference rules, the creation WefurtheruseP-FOLIOtoevaluateandimprove
+ofnewderivationsusingtheserulescouldposea large-language-modelreasoningcapabilities. We
+significantchallenge,potentiallyactingasabottle- propose tasks with different levels of granulari-
+neck for large language model (LLM) reasoning. tiesandusevariousmetricstoevaluatetheperfor-
+This suggests that further advancements in han- mance of LLM reasoning capabilities. We show
+dling complex rule derivations may be necessary thathuman-writtenreasoningchainssignificantly
+to improve the overall reasoning capabilities of boost the logical reasoning capabilities of LLMs
+LLMs. via many-shot prompting and fine-tuning. Fine-Prompt
+Usingdeductivereasoning, findoutthetruthvaluesoftheconclusionsbasedonthepremises. Thetruthvaluecanbe
+True,FalseorUncertain.Firstshowthereasoningprocess,andthenoutputthetruthvalueintheformatof"Truthvalue:".
+Premises:1.IfsomeonehasneverlefttheUnitedStates,thentheyhavenotbeentoEurope.2.Ifsomeonehastraveledto
+theIberianPeninsula,thentheyhavebeentoEurope. 3. EveryonewhohasvisitedBarcelonahastraveledtotheIberian
+Peninsula.4.EveryonewhohastakenaselfieattheBasilicaFamiliaSagradahasvisitedMadrid.5.IfKatehaseithertaken
+aselfieattheBasilicaFamiliaSagradaorhasneverlefttheUnitedStates,thenKatehasnoteithervisitedBarcelonaornever
+lefttheUnitedStates.
+Conclusion:KatehasnottakenaselfieattheBasilicaFamiliaSagrada.
+GPT-4Output
+Reasoningprocess:Let’sanalyzethepremisesandseeifwecandeducethetruthvalueoftheconclusion.
+Premise1: IfsomeonehasneverlefttheUnitedStates,thentheyhavenotbeentoEurope. Premise2: Ifsomeonehas
+traveledtotheIberianPeninsula,thentheyhavebeentoEurope.Premise3:EveryonewhohasvisitedBarcelonahastraveled
+totheIberianPeninsula. Premise4:EveryonewhohastakenaselfieattheBasilicaFamiliaSagradahasvisitedMadrid.
+Premise5:IfKatehaseithertakenaselfieattheBasilicaFamiliaSagradaorhasneverlefttheUnitedStates,thenKatehas
+noteithervisitedBarcelonaorneverlefttheUnitedStates....Verbatimrepetitionoftheoriginalpremises...
+Conclusion:KatehasnottakenaselfieattheBasilicaFamiliaSagrada.
+FromPremise5,weknowthatifKatehastakenaselfieattheBasilicaFamiliaSagrada,thenshehasvisitedBarcelonaor
+lefttheUnitedStates.However,wedon’thaveanyinformationaboutwhetherKatehasactuallytakenaselfieattheBasilica
+FamiliaSagradaornot.Therefore,wecannotdeducethetruthvalueoftheconclusionbasedonthegivenpremises.
+Truthvalue:Uncertain
+Table11: CaseStudy
+tuning on P-FOLIO improves the model perfor- Guss,AlexNichol,AlexPaino,NikolasTezak,Jie
+mance by more than 10% on three other out-of- Tang,IgorBabuschkin,SuchirBalaji,ShantanuJain,
+William Saunders, Christopher Hesse, Andrew N.
+domainlogicalreasoningdatasets. Weconductde-
+Carr,JanLeike,JoshuaAchiam,VedantMisra,Evan
+tailedanalysistoshowwheremostpowefulLLMs
+Morikawa, Alec Radford, Matthew Knight, Miles
+fallshortinreasoning. Brundage,MiraMurati,KatieMayer,PeterWelinder,
+BobMcGrew,DarioAmodei,SamMcCandlish,Ilya
+8 Limitations Sutskever,andWojciechZaremba.2021a. Evaluat-
+inglargelanguagemodelstrainedoncode. CoRR,
+Theabundanthuman-writtenreasoningchainsin abs/2107.03374.
+P-FOLIOcanbeusedinmanyotherwaysthatwe
+Mark Chen, Jerry Tworek, Heewoo Jun, Qiming
+havenotexplored. Forinstance,bootstrappingwith Yuan,HenriquePonde,JaredKaplan,HarrisonEd-
+abundant human-written reasoning chains could wards,YuraBurda,NicholasJoseph,GregBrockman,
+furtherimprovetheperformanceofbootstrapping Alex Ray, Raul Puri, Gretchen Krueger, Michael
+Petrov,HeidyKhlaaf,GirishSastry,PamelaMishkin,
+with limited human-written rationales (Zelikman
+Brooke Chan, Scott Gray, Nick Ryder, Mikhail
+etal.,2022).
+Pavlov, Alethea Power, Lukasz Kaiser, Moham-
+madBavarian,ClemensWinter,PhilippeTillet,Fe-
+lipePetroskiSuch,DavidW.Cummings,Matthias
+References Plappert, Fotios Chantzis, Elizabeth Barnes, Ariel
+Herbert-Voss, William H. Guss, Alex Nichol, Igor
+YejinBang,SamuelCahyawijaya,NayeonLee,Wen- Babuschkin, SuchirBalaji, ShantanuJain, Andrew
+liangDai,DanSu,BryanWilie,HolyLovenia,Ziwei Carr,JanLeike,JoshuaAchiam,VedantMisra,Evan
+Ji, Tiezheng Yu, Willy Chung, Quyet V. Do, Yan Morikawa,AlecRadford,MatthewM.Knight,Miles
+Xu,andPascaleFung.2023. Amultitask,multilin- Brundage,MiraMurati,KatieMayer,PeterWelinder,
+gual,multimodalevaluationofchatgptonreasoning, BobMcGrew,DarioAmodei,SamMcCandlish,Ilya
+hallucination,andinteractivity. Sutskever,andWojciechZaremba.2021b. Evaluat-
+inglargelanguagemodelstrainedoncode. ArXiv,
+MarkChen,JerryTworek,HeewooJun,QimingYuan, abs/2107.03374.
+Henrique Pondé de Oliveira Pinto, Jared Kaplan,
+Harrison Edwards, Yuri Burda, Nicholas Joseph, HyungWonChung,LeHou,ShayneLongpre,Barret
+Greg Brockman, Alex Ray, Raul Puri, Gretchen Zoph,YiTay,WilliamFedus,EricLi,XuezhiWang,
+Krueger,MichaelPetrov,HeidyKhlaaf,GirishSas- MostafaDehghani,SiddharthaBrahma,AlbertWeb-
+try, Pamela Mishkin, Brooke Chan, Scott Gray, son, Shixiang Shane Gu, Zhuyun Dai, Mirac Suz-
+NickRyder,MikhailPavlov,AletheaPower,Lukasz gun,XinyunChen,AakankshaChowdhery,Sharan
+Kaiser, Mohammad Bavarian, Clemens Winter, Narang,GauravMishra,AdamsYu,VincentZhao,
+Philippe Tillet, Felipe Petroski Such, Dave Cum- Yanping Huang, Andrew Dai, Hongkun Yu, Slav
+mings, Matthias Plappert, Fotios Chantzis, Eliza- Petrov, EdH.Chi, JeffDean, JacobDevlin, Adam
+beth Barnes, Ariel Herbert-Voss, William Hebgen Roberts, DennyZhou, QuocV.Le, andJasonWei.2022. Scalinginstruction-finetunedlanguagemod- MihirParmar,NisargPatel,NeerajVarshney,Mutsumi
+els. Nakamura, Man Luo, Santosh Mashetty, Arindam
+Mitra,andChittaBaral.2024. LogicBench: Towards
+AntoniaCreswell,MurrayShanahan,andIrinaHiggins. systematicevaluationoflogicalreasoningabilityof
+2022. Selection-inference:Exploitinglargelanguage largelanguagemodels. InProceedingsofthe62nd
+models for interpretable logical reasoning. arXiv AnnualMeetingoftheAssociationforComputational
+preprintarXiv:2205.09712. Linguistics(Volume1: LongPapers),pages13679–
+13707,Bangkok,Thailand.AssociationforCompu-
+AbhimanyuDubey,AbhinavJauhri,andOthers.2024. tationalLinguistics.
+Thellama3herdofmodels.
+BenPrystawski,MichaelY.Li,andNoahD.Goodman.
+SimengHan,HaileySchoelkopf,YilunZhao,Zhenting 2023. Whythinkstepbystep? reasoningemerges
+Qi, Martin Riddell, Luke Benson, Lucy Sun, Eka- fromthelocalityofexperience.
+terinaZubova,YujieQiao,MatthewBurtell,David
+Peng, Jonathan Fan, Yixin Liu, Brian Wong, Mal- LeonardoRanaldiandAndreFreitas.2024. Aligning
+colmSailor,AnsongNi,LinyongNan,JungoKasai, largeandsmalllanguagemodelsviachain-of-thought
+TaoYu,RuiZhang,ShafiqJoty,AlexanderR.Fab- reasoning. InProceedingsofthe18thConferenceof
+bri,WojciechKryscinski,XiVictoriaLin,Caiming theEuropeanChapteroftheAssociationforCompu-
+Xiong,andDragomirRadev.2022. Folio: Natural tationalLinguistics(Volume1: LongPapers),pages
+languagereasoningwithfirst-orderlogic. 1812–1827,St.Julian’s,Malta.AssociationforCom-
+putationalLinguistics.
+SumithKulal,PanupongPasupat,KartikChandra,Mina
+Lee, Oded Padon, Alex Aiken, and Percy S Liang. StuartRussellandPeterNorvig.2010. ArtificialIntel-
+2019. Spoc: Search-basedpseudocodetocode. Ad- ligence: A Modern Approach, 3 edition. Prentice
+vances in Neural Information Processing Systems, Hall.
+32.
+SwarnadeepSaha,SayanGhosh,ShashankSrivastava,
+Chin-Yew Lin. 2004. ROUGE: A package for auto- andMohitBansal.2020. PRover: Proofgeneration
+maticevaluationofsummaries. InTextSummariza- forinterpretablereasoningoverrules. InProceedings
+tionBranchesOut,pages74–81,Barcelona,Spain. ofthe2020ConferenceonEmpiricalMethodsinNat-
+AssociationforComputationalLinguistics. uralLanguageProcessing(EMNLP),pages122–136,
+Online.AssociationforComputationalLinguistics.
+ManLuo,ShrinidhiKumbhar,Mingshen,MihirParmar,
+NeerajVarshney,PratyayBanerjee,SomakAditya, Swarnadeep Saha, Prateek Yadav, and Mohit Bansal.
+andChittaBaral.2024. Towardslogiglue: Abrief 2021. multiPRover: Generatingmultipleproofsfor
+surveyandabenchmarkforanalyzinglogicalreason- improvedinterpretabilityinrulereasoning. InPro-
+ingcapabilitiesoflanguagemodels. ceedingsofthe2021ConferenceoftheNorthAmer-
+icanChapteroftheAssociationforComputational
+TerufumiMorishita,GakuMorio,AtsukiYamaguchi, Linguistics: HumanLanguageTechnologies,pages
+andYasuhiroSogawa.2023. Learningdeductiverea- 3662–3677,Online.AssociationforComputational
+soningfromsyntheticcorpusbasedonformallogic. Linguistics.
+InProceedingsofthe40thInternationalConference
+onMachineLearning, volume202ofProceedings AbulhairSaparovandHeHe.2023. Languagemodels
+ofMachineLearningResearch,pages25254–25274. can(kindof)reason: Asystematicformalanalysis
+PMLR. ofchain-of-thought. InInternationalConferenceon
+LearningRepresentations.
+TheoOlausson,AlexGu,BenLipkin,CedegaoZhang,
+Armando Solar-Lezama, Joshua Tenenbaum, and AbulhairSaparov,RichardYuanzhePang,VishakhPad-
+RogerLevy.2023. LINC:Aneurosymbolicapproach makumar, Nitish Joshi, Mehran Kazemi, Najoung
+forlogicalreasoningbycombininglanguagemodels Kim,andHeHe.2023. Testingthegeneraldeductive
+withfirst-orderlogicprovers. InProceedingsofthe reasoningcapacityoflargelanguagemodelsusing
+2023ConferenceonEmpiricalMethodsinNatural OOD examples. In Thirty-seventh Conference on
+LanguageProcessing,pages5153–5176,Singapore. NeuralInformationProcessingSystems.
+AssociationforComputationalLinguistics.
+OyvindTafjord,BhavanaDalvi,andPeterClark.2021.
+OpenAI,JoshAchiam,andOthers.2023. Gpt-4techni- ProofWriter: Generating implications, proofs, and
+calreport. abductivestatementsovernaturallanguage. InFind-
+ingsoftheAssociationforComputationalLinguis-
+Liangming Pan, Alon Albalak, Xinyi Wang, and tics: ACL-IJCNLP2021,pages3621–3634,Online.
+WilliamWang.2023. Logic-LM:Empoweringlarge AssociationforComputationalLinguistics.
+languagemodelswithsymbolicsolversforfaithful
+logical reasoning. In Findings of the Association JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+forComputationalLinguistics: EMNLP2023,pages Bosma, Ed Chi, Quoc Le, and Denny Zhou. 2022.
+3806–3824, Singapore. Association for Computa- Chainofthoughtpromptingelicitsreasoninginlarge
+tionalLinguistics. languagemodels. arXivpreprintarXiv:2201.11903.JasonWeston,AntoineBordes,SumitChopra,Alexan-
+derM.Rush,BartvanMerriënboer,ArmandJoulin,
+and Tomas Mikolov. 2015. Towards ai-complete
+questionanswering: Asetofprerequisitetoytasks.
+Kaiyu Yang, Jia Deng, and Danqi Chen. 2022. Gen-
+eratingnaturallanguageproofswithverifier-guided
+search. InProceedingsofthe2022Conferenceon
+EmpiricalMethodsinNaturalLanguageProcessing,
+pages 89–105, Abu Dhabi, United Arab Emirates.
+AssociationforComputationalLinguistics.
+Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+Thomas L. Griffiths, Yuan Cao, and Karthik
+Narasimhan. 2023. Tree of Thoughts: Deliberate
+problemsolvingwithlargelanguagemodels.
+EricZelikman,YuhuaiWu,JesseMu,andNoahGood-
+man.2022. STar: Bootstrappingreasoningwithrea-
+soning. InAdvancesinNeuralInformationProcess-
+ingSystems.
+PeiZhou,JayPujara,XiangRen,XinyunChen,Heng-
+Tze Cheng, Quoc V. Le, Ed H. Chi, Denny Zhou,
+SwaroopMishra,andHuaixiuStevenZheng.2024.
+Self-discover: Largelanguagemodelsself-compose
+reasoningstructures.
+A Appendix
+A.1 AnnotationGuidelines
+We provide the detailed annotation guidelines in
+Table12.
+A.2 InstructionusedintheGPT-4prompt
+Table13showstheinstructionusedintheGPT-4
+prompt.
+A.3 Promptusedforevaluatingreasoning
+path
+WeprovideanexampleinTable14includingour
+promptusedandGPT-4inputandoutputforhow
+GPT-4isusedtoevaluatewhethertworeasoning
+chainsfollowasimilarpathtoreachtheirconclu-
+sions.
+A.4 Hyper-parametersettings
+Forfine-tuningFlan-T5-Large,weusealearning
+rateof1e-4,batchsizeof8,gradientaccumulation
+of2,warmupstepof100andthemodelwastrained
+for3epochs. Forfine-tuningLLama-8b,weusea
+learningrateof2e-5,batchsizeof1andgradient
+accumulationof8. Thewarmupstepsweresetto
+25andthemodelwastrainedfor3epochs.Writeaproofforeachconclusioninastory.Writetherelevantderivationateachinferencestepandtheruleofinference.
+Pleasethinkabouttheformsoftheinputpremisesandconclusionscarefully. Iftheformsdonotcorrespondtoarulein
+theinstructions,thenyoushouldnotuseitwithoutverifyingit.Youcaninventnewrulesyourselves.Butpleaseverifythe
+correctnessoftheruleswiththetruthtablecalculatorhere.Iftheruleisnotsuccessfullyverified,pleasedonotuseit.Ifitis
+successfullyverified,youcanaddittotheupdatedlistanduseit.
+Do’s:
+***Writetheinferenceruleusedforeachinferencestep. Forinferencerules,pleaserefertothispage. Ifyouthinkthe
+inferencerulesneededarenotincludedinthislist,pleaseaddthemtotheupdatedlistbelow.
+...Establishedinferenceruledefinitionswithexamples...
+IntuitivelyandLogicallyCorrectRules:Therearesomerulesthatmightbeneededintheproofprocedurebutthatare
+hardtobederived.Thesesrulesdonothaveacommonlyagreedname,wearelistingtheserulesasbelow:
+***¬(a⊕b)isequivalentto(¬a∧¬b)or¬(a∧b).
+***ANDEquivalent1:a→¬bisequivalentto¬(a∧b)
+***XOR1:¬(a⊕¬b)isequivalentto(a⊕b)
+***XOR2:(a⊕b)isequivalentto(¬a⊕¬b)
+***XOR3:(¬b⊕b)isalwaystrue.
+***XOR4:From(a⊕b),weknowthata→¬b.
+***XOR5:From¬(a⊕b),weknowthata→b.
+***XOR6:Froma→bandb→a,weknowthat¬(a⊕b).
+***IMPAND1:Froma→¬b,weknowthat¬(a∧b).
+***XORUni1:From∀x(C(x)→¬A(x)),∀x(A(x)⊕B(x)),weknowthat∀x(C(x)→B(x)).
+***XORUni2:From∀x(A(x)→B(x)),∀x(A(x)⊕B(x)),weknowthat∀x(B(x)).
+***XORUni3:From∀x(A(x)⊕B(x))and∀x(A(x)→C(x)),weknowthat∀x(C(x)∨B(x)).
+***OREquivalent1:(a∨b)∧(a∨¬b)isequivalenttoa
+***ANDUni1:From∀x(A(x)→C(x))andA(paul)∧B(paul)”,weknowthat"C(paul)∧B(paul)".
+***ORUni1:From∀x(A(x)∨B(x))and∀x(A(x)→C(x)),weknowthat∀x(C(x)⊕B(x)).
+***ORUni2:From∀x(A(x)→C(x)),A(paul)∨B(paul),weknowthatC(paul)∨B(paul).
+***ORUni3:From∀x(¬C(x)→A(x)),A(paul)∨B(paul),weknowthat¬C(paul)∨B(paul).
+***ORUni4:From∀x(A(x)→C(x))and∀x(B(x)→C(x)),weknowthat∀x((A(x)∨B(x))→C(x)).
+***Note:From¬a→b,wecannotknow¬(a∧b).
+***Note:From∀x(A(x)⊕B(x))and∀x(A(x)→C(x)),wecannotinfer∀x(C(x)⊕B(x)).
+***Alsonote: From∀x(A(x) → D(x))andA(paul)∨B(paul) → C(paul),wecannotinferD(paul)∨B(paul) →
+C(paul).
+***ORUni5:From∀x(C(x)→¬A(x)),∀x(A(x)∨B(x)),weknowthat∀x(C(x)→B(x)).
+***Iffintroduction:IfA,thenB.IfB,thenA.Then,eitherbothAandBorneitherAnorB.
+***Forcomplicatedconclusions,sometimesprovingpartofthemissufficient.AorB.Aistrue->theconclusionistrue.A
+->B.Aisfalse->theconclusionisfalse.ForconclusionswithtruthvaluesofFalse,provetheoppositeisTrue.
+***Forthesakeofannotationpurposes,either..orinanycontextisexclusive,orisinclusive.Forexample,ifIcaneither
+sleepathometodayorgotoclass,thismeansthatIcanchoosetosleepathome,gotoclass,butnotboth.WhereasifIcanI
+candrinksodaordrinkcoffee,itmeansIcandrinksoda,coffee,orboth.
+***Whenwesaythatsomeoneisnotanenergeticpersonorasloth,thismeansthatsomeoneisneitheranenergeticperson
+norasloth.
+***¬(Indian(jesse)⊕Human(jesse)):JessieiseitherIndianandhuman,orthatheisneitherIndiannorhuman.Inseveral
+instances,thissentenceisrenderedas"JesseeisnoteitheranIndianorahuman."
+Proofconsistencycheck:
+***Pleaseinvolveatmosttwopremisesinoneinferencestep.
+***Besuretowritetheconjunctionintroductionsteps.
+***Existentialgeneralizationcheck:BroadwaySheetmetalswasabusinessownedbyEdwinSmith,whowasarower.->
+Therewasabusinessownedbyarower.Therearetwostepsofexistentialgeneralizationinvolved.Besuretowriteboth
+steps.
+***Donotusederivationsusedforapreviousconclusioninanewconclusion.IfconclusionAusescertaininferencesteps
+ofconclusionByouhavewrittentheprooffor,besuretocopythoseinferencestepsintheproofofconclusionA.
+***Checkformissingmodustollenssteps.
+***Notethedifferencebetweenmodustollensandtransposition.
+***Notethedifferencebetweenhypotheticalsyllogism,modusponensanduniversalinstantiation.
+***Hypotheticalsyllogismshouldbeeasytodistinguishfromtheothertwosincehypotheticalsyllogismwouldinvolvetwo
+implications(->).Boththepremisesneedtohaveimplicationsinordertoderivetheconclusion.
+***Universalinstantiationandmodusponesbothinvolveonlyoneimplication
+***Universalinstantiationinvolvestheuniversalquantifier,youcanchecktheFOLpartifyouarenotsureifastatement
+involvestheuniversalquantifier.
+***Modusponensdoesnotinvolvetheuniversalquantifier.
+***Note:A(a)xorB(a)implyA(a)orB(a);A(a)orB(a)cannotimplyA(a)xorB(a).
+***Hypotheticalsyllogisminsteadofuniversalinstantiation: Ifyouhaveroomfordessert,youhaveroomforbroccoli.
+EveryoneatLuis’sdinnerpartyhasroomfordessert,includingLuis. ->EveryoneatLuis’sdinnerpartyhasroomfor
+broccoli.
+Table12: AnnotationguidelinesUsingdeductivereasoning,findoutthetruthvaluesoftheconclusionsbasedonthepremises. Thetruth
+valuecanbeTrue,FalseorUncertain. Firstshowthereasoningprocess,andthenoutputthetruthvalue
+intheformatof"Truthvalue: ".
+Table13: InstructionusedforpromptingGPT-4forzero-shotproofgeneration.
+Prompt
+Givenadeductivereasoningquestion,demonstratewhetherthetworeasoningchainsaresemanticallysimilarandfollow
+thesamereasoningpathtoderivethefinalanswer.Afteryourexplanations,outputyourdecisionintheformatof"Decision:
+".YourdecisionshouldbeeitherYesorNo.
+Premises: 1. NorthwichVictoriaFCisafootballclubthatplaysatWinchamPark. 2. SimonHackneyisamemberof
+NorthwichVictoriaFC.3.NorthwichVictoriaFCispartoftheNorthernPremierLeague.4.Ifsomeoneisamemberofan
+organizationthatispartofagroup,thenthepersonisamemberofthegroup.5.Ifsomeoneisamemberofanorganization
+andtheorganizationplaysatacertainplace,thenthepersonplaysattheplace.
+Conclusion:SimonHackneyisamemberoftheNorthernPremierLeague.
+ReasoningchainA:Reasoningprocess:1.SimonHackneyisamemberofNorthwichVictoriaFC(Premise2).2.Northwich
+VictoriaFCispartoftheNorthernPremierLeague(Premise3).3.Ifsomeoneisamemberofanorganizationthatispartof
+agroup,thenthepersonisamemberofthegroup(Premise4).4.Therefore,SimonHackneyisamemberoftheNorthern
+PremierLeague(from1,2,and3).
+ReasoningchainB:Reasoningprocess: Frompremise2andpremise3,weknowthatSimonHackneyisamemberof
+NorthwichVictoriaFC,whichisapartoftheNorthernPremierLeague. Fromthisandpremise4,weknowthatSimon
+HackneyisamemberintheNorthernPremierLeague.
+GPT-4Output
+AnalyzingReasoningChainA:Step1: ItassertsthatSimonHackneyisamemberofNorthwichVictoriaFC,which
+directlyusesPremise2. Step2: ItstatesthatNorthwichVictoriaFCispartoftheNorthernPremierLeague,utilizing
+Premise3.Step3:ItinvokestherulefromPremise4,whichisaconditionalstatementaboutmembershipextensionfroman
+organizationtoagroup.Step4:Thisistheconclusionstepthatsynthesizestheinformationfromsteps1,2,and3toconclude
+thatSimonHackneyisamemberoftheNorthernPremierLeague. Thisfollowsalogicalanddirectapplicationofthe
+premises.AnalyzingReasoningChainB:InitialStatement:AcknowledgesthatSimonHackneyisamemberofNorthwich
+VictoriaFC(fromPremise2)andthattheclubispartoftheNorthernPremierLeague(fromPremise3).SubsequentLogic:
+DirectlyappliesPremise4,whichrelatesindividualmembershipinanorganizationtomembershipinabroadergroupifthe
+organizationispartofthatgroup.Conclusion:ConcludesthatSimonHackneyisamemberoftheNorthernPremierLeague,
+whichalignswiththeconclusionfromtheinitialstatementandtheapplicationofPremise4. ComparisonandDecision:
+Bothreasoningchainsfollowthesamelogicalstructure:TheyacknowledgeSimonHackney’smembershipinNorthwich
+VictoriaFC.Theyrecognizetheclub’saffiliationwiththeNorthernPremierLeague.Theyapplythesamegeneralrulefrom
+Premise4toextendSimon’smembershipfromtheclubtotheleague.Theprimarydifferenceliesintheexplicitnessand
+breakdownofsteps:ChainAismorestructuredanddelineated,breakingdowneachlogicalstepexplicitly.ChainBismore
+concise,combiningsomestepsbutstillfollowingthesamelogicalpathway.Decision:Yes—Bothreasoningchainsare
+semanticallysimilarandfollowthesamereasoningpathtoderivethefinalanswer.
+Table14: Exampleincludingprompt,GPT-4modelinputandoutputforevaluatingwhethertwomodeloutputs
+followingthesamereasoningpath.

@@ -1,0 +1,744 @@
+Automatic Engineering of Long Prompts
+Cho-JuiHsieh,SiSi,FelixX.Yu,InderjitS.Dhillon
+GoogleInc.
+{cjhsieh, sisidaisy, felixyu, isd}@google.com
+Abstract challenging tasks (Brown et al., 2020; Wei et al.,
+2022b), including those involving mathematical
+Largelanguagemodels(LLMs)havedemon- problem-solving(Cobbeetal.,2021)andreason-
+strated remarkable capabilities in solving
+ing (Suzgun et al., 2022; Srivastava et al., 2022).
+complexopen-domaintasks,guidedbycom-
+However,effectivepromptsfortacklingcomplex
+prehensiveinstructionsanddemonstrations
+tasks often contain thousands of tokens, posing
+providedintheformofprompts. However,
+thesepromptscanbelengthy,oftencompris- challengesindesigningandoptimizingthem. Fig-
+ing hundreds of lines and thousands of to- ure1demonstratesalongpromptforataskinBig
+kens,andtheirdesignoftenrequiresconsid- BenchHard(Suzgunetal.,2022),whichcontains
+erable human effort. Recent research has aninstructionandseveraldemos,eachwithhuman-
+exploredautomaticpromptengineeringfor
+writtenchain-of-thoughts.
+shortprompts,typicallyconsistingofoneor
+Numerousstudieshavedemonstratedthesensi-
+afewsentences. However,theautomaticde-
+signoflongpromptsremainsachallenging tivity of LLMs to prompts, revealing that minor
+problemduetoitsimmensesearchspace. In modifications, such as adding or removing a few
+this paper, we investigate the performance tokensorrephrasingtheprompt,cansignificantly
+ofgreedyalgorithmsandgeneticalgorithms impact LLM performance (Liu et al., 2023; Zhu
+forautomaticlongpromptengineering. We
+etal.,2023;Jiangetal.,2020). Therefore,prompt
+demonstratethatasimplegreedyapproach
+designhasbecomealabor-intensiveendeavor. Fur-
+withbeamsearchoutperformsothermethods
+thercomplicatingthematteristherapidevolution
+intermsofsearchefficiency. Moreover,we
+ofLLMs,renderingpromptscraftedforaspecific
+introducetwonoveltechniquesthatutilize
+searchhistorytoenhancetheeffectivenessof LLMineffectivewhenappliedtoanewerversion
+LLM-basedmutationinoursearchalgorithm. of LLM. This highlights the need for automatic
+Ourresultsshowthattheproposedautomatic promptengineeringtechniques.
+longpromptengineeringalgorithmachieves
+While automatic prompt engineering has been
+anaverageof9.2%accuracygainoneight
+studied recently, existing research (Deng et al.,
+tasks in Big Bench Hard, highlighting the
+significance of automating prompt designs 2022;Xuetal.,2022;Guoetal.,2023;Fernando
+tofullyharnessthecapabilitiesofLLMs. et al., 2023) focuses on optimizing short instruc-
+tionswithoneorafewsentences. Thesemethods
+either evolve prompts by searching for word re-
+1 Introduction
+placements or utilize LLMs to rewrite the entire
+Large language models (LLMs) have exhibited prompt(Xuetal.,2022;Fernandoetal.,2023;Guo
+remarkable capabilities when trained on large et al., 2023; Yang et al., 2023). It is challenging
+datasets, demonstrating the ability to compre- toapplythemforevolvingalongpromptlikeFig-
+hendcomplexandlengthyinstructionsfordiverse ure1. Forlongprompts,wordreplacement-based
+taskswithouttheneedforfine-tuning(Weietal., searchfacesanimmensesearchspace,whilerewrit-
+2022a; Brown et al., 2020; Chowdhery et al., ingtheentirepromptusingasingleLLMqueryis
+2022; Ouyang et al., 2022). Several prompt de- extremely difficult. Although it is possible to ap-
+signprincipleshaveemergedinrecentyears,sug- ply these methods to individual sentences within
+gesting that incorporating more complex instruc- a prompt, we have observed that tuning a single
+tions, demonstrations, and chain-of-thought rea- sentencemaynotsufficientlyimprovetheperfor-
+soningintopromptscanboosttheperformanceon manceoflongprompts(seeSection4). Therefore,
+3202
+voN
+61
+]IA.sc[
+1v71101.1132:viXraFigure1: Leftpanel: theaverageaccuracyimprovementsoftheproposedmethodover3runswith50
+iterationsonthetrainingset. Wereporttheaccuracyonthewholeset(includingtrainingandtestsets).
+More detailed results can be found in Table 2. Right panel: An example of a long prompt in BBH
+(Disambiguation task) which consists of an instruction, several demo examples and chain-of-thought
+reasoning. We show that by rewriting a few selected sentences in this long prompt with our proposed
+method,wecanimprovetheaccuracybymorethan10%.
+howtoautomaticallyfindbetterlongpomptsand Srivastavaetal.,2022),wherepromptscom-
+what’s the potential performance gain by tuning prise thousands of tokens, including instruc-
+longpromptsremainunansweredintheliterature. tions and chain-of-thought reasoning. Our
+Themainoperationinourautomaticprompten- results demonstrate that the proposed auto-
+gineeringtechniqueistoreplaceasentencebyase- maticlongpromptengineeringmethodsignif-
+manticallyequivalentsentence,whichcanbedone icantly enhances performance. Notably, we
+by queries to LLMs. By comparing the pros and achieved an average of 9.2% absolute accu-
+cons of greedy algorithm and genetic algorithm, racyimprovementson8tasksselectedfrom
+tworepresentativealgorithmsfordiscreteoptimiza- BBH,asshowninFigure1,withonly50eval-
+tion,weshowthatasimplegreedyalgorithmwith uationsonthetrainingset.
+beam search is more effective. Further, for long
+promptengineeringitisimportanttoidentifywhich 2 RelatedWork
+sentencetochange,andtowhatdirection. Wethus
+The remarkable ability of large language models
+propose two novel techniques that utilize search
+(LLMs) to perform complex tasks without fine-
+historytoenhancetheeffectivenessofLLM-based
+tuningthroughpromptinghassignificantlybroad-
+mutationinouralgorithm.
+enedtheirapplicability. Asaresult,designingef-
+Ourcontributionscanbesummarizedbelow:
+fectivepromptstofullyexploitthecapabilitiesof
+• To the best of our knowledge, this paper
+LLMshasbecomeanimportanttopic. Manyprin-
+presents the first formal discussion of auto-
+cipal ways for prompt design have been studied
+matic long prompt engineering, demonstrat-
+recently (Reynolds and McDonell, 2021; Brown
+ingsubstantialperformancegainsonmultiple
+etal.,2020;Weietal.,2022b;Wangetal.,2022a,
+tasks.
+2023a). Forinstance,awell-designedpromptmay
+includeasystemprompt(e.g.,"youareanAIpro-
+• We propose a greedy algorithm with beam
+grammingassistant"),aninstructionpromptoutlin-
+searchthatcanrapidlyoptimizeprompts. Fur-
+ingthetask, multiplecontextualexamples, anda
+thermore,anovelguidedmutationmethodis
+chain-of-thoughtsreasoningsectionthatexplains
+introducedtoenhanceconvergence.
+thestep-by-stepthoughtprocessbehindtheexam-
+• WeconductedexperimentsontheBigBench ples. By incorporating these elements, effective
+Hard(BBH)benchmark(Suzgunetal.,2022; promptsoftenhavetensofsentencesandthousandsoftokens. promptsfromgivenpairs. (Pryzantetal.,2023)ex-
+ploredtheutilizationofinput-outputpairfeedback
+An orthogonal line of previous work has ex-
+to refine instructions, while (Chen et al., 2023)
+plored soft-prompt tuning, a technique that op-
+developed a continuous relaxation approach em-
+timizes prompts within a continuous embedding
+ployingBayesianoptimizationforsearchwithina
+space using standard continuous optimization al-
+continuousspace.
+gorithms (Lester et al., 2021; Zhang et al., 2021;
+Wang et al., 2022b). While capable of achieving
+3 ProposedMethod
+satisfactoryperformance,soft-promptslackinter-
+pretability and cannot be applied via LLM APIs.
+In this paper, we address the challenge of auto-
+Additionally,theseparameter-efficientfine-tuning
+maticlongpromptengineeringforlanguagemod-
+methodsdemandlargetrainingsets,makingthem
+els. Given a language model L and an initial
+unsuitableforapplicationswithlimiteddata,such
+prompt p designed by human for a particular
+init
+asthosewithonlytensorhundredsofsamples.
+task, our goal is to refine the prompt to achieve
+Given the limited availability of training data superiorperformance. Toenhancetheprompt,we
+(<1000samples),ourfocusliesinexploringstrate- areprovidedwithalimitedtrainingset(e.g.,100
+giesforoptimizinghardprompts,whichareseman- input-outputpairs){(x ,y )}n forperformance
+i i i=1
+ticallyequivalenttotheoriginalpromptsbutyield evaluation. Specifically, foreach samplewecon-
+superiorperformance. Inthecontextofautomated duct prediction by L([p,x ]) and assess its agree-
+i
+prompt engineering, the literature considers two mentwiththecorrespondinggroundtruthlabely .
+i
+primary settings. The first setting, which aligns We define score(p) as the performance metric of
+with our work, assumes the existence of an ini- promptponthetrainingset. Weconsiderthesce-
+tial human-crafted prompt and aims to refine or nariowherethenumberofavailablesamplesnis
+improveittoachieveenhancedperformance. Sev- limited, whichisacommonsituationwhereindi-
+eraldiscretesearchalgorithmshavebeenproposed viduals lack sufficient data for model fine-tuning
+for this setting: (Xu et al., 2022) employs a ge- butcanstillutilizethedatatodesignanimproved
+netic algorithm for prompt tuning, utilizing back hardprompt. Wewillevaluategeneralizationper-
+translation,clozetasks,andsentencecontinuation formanceonahold-outtestsetthatisnotusedin
+to mutate the initial instruction. More recently, promptsearch.
+(Fernandoetal.,2023;Guoetal.,2023)proposed Inthissection,wewillfirstintroducethesearch
+leveragingLLMsformutationandcrossoveroper- spaceofouralgorithmandanexplorationofhowto
+ationsinevolutionarysearches,while(Yangetal., useLLMtonavigatethisspace(Section3.1). We
+2023)demonstratedtheoptimizationcapabilities thendelveintotheproposedgreedyalgorithmwith
+ofLLMsingeneratingimprovedpromptvariations beamsearch,highlightingitsadvantagesoverboth
+based on previous fitness scores. However, these vanillagreedyalgorithmsandgeneticalgorithms
+promptevolutiontechniquesaredesignedforshort in Section 3.2. Finally, Section 3.3 shows how
+sentencesorparagraphswithinalongprompt. For to leverage search history to guide the proposed
+example, many of them try to evolve only the in- frameworktoimproveitsperformance.
+structionpartorthesentence“Let’sthinkstepby
+step” in the prompt. Our work aims to provide 3.1 Searchspace
+completefreedomtoevolvetheentirelongprompt,
+Ourgoalistogenerateanewpromptthatisseman-
+opening up more avenues for improvement but
+ticallysimilartotheoriginalpromptwhileachiev-
+also introducing challenges in determining how
+ing enhanced performance. Further, we avoid in-
+andwheretochangetheoriginalprompt.
+troducingnon-interpretabletokens,suchasadver-
+Another setting focuses on automatic prompt sarialtriggers(Zouetal.,2023). Theserestrictions
+generation without a pre-existing prompt. (Hon- offer two advantages: 1) the prompts discovered
+ovich et al., 2022) demonstrated the ability of byouralgorithmareinterpretable,facilitatingthe
+LLMs to generate brief task descriptions when verification that the prompt still performs the in-
+provided with input-output pairs. Building upon tendedtask,and2)sinceweareonlyprovidedwith
+this technique and incorporating random search, a limited set (e.g., 100) of training samples, con-
+(Zhouetal.,2022)proposedanautomaticprompt strainingthesearchspacecanmitigatetheissueof
+engineering(APE)algorithmcapableofgenerating overfitting.such errors is still possible as we retain not only
+the top prompt. Our experiments reveal that this
+approachleadstosignificantlyimprovedtraining
+andtestperformancecomparedtothepuregreedy
+algorithm,asdemonstratedinFigure3.
+It is worth noting that our method is closely
+related to the Genetic Algorithm (GA). GA is a
+Figure 2: The vanilla LLM-Mutator used in our widely recognized method for discrete optimiza-
+search. tion involving black-box functions. Assuming
+P = {p ,...,p } represents the solutions in the
+1 k
+current pool, GA applies mutation and crossover
+Toconductpromptsearchwithinthisspace,we operations to this pool to generate a set of newly
+decomposethelongpromptintomindividualsen- proposed candidates P′ = {p′,...,p′}. The fit-
+1 k
+tences: nessscores(performanceofthesolutions)ofthese
+p = [s ,s ,...,s ]. newlyproposedcandidatesarethenevaluated. Sub-
+(1) (2) (m)
+sequently, only the top k solutions in P ∪P′ are
+Wethenalloweachsentencetoberephrasedwhile
+retainedbeforeproceedingtothenextiteration.
+preservingitssemanticmeaning. SinceLLMsex-
+While GA possesses a high exploration capa-
+celatsentencerephrasing,particularlywhenpro-
+bility,itsconvergencerateisconsiderablyslower
+videdwithpromptslike"Generateavariationofthe
+duringtheinitialstages. Giventhevastnessofour
+followinginstructionwhilekeepingthesemantic
+search space and the reasonably good quality of
+meaning,"weemployanLLM-Mutatorequipped
+thehuman-writteninitialprompt,amajorityofmu-
+withsuchaprompttoidentifyalternativeformula-
+tations and crossovers performed in the first few
+tions for each sentence. The prompt we used for
+iterationsyieldpoorlyperformingcandidates. Eval-
+vanillaLLMmutatorcanbefoundinFigure2. An
+uatingeachofthesecandidatesiscomputationally
+improved version of LLM-Mutator will be intro-
+expensive,eventhoughitcanenhancesolutiondi-
+ducedlaterinSection3.3.
+versity.
+Ouralgorithmiseffectivelya“greedy”version
+3.2 Searchalgorithm
+ofGA.Wemaintainacandidatesetofsizek and
+A straightforward approach to conducting the
+updatethecandidatepoolimmediatelyupongener-
+search using the LLM-Mutator is the following
+atingeachnewcandidate, ratherthanwaitingfor
+greedyalgorithm. Ateachiteration,werandomly
+theevaluationoftheentiregenerationofoffspring
+select a sentence, denoted by s , and utilize the
+(i) beforeupdatingthepool. Asaresult,oursolution
+LLM-Mutatortogenerateanalternativesentence
+poolremainsmoreup-to-date,leadingtofastercon-
+s′ . Wethenreplaces bys′ intheoldprompt
+(i) (i) (i) vergencecomparedtoGA.Figure3furtherverifies
+p if the new resulting prompt improves the per-
+this observation, demonstrating the slower initial
+formance. However,weobservedthatthisvanilla
+growthofGA’slearningcurve.
+greedyapproachcanbeeasilytrappedinlocalop-
+tima. Inourproblem,thetrainingsetissolimited 3.3 History-guidedsearch
+that sometimes a detrimental modification is not
+Randomlyrephrasingasentenceinapromptisakin
+reflected in the training score. As a result, unfa-
+toconductingarandommutationwithinthespace
+vorableeditaresometimesacceptedduetoinsuf-
+of semantically equivalent sentences, potentially
+ficientevaluation,whichhurtstheprompt’sfuture
+requires a significant amount of trials to obtain a
+improvement.
+goodsolution. Inthissubsection,wedemonstrate
+To address this issue, we propose conducting
+howthesearchhistorycanbeemployedtoguide
+a beam search by maintaining a pool of k top-
+themutationinamorepurposefuldirection.
+performingprompts,denotedasp∗,p∗,...,p∗. At
+1 2 k
+eachiteration,werandomlyselectoneofthesek Guided mutation for a single sentence. At it-
+prompts and refine the chosen prompt. We then eration T, we can denote the search history as
+evaluatethisnewcandidateandmaintainthetop-k {(sbefore,safter,r )}T−1, where sbefore is the sen-
+t t t t=1 t
+promptpool. Thisapproachensuresthatevenwith tence before mutation, safter is the sentence after
+t
+theintroductionofdetrimentaledits,recoveryfrom mutation,andtherewardr indicatesthechangein
+tFigure3: Comparisonbetweenbeam-searchgreedy,greedy,andgeneticalgorithm. Thisistheaverage
+resultsoverthreeruns. Beam-searchgreedyoutperformsbothgreedyalgorithmandgeneticalgorithm.
+the score (r is positive if the mutation enhances
+t
+theperformance,andnegativeifitdeterioratesper-
+formance). Assumes isthecurrentsentencethat
+T
+isselectedformutation,wecanthenusethehistory
+toguidethemutationtowardsmorepositivereward.
+Forexample,ifweknowrephrasingthesentence
+“So, it is true that Lesley is a great-grandfather
+of Leroy” to “Therefore Leslie is Leroy’s great-
+grandfather.” can improve the performance, then
+for another sentence “So, it is true that everyone Figure 4: The guided LLM-mutator used in our
+whoisanancestorofDanaisastepbrotherofBrian” search.
+wemaywanttorewriteitas“Thereforeeveryone
+thatisanancestorofDanaisBrian’sstepbrother.”
+tween s and each sbefore, which is calculated by
+T t
+It has been shown that LLMs are able to learn ϕ(s )Tϕ(sbefore)andϕisasentenceencoder(we
+T t
+from in-context examples (Zhang et al., 2021).
+useaT5(Raffeletal.,2020)sentenceencoderin
+Therefore,weproposetolettheLLM-Mutatorin-
+ourexperiments). Wethenonlyselectentriesthat
+context learn from the history. This can be done
+pass a certain threshold to include as in-context
+by listing history in the prompt: if r > 0, we in-
+t examples.
+cludeanin-contextexamplesbefore ⇒ safter,andif
+t t
+r < 0weincludesafter ⇒ sbefore. Thepromptfor
+t t t Guidedsamplingforsentenceselection. Achal-
+LLM-EvolverisshowninFigure4.
+lengeinautomaticlongpromptengineeringliesin
+Since the history can be long and it has been identifyingwhichsentencesinthepromptshould
+shownthatputtingtoomanyin-contextlearningex- be modified to improve performance. Our exper-
+amples can be harmful for the performance, we iments demonstrate that altering only a few sen-
+only retrieve a small set of relevant history en- tencesinalongpromptcansignificantlyenhance
+tries when rephrasing a sentence. Specifically, itseffectiveness,butthechangesneedtobeatright
+when evolving s , we compute the similarity be- places. It is thus beneficial to bias the sampling
+Tdistributiontowardsselectingmoreimpactfulsen- Numberof
+Dataset NumberofWords
+MutableSentences
+tencesformodification.
+CausalJudgement 678 20
+Wemodelsentenceselectionasacontextualban-
+SalientTranslation 745 34
+ditproblem(LangfordandZhang,2007;Lietal., Disambiguation 671 37
+2010). In contextual bandit problem, at each it- FormalFallacies 741 32
+erationalearnerisfacedwithmarmsassociante Hyperbaton 539 19
+DyckLanguage 679 22
+withfeaturevectorsx ,...,x ,andthelearneris
+1 m ColorReasoning 435 17
+tryingtopullanarmateachroundtooptimizethe
+LogicalFive 461 25
+overall reward. In our case, m arms correspond
+tothemsentencess ,...,s inaprompt,and Table 1: Initial prompt statistics for each dataset.
+(1) (m)
+features can be obtained by ϕ(s ) where ϕ is a When calculating the “number of mutable sen-
+(i)
+textencoder. Utilizingfeatureinformationiscru- tences,” we only consider sentences that can be
+cialbecauseifmodifyingaparticularsentencecan modifiedduringthesearchphase.
+leadtoperformanceimprovement,itislikelythat
+modifyingsimilarsentenceswillalsoyieldpositive
+of two parts: Task Description and Demos. The
+results.
+TaskDescriptionprovidesinstructionsdescribing
+WethenadopttheLin-UCBalgorithm(Lietal.,
+the task, while each demo includes the question,
+2010), awidelyrecognizedalgorithmforcontex-
+achain-of-thoughtsdemonstrationillustratingthe
+tualbanditproblems,toguidesentenceselection.
+problem-solvingprocessstep-by-step,andthefinal
+Giventhehistory{(sbefore,safter,r )}T−1,wecom-
+t t t t=1 answer. During prompt tuning, the format (e.g.,
+pute a linear estimator of the underlying reward
+“Question. ”, “Answer. ”) areretained, whilethe
+model
+tuning algorithm is allowed to modify any other
+w∗ = (HTH +λI)−1HTr, (1) partsincludingtheinstructionpartandthechain-
+T
+of-thoughtspart. Table1summarizesthestatistics
+whereH isa(T −1)-by-dmatrixwitheachrow
+ofthedatasetsusedinthisstudy. Thefullprompts
+beingϕ(sbefore),andr = [r ,...,r ]T. Thisis
+t 1 T−1 for each data can be downloaded from https://
+simplyasolutionofaridgeregressionwithfeature
+github.com/suzgunmirac/BIG-Bench-Hard.
+matrixH andrewardr. ThefollowingUCBrule
+Each task consists of 250 samples, randomly
+isthenusedtoselectthesentenceformutation:
+divided into 50% for training and 50% for test-
+(cid:113)
+argmaxϕ(s )Tw∗ +α ϕ(s )TA−1ϕ(s ), ing. Onlytrainingsamplesareutilizedforprompt
+(i) T (i) (i)
+i tuning. Alltasksaremulti-classclassificationprob-
+(2)
+lems,andwereportaccuracyontrainingdata,test
+whereA = HTH +λI. SincethisLin-UCBesti-
+data, and the combined dataset when comparing
+mationmaynotbeaccurate,weletthealgorithm
+differenttuningmethods.
+has probability P to choose a arm by purely ran-
+Forthemainexperiments,weevaluatedtheper-
+domand1−P tochoosethesentencebasedonEq.
+formanceonthetext-bisonmodelandutilizedthe
+(2).
+instruction-tunedPaLM2-LmodelastheLLMmu-
+4 ExperimentalResults tator. Both models belong to the PaLM 2-model
+family (Anil et al., 2023). Following the previ-
+In this section, we present empirical evidence
+ousprompttuningworks,wesettemperatureas0.
+demonstratingthattheproposedlongprompttun-
+However,toenhancethediversityofsentencemu-
+ingmethodcansignificantlyenhanceperformance
+tation,wesetthetemperatureoftheLLM-Mutator
+on the Big-Bench Hard (BBH) benchmark (Suz-
+to0.5.
+gunetal.,2022;Srivastavaetal.,2022). Wethen
+conduct ablation studies to analyze the proposed 4.2 Mainresults
+algorithm’seffectivenessandshowqualitativere-
+Wecomparetheproposedalgorithmwiththefol-
+sultsonhowtheproposedalgorithmrefineshuman-
+lowingbaselines:
+writtenprompts.
+• OriginalPrompt: Performanceoftheoriginal
+4.1 ExperimentalSettings
+human-designed prompt developed in (Suz-
+Weconsiderthepromptdevelopedin(Suzgunetal., gun et al., 2022), which also serves as the
+2022) for the BBH tasks, where prompts consist initializationforothertuningmethods.Original GeneticAlgorithm Evolve“Step-by-step” Greedy OurMethod
+Task
+Prompt Train Test Train Test Train Test Train Test
+CausalJudgment 58.9 63.1±1.3 59.2±0.5 63.1±0.5 58.2±0.5 63.0±1.0 59.6±2.9 67.7±1.5 63.7±1.3
+SalientTranslation 54.4 58.7±2.0 56.5±4.3 57.1±0.4 55.7±0.4 59.5±1.5 53.6±3.3 60.0±3.5 58.7±2.6
+Disambiguation 58.0 64.8±1.6 61.0±0.7 64.6±1.5 61.8±1.0 66.7±0.6 63.4±2.7 70.1±1.9 68.0±2.1
+FormalFallacies 60.0 63.5±1.1 64.5±0.7 60.6±1.0 62.4±1.7 68.5±2.6 68.8±3.0 70.4±3.9 73.1±3.6
+Hyperbaton 74.4 82.8±1.3 76.3±2.5 84.9±0.0 79.6±0.3 83.5±3.3 79.3±5.3 88.4±2.6 85.5±1.1
+DyckLanguage 16.0 20.2±1.7 16.4±0.4 18.25±0.0 20.4±0.1 19.0±0.4 17.3±0.6 22.8±0.7 20.9±0.4
+ColorReasoning 82.0 85.1±0.4 78.9±1.7 86.2±0.7 81.5±1.3 85.1±0.7 81.1±0.4 85.4±0.4 83.5±0.4
+LogicalFive 38.8 49.3±2.7 48.2±1.6 54.5±1.0 50.3±0.4 53.9±3.9 51.3±1.2 59.8±2.2 54.7±0.9
+Average 55.3 60.94 57.6 61.2 58.7 62.4 59.3 65.6 63.5
+Table2: MainresultsonBBHbenchmark. Thesearchbudgetislimitedto50evaluationsoverthetraining
+setforeachmethod. Weraneachexperiment3timesandreportthemeanandstandarddeviation.
+• GeneticAlgorithm: Animplementationofthe andreportedthetraining,test,andcombinedaccu-
+geneticalgorithmforlongprompttuning. To racyachievedbyeachmethod. Alltheexperiments
+facilitateamorecomparablecomparisonwith are run three times and we report the mean and
+our method, we set the pool size to 4. At standarddeviation. Theresultsaresummarizedin
+eachstep,8newcandidatesaregeneratedby Table2. Ourproposedalgorithmoutperformedthe
+randomlymutatingandperformingcrossover othermethods,demonstratingsignificantimprove-
+onthetopcandidateswithinthepool. ments in accuracy across all tasks. We also com-
+pute the improvements of accuracy on the whole
+• Evolve“step-by-step”: Severalrecentprompt dataset (including both training and testing) and
+tuning studies have explored the concept of reporttheaccuracygaininFigure1.
+evolving a prompt using a single sentence,
+Acrossall8tasks,ouralgorithmachievesanav-
+suchasthe’Let’sthinkstepbystep’sentence
+erageof8.2%gainintestaccuracyand9.2%gain
+employed in chain-of-thought prompts (Ko-
+intheaccuracyoffullevaluationset(train+test).
+jima et al., 2022). We adopted one of the
+Amongthesetasks,weachievethelargestperfor-
+state-of-the-art methods for single sentence
+mancegain(18.45%)onthelogicaldeductiontask,
+optimization (Yang et al., 2023) to optimize
+andthesmallestgain(2.45%)onreasoningabout
+allofthe’Let’sthinkstepbystep’sentences
+coloredobjects(ColorReasoning). Onepotential
+withinthechain-of-thoughtprompt.
+reasonofsmallperformancegainoncolorreason-
+ing is that the original prompt already achieves
+• Greedy: Asimplegreedyapproachmentioned
+veryhighaccuracy,sothereisnotmuchroomfor
+inSection3.2,whereweonlystorethetopper-
+improvements.
+formingcandidateinthepoolandgenerating
+Comparingthebaselines,itbecomesevidentthat
+newcandidateontopofit.
+evolvingasinglesentence(Evolve’step-by-step’)
+Forourmethod,weusethesamehyper-parameters failstoachievesubstantialimprovementsinlong
+foralltheexperiments. Wesetthepoolsize(beam prompttuning. Thisismainlyduetothefactthat
+size) to 4 for all experiments. When applying longprompttuningtypicallyinvolvesover20sen-
+guided mutation in Section 3.3, we use a T5 en- tenceswithdetailedinstructionsandexplanations,
+codertoencodeboththecurrententryandthehis- and thus naively modifying “Let’s think step by
+toryandnormalizetheembeddingstohaveaunit step” is unlikely to lead to significant enhance-
+ℓ norm. Weretrieveonlythetop4historyentries ments. Furthermore, the Genetic Algorithm and
+2
+and require the ℓ distance between the encoded Greedy Algorithm each exhibit their own limita-
+2
+history and the current sentence to be below 0.5. tions, as discussed in Section 3.2, which are re-
+Whenapplyingthesentenceselectionalgorithmde- flectedintheirinferiorperformancecomparedto
+scribedinSection3.3,wesetα = 0.05inEq. (2) ourmethod.
+andsetP = 0.5. Notethatthosehyper-parameters Despitebeingabletosignificantlyboosttheper-
+arenotwelltuned. formance, we also observe some degree of over-
+For this experiment, we limited the computa- fittinginoursearchprocedure. Althoughthepro-
+tionalbudgetto50evaluationsonthetrainingset posedbeamsearchmethodcanpartiallymitigateoverfitting(seeSection3.2),westillobservehigher leadstoimprovetrainingaccuracy,itactuallyhurts
+trainingaccuracythantestinginmostcases. How- testaccuracy. Therefore,incorrectmutationscan
+ever, as the performance gain is substantial, the leadtooverfitting,anddevelopingstrategiestomit-
+prompts found by the algorithm are still signifi- igatetheseerrorsduringthesearchprocesswould
+cantlybetterthantheoriginalone,evenonthetest beaninterestingareaoffutureresearch.
+set.
+5 Conclusions,Limitations,andFuture
+4.3 AblationStudy Work
+Weconductanablationstudyonthetwotechniques
+We study the problem of automatic prompt engi-
+introducedinSection3.3: thehistory-guidedmu-
+neering for long prompts, often comprising thou-
+tationandthecontextualbanditalgorithmforsen-
+sands of tokens. We investigate the performance
+tenceselection. TheresultsarepresentedinTable3.
+ofthestandardgreedyalgorithmandgeneticalgo-
+Wecanobservethatbothcomponentsarecontribut-
+rithm, and develop a novel search algorithm that
+ingtothefinalperformanceofthemodel.
+yieldssuperiorperformance. Withonly50evalu-
+4.4 Qualitativeresults ationsonthetrainingset,ourmethodachievesan
+average absolute accuracy improvement of 9.2%
+One important benefit of automatic hard prompt
+across8tasksfromBigBenchHard. Thisdemon-
+engineering is that the resulting prompts remain
+strates the significant potential benefits of auto-
+interpretablebyhumans, allowinguserstoeasily
+maticlongprompttuningandunderscorestheim-
+verifythemodifications. Weprovidesomesuccess-
+portanceofthisemergingarea.
+ful examples found by our search in Table 4 and
+As the first paper focusing on automatic engi-
+Table 5. In each table, we show only the differ-
+neering of the entire long prompts, we identify
+ent parts of the initial prompt from BBH and the
+several limitations of the current methods which
+changesmadebyourmethod.
+canleadtointerestingfutureresearch:
+ThefirstexampledemonstratedinTable4isfor
+thelogicdeductiontaskonfiveobjects. Theinitial
+• Thecurrentalgorithmreliesonusinganother
+promptachieves38.8%accuracywhiletherevised
+LLMtorephraseasentence. Asillustratedin
+promptfoundatiteration48improvestheperfor-
+Section4.4,thisLLM-mutatormayintroduce
+manceto57.9%trainaccuracyand54.0%testaccu-
+errorsduringsentencerewriting,particularly
+racy. Weobservedthatmostofthechangesinvolve
+for intricate sentences (e.g., CoT in compli-
+minor revisions to the original sentence without
+catedlogicaldeductiontasks). Therefore,im-
+alteringitsmeaning. Theseseeminglyinsignificant
+provingthe“correctness”ofLLM-Mutatoris
+modificationscanleadtosubstantialimprovements
+aninterestingfutureareaofresearch,which
+inLLMaccuracy,showcasingtheimportantofau-
+has not been fully addressed in our work as
+tomaticlongpromptengineering.
+well as other recent studies (Fernando et al.,
+The second prompt in Table 5 is for the For-
+2023;Guoetal.,2023).
+malFallaciestask,designedtoidentifywhethera
+givenlogicstatementisvalid. Theinitialprompt • Similar to any other training or tuning algo-
+achieves 60% accuracy while the revised prompt rithms,automaticpromptengineeringcansuf-
+foundatiteration91improvesthetrainaccuracyto fer from overfitting to the training data, as
+92.1%andtestaccuracyto83.1%. Similartothe discussedinSection4. Thisoverfittingcanbe
+previouscase,mostofthechangesinvolveminor potentiallyalleviatedbyapplyingadditional
+revisions. In this case, we also want to highlight regularization techniques, such as imposing
+apotentiallimitationoftheproposedmethodthat sparsity constraints by reducing the number
+couldbeaddressedinfuturework. Inthesentence of modified sentences. However, further re-
+marked as *, the revised sentence is not semanti- search is required to identify the most ef-
+cally equivalent to the original one. The original fectiveregularizationstrategiesforautomatic
+and revised sentences represent different logical promptengineering.
+statements(originalsentence: notA→B;newsen-
+tence: B→notA).However,theLLMappearsin- • Inthecurrentimplementation,webreakdown
+capableofdetectingthissubtledistinction,leading thelongpromptintoindividualsentencesand
+toanerroneousrephrasing. Althoughthischange modify one sentence at a time. However, itDisambiguation FormalFallacies Hyperbaton LogicalFive
+Task
+Train Test Train Test Train Test Train Test
+Ourmethod(nohistory-guidedmutation) 67.4 66.9 61.1 66.1 83.6 78.1 55.6 53.2
+Ourmethod(nosentenceselection) 68.2 63.1 71.2 72.8 81.4 80.3 54.2 50.4
+Ourmethod 70.1 68.0 70.4 73.1 88.4 85.5 59.8 54.7
+Table3: AblationStudyonthetwocomponentsintroducedinSection3.3.
+Originalprompt:38.8%accuracy Newpromptfoundatiteration48:56%accuracy(train57.9%/test54.0%)
+A:Let’sthinkstepbystep. A:Let’sthinkthingsthroughonestepatatime.
+(2)ElifinishedbelowAmy:"(above)?Amy?Eli?(below)". (2)AmywasaboveEli:"(above)?Amy?Eli?(below)".
+Elifinishedlast. Elicameinlastplace.
+Q:Thefollowingparagraphseachdescribea
+Q:Eachparagraphbelowdescribesthreeobjects
+setofthreeobjectsarrangedinafixedorder.
+arrangedinafixedorder,andthestatementsarelogicallyconsistentineachparagraph.
+Thestatementsarelogicallyconsistentwithineach
+Therearethreebooksonashelf:awhite,green,andorangebook.
+paragraph.Onashelf,therearethreebooks:awhite
+Thegreenbookistotherightofthewhitebook,and
+book,agreenbook,andanorangebook.Thegreen
+theorangebookisinthefarrightposition.
+bookistotherightofthewhitebook.Theorangebookistherightmost.
+A:Let’sthinkstepbystep. A:Let’sthinkthroughthingsonestepatatime.
+Thewhitebookistheleftmost. Thewhitebookisatthefarleft.
+A:Let’sthinkstepbystep. A:Let’sthinkonestepatatime.
+Table4: AnexamplethatourmethodimprovestheperformanceonLogicalDeductionFiveObjectsfrom
+38.8%to56%.
+might be beneficial to manipulate multiple References
+sentencessimultaneouslyduringmutationor
+RohanAnil,AndrewMDai,OrhanFirat,Melvin
+consolidate multiple sentences into a single
+Johnson, Dmitry Lepikhin, Alexandre Passos,
+one. An automated mechanism for carrying
+SiamakShakeri,EmanuelTaropa,PaigeBailey,
+outthisprocesswouldbeaninterestingdirec-
+Zhifeng Chen, et al. 2023. Palm 2 technical
+tionforenhancingourmethod.
+report. arXivpreprintarXiv:2305.10403.
+• Althoughouralgorithmisabletofindagood
+TomBrown,BenjaminMann,NickRyder,Melanie
+solutionwithlessthan100evaluationsonthe
+Subbiah, Jared D Kaplan, Prafulla Dhariwal,
+trainingset,thecostisstillnotnegligibleespe-
+ArvindNeelakantan,PranavShyam,GirishSas-
+ciallywhentuningpromptsusingAPIswith
+try,AmandaAskell,etal.2020. Languagemod-
+costorratelimits. Employingearlystopping
+els are few-shot learners. Advances in neural
+techniques,wheretheevaluationofpoorlyper-
+informationprocessingsystems,33:1877–1901.
+formingcandidatesareterminatedearly,could
+potentiallyreducethenumberofqueries.
+LichangChen,JiuhaiChen,TomGoldstein,Heng
+• Althoughautomaticpromptengineeringcan Huang, and Tianyi Zhou. 2023. Instructzero:
+achieve significant gain, the search space of Efficient instruction optimization for black-
+hardprompthaslimitedrepresentationpower box large language models. arXiv preprint
+whichhindersfurtherperformanceimprove- arXiv:2306.03082.
+ments. Ithasbeenshownthatsoftprompttun-
+AakankshaChowdhery,SharanNarang,JacobDe-
+ing has limited representation power (Wang
+vlin, Maarten Bosma, Gaurav Mishra, Adam
+et al., 2023b), and our search space is a
+Roberts, Paul Barham, Hyung Won Chung,
+small subset of soft prompts. Therefore,
+CharlesSutton,SebastianGehrmann,etal.2022.
+whenprovidedwithsufficientdata,computa-
+Palm: Scalinglanguagemodelingwithpathways.
+tionalresources,andwhite-boxaccesstothe
+arXivpreprintarXiv:2204.02311.
+LLM, (parameter-efficient) fine-tuning may
+stillachievesuperiorperformance. KarlCobbe,VineetKosaraju,MohammadBavar-
+ian, Mark Chen, Heewoo Jun, Lukasz Kaiser,
+Acknowledgements
+MatthiasPlappert,JerryTworek,JacobHilton,
+We thank Ruochen Wang, Vineet Gupta, Kedar ReiichiroNakano,etal.2021. Trainingverifiers
+Dhamdhere, Daliang Li for valuable discussions to solve math word problems. arXiv preprint
+andfeedback. arXiv:2110.14168.Originalpromp:60%accuracy Newpromptfoundatiteration91:76%accuracy(train92.1%,test83.1%)
+Distinguishdeductivelyvalidargumentsfromformalfallacies. Identifydeductivelyvalidargumentsfromformalfallacies.
+So,itistruethatLesleyisagreat-grandfatherofLeroy. Soit’struethatLesleyisLeroy’sgreat-grandfather.
+Whoeverisnotagreat-grandfatherofClydeisastepbrother
+*IfsomeoneisastepbrotherofBrianthenthey
+ofBrian:IfX=NOT(great-grandfather(Clyde)),then
+arenotagreat-grandfatherofClyde.
+X=stepbrother(Brian).
+Furthermore,by(1),wehaveifX=NOT Additionally,accordingto(1)wehavethatifX=NOT
+(great-grandfather(Clyde)),thenX=stepbrother(Brian). (great-grandfather(Clyde)),thenX=stepbrother(Brian).
+Bythetransitiverelationruleinfirst-orderlogic, Usingthetransitiverelationruleinfirst-orderlogic,wehave:
+wethenhave:ifX=ancestor(Dana),thenX=stepbrother(Brian). ifX=ancestor(Dana),thenX=stepbrother(Brian).
+Let’sseewhethertheHypothesiscanbededucedfrom Let’sseewhethertheHypothesisisalogicalconsequence
+thearguments(1)and(2)bylogicalreasoning? ofthearguments(1)and(2)?
+So,from(1)and(2),wecannotnecessarilydeduce So,given(1)and(2),wearenotalwaysentitledtoinfer
+theHypothesis. theHypothesis.
+Table5: Anexampledemonstratinghowourmethodchangestheoriginalprompt. Byconductingthese
+changesthecombinedaccuracyonFormalFallaciescanbeimprovedfrom60%to76%. Interestingly,
+there’soneline
+Mingkai Deng, Jianyu Wang, Cheng-Ping Hsieh, bandits. Advances in neural information pro-
+Yihan Wang, Han Guo, Tianmin Shu, Meng cessingsystems,20(1):96–1.
+Song, Eric P Xing, and Zhiting Hu. 2022.
+Rlprompt: Optimizing discrete text prompts Brian Lester, Rami Al-Rfou, and Noah Con-
+with reinforcement learning. arXiv preprint stant. 2021. The power of scale for parameter-
+arXiv:2205.12548. efficient prompt tuning. arXiv preprint
+arXiv:2104.08691.
+Chrisantha Fernando, Dylan Banarse, Henryk
+Michalewski, SimonOsindero, andTimRock- LihongLi,WeiChu,JohnLangford,andRobertE
+täschel. 2023. Promptbreeder: Self-referential Schapire.2010. Acontextual-banditapproachto
+self-improvementviapromptevolution. arXiv personalized news article recommendation. In
+preprintarXiv:2309.16797. Proceedingsofthe19thinternationalconference
+onWorldwideweb,pages661–670.
+Qingyan Guo, Rui Wang, Junliang Guo, Bei
+Li, Kaitao Song, Xu Tan, Guoqing Liu, Jiang Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao
+Bian, and Yujiu Yang. 2023. Connecting Jiang, Hiroaki Hayashi, and Graham Neubig.
+large language models with evolutionary algo- 2023. Pre-train, prompt, and predict: A sys-
+rithmsyieldspowerfulpromptoptimizers. arXiv tematicsurveyofpromptingmethodsinnatural
+preprintarXiv:2309.08532. languageprocessing. ACMComputingSurveys,
+55(9):1–35.
+Or Honovich, Uri Shaham, Samuel R Bowman,
+and Omer Levy. 2022. Instruction induction:
+Long Ouyang, Jeffrey Wu, Xu Jiang, Diogo
+Fromfewexamplestonaturallanguagetaskde-
+Almeida,CarrollWainwright,PamelaMishkin,
+scriptions. arXivpreprintarXiv:2205.10782.
+Chong Zhang, Sandhini Agarwal, Katarina
+Slama,AlexRay,etal.2022. Traininglanguage
+ZhengbaoJiang,FrankFXu,JunAraki,andGra-
+modelstofollowinstructionswithhumanfeed-
+ham Neubig. 2020. How can we know what
+back. AdvancesinNeuralInformationProcess-
+languagemodelsknow? TransactionsoftheAs-
+ingSystems,35:27730–27744.
+sociationforComputationalLinguistics,8:423–
+438.
+ReidPryzant,DanIter,JerryLi,YinTatLee,Chen-
+TakeshiKojima,ShixiangShaneGu,MachelReid, guangZhu,andMichaelZeng.2023. Automatic
+Yutaka Matsuo, and Yusuke Iwasawa. 2022. promptoptimizationwith"gradientdescent"and
+Largelanguagemodelsarezero-shotreasoners. beamsearch. arXivpreprintarXiv:2305.03495.
+Advancesinneuralinformationprocessingsys-
+Colin Raffel, Noam Shazeer, Adam Roberts,
+tems,35:22199–22213.
+KatherineLee,SharanNarang,MichaelMatena,
+JohnLangfordandTongZhang.2007. Theepoch- YanqiZhou,WeiLi,andPeterJLiu.2020. Ex-
+greedy algorithm for contextual multi-armed ploringthelimitsoftransferlearningwithauni-fiedtext-to-texttransformer. TheJournalofMa- Jason Wei, Xuezhi Wang, Dale Schuurmans,
+chineLearningResearch,21(1):5485–5551. Maarten Bosma, Fei Xia, Ed Chi, Quoc V Le,
+Denny Zhou, et al. 2022b. Chain-of-thought
+LariaReynoldsandKyleMcDonell.2021. Prompt
+prompting elicits reasoning in large language
+programming for large language models: Be-
+models. Advances in Neural Information Pro-
+yond the few-shot paradigm. In Extended Ab-
+cessingSystems,35:24824–24837.
+stractsofthe2021CHIConferenceonHuman
+FactorsinComputingSystems,pages1–7. Hanwei Xu, Yujun Chen, Yulun Du, Nan Shao,
+Yanggang Wang, Haiyu Li, and Zhilin Yang.
+AarohiSrivastava,AbhinavRastogi,AbhishekRao,
+2022. Gps: Genetic prompt search for ef-
+Abu Awal Md Shoeb, Abubakar Abid, Adam
+ficient few-shot learning. arXiv preprint
+Fisch, AdamRBrown, AdamSantoro, Aditya
+arXiv:2210.17041.
+Gupta, Adrià Garriga-Alonso, et al. 2022. Be-
+yond the imitation game: Quantifying and ex- ChengrunYang,XuezhiWang,YifengLu,Hanx-
+trapolatingthecapabilitiesoflanguagemodels. iaoLiu, QuocVLe, DennyZhou, andXinyun
+arXivpreprintarXiv:2206.04615. Chen.2023. Largelanguagemodelsasoptimiz-
+ers. arXivpreprintarXiv:2309.03409.
+MiracSuzgun,NathanScales,NathanaelSchärli,
+Sebastian Gehrmann, Yi Tay, Hyung Won Ningyu Zhang, Luoqiu Li, Xiang Chen, Shumin
+Chung, Aakanksha Chowdhery, Quoc V Le, Deng, Zhen Bi, Chuanqi Tan, Fei Huang, and
+Ed H Chi, Denny Zhou, et al. 2022. Chal- Huajun Chen. 2021. Differentiable prompt
+lenging big-bench tasks and whether chain- makespre-trainedlanguagemodelsbetterfew-
+of-thought can solve them. arXiv preprint shotlearners. arXivpreprintarXiv:2108.13161.
+arXiv:2210.09261.
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen
+Lei Wang, Wanyu Xu, Yihuai Lan, Zhiqiang Han, Keiran Paster, Silviu Pitis, Harris Chan,
+Hu, Yunshi Lan, Roy Ka-Wei Lee, and Ee- andJimmyBa.2022. Largelanguagemodelsare
+Peng Lim. 2023a. Plan-and-solve prompting: human-levelprompt engineers. arXiv preprint
+Improving zero-shot chain-of-thought reason- arXiv:2211.01910.
+ing by large language models. arXiv preprint
+arXiv:2305.04091. KaijieZhu,JindongWang,JiahengZhou,Zichen
+Wang, Hao Chen, Yidong Wang, Linyi Yang,
+XuezhiWang,JasonWei,DaleSchuurmans,Quoc
+WeiYe,NeilZhenqiangGong,YueZhang,etal.
+Le,EdChi,SharanNarang,AakankshaChowd-
+2023. Promptbench: Towardsevaluatingthero-
+hery,andDennyZhou.2022a. Self-consistency
+bustnessoflargelanguagemodelsonadversarial
+improveschainofthoughtreasoninginlanguage
+prompts. arXivpreprintarXiv:2306.04528.
+models. arXivpreprintarXiv:2203.11171.
+Andy Zou, Zifan Wang, J Zico Kolter, and Matt
+Yihan Wang, Jatin Chauhan, Wei Wang, and
+Fredrikson. 2023. Universal and transferable
+Cho-Jui Hsieh. 2023b. Universality and lim-
+adversarialattacksonalignedlanguagemodels.
+itations of prompt tuning. arXiv preprint
+arXivpreprintarXiv:2307.15043.
+arXiv:2305.18787.
+Yihan Wang, Si Si, Daliang Li, Michal Lukasik,
+FelixYu,Cho-JuiHsieh,InderjitSDhillon,and
+Sanjiv Kumar. 2022b. Preserving in-context
+learning ability in large language model fine-
+tuning. arXivpreprintarXiv:2211.00635.
+Jason Wei, Yi Tay, Rishi Bommasani, Colin Raf-
+fel,BarretZoph,SebastianBorgeaud,DaniYo-
+gatama, Maarten Bosma, Denny Zhou, Don-
+ald Metzler, et al. 2022a. Emergent abili-
+ties of large language models. arXiv preprint
+arXiv:2206.07682.

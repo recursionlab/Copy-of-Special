@@ -1,0 +1,2711 @@
+August2022
+Faithful Reasoning Using Large Language
+Models
+AntoniaCreswell1 andMurrayShanahan1
+1DeepMind
+Althoughcontemporarylargelanguagemodels(LMs)demonstrateimpressivequestion-answeringcapa-
+bilities,theiranswersaretypicallytheproductofasinglecalltothemodel. Thisentailsanunwelcome
+degreeofopacityandcompromisesperformance,especiallyonproblemsthatareinherentlymulti-step.
+Toaddresstheselimitations,weshowhowLMscanbemadetoperformfaithfulmulti-stepreasoningvia
+aprocesswhosecausalstructuremirrorstheunderlyinglogicalstructureoftheproblem. Ourapproach
+works by chaining together reasoning steps, where each step results from calls to two fine-tuned LMs,
+one for selection and one for inference, to produce a valid reasoning trace. Our method carries out a
+beam search through the space of reasoning traces to improve reasoning quality. We demonstrate the
+effectiveness of our model on multi-step logical deduction and scientific question-answering, showing
+thatitoutperformsbaselinesonfinalansweraccuracy,andgenerateshumanlyinterpretablereasoning
+traceswhosevaliditycanbecheckedbytheuser.
+Keywords: Reasoning, Causality, Large Lanauge Models
+1. Introduction Thisprovisionisespeciallyimportantgiventhat
+LMs are trained on human data collected from
+Among the many tasks that contemporary large the internet, which makes them vulnerable to
+language models (LMs) can perform (Alayrac picking up and perpetuating bias (Bender et al.,
+et al., 2022; Nakano et al., 2021; Zeng et al., 2021; Betz et al., 2021; Weidinger et al., 2021).
+2022), question-answering is potentially one of Presented with a context of relevant knowledge
+the most useful (Rae et al., 2021). However, the and a question, an LM may base its answer on
+proficiencyofthesemodelstypicallygoeshand-in- information encoded in its weights rather than
+hand with an unacceptable level of opacity. The prioritisingtheinformationpresentinthecontext
+assumptions behind an answer and the interme- (Dasguptaetal.,2022). Withoutaninterpretable
+diatestepsofreasoningthatjustifyit–insofaras reasoning trace, we cannot know how a model
+these exist – are hidden from the user. This pre- has reached its answer. Did the model rely on
+vents the user from verifying an answer, makes its priors, which may be biased, or did it obtain
+it difficult to debug a model when it gets an an- an answer by reasoning correctly with relevant
+swer wrong, and undermines overall trust in the knowledge?
+model’s responses.
+In this paper we develop a forward-chaining
+By contrast, a system that reasons faithfully is modelthatreasonsfaithfullyinthesensedefined
+one whose underlying computations mirror stan- above (and more formally in Section 2). The
+dard definitions of logical validity. Such a system backbone of our system, denoted SI, comprises
+can supply the user with an interpretable reason- two fine-tuned LMs, one for selection and one
+ing trace, which allows them to understand how for inference. The interleaved operation of these
+the model reached its final answer. Exposing a two components has a causal structure (Figure
+model’s assumptions and reasoning steps (Figure 2) that mirrors the definition of logical validity.
+1) in this way enables the user to spot mistakes This guarantees that the model’s answers follow
+the model may have made, and empowers them logically from the given context under certain
+todecideforthemselveswhetherthemodel’scon- assumptions.
+clusions are justified.
+Correspondingauthor(s):tonicreswell@deepmind.com
+© 2022DeepMind.Allrightsreserved
+2202
+guA
+03
+]IA.sc[
+1v17241.8022:viXraFaithfulReasoningUsingLargeLanguageModels
+Figure 1 | Example input and output from our Faithful Reasoning model.
+Two further fine-tuned language models com- framework, adhering closely to textbook defini-
+plete our architecture. First, the halter is used to tions from formal logic (e.g. Hamilton (1988)).
+terminatethereasoningprocessandreturnanan-
+Definition 1. A reasoning step is a pair (cid:104)𝑠,𝑖(cid:105),
+swer in the required format. If the trace does not
+where 𝑠 (the selection) is a set of statements and 𝑖
+terminatewithinaspecifiednumberofstepsthen
+(the inference) is a statement.
+the answer is considered to be ‘Unknown’, allow-
+ingustofiltermodelanswersandincreaseanswer
+Definition 2. A reasoning trace is a pair (cid:104)C,T(cid:105)
+precision. Second,alearnedvaluefunction,which
+where C (the context) is a set of statements and T
+assesses the quality of the current reasoning step
+is a sequence of reasoning steps.
+is deployed to guide a beam search over reason-
+ing traces to enhance their quality and further Definition3. Areasoningtrace(cid:104)C,T(cid:105),whereT =
+boost overall performance. (cid:104)𝑠 0,𝑖 0(cid:105),(cid:104)𝑠 1,𝑖 1(cid:105),...(cid:104)𝑠 𝑛,𝑖 𝑛(cid:105),isconnectediffforevery
+reasoning step (cid:104)𝑠 𝑘,𝑖 𝑘(cid:105), for every statement 𝑞 in the
+We evaluate our model on two datasets,
+set 𝑠 𝑘 either 𝑞 ∈ C or 𝑞 = 𝑖 𝑗 for some 𝑗 < 𝑘.
+ProofWriter(Tafjordetal.,2021)andaquestion-
+answeringversionofEntailmentBank(Dalvietal., Definition4. Areasoningtrace(cid:104)C,T(cid:105),whereT =
+2021). We shown that our model outperforms 𝑟 0,𝑟 1,...,𝑟 𝑛, is valid if it is connected and each
+baseline models on final answer accuracy and reasoning step 𝑟 𝑘 = (cid:104)𝑠,𝑖(cid:105) is correct (in the sense
+thatourproposedhalterandsearchmethodsalso that 𝑖 logically follows from 𝑠).
+lead to compounding boosts in performance (Ta-
+bles 2 and 1). We show that in most cases SI
+In the next section, we introduce the compo-
+produces higher quality reasoning traces than
+nentsofourarchitectureandshowhowitsatisfies
+baselinemodels(Figures9and8). Itislesslikely
+therequirementsoffaithfulreasoning,undercer-
+to “hallucinate” facts (Table 5), is better able to
+tain assumptions.
+utilise the context (Table 3) and is more likely to
+use its trace to answer questions (Table 4). Fi-
+nally, our model can accurately predict when it 3. Components of a Faithful Reason-
+knows the answer (Figure 6). ing Model
+WebeginbyintroducingSelection-Inference(SI),
+2. Defining a Valid Reasoning Trace thestep-wiseforwardreasoningbackbonewhose
+causal structure (see Figure 2) satisfies the re-
+In this Section, we formally define the concept quirements for producing valid reasoning traces.
+of valid forward reasoning in the context of our We then describe a component for halting, which
+2FaithfulReasoningUsingLargeLanguageModels
+Figure 2 | Comparing dependencies between inputs and outputs for SI and related models.
+Inputs - blue circles, LM outputs - purple circles. Order of the letters indicates the order in which the
+valuesarepredicted. Arrowsindicatethedependenciesbetweeninputs–thecontext,C,andquestion,
+Q – intermediate outputs – the selection, S, and inference, I, and the final answer, A. SI is the only
+model where the answer does not have a direct dependency on the question. Note, EntailmentWriter
+takesthehypothesisandcontextasinput,wherethehypothesisdependsonthequestionandanswer.
+3.1. Selection-Inference: Valid Forward Rea-
+soning
+Given a question and a context consisting of a
+number of statements sufficient to answer the
+question, we would like our model to produce
+a sequence of deductive reasoning steps that an-
+swers the question (Figure 1). To achieve this,
+theSIbackbonesplitseachreasoningstepintwo
+(Defn. 1). First, given the question, the Selection
+model chooses a set of statements from the con-
+text (the selection). Second, the Inference model
+predictsanentailmentbycomputingastatement
+that follows from the selection (the inference).
+Figure3 | FaithfulReasoningarchitecture. See
+The inference is then added to the context, and
+Section 3 for details of each component.
+that concludes a single step of reasoning. Multi-
+ple iterations of SI are carried out to produce a
+reasoning trace (Defn. 2). The final inference is
+used to answer the question.
+looks at the output of a Selection-Inference step
+anddeterminesifthereissufficientinformationto
+answer the question. When there is sufficient in-
+formation, themodelpredictstheanswerin such
+3.1.1. Selection
+awaythatitcannotrelyonknowledgeembedded
+in its weights, but must depend on the reason- To ensure that the reasoning trace is connected
+ing trace. Finally, we introduce a value function, (Defn. 3),theSelectionmodelisobligedtoselect
+whichisusedtoperformastep-levelbeamsearch elements only from the context, and is unable to
+onthereasoningtracestofindthebestcandidate ‘hallucinate’facts. SimilartoTafjordetal.(2021)
+for answering the question. A schematic of our and Dalvi et al. (2021), we achieve this by train-
+model is shown in Figure 3. We now describe inganLMtorefertostatementsinthecontextby
+each of these components in more detail. Note their sentence labels, for example, ‘sent 3’. These
+that(incontrasttoDalvietal.(2021))eachcom- areusedtocomposesentencesoftheform“X.We
+ponent in our model is trained in isolation, and know that Y and ... and Z.”, where X, Y, and Z
+at no point do we optimise our pipeline for final are sentence labels (Figure 4). These sentences
+answer accuracy. are passed directly to the inference model.
+3FaithfulReasoningUsingLargeLanguageModels
+Figure 4 | The Selection model. The role of the Selection model is to take the context and question
+andselectanumberofstatementsfromthecontexttofeedtotheinferencemodel. Itiscrucialthatthe
+Selectionmodelisnotableto‘hallucinate‘facts. Toachievethiswefine-tuneaLMtopredictsentence
+labels, as show in (i). We then extract the only the sentence labels (ii) and compose a sentence (iii).
+The statements from the context are then substituted back in (iv) resulting in a sentence composed
+of statements from the context.
+3.1.2. Inference reasoning process. Furthermore, while we may
+want to use the final inference as the answer, it
+Toencourageittoproducecorrectreasoningsteps,
+may not be in a desirable format. For example, if
+the Inference model is trained to predict an en-
+weareaskedwhetherastatement‘𝑃(𝑋)’istrueor
+tailmentgivenonlytheselection. Bynotallowing
+false,ourfinalinferencemybe‘𝑃(𝑋)’or‘𝑛𝑜𝑡𝑃(𝑋)’
+the Inference model access to the question, we
+where 𝑃 is a predicate and 𝑋 a constant. Alter-
+preventitfrom“cheating”(directlypredictingthe
+natively, we may want to answer multiple-choice
+answerfromthequestion). Whilewecannotguar-
+questions,whichrequireoneanswertobeoutput
+antee that every reasoning step is correct, in the
+from a given set of possibilities.
+sensethattheinferencelogicallyfollowsfromthe
+selection (Defn. 4), our implementation makes In light of this, we deploy a two-stage Halter
+this more likely. Under the assumption that the (Figure5),whichusesanLMfine-tunedtopredict
+Inference model produces logically correct infer- whether the question can be answered given the
+ences, our model is guaranteed to produce valid current inference and the question. If the ques-
+reasoning traces. tion cannot be answered, ‘Unknown’ is returned.
+Otherwise, the Halter computes an answer, us-
+ing the same LM, given the final inference and
+minimal additional information. It is important
+3.2. Halting: When to Stop Reasoning?
+that the model is obliged to use the final infer-
+SI allows us to produce multi-step reasoning ence, rather than depend on knowledge embed-
+traces, but it does not tell us when to stop the
+4FaithfulReasoningUsingLargeLanguageModels
+dedinitsweights. Forexample,ifweareanswer- otherwise considered “incorrect”.
+ing a multiple-choice question, we may provide
+Assumingthatthesumofprobabilitiesfor“cor-
+the choices alongside the final inference, and use
+rect” and “incorrect” is close to one, we can
+the model to output the choice that most closely
+use log𝑝 (“correct”|reasoning trace) to score
+matches that inference. value
+reasoning traces as they are being constructed,
+To determine if the system is ready to answer where 𝑙𝑜𝑔𝑝 denotes the distribution over to-
+value
+the question, we provide the Halter with a sen- kens learned by the language model, LM .
+value
+tence of the following form: ‘Question:{question}
+We use the value function to guide a beam
+Given {inference}. Do you know the answer?’.
+search. Starting from a single empty trace we
+The output of the Halter LM is then either ‘Yes’
+use SI to produce 𝑃 candidate steps. We evaluate
+or ‘No’. If the output is ‘Yes’, the Halter LM is
+each of these steps using the value function and
+thenpromptedagaintoanswerthequestionwith
+keepthetop 𝐵 <= 𝑃. WeuseSIagaintogenerate
+a prompt of the following form: ‘Given {infer-
+𝑃 candidate next steps for each of the 𝐵 traces,
+ence}. Whichofthefollowingmostcloselymatches:
+resulting in 𝐵 × 𝑃 traces. These are evaluated
+{choices}? Answer:’. The output is one of the
+usingthevaluefunctionandthebest 𝐵tracesare
+choices.
+kept. Wecontinuethisprocessuntilallthetraces
+TheHalterisappliedaftereachstepofSItothe have halted.
+resulting inference. If the output of the Halter is
+‘Unknown’ then we proceed to another iteration
+4. Experimental Setup and Evaluation
+of SI. If the output of the Halter is an answer,
+of Components
+then the process is terminated and the answer is
+returned. If, after a pre-specified number of SI
+In this section, we detail how each component
+iterations, the system has not halted, it returns
+in our faithful reasoning model is trained, and
+the answer ‘Unknown’ (Alg. 2). An additional
+evaluate each component is isolation, where pos-
+benefit of this is that it allows the model to say
+sible. Weusetwochallengingreasoningdatasets,
+that it cannot answer the question, rather than
+ProofWriter(Tafjordetal.,2021)andamodified
+making up an answer. We see a notable increase
+– more challenging – question-answering version
+in performance when we remove questions that
+of EntailmentBank (Dalvi et al., 2021). We use a
+the model “thinks” it cannot answer (Figure 6).
+7B parameter Chinchilla language model in each
+This has significant implications for trust, safety
+of our components (Hoffmann et al., 2022).
+and the deployment of systems in the real world,
+where precision (rather than recall) is a priority.
+4.1. Datasets
+We fine-tune language models on examples of
+3.3. Search: Finding the Best Trace
+ground truth reasoning traces. Two datasets
+The selection module is non-deterministic, in the that provide reasoning traces are Entailment-
+sense that it samples from multiple candidate Bank (Dalvi et al., 2021) and ProofWriter (PW)
+statements, and this induces a tree of potential (Tafjord et al., 2021) (See Section B.1.1 for de-
+reasoning traces. We use beam search to explore tails). ProofWriter is a dataset of logical reason-
+this tree in order to find high quality traces. To ingproblemsthataskaquestionwhoseansweris
+enable this, we introduce a value function which TrueorFalsegivenacontextandprovidestep-by-
+computes the value of adding a reasoning step stepreasoningtraces. Problemsrequire1,2,3or
+to the current trace. The value function is a lan- 5 steps of reasoning. EntailmentBank is derived
+guage model, LM , fine-tuned on examples of fromtheARC(Clarketal.,2018)datasetofgrade
+value
+partial reasoning traces that culminate in a “cor- school science questions. Dalvi et al. (2021) pro-
+rect”or“incorrect”nextstep. Astepisconsidered videadatasetof (cid:104)context,hypothesis,entailment
+“correct” if it is both logically valid and is on the tree(cid:105) triples. Dalvi et al. (2021) propose three
+ground truth (shortest) reasoning path. A step is tasks, Task 1 where the context consists of facts
+5FaithfulReasoningUsingLargeLanguageModels
+Figure 5 | The two-stage Halter. First the model determines if a question is answerable given the
+currentinference. Ifitis,themodelcombinesminimaladditionalinformation(thatcouldnotbeused
+on its own to answer the question) and predicts the answer.
+from WorldTreeV2 (Xie et al., 2020) needed to 4.3. Halter
+answer the question, and Task 2 that additionally
+We use the ground truth reasoning traces from
+includes distractors. EntailmentBank is not a QA
+each dataset to produce training examples for
+dataset, rather the task requires predicting the
+the Halter LM. The halter has two functions, (1)
+entailmenttreegiventhehypothesisandcontext.
+learn when there is sufficient information to an-
+We reformulate the EntailmentBank dataset (tak-
+swerthequestiongiventhecurrentinference(and
+ing additional information from the original ARC
+the question) and (2) answer the question given
+tasks)intoanEntailmentBankQA(EB)datasetby
+the current inference and the choices. An exam-
+creating a dataset of context, question, choices,
+ple of how data is generated is shown in Figure
+answer and a proof derived from the entailment
+13. Each step of reasoning in each problem can
+tree. Our task is to predict the answer and proof
+be converted into a data point for training. The
+giventhequestion,contextandchoices. Thistask
+input has the form ‘Question: {question}. Given
+ismoresimilartotheARCtask,however,herewe
+{inference}. Do you know the answer?’. For inter-
+providethecontextandpredictareasoningtrace
+mediate reasoning steps the target is ‘ No.’. For
+that leads to the answer.
+final reasoning steps the target is ‘ Yes.’. From
+these examples, the model can learn whether an
+inference contains sufficient information to an-
+swer the question. We obtain an additional data
+point for each problem, which is used to train
+4.2. Selection-Inference
+the model to answer a question. The inputs are
+Theselectionmodelistrainedonindividualsteps of the form ‘Given {inference}. Which of these
+of reasoning; given the context and any previ- most closely matches {choices}?’. The target is the
+ousinferencesthemodelistrainedtopredictthe ground truth answer given in the dataset.
+sentence labels which refer to statements in the
+We train two halters, one on the PW dataset
+context. Theinferencemodelistrainedtopredict
+and the another on the EB dataset. For the PW
+anentailmentgivenanumberofstatementsfrom
+dataset we use a simplified single step prediction
+the context. Each reasoning step in each train-
+because the question does not contain sufficient
+ing example in the original dataset produces one information to solve the problem1. Specifically,
+training data point for selection and one training
+forPWweconstructatrainingdatasetwherethe
+point for inference. Examples of (cid:104)input, target(cid:105)
+input has the form ‘Given {inference}. {question}’.
+pairs used to train the LMs are shown in Figures
+For each intermediate inference the target is ‘
+11 and 12. By training the model to select state-
+mentsbylabelswepreventthemodelfrombeing
+1Notethatforevery"ShowP(X)"thereisa"Shownot
+able to make up facts that are not present in the
+P(X)" in the PW dataset, therefore if the model tried to
+context (Tables 6 and Table 5). Tables 7 and 8
+answerusingonlythequestionthemodelwouldachieve
+show the inference accuracy on the test set. only50%accuracy.
+6FaithfulReasoningUsingLargeLanguageModels
+Unknown’ while the final inference has the target and 78.1% final answer accuracy on PW and EB
+‘ True’ or ‘ False’. respectively significantly outperforming baseline
+models (Table 1 and 2). We also perform an ab-
+To evaluate each halter independently of the
+lation to demonstrate the key role of search in
+Proof Only baseline or SI model, it is applied
+our model (Table 1 and 2). Compared to base-
+it to the ground truth proofs from the test split.
+line models, we show that our model often has
+Tables1and2showresultsforPWandEBrespec-
+higher reasoning trace accuracy; this is most evi-
+tively. WeseethatthePWhalterperformsalmost
+dent on the more challenging tasks, for example
+perfectly while the EB halter achieves 88.8% ac-
+PW depth-5 and EB Task 2 (Figure 8 and 9). Fi-
+curacy.
+nally, we evaluate reasoning trace validity (Sec-
+The Halter endows our model with the desir- tion 5.4) showing that baseline model are less
+ablepropertyofpredictingwhenitdoesnotknow likely to leverage the context when answering
+the answer. Figure 6 shows that our halter model questions (Table 4 and 3) and are more likely
+can reliably predict when the answer is known. to “hallucinate” statements than SI (Table 6 and
+Whenwefilterouttheproblemswherethemodel 5). All results in this paper were obtained using
+does not know the answer, we obtain nearly per- 7B parameter Chinchilla language model models
+fect accuracy on the PW dataset for all depths (Hoffmann et al., 2022).
+and 87.5% & 83.7% accuracy on Task 1 and 2
+of EB dataset respectively. This has significant
+5.1. Baselines
+implications for the deployment of such models
+in scenarios where precision matters.
+We consider three baseline models. A Proof +
+Answer baseline where the LM is trained to pre-
+dict the whole proof followed by the answer. A
+4.4. Search
+Proof Only baseline where the model is trained
+The Value LM is trained to predict whether the to predict only the proof. We use the Proof Only
+currentstepofareasoningtraceis‘correct’or‘in- baseline to ablate the SI model by pairing it with
+correct’. Again,weusethegroundtruthreasoning our halter and search methods (see Tables 2 and
+traces to construct examples of correct and incor- 1). Finally, we include EntailmentWriter + An-
+rectpartialreasoningtraces. Constructingthecor- swer. This is the entailment model of Dalvi et al.
+rect examples is simple; we take a ground truth (2021), which is fine-tuned to predict an entail-
+trace with 𝑁 steps and construct the following menttreealone,extendedforquestion-answering
+input for all 𝑛 ∈ [1,2,...,𝑁], ‘Context:{context} by training the model to predict the answer after
+Question:{question} Reason:{reason[1:n]} The the final conclusion.
+above reasoning steps are’. The target is ‘ correct’
+WhileEntailmentWriter+AnswerandProof
+for all of these examples. To create the negative
++ Answer tend to be very good at predicting the
+examples we take each positive example and re-
+intermediateinferences(SeeFigures17aand9b)
+place one of the correct supporting statements
+they tend to be less good at selecting the correct
+withadifferent,randomlychosenstatementfrom
+statements (see Figures 8a and 9a) and overall
+the context and use our Inference LM to predict
+they perform less well on final answer accuracy
+theentailment. Thesetrainingexampleshavethe
+(seeTable1and2). Thissuggeststhatthemodels
+target ‘ incorrect’. Examples for both ProofWriter
+are predicting the correct intermediate outputs,
+andEntailmentBankareshowninFigures15and
+without selecting the correct supporting state-
+14.
+ments and that the models are unable to use the
+reasoning trace to answer the question. We also
+5. Experiments and Results seethatbaselinemodels,withtheexceptionofEn-
+tailmentWriter,oftenmake-upfactswhenreason-
+We present results on both ProofWriter (PW) ing (see Table 5), suggesting that their traces are
+(Tafjord et al., 2021) and EntailmentBankQA not connected and therefore are not valid (Defn.
+(EB). We show that our model achieves 88.1% 3). Finally, baseline models leverage information
+7FaithfulReasoningUsingLargeLanguageModels
+(a)ProofWriter (b)EntailmentBankQA
+Figure 6 | Our model accurately predicts when it ‘knows’ the answer. The ‘known only’ accuracy
+is computed after filtering out the answers that are ‘Unknown’. The ‘all’ accuracy is computed on all
+problems. This property is beneficial for applications that require high precision.
+Figure 7 | The value function. Given the context, question and a partial reasoning trace the model
+predicts the log probability that the current step is correct.
+in the context less well than our model, see Ta- + Answer and Proof + Answer baseline mod-
+ble 3, and Table 4 suggests that on ProofWriter, els on all PW and EB tasks. We also show that
+SI is the only model to consistently leverage the search improves both baseline and SI perfor-
+reasoning trace to answer questions. mance, providing the most significant improve-
+ment for problems that require more reasoning
+OninspectionofEntailmentWriter(Dalvietal.,
+steps (PW, depth-5) and on problems with dis-
+2021)outputsontheProofWriterdatasetwesee
+tractors in the context (EB, Task 2)
+that the model often ‘cheats’, where the final in-
+ferencehelpstoanswerthequestion,butdoesnot OntheEBdatasetweseethatSImodel+Hal-
+follow from the previously selected statements. ter+SearchyieldssimilarperformancetoProof
+See Section E.1. Our inference model does not Only + Halter + Search while also providing
+have access to the question and therefore does faithful reasoning traces, which the Proof Only
+not have the ability to cheat in this way. models do not. In fact, Table 5 shows that the
+Proof Only models are prone to hallucinating
+factsinupto40%ofproblems,whileSIhasmade
+upfactstoonly1%ofproblems2. Inthenextsec-
+5.2. Final Answer Accuracy
+tion we look at reasoning trace accuracy.
+Tables1and2showfinalansweraccuracyonthe
+ProofWriter (PW) and EntailmentBankQA (EB)
+datasets respectively. Each table shows a com-
+parison to baselines as well as an ablation; com-
+paring both SI + Halter and the Proof Only +
+Halter baseline model with and without search. 2ThisislikelyafailureoftheSelectionmodeltoproduce
+We see that SI outperforms EntailmentWriter anoutputwiththecorrectsyntaxandcouldbefilteredfor.
+8FaithfulReasoningUsingLargeLanguageModels
+Experiment depth-1 depth-2 depth-3 depth-5 Overall
+Entailment Writer (Dalvi et al., 2021) + Answer 50.4% 55.3% 52.2% 56.0% 53.5%
+Proof + Answer 70.9% 65.0% 65.5% 60.4% 65.4%
+Ground truth proof + Halter 99.9% 100% 100% 100% 100%
+Proof Only + Halter 97.0% 93.1% 84.8% 44.6% 79.9%
+Proof Only + Halter + EB Search 99.2% 96.2% 91.4% 54.9% 85.0%
+Proof Only + Halter + PW Search 98.7% 96.0% 90.3% 56.8% 85.4%
+SI model + Halter 98.3% 94.1% 82.4% 38.4% 78.3%
+SI model + Halter + EB Search 99.4% 98.0% 91.7% 61.7% 88.0%
+SI model + Halter + PW Search 99.4% 98.1% 92.0% 63.4% 88.1%
+Table 1 | ProofWriter ablation and comparison to baselines. Note that the baseline model does
+not produce faithful reasoning traces and has access to the question when answering. By contrast, in
+SI the reasoning is faithful and the answer depends on the reasoning trace. We show results using
+searchwith avalue function trainedonProofWriter, PWSearch, andwith avalue function trainedon
+EntailmentBank, EB Search.
+Model Task 1 Task 2 gests that these models are correctly predicting
+Ground truth proof + Halter 88.8% 88.8% the intermediate outputs, but not via the correct
+Proof + Answer 64.6% 7.8% reasoning. Note that this evaluation does not
+EntailmentWriter* + Answer 50.0% 35.0% consider the ordering of the proof steps which
+Proof Only + Halter 78.5% 60.3% may be inflating the perceived performance of
+Proof Only + Halter + Search 82.9% 76.2% thebaselinemodelssincethebaselinemodelsare
+SI model + Halter 72.4% 55.9% able to cheat by predicting later reasoning steps
+SI model + Halter + Search 83.2% 72.9% without computing earlier reasoning steps.
+Overall, on the EB dataset, we see that SI
+Table2 | EntailmentBankQAablationandcom-
+outperforms EntailmentWriter + Answer and
+parison to baselines. Note that the baseline
+Proof + Answer baselines on the more challeng-
+modelsarenotcausal. Weuse7BparameterLMs
+ing task, Task 2, which has distractors in the con-
+for all models. *(Dalvi et al., 2021)
+text. Figure 9 shows the Jaccard similarity be-
+tweenpredictedandground-truthleaves(i.e. the
+selection) and the as well as the rouge scores be-
+5.3. Evaluating Reasoning Trace Accuracy
+tween predicted and target intermediate outputs
+on the EB dataset (additional results in Figure
+Here we evaluate the reasoning trace accuracy
+18).
+of each model on the PW and EB datasets, see
+Figures 8, 17 and 9. Note that high baseline performance on the
+intermediateoutputs(Figures17and9)alsosug-
+Evaluating reasoning trace accuracy on PW is
+gests that the baseline models have been trained
+straightforward since we are able to use exact
+well and means that their poor final answer ac-
+string match to check whether two strings are
+curacy cannot be attributed to poor training but
+the same. We show the Jaccard similarity be-
+rather to the baseline models’ inability to use the
+tween predicted and ground truth leaves (i.e the
+reasoning trace to answer the question.
+selection, Figure 8a), intermediate outputs (i.e.
+the inferences, Figure 17a) and steps (i.e. selec-
+tion and inference, Figure 8b). Results show that
+5.4. Trace Validity
+SI had the highest Jaccard similarity for leaves
+and full traces while Proof + Answer and En- While requirements for Defn. 1-3 are satisfied by
+tailmentWriter+AnswerhavehighestJaccard the causal structure of our underling model (Fig-
+similarityforintermediateoutputs17a. Thissug- ure 2). Requirements of correctness, for Defn. 4,
+9FaithfulReasoningUsingLargeLanguageModels
+(a) Jaccard similarity between the pre- (b) Jaccard similarity between the pre-
+dicted and ground-truth selection, re- dicted and ground-truth reasoning steps.
+ferredtoasleaves,usedtoreason. Wesee We see that the SI models perform better
+thattheSImodelsperformbetterthanBase- thanBaselinemodelsonthemorechalleng-
+linemodels. ingTask2.
+Figure 8 | Evaluating proof steps for ProofWriter. We compute the above values only on problems
+where the model predicts that the answer is not "Unknown". Additional analysis in Figure 17.
+arelessstronglyenforced. Neverthelessweshow 5.4.3. SIusesitsreasoningtracetoanswerthe
+bellow that, unlike baseline models, our model question
+is not able to cheat and therefore, the correctness
+Unlike baseline models, SI’s causal structure (see
+assumption is more likely to hold. First, however,
+Figure 2) forces it to use the reasoning trace to
+wedemonstratethatwhileSIsatisfiestherequire-
+answer the question. On the other hand, some
+ment of being connected, other baseline models
+baseline models are able to ‘cheat’, answering
+fail to do so.
+questions without reasoning properly over the
+context. In other words, they depend more on
+5.4.1. SI produces connected traces the knowledge embedded in their weights than
+on the context provided and the reasoning trace
+For a reasoning trace to be connected it must not
+constructed. To investigate this, we evaluate per-
+hallucinate facts (Defn. 3). Tables 5 and 6 show
+formance of a model that is given an incorrect
+that while some baseline models fail to satisfy
+context (a context different from the one needed
+this requirement and often hallucinate facts. For
+to solve the problem) and compare this to per-
+example,theProof+Answerbaselinemakesup
+formance when the model is given the correct
+facts to solve 60% of EntailmentBankQA prob-
+context. If a model’s answer depends on careful
+lems. On the other hand, SI makes up facts <
+reasoning over the context, then it should be un-
+1% of the time, suggesting that >99% of traces
+able to answer the question when provided with
+produced by SI are connected reasoning traces.
+a random context.
+On the EntailmentBankQA dataset, we use a
+5.4.2. SI produces correct inferences
+randomcontextsampledfromanotherproblemin
+the dataset. Table 3 shows that both the Proof +
+Following Defn. 4 for a trace to be valid it must
+Answer and EntailmentWriter + Answer mod-
+be connected (as above) and the steps must be
+els are still able to answer 30% and 23% of ques-
+correct; the inference must follow from the selec-
+tions respectively, while SI + Halter is only able
+tion. Tables 7 shows that when fed with a valid
+to answer 9%. We also see that while almost half
+selection the inference model reliably produces
+of the final accuracy could be accounted for by
+the correct inference. It is harder to evaluate in-
+‘cheating’ or chance in the baseline models, less
+ferenceaccuracyonEntailmentBankQA,however
+that 12.5% of SI + Halter final accuracy could
+Table8suggeststhattheinferencemodelisaccu-
+be attributed to ‘cheating’ or chance.
+rate, with a RougeL score if 0.69.
+10FaithfulReasoningUsingLargeLanguageModels
+On the ProofWriter dataset, we use an in- Depths 1-5
+complete context which consists only of the rules Model incomplete↓ Δ ↑
+needed to solve the problems but not the facts, context
+making it impossible to construct the correct a SI + Halter 29.5% 48.8%
+valid trace to solve the problem. Table 4 shows Proof + Answer 61.2% 4.3%
+model performance and the difference in perfor- EW* + Answer 53.4% 0.1%
+mance, Δ,betweenmodelsthatusethecomplete
+and incomplete context. The Δ results suggest Table4|ProofWriter: Relativeperformancein-
+that SI + Halter is the only model that reliably
+crease,Δ,whenusingthecompletecontextas
+makesuseofthereasoningtrace,whiletheother opposed to a incomplete (rules only) context.
+models rely on taking short cuts. For example, IntheProofWriterdatasetinformationneededto
+Proof + Answer may be taking short cuts, by solve the problem may be leaked, in the baseline
+looking for rules whose head predicate matches models, by the rules themselves, without need
+the predicate in the question. to do valid reasoning. We expect models that ac-
+tively make use of the reasoning trace – rather
+Task 1 than ‘cheating’ using short-cuts – to have poor
+Model random↓ Δ ↑ performance when using the incomplete context
+context and to have a larger performance increases, Δ.
+SI + Halter 9.4% 63.0% (*EW=EntailmentWriter (Dalvi et al., 2021)) SI
+Proof + Answer 30.0% 34.6% + Halter performance is less than 50% because
+EW* + Answer 23.0% 27.0% in 69.7% of cases the model correctly predicts
+that it cannot answer the question. The Δ results
+Table 3 | EntailmentBank: Relative perfor- suggests that SI + Halter is the only model that
+mance increase, Δ, when using the correct reliably uses the reasoning trace to answer ques-
+context as opposed to a random one. We ex- tions.
+pectmodelsthatactivelymakeuseofthecontext
+tohavepoorperformancewhenusingtherandom
+context and a larger performance increases, Δ, 6.1. Language Models Are Not Enough
+when using the correct context compare to when
+Recentworkonapplyinglanguagemodelstorea-
+usingtheincorrectone. (*EW=EntailmentWriter
+soning problems has largely concentrated on im-
+(Dalvi et al., 2021))
+provingfinalansweraccuracyratherthanproduc-
+ing valid, human interpretable reasoning traces
+that lead to the answers. For example, various
+6. Related Work
+methods of prompting (Wei et al., 2022) and it-
+erative fine-tuning (Zelikman et al., 2022) have
+While contemporary language models (LMs) are
+beenusedtoencouragemodelstoproducereason-
+good at many natural language tasks, they often
+ingtraces,andwhilethishasledtoimprovement
+strugglewithlogicalreasoning(Betzetal.,2021;
+of final answer accuracy these traces do not sup-
+Creswell et al., 2022; Dasgupta et al., 2022; Rae
+port our understanding of how the answer was
+et al., 2021; Zhang et al., 2022). In this section
+reached.
+we draw attention to the exciting progress being
+madetowardsreasoningusingLMs. Wehighlight Kojima et al. (2022) split the reasoning in two
+several works that use language models to pro- parts, first producing a reasoning trace and then
+ducereasoningtraces(Bostrometal.,2022;Dalvi predicting the answer given the question and the
+etal.,2021;Kojimaetal.,2022;Sahaetal.,2020; reason. Similar to our own model Zhou et al.
+Tafjord et al., 2021; Wei et al., 2022; Zelikman (2022) go one-step further and split each rea-
+et al., 2022), and assess the reasoning validity of soning step in two: first asking an intermediate
+eachapproach. Finally,wediscusstwoadditional question and second, answering that question.
+areas of related work, the use of search and the Whiletheauthorssuggestthattheirapproachpro-
+problem of when to stop reasoning. motes compositional generalisation, unlike our
+11FaithfulReasoningUsingLargeLanguageModels
+(a)Jaccardsimilaritybetweentheground (b) Rouge score on the intermediate out-
+truth leaves (e.g. selection) and those puts (or inferences) from each step (ig-
+used by the model. WeseethatSIoutper- noringorder). Thebaselinemodelsthatdo
+formsallofthebaselinemodelsonthemore notusesearchorthehalterperformpoorly
+challengingtask,Task2. onTask2.
+Figure 9 | Evaluating reasoning steps for EntailmentBankQA. We compute the above values only
+on problems where the model predicts that the answer is not "Unknown". Note, none of these metrics
+account for order of the reasoning steps.
+Model Task 1 Task 2 6.2. Reasoning with Language Models
+Proof + Answer 10% 60%
+The EntailmentBank dataset proposed by Dalvi
+EntailmentWriter + Answer 3% 0%
+et al. (2021) has led to several works focused
+Proof Only + Halter 15% 23%
+on deriving reasoning traces to backup an an-
+Proof Only + Halter + Search 18% 40%
+swer or hypothesis (Bostrom et al., 2022; Dalvi
+SI + Halter 1% 0%
+et al., 2022; Jhamtani and Clark, 2020; Ribeiro
+SI + Halter + Search 1% 0%
+etal.,2022). Inourwork,wefocusonanswering
+Table 5 | EntailmentBankQA: Proportion of questionsandprovidingfaithfulreasoningtraces,
+rather than post-hoc explanations.
+problemsonwhichmodelsmade-upfactsthat
+were not in the context. We see that only SI
+With a similar motivation to our own, Gupta
+and EntailmentWriter are able to avoid making
+et al. (2022) and Nakano et al. (2021) show
+up facts.
+promising results extracting evidence from a ta-
+ble or the web, respectively, and using this to
+answer a question or solve a natural language
+approachtheansweringpartofthemodelhasfull
+inference (NLI) problem. However, while Gupta
+access to the question and therefore the model
+et al. (2022) and Nakano et al. (2021) show the
+doesnothavetorelyonthereasoningtracetoan-
+evidence used, they do not show how that in-
+swerthequestion. Moreover,unlikeourwork,the
+formation was combined to answer the question.
+modelsofKojimaetal.(2022);Weietal.(2022);
+In our work, we produce a valid reasoning trace
+Zelikman et al. (2022); Zhou et al. (2022) are
+thatshowshowmultiplepiecesofknowledgeare
+notrestrictedtoreasoningoverknowledgeinthe
+combined, over several iterations, to answer a
+context,butratherhavetheabilitytohallucinate
+question.
+possibly incorrect “knowledge” to support the an-
+Otherworkshavefocusedonusingreasoningto
+swer leading to reasoning traces which are not
+show whether a statement is True or False (Betz
+valid and cannot be trusted.
+12FaithfulReasoningUsingLargeLanguageModels
+Figure 10 | Comparison between Faithful Reasoning and other related works.
+etal.,2021;Tafjordetal.,2021). InProofWriter, a whole trace (Cobbe et al., 2021; Jhamtani and
+Tafjord et al. (2021) train an LM to enumerate Clark, 2020; Nye et al., 2022), we train a model
+implications(andcorrespondingreasoningsteps) on partial reasoning traces, resulting in a model
+given a hypothesis. A valid reasoning trace can more similar to a value function which assesses
+be constructed from these outputs. However, this the “value” of the current reasoning step, which
+approachislimitedtoansweringquestionswhose can be used for step-level search.
+answer is True, False or Unknown, and a reason-
+Bostrometal.(2022)alsousestep-levelsearch
+ing trace must be constructed post-hoc.
+to determine whether a hypothesis is entailed
+Finally, while several works have informally by a set of statements. While we perform a
+introduced the notion of faithful reasoning beam search, using a learned value function, to
+(Bostrom et al., 2022; Gupta et al., 2022; Ku- find high-quality reasoning traces, Bostrom et al.
+mar and Talukdar, 2020), we have related this (2022) depend on exhaustive search to evaluate
+morepreciselytothedefinitionofvalidreasoning allpossiblepairsofstatementstouseforselection.
+in logic. UnlikeBostrometal.(2022),ourselectionstepis
+not limited to selecting just two statements. This
+allows us to more efficiently solve ProofWriter
+6.3. Using Search for Reasoning Problems tasks whose rules may be conditioned on multi-
+ple statements.
+The notion of valid and invalid reasoning traces
+have also been explored in the context of search.
+Jhamtani and Clark (2020) develop datasets of
+6.4. The Problem of When to Stop Reasoning
+validandinvalidreasoningtracesforgradeschool
+sciencequestions. Thesecanbeusedtotrainmod- The problem of when to “stop” rarely features in
+els to detect valid reasoning traces. However, it the deep learning literature because our models
+can be expensive to collect both valid and invalid typically answer problems in a single step. How-
+reasoning traces hence they collect only shallow ever, there are some exceptions. A simple exam-
+traces and their traces do not include interme- ple is text synthesis with large language models
+diate inferences. Instead, we show how, given where the model has to determine when to stop
+a valid reasoning trace, we can generate many producing tokens. This is often handled by a spe-
+invalid reasoning traces that can be used to fine- cial‘EndOfSequence’token(Graves,2013). Other
+tune a value function and used to guide search. examplesinthedeeplearningliteraturedrawran-
+Also,ratherthanlearningaverifierthatevaluates dom variables from a parameterised distribution
+13FaithfulReasoningUsingLargeLanguageModels
+to predict when to stop reasoning (Banino et al., ple, if the Selection model selects two unrelated
+2021; Graves, 2016). statements,thentheInferencemodelmaydrawa
+nonsensical conclusion. We also mitigate this by
+Related work by Kadavath et al. (2022) also
+introducingalearnedvaluefunction(Section3.3)
+investigates when LMs “know” the answer. Their
+that filters out poor reasoning traces, although
+modelproposesanumberofcandidates,andpre-
+this still cannot guarantee the correctness of ev-
+dicts whether each candidate is the answer to
+ery step. Examples of both correct and incorrect
+the question or not. Additionally, Bostrom et al.
+reasoning traces, along with their value (accord-
+(2022) tackle the less challenging problem of de-
+ing to the value function), are shown in Section
+termining whether an inference matches a goal
+D.
+state.
+In this paper we have focused on developing
+In summary, current work focuses on True/-
+models that answer questions using valid reason-
+False/NLItasks(Bostrometal.,2022;Dalvietal.,
+ing. Fornowwehaveassumedaccesstoacontext,
+2021; Tafjord et al., 2021) while our work tack-
+over which to reason. However, while there are
+les question-answering. This is not a trivial dif-
+some settings where such a context may be pro-
+ference. In question-answering, there is less in-
+vided, in most real world settings this is unlikely.
+formation with which to construct the reasoning
+Inthispaperwehavechosentofocusonthechal-
+trace,sincethe“goal”isnotknown,andlearning
+lenging problem of multi-step reasoning within a
+whentoterminateisalsomorechallenging. More-
+given context. However, in future work we hope
+over, current work leverages reasoning traces to
+to incorporate retrieval to populate the context,
+boost performance – rather than to aid explain-
+and there is already interesting research in this
+ability or build trust – allowing for hallucination
+direction (Dalvi et al., 2021; Ribeiro et al., 2022;
+of “knowledge” during reasoning (Kojima et al.,
+Xie et al., 2020).
+2022; Wei et al., 2022). Furthermore, some ex-
+isting approaches still allow the opportunity for
+“cheating”Dalvietal.(2021);Weietal.(2022)by
+8. Discussion
+providing the answering part of the model with
+directaccesstothequestion3. Finally,unlikemost
+Language models are being applied, with great
+othermodels(Dalvietal.,2021;Weietal.,2022),
+success,tomanydifferentproblemsAlayracetal.
+the causal structure of our model (see Figure 10)
+(2022); Nakano et al. (2021); Nye et al. (2022);
+mirrors the requirements for validity, see Table
+Rae et al. (2021); Zeng et al. (2022). However,
+10. Otherapproachesthatdosatisfyvalidityhave
+theylargelyremainblackboxes; wedonotknow
+their own limitations, as detailed above.
+how the models produce their responses. One
+solutiontothisistodevelopmodelsthatcanpro-
+duce faithful reasoning traces. We characterise
+7. Limitations
+faithfulreasoningintermsoflogicalvalidity(Sec-
+tion2),andproposeSelection-Inference,amodel
+The causal structure of our model mirrors the
+that mirrors the structure of this definition, and
+requirements for producing a valid trace (Defn.
+is guaranteed to produce valid reasoning traces
+4). Requirements for a connected reasoning trace
+under the assumption that individual steps are
+(Defn. 3) are guaranteed by design (Section
+correct (Defn. 4). By fine-tuning an Inference
+3.1.1). Unavoidably, given our use of LMs, we
+model specifically for this task and preventing it
+cannot guarantee that all reasoning steps will be
+from “cheating”, we increase the likelihood that
+logicallycorrect(Defn. 4). However,ourarchitec-
+thisassumptionholds(Tables7and8). Finally,to
+ture is designed to encourage logical correctness
+findhigh-qualityreasoningtraces,weintroducea
+by preventing models from ‘cheating’. For exam-
+valuefunction,anduseittoguideabeamsearch
+3Specifically in these cases, the question itself con- through the tree of potential traces induced by
+tains sufficient information to supply the answer, unlike the non-determinism of selection.
+inProofWriterwherethequestionisalsonotsufficientfor
+answeringcorrectly. The resulting model achieves higher final an-
+14FaithfulReasoningUsingLargeLanguageModels
+swer accuracy than baseline models on both parrots: Can language models be too big?
+ProofWriterTafjordetal.(2021)andEntailment- In Proceedings of the 2021 ACM Conference
+BankQA Dalvi et al. (2021) tasks. We see that on Fairness, Accountability, and Transparency,
+both Proof Only and SI benefit from search (Ta- FAccT ’21, page 610–623, New York, NY,
+bles1and2). Whencomparedtobaselinemodels, USA,2021.AssociationforComputingMachin-
+our model is less likely to hallucinate facts while ery. ISBN 9781450383097. doi: 10.1145/
+reasoning (Table 6 and 5). We see that the SI + 3442188.3445922. URL https://doi.org/
+Haltermodelisfarmorelikelythanbaselinemod- 10.1145/3442188.3445922.
+els to pay attention to the context (Table 3) and
+G. Betz, C. Voigt, and K. Richardson. Critical
+to leverage the reasoning trace (Table 4). Over-
+thinking for language models. In Proceed-
+all, we see that SI + Halter (+ Search) models
+ings of the 14th International Conference on
+achieves superior reasoning trace accuracy, espe-
+Computational Semantics (IWCS), pages 63–
+cially on the more challenging tasks (Figures 8
+75,Groningen,TheNetherlands(online),June
+and 9).
+2021. Association for Computational Linguis-
+Ourapproachexemplifiesatrendtowardsalgo- tics. URL https://aclanthology.org/
+rithmic prompting, a form of automated prompt 2021.iwcs-1.7.
+engineeringinwhich queryingalanguagemodel
+K.Bostrom,Z.Sprague,S.Chaudhuri,andG.Dur-
+becomes a computational primitive. The re-
+rett. Natural language deduction through
+sponses of the language model can be manip-
+search over statement compositions. arXiv
+ulated to construct new prompts that are then
+preprint arXiv:2201.06028, 2022.
+used to make further queries. Model queries
+and prompt construction are composed into algo- P. Clark, I. Cowhey, O. Etzioni, T. Khot, A. Sab-
+rithms with the usual computational constructs: harwal, C. Schoenick, and O. Tafjord. Think
+sequence, choice, and iteration. Algorithmic you have solved question answering? try arc,
+prompting can be used to elicit more sophisti- the ai2 reasoning challenge. arXiv preprint
+cated and nuanced behaviour from a language arXiv:1803.05457, 2018.
+model than would otherwise be possible. For ex-
+K. Cobbe, V. Kosaraju, M. Bavarian, J. Hilton,
+ample, as our work shows, this approach can be
+R.Nakano,C.Hesse,andJ.Schulman.Training
+used to develop models capable of faithful rea-
+verifiers to solve math word problems. arXiv
+soning, without compromising performance. In
+preprint arXiv:2110.14168, 2021.
+future work we aim to leverage advancements
+in retrieval to populate the context, rather than A. Creswell, M. Shanahan, and I. Higgins.
+relyingonthecontextbeingprovidedintheques- Selection-inference: Exploiting large language
+tion. models for interpretable logical reasoning.
+arXiv preprint arXiv:2205.09712, 2022.
+References B. Dalvi, P. Jansen, O. Tafjord, Z. Xie, H. Smith,
+L. Pipatanangkura, and P. Clark. Explaining
+J.-B.Alayrac,J.Donahue,P.Luc,A.Miech,I.Barr, answers with entailment trees. In Proceedings
+Y. Hasson, K. Lenc, A. Mensch, K. Millican, of the 2021 Conference on Empirical Methods in
+M.Reynolds,etal.Flamingo: avisuallanguage NaturalLanguageProcessing,pages7358–7370,
+model for few-shot learning. arXiv preprint Online and Punta Cana, Dominican Republic,
+arXiv:2204.14198, 2022. Nov. 2021. Association for Computational Lin-
+guistics. doi: 10.18653/v1/2021.emnlp-main.
+A. Banino, J. Balaguer, and C. Blundell. Pon- 585. URL https://aclanthology.org/
+dernet: Learning to ponder. arXiv preprint 2021.emnlp-main.585.
+arXiv:2107.05407, 2021.
+B. Dalvi, O. Tafjord, and P. Clark. Towards
+E. M. Bender, T. Gebru, A. McMillan-Major, and teachable reasoning systems. arXiv preprint
+S. Shmitchell. On the dangers of stochastic arXiv:2204.13074, 2022.
+15FaithfulReasoningUsingLargeLanguageModels
+I. Dasgupta, A. K. Lampinen, S. C. Chan, T.Kojima,S.S.Gu,M.Reid,Y.Matsuo,andY.Iwa-
+A.Creswell,D.Kumaran,J.L.McClelland,and sawa. Large language models are zero-shot
+F. Hill. Language models show human-like reasoners. arXiv preprint arXiv:2205.11916,
+content effects on reasoning. arXiv preprint 2022.
+arXiv:2207.07051, 2022.
+S.KumarandP.Talukdar. Nile: Naturallanguage
+A. Graves. Generating sequences with re- inference with faithful natural language ex-
+current neural networks. arXiv preprint planations. In Proceedings of the 58th Annual
+arXiv:1308.0850, 2013. Meeting of the Association for Computational
+Linguistics, pages 8730–8742, 2020.
+A. Graves. Adaptive computation time for
+recurrent neural networks. arXiv preprint R. Nakano, J. Hilton, S. Balaji, J. Wu, L. Ouyang,
+arXiv:1603.08983, 2016. C. Kim, C. Hesse, S. Jain, V. Kosaraju, W. Saun-
+ders, et al. Webgpt: Browser-assisted question-
+V. Gupta, S. Zhang, A. Vempala, Y. He, T. Choji, answeringwithhumanfeedback.arXivpreprint
+and V. Srikumar. Right for the right reason: arXiv:2112.09332, 2021.
+Evidence extraction for trustworthy tabular
+M. Nye, A. J. Andreassen, G. Gur-Ari,
+reasoning. In Proceedings of the 60th Annual
+H. Michalewski, J. Austin, D. Bieber, D. Dohan,
+Meeting of the Association for Computational
+A. Lewkowycz, M. Bosma, D. Luan, et al.
+Linguistics (Volume 1: Long Papers), Dublin,
+Showyourwork: Scratchpadsforintermediate
+Ireland, May 2022. Association for Computa-
+computation with language models. In Deep
+tional Linguistics. doi: 10.18653/v1/2022.
+Learning for Code Workshop, 2022.
+acl-long.231. URL https://aclanthology.
+org/2022.acl-long.231.
+J.W.Rae,S.Borgeaud,T.Cai,K.Millican,J.Hoff-
+mann, F. Song, J. Aslanides, S. Henderson,
+A. Hamilton. Logic for Mathematicians. Cam-
+R.Ring,S.Young,etal. Scalinglanguagemod-
+bridge University Press, 1988.
+els: Methods, analysis & insights from train-
+ing gopher. arXiv preprint arXiv:2112.11446,
+J. Hoffmann, S. Borgeaud, A. Mensch,
+2021.
+E. Buchatskaya, T. Cai, E. Rutherford, D. d. L.
+Casas, L. A. Hendricks, J. Welbl, A. Clark, et al.
+D. Ribeiro, S. Wang, X. Ma, R. Dong, X. Wei,
+Training compute-optimal large language
+H. Zhu, X. Chen, Z. Huang, P. Xu, A. Arnold,
+models. arXiv preprint arXiv:2203.15556,
+etal. Entailmenttreeexplanationsviaiterative
+2022.
+retrieval-generation reasoner. arXiv preprint
+arXiv:2205.09224, 2022.
+H. Jhamtani and P. Clark. Learning to explain:
+Datasets and models for identifying valid rea-
+S. Saha, S. Ghosh, S. Srivastava, and M. Bansal.
+soning chains in multihop question-answering.
+Prover: Proof generation for interpretable rea-
+In Proceedings of the 2020 Conference on Em-
+soning over rules. In EMNLP (1), 2020.
+pirical Methods in Natural Language Process-
+ing (EMNLP), pages 137–150, Online, Nov. T. Sellam, D. Das, and A. Parikh. Bleurt: Learn-
+2020. Association for Computational Linguis- ing robust metrics for text generation. In Pro-
+tics. doi: 10.18653/v1/2020.emnlp-main. ceedings of the 58th Annual Meeting of the As-
+10. URL https://aclanthology.org/ sociation for Computational Linguistics, pages
+2020.emnlp-main.10. 7881–7892, 2020.
+S. Kadavath, T. Conerly, A. Askell, T. Henighan, O. Tafjord, B. Dalvi, and P. Clark. Proofwriter:
+D. Drain, E. Perez, N. Schiefer, Z. H. Dodds, Generating implications, proofs, and abductive
+N.DasSarma,E.Tran-Johnson,etal. Language statements over natural language. In Findings
+models (mostly) know what they know. arXiv of the Association for Computational Linguistics:
+preprint arXiv:2207.05221, 2022. ACL-IJCNLP 2021, pages 3621–3634, 2021.
+16FaithfulReasoningUsingLargeLanguageModels
+J. Wei, X. Wang, D. Schuurmans, M. Bosma, Uesato, Jordi Grau-Moya, Ramana Kumar and
+E. Chi, Q. Le, and D. Zhou. Chain of thought Irina Higgins for insightful discussions.
+prompting elicits reasoning in large language
+models, 2022.
+L. Weidinger, J. Mellor, M. Rauh, C. Griffin,
+J. Uesato, P. Huang, M. Cheng, M. Glaese,
+B. Balle, A. Kasirzadeh, Z. Kenton, S. Brown,
+W. Hawkins, T. Stepleton, C. Biles, A. Birhane,
+J. Haas, L. Rimell, L. A. Hendricks, W. S. Isaac,
+S. Legassick, G. Irving, and I. Gabriel. Eth-
+ical and social risks of harm from language
+models. CoRR, abs/2112.04359, 2021. URL
+https://arxiv.org/abs/2112.04359.
+Z.Xie,S.Thiem,J.Martin,E.Wainwright,S.Mar-
+morstein, and P. Jansen. Worldtree v2: A cor-
+pus of science-domain structured explanations
+andinferencepatternssupportingmulti-hopin-
+ference. InProceedingsofthe12thLanguageRe-
+sourcesandEvaluationConference,pages5456–
+5473, 2020.
+E. Zelikman, Y. Wu, and N. D. Goodman. Star:
+Bootstrapping reasoning with reasoning. arXiv
+preprint arXiv:2203.14465, 2022.
+A. Zeng, A. Wong, S. Welker, K. Choroman-
+ski, F. Tombari, A. Purohit, M. Ryoo, V. Sind-
+hwani, J. Lee, V. Vanhoucke, et al. So-
+cratic models: Composing zero-shot multi-
+modal reasoning with language. arXiv preprint
+arXiv:2204.00598, 2022.
+H. Zhang, L. H. Li, T. Meng, K.-W. Chang,
+and G. V. d. Broeck. On the paradox of
+learning to reason from data. arXiv preprint
+arXiv:2205.11502, 2022.
+D. Zhou, N. Schärli, L. Hou, J. Wei, N. Scales,
+X. Wang, D. Schuurmans, O. Bousquet, Q. Le,
+and E. Chi. Least-to-most prompting enables
+complex reasoning in large language models.
+arXiv preprint arXiv:2205.10625, 2022.
+Acknowledgements
+The authors would like to thank Angeliki Lazari-
+dou, Charles Blundell and Christopher Summer-
+fieldforfeedbackonourpaperaswellasJonathan
+17FaithfulReasoningUsingLargeLanguageModels
+Supplementary Materials
+Algorithm 1: The SI() function.
+Input: LM : Selection LM.
+A. Formal definition of the problem Selection
+Input: LM : Inference LM.
+Inference
+Input: halt(): Halt function (Alg. 2).
+Formally, suppose we have a problem of the form
+Input: 𝑞: Question.
+(𝑞,C ), where C is a context, consisting of a set
+0 0
+Input: C : Initial context.
+of statements which are sufficient to predict the 0
+Input: 𝑐: Choices.
+the correct answer to the question, 𝑞.
+Input: 𝐾(cid:48): Max. reasoning steps.
+The role of the Selection model, LM Selection is 1 𝑎 ← ‘Unknown’; Initial answer is unknown.
+to sample a selection, 𝑠 𝑘, given the question, 𝑞 2 𝑡 ← 0; Step counter.
+and the current context, C 𝑘, see Equation 1. 3 while 𝑎 is ‘Unknown’ do
+4 𝑠 𝑘 ← LM Selection(𝑞,C 𝑘);
+𝑠 𝑘 = LM Selection(𝑞,C 𝑘) (1) 5
+6
+𝐶𝑖 𝑘 𝑘+←
+1
+←LM CIn 𝑘fe ∪re 𝑖n 𝑘c ;e(𝑖);
+7
+𝑎 ← halt(𝑞,𝑖 𝑘,𝑐);
+The role of the Inference model, LM Inference is 8 𝑘 ← 𝑘+1;
+to sample an inference, 𝑖 𝑘, given the selection, 𝑠 𝑘, 9 if 𝑘 > 𝐾(cid:48) then
+see Equation 2. 10 return 𝑎
+11 𝑎 ← LM halt(𝑖,𝑐);
+𝑖 𝑘 = LM Inference(𝑠 𝑘) (2) 12 return 𝑎;
+After each inference the context is updated as
+follows,C 𝑘−1∪𝑖 𝑘−1,accumulatinginferencesfrom
+have accompanying proofs (i.e. those whose an-
+previous steps of reasoning.
+swer is not Unknown).
+The Halter LM, LM , is applied to each infer-
+halt
+ence, 𝑖 𝑡, in two ways. First, to choose whether
+the model should stop reasoning and the second
+B.2. Selection-Inference
+toanswerthequestionwhenthemodelis‘ready’.
+This is illustrated in Alg. 1 and Alg. 2.
+Figures11and12showexamplesoftrainingsam-
+ples use to fine-tune the Selection and Inference
+LMs.
+B. Training Details
+B.1. Datasets
+B.3. Halter
+B.1.1. ProofWriter
+Figure13showshowtrainingdataisconstructed
+The ProofWriter dataset (Tafjord et al., 2021)
+for training the halting model.
+contains both a Closes and Open World Assump-
+tion version (CWA and OWA respectively). We
+use a subset of the OWA dataset. This is because
+B.4. Search
+for the CWA dataset everything that cannot be
+provenisconsideredFalse. Thismeansthatprob-
+Figures 14 and 15 show examples of data points
+lemswhoseanswerisFalse,donothavereasoning
+used to train the value function. The targets for
+traces. On the other hand the OWA dataset con-
+the value function are either ‘ correct’ or ‘ incor-
+tainsproofsforproblemswhoseanswersareTrue
+rect’.
+and False. Those without proofs are "Unknown".
+Since we need proofs for training and evaluation,
+we use the problems from the OWA dataset that
+18FaithfulReasoningUsingLargeLanguageModels
+Algorithm 2: The halt() function. Note
+that we use the same language model
+LM to both determine whether the
+halt
+model is able to answer the question and
+toanswerthequestion. Thekeydifference
+is the prompt, shown in Section 3.2.
+Input: LM : Halting LM.
+halt
+Input: 𝑞: Question.
+Input: 𝑖: Current inference.
+Input: 𝑐: Choices.
+1 𝑎 ← LM halt(𝑞,𝑖);
+2 if 𝑎 is ‘Unknown’ then
+3 return 𝑎;
+(a) Example of (cid:104)input, target(cid:105) pairs used to train
+4 else theSelectionLLM.
+5 𝑎 ← LM halt(𝑖,𝑐);
+6 return 𝑎;
+(b) Example of (cid:104)input, target(cid:105) pairs used to train
+theInferenceLLM.
+Figure 12 | Examples of EntailmentBankQA
+training pairs for Selection and Inference
+LLMs
+(a) Example of (cid:104)input, target(cid:105) pairs used to train
+In Table 5 we saw that baseline models, with
+theSelectionLLM.
+the exception of EntailmentWriter, were more
+likely to hallucinate facts while reasoning on the
+EntailmentBankdatasetthanSI.Interestingly,Ta-
+ble6showsthatProof+AnswerandProofOnly
+(b) Example of (cid:104)input, target(cid:105) pairs used to train
+baselinemodelshavelearnednottomakeupfacts
+theInferenceLLM.
+whilereasoningontheProofWriterdataset. Note
+Figure 11 | Examples of ProofWriter training that both EntailmentWriter and SI (ours) are de-
+signed not to make up facts.
+pairs for Selection and Inference LLMs
+Figure 18 shows the Rouge 1 scores between
+thepredictedandgroundtruth,ordered,interme-
+C. Additional Results
+diate inferences. We see that EntailmentWriter
+is very good at single step inference on Task 1
+C.1. Halter
+problems, but performance quickly declines for
+problems requiring multiple steps of reasoning.
+Figure 16 shows qualitative results from the Hal-
+In general SI models and models using halting
+ter model trained on EntailmentBankQA.
+and search outperform the baseline models.
+Tables 7 and 8 show the accuracy of the Infer-
+C.2. Reasoning Trace Accuracy ence LM when fed valid selections.
+Figure17showadditionalevaluationofreasoning
+traces on the ProofWriter dataset.
+19FaithfulReasoningUsingLargeLanguageModels
+Figure 13 | Example of how data is generated for the halter. Above are examples for four training
+datapoints. Thefirstthree,Doyouknowtheanswer? examples,areusedtotrainthehaltingmodel
+tolearnwhentohalt. Thefinaldatumisusedtotrainthehaltertoselectananswerfromtheavailable
+choices.
+Model depth
+depht-1 depth-2 depth-3 depth-5
+Proof + Answer 0% 0% 1% 1%
+EntailmentWriter + Answer 0% 0% 0% 0%
+Proof Only + Halter 4% 1% 1% 0%
+Proof Only + Halter + Search 0% 0% 0% 0%
+SI + Halter 0% 0% 0% 0%
+SI + Halter + Search 0% 0% 0% 0%
+Table6 | ProofWriter: Proportionofproblemsonwhichmodelsmade-upfactsthatwerenotin
+the context. We see that the Proof + Answer and Proof Only baseline models have learned not to
+make up facts, while EntailmentWriter and SI are designed not to make up facts.
+Task Inference Accuracy function scores. No additional filtering is per-
+depth-1 100% formed. For ease of reading we have combined
+depth-2 100% each selection and inference into a single line of
+depth-3 100% text rather than showing them separately. Exam-
+depth-5 99.9% ples that score high often involve repeated steps,
+this is because the ProofWriter proof dataset of-
+Table 7 | ProofWriter inference accuracy. The
+ten includes repeated steps. Invalid reasoning is
+inference model achieves almost perfect perfor-
+shown in red.
+mance. We use exact string match in lower case
+to decide if two statement are the same.
+Example 1 (value: -6.7e-06)
+D. Selection-Inference Model Outputs Context:
+If something likes the rabbit and it sees the bald
+D.1. ProofWriter: SI + Halter + Search eagle then the bald eagle needs the rabbit.
+If something is blue then it sees the rabbit.
+Below we show reasoning traces from the SI +
+Halter + Search model with the top 10 value
+20FaithfulReasoningUsingLargeLanguageModels
+Metric Inference Accuracy that the rabbit needs the rabbit and the rabbit
+Rouge1 0.69 likes the bald eagle. Therefore, the bald eagle is
+Rouge2 0.55 blue.
+RougeL 0.69 If something is blue then it sees the rabbit. We
+BLEURT > 0.28 64% know that the bald eagle is blue. Therefore, the
+bald eagle sees the rabbit.
+Table 8 | EntailmentBankQA inference accu-
+Answer: False
+racy. We report Rouge scores as well as accu-
+Target Proof:
+racy using a BLEURT (Sellam et al., 2020) with
+If something sees the mouse then it needs the
+a threshold of 0.28 determine accuracy (as done
+rabbit. We know that the rabbit sees the mouse.
+by Dalvi et al. (2021).
+Therefore, the rabbit needs the rabbit.
+If something needs the rabbit and it likes the
+bald eagle then the bald eagle is blue. We know
+If something needs the rabbit and it likes the
+that the rabbit needs the rabbit and the rabbit
+bald eagle then the bald eagle is blue.
+likes the bald eagle. Therefore, the bald eagle is
+If something likes the mouse then it is round.
+blue.
+If something is rough and it does not see the
+If something is blue then it sees the rabbit. We
+mouse then it does not need the bald eagle.
+know that the bald eagle is blue. Therefore, the
+If something sees the mouse then it needs the
+bald eagle sees the rabbit.
+rabbit.
+Target Answer: False
+the rabbit likes the mouse.
+the bald eagle likes the rabbit.
+the rabbit likes the bald eagle.
+the rabbit sees the bald eagle.
+Example 2 (value: -8.6e-06)
+the rabbit is blue.
+the rabbit needs the bald eagle. Context:
+the bald eagle needs the mouse. If someone needs the bald eagle and the bald
+the rabbit needs the mouse. eagle needs the squirrel then the bald eagle likes
+the mouse needs the bald eagle. the cow.
+the rabbit is not green. If someone needs the squirrel then they are
+the bald eagle likes the mouse. green.
+the rabbit sees the mouse. If someone needs the cow and they need the dog
+the bald eagle is round. then the cow is green.
+the bald eagle does not see the mouse. If someone likes the squirrel and they like the
+the rabbit is red. dog then the dog is nice.
+the rabbit is rough. If someone sees the cow then they need the dog.
+Question: Does it imply that the statement "The If someone is cold then they see the cow.
+bald eagle does not see the rabbit" is True? If someone needs the dog then the dog sees the
+Proof: cow.
+If something sees the mouse then it needs the Ifsomeonelikesthedogandthedogisbluethen
+rabbit. We know that the rabbit sees the mouse. the dog sees the bald eagle.
+Therefore, the rabbit needs the rabbit. the dog is nice.
+If something sees the mouse then it needs the the cow is nice.
+rabbit. We know that the rabbit sees the mouse. the dog likes the squirrel.
+Therefore, the rabbit needs the rabbit. the squirrel likes the dog.
+If something sees the mouse then it needs the the dog likes the cow.
+rabbit. We know that the rabbit sees the mouse. the squirrel sees the dog.
+Therefore, the rabbit needs the rabbit. the bald eagle is cold.
+If something needs the rabbit and it likes the the bald eagle sees the dog.
+bald eagle then the bald eagle is blue. We know the squirrel sees the bald eagle.
+21FaithfulReasoningUsingLargeLanguageModels
+the dog sees the bald eagle. All cold things are nice.
+the squirrel needs the cow. If the bald eagle needs the dog and the dog eats
+the squirrel is cold. the bald eagle then the dog is not cold.
+Question: Does it imply that the statement "The Ifsomethingneedsthebaldeagletheniteatsthe
+cow is not green" is True? cat.
+Proof: the tiger needs the bald eagle.
+If someone is cold then they see the cow. We the bald eagle is nice.
+know that the squirrel is cold. Therefore, the the bald eagle is round.
+squirrel sees the cow. the cat likes the bald eagle.
+If someone is cold then they see the cow. We the bald eagle does not eat the cat.
+know that the bald eagle is cold. Therefore, the the cat likes the tiger.
+bald eagle sees the cow. the cat needs the tiger.
+If someone sees the cow then they need the the dog likes the bald eagle.
+dog. We know that the squirrel sees the cow. the tiger eats the dog.
+Therefore, the squirrel needs the dog. the cat eats the tiger.
+If someone needs the cow and they need the dog the bald eagle is green.
+then the cow is green. We know that the squirrel the bald eagle likes the tiger.
+needs the cow and the squirrel needs the dog. the cat is red.
+Therefore, the cow is green. the dog is not round.
+Answer: False Question: Does it imply that the statement "The
+Target Proof: cat is nice" is True?
+If someone is cold then they see the cow. We Proof:
+know that the squirrel is cold. Therefore, the If something is red and it likes the tiger then it
+squirrel sees the cow. needs the dog. We know that the cat is red and
+If someone sees the cow then they need the the cat likes the tiger. Therefore, the cat needs
+dog. We know that the squirrel sees the cow. the dog.
+Therefore, the squirrel needs the dog. Ifsomethingneedsthebaldeagletheniteatsthe
+If someone needs the cow and they need the dog cat. We know that the tiger needs the bald eagle.
+then the cow is green. We know that the squirrel Therefore, the tiger eats the cat.
+needs the cow and the squirrel needs the dog. If something eats the cat then the cat needs the
+Therefore, the cow is green. bald eagle. We know that the tiger eats the cat.
+Target Answer: False Therefore, the cat needs the bald eagle.
+If something eats the cat and it needs the dog
+then the cat is cold. We know that the tiger eats
+the cat and the cat needs the dog. Therefore, the
+Example 3 (value: -9.5e-06) cat is cold.
+All cold things are nice. We know that the cat is
+Context:
+cold. Therefore, the cat is nice.
+If something is red and it likes the tiger then it
+Answer: True
+needs the dog.
+Target Proof:
+Ifthecatlikesthetigerandthecatneedsthedog
+Ifsomethingneedsthebaldeagletheniteatsthe
+then the dog is not cold.
+cat. We know that the tiger needs the bald eagle.
+If something eats the dog and the dog needs the
+Therefore, the tiger eats the cat.
+bald eagle then the dog is nice.
+If something eats the cat then the cat needs the
+If something eats the cat and it needs the dog
+bald eagle. We know that the tiger eats the cat.
+then the cat is cold.
+Therefore, the cat needs the bald eagle.
+If the tiger needs the dog and the dog is green
+Ifsomethingneedsthebaldeagletheniteatsthe
+then the dog needs the tiger.
+cat. We know that the cat needs the bald eagle.
+If something eats the cat then the cat needs the
+Therefore, the cat eats the cat.
+bald eagle.
+22FaithfulReasoningUsingLargeLanguageModels
+If something is red and it likes the tiger then it Therefore, the rabbit needs the rabbit.
+needs the dog. We know that the cat is red and If something needs the rabbit and it likes the
+the cat likes the tiger. Therefore, the cat needs bald eagle then the bald eagle is blue. We know
+the dog. that the rabbit needs the rabbit and the rabbit
+If something eats the cat and it needs the dog likes the bald eagle. Therefore, the bald eagle is
+then the cat is cold. We know that the cat eats blue.
+the cat and the cat needs the dog. Therefore, the If something is blue then it sees the rabbit. We
+cat is cold. know that the bald eagle is blue. Therefore, the
+All cold things are nice. We know that the cat is bald eagle sees the rabbit.
+cold. Therefore, the cat is nice. Answer: True
+Target Answer: True Target Proof:
+If something sees the mouse then it needs the
+rabbit. We know that the rabbit sees the mouse.
+Example 4 (value: -1.0e-05) Therefore, the rabbit needs the rabbit.
+If something needs the rabbit and it likes the
+Context:
+bald eagle then the bald eagle is blue. We know
+If something is rough and it does not see the
+that the rabbit needs the rabbit and the rabbit
+mouse then it does not need the bald eagle.
+likes the bald eagle. Therefore, the bald eagle is
+If something needs the rabbit and it likes the
+blue.
+bald eagle then the bald eagle is blue.
+If something is blue then it sees the rabbit. We
+If something sees the mouse then it needs the
+know that the bald eagle is blue. Therefore, the
+rabbit.
+bald eagle sees the rabbit.
+If something likes the rabbit and it sees the bald
+Target Answer: True
+eagle then the bald eagle needs the rabbit.
+If something is blue then it sees the rabbit.
+If something likes the mouse then it is round.
+the rabbit needs the bald eagle.
+Example 5 (value: -1.0e-05)
+the rabbit likes the bald eagle.
+the bald eagle does not see the mouse. Context:
+the bald eagle needs the mouse. Ifthemouseisyoungandthemouselikesthecat
+the bald eagle likes the mouse. then the mouse chases the cat.
+the mouse needs the bald eagle. Ifsomethinglikesthemouseandthemouselikes
+the bald eagle likes the rabbit. the tiger then the tiger likes the mouse.
+the rabbit is red. If the tiger is cold then the tiger sees the mouse.
+the rabbit is rough. If something sees the mouse then it is young.
+the rabbit is not green. If something chases the cat and it likes the cat
+the rabbit is blue. then the cat sees the mouse.
+the rabbit likes the mouse. If something is young and it chases the mouse
+the rabbit sees the mouse. then it likes the cat.
+the bald eagle is round. If something chases the tiger and the tiger likes
+the rabbit sees the bald eagle. the cat then the cat likes the mouse.
+the rabbit needs the mouse. If something sees the cat and it chases the cat
+Question: Does it imply that the statement "The then it likes the cat.
+bald eagle sees the rabbit" is True? the tiger is nice.
+Proof: the tiger sees the cat.
+If something sees the mouse then it needs the the mouse chases the tiger.
+rabbit. We know that the rabbit sees the mouse. the tiger is red.
+Therefore, the rabbit needs the rabbit. the mouse is young.
+If something sees the mouse then it needs the the mouse is round.
+rabbit. We know that the rabbit sees the mouse. the tiger likes the mouse.
+23FaithfulReasoningUsingLargeLanguageModels
+the mouse is cold. If something is green and it needs the mouse
+the mouse is red. then the mouse eats the cow.
+the mouse likes the cat. If something chases the bald eagle then the bald
+the cat chases the tiger. eagle is rough.
+the tiger chases the mouse. If something chases the dog then the dog eats
+Question: the cow.
+Does it imply that the statement "The cat is not If something eats the dog and the dog chases the
+young" is True? mouse then the dog needs the bald eagle.
+Proof: If something chases the cow and it is nice then
+If the mouse is young and the mouse likes the the cow chases the mouse.
+cat then the mouse chases the cat. We know that the dog chases the cow.
+the mouse is young and the mouse likes the cat. the dog eats the mouse.
+Therefore, the mouse chases the cat. the cow chases the bald eagle.
+If the mouse is young and the mouse likes the the dog is green.
+cat then the mouse chases the cat. We know that the cow is blue.
+the mouse is young and the mouse likes the cat. the dog chases the bald eagle.
+Therefore, the mouse chases the cat. the mouse needs the bald eagle.
+If something chases the cat and it likes the cat the bald eagle needs the mouse.
+then the cat sees the mouse. We know that the the bald eagle is kind.
+mousechasesthecatandthemouselikesthecat. the dog chases the mouse.
+Therefore, the cat sees the mouse. Question:
+If something sees the mouse then it is young. We Does it imply that the statement "The mouse is
+know that the cat sees the mouse. Therefore, the green" is True?
+cat is young. Proof:
+Answer: False If something is green and it needs the mouse
+Target Proof: then the mouse eats the cow. We know that the
+If the mouse is young and the mouse likes the dog is green and the bald eagle needs the mouse.
+cat then the mouse chases the cat. We know that Therefore, the mouse eats the cow.
+the mouse is young and the mouse likes the cat. If something eats the cow then it is green. We
+Therefore, the mouse chases the cat. know that the mouse eats the cow. Therefore,
+If something chases the cat and it likes the cat the mouse is green.
+then the cat sees the mouse. We know that the Answer: True
+mousechasesthecatandthemouselikesthecat. Target Proof:
+Therefore, the cat sees the mouse. If something chases the bald eagle then the bald
+If something sees the mouse then it is young. We eagle is rough. We know that the cow chases the
+know that the cat sees the mouse. Therefore, the bald eagle. Therefore, the bald eagle is rough.
+cat is young. If something chases the bald eagle and the bald
+Target Answer: False eagle is rough then the bald eagle eats the cow.
+We know that the cow chases the bald eagle and
+thebaldeagleisrough. Therefore,thebaldeagle
+eats the cow.
+Example 6 (value: -1.0e-05) If something eats the cow then it is green. We
+know that the bald eagle eats thecow. Therefore,
+Context:
+the bald eagle is green.
+If something eats the cow then it is green.
+If something is green and it needs the mouse
+Ifthebaldeagleeatsthemouseandthemouseis
+then the mouse eats the cow. We know that the
+nice then the mouse is rough.
+bald eagle is green and the bald eagle needs the
+If something needs the bald eagle then it is blue.
+mouse. Therefore, the mouse eats the cow.
+If something chases the bald eagle and the bald
+If something eats the cow then it is green. We
+eagle is rough then the bald eagle eats the cow.
+24FaithfulReasoningUsingLargeLanguageModels
+know that the mouse eats the cow. Therefore, Question:
+the mouse is green. Does it imply that the statement "The bald eagle
+Target Answer: True is kind" is True?
+Proof:
+If someone eats the bald eagle then the bald
+eagle is not kind. We know that the cat eats the
+Example 7 (value: -1.1e-05)
+bald eagle. Therefore, the bald eagle is not kind.
+Context: Answer: False
+If someone eats the bald eagle then the bald Target Proof:
+eagle is not kind. If someone eats the bald eagle then the bald
+the bear sees the cat. eagle is not kind. We know that the cat eats the
+the cat eats the bald eagle. bald eagle. Therefore, the bald eagle is not kind.
+the lion sees the cat. Target Answer: False
+the bald eagle sees the bear.
+the lion likes the bear.
+the cat likes the bald eagle.
+the bear does not eat the bald eagle. Example 9 (value: -1.2e-05)
+Question:
+Context:
+Does it imply that the statement "The bald eagle
+If someone eats the squirrel and they like the
+is not kind" is True?
+rabbit then they are green.
+Proof:
+If someone sees the rabbit then they like the
+If someone eats the bald eagle then the bald
+mouse.
+eagle is not kind. We know that the cat eats the
+If someone likes the squirrel then they are kind.
+bald eagle. Therefore, the bald eagle is not kind.
+If someone likes the mouse and they like the
+Answer: True
+rabbit then the mouse is red.
+Target Proof:
+If someone likes the squirrel then the squirrel
+If someone eats the bald eagle then the bald
+likes the rabbit.
+eagle is not kind. We know that the cat eats the
+Ifthesquirrellikesthemouseandthemouseeats
+bald eagle. Therefore, the bald eagle is not kind.
+the squirrel then the mouse likes the squirrel.
+Target Answer: True
+If someone eats the mouse and they eat the
+squirrel then the mouse is green.
+If someone is red then they eat the mouse.
+Example 8 (value: -1.1e-05) the rabbit is red.
+the mouse eats the rabbit.
+The question in this example asks the opposite
+the squirrel sees the mouse.
+question to that in Example 7, with the same
+the mouse eats the squirrel.
+context. Notice how the reasoning traces are the
+the rabbit likes the mouse.
+sameandhavethesamevalue. Thefinalanswers
+the squirrel is nice.
+are correct for each problem.
+the squirrel likes the mouse.
+Context: the squirrel sees the rabbit.
+If someone eats the bald eagle then the bald the mouse likes the rabbit.
+eagle is not kind. the rabbit sees the squirrel.
+the bald eagle sees the bear. the squirrel eats the rabbit.
+the cat eats the bald eagle. the rabbit eats the squirrel.
+the lion sees the cat. Question:
+the cat likes the bald eagle. Does it imply that the statement "The mouse is
+the bear sees the cat. not red" is True?
+the lion likes the bear. Proof: If someone sees the rabbit then they like
+the bear does not eat the bald eagle. the mouse. We know that the squirrel sees the
+25FaithfulReasoningUsingLargeLanguageModels
+rabbit. Therefore, the squirrel likes the mouse. If someone is green then they like the cow. We
+If someone likes the mouse and they like the know that the dog is green. Therefore, the dog
+rabbit then the mouse is red. We know that the likes the cow.
+squirrel likes the mouse and the mouse likes the Answer: False
+rabbit. Therefore, the mouse is red. Target Proof:
+Answer: False If someone is green then they like the cow. We
+Target Proof: know that the dog is green. Therefore, the dog
+Ifthesquirrellikesthemouseandthemouseeats likes the cow.
+thesquirrelthenthemouselikesthesquirrel. We Target Answer: False
+know that the squirrel likes the mouse and the
+mouse eats the squirrel. Therefore, the mouse
+Belowareexamplesoftheworstfivereasoning
+likes the squirrel.
+traces from SI + Halter + Search according to
+If someone likes the squirrel then the squirrel
+the value function. Errors are highlighted in red.
+likes the rabbit. We know that the mouse likes
+the squirrel. Therefore, the squirrel likes the
+rabbit.
+If someone likes the mouse and they like the Example 1 (value: -10.9)
+rabbit then the mouse is red. We know that the
+Context:
+squirrellikesthemouseandthesquirrellikesthe
+If something is kind then it likes the cow.
+rabbit. Therefore, the mouse is red.
+If something likes the cow then the cow is kind.
+Target Answer: False
+the cow is big.
+the mouse eats the bear.
+the tiger is kind.
+the bear visits the tiger.
+Example 10 (value: -1.2e-05)
+Question:
+Context: If someone likes the mouse and the Does it imply that the statement "The cow likes
+mouse sees the cow then they like the dog. the cow" is True?
+If someone is green and they chase the lion then Proof:
+the lion chases the mouse. If something is kind then it likes the cow. We
+If the mouse does not like the lion then the know that the tiger is kind. Therefore, the tiger
+mouse does not chase the lion. likes the cow.
+If the dog is young then the dog is round. If something likes the cow then the cow is kind.
+If someone likes the lion then the lion likes the We know that the tiger likes the cow. Therefore,
+cow. the cow is kind.
+If someone is green then they like the cow. If something is kind then it likes the cow. We
+Ifsomeonelikesthecowandtheyareroughthen know that the cow is kind. Therefore, the cow
+the cow does not like the lion. likes the cow.
+Ifsomeonelikesthecowthentheychasethecow. Answer: True
+the lion likes the cow. Target Proof: If something is kind then it
+the cow sees the lion. likes the cow. We know that the tiger is kind.
+the dog sees the mouse. Therefore, the tiger likes the cow.
+the mouse chases the cow. If something likes the cow then the cow is kind.
+the dog is green. We know that the tiger likes the cow. Therefore,
+the mouse does not chase the dog. the cow is kind.
+the mouse is rough. If something is kind then it likes the cow. We
+Question: know that the cow is kind. Therefore, the cow
+Does it imply that the statement "The dog does likes the cow.
+not like the cow" is True? Target Answer: True
+Proof:
+26FaithfulReasoningUsingLargeLanguageModels
+Example 2 (value: -10.2) If someone is cold then they are smart.
+If someone is blue then they are quiet.
+Context:
+If someone is red and kind then they are smart.
+If something needs the squirrel then the squirrel
+If someone is quiet then they are blue.
+is cold.
+All blue, smart people are red.
+If something needs the lion then the lion likes
+Blue, rough people are red.
+the cat.
+If Gary is kind and Gary is rough then Gary is
+If the lion needs the squirrel and the squirrel
+quiet.
+needs the lion then the lion eats the squirrel.
+Fiona is smart.
+If something likes the squirrel and the squirrel
+Charlie is kind.
+likes the cow then the cow is rough.
+Fiona is blue.
+If something is cold then it needs the squirrel.
+Bob is smart.
+If something needs the squirrel and it eats the
+Fiona is rough.
+cat then the cat likes the squirrel.
+Gary is kind.
+the cow is cold.
+Charlie is not smart.
+the cat eats the cow.
+Question:
+the lion eats the cow.
+Does it imply that the statement "Gary is smart"
+the squirrel eats the lion.
+is True?
+Question:
+Proof:
+Does it imply that the statement "The squirrel
+Ifsomeoneiskindthentheyarerough. Weknow
+does not need the squirrel" is True?
+that Gary is kind. Therefore, Gary is rough.
+Proof:
+If someone is red and kind then they are smart.
+If something is cold then it needs the squirrel.
+We know that Gary is kind and Gary is kind.
+Weknowthatthecowiscold. Therefore,thecow
+Therefore, Gary is smart.
+needs the squirrel.
+Answer: True
+If something needs the squirrel then the squirrel
+Target Proof:
+is cold. We know that the cow needs the squirrel.
+Ifsomeoneiskindthentheyarerough. Weknow
+Therefore, the squirrel is cold.
+that Gary is kind. Therefore, Gary is rough.
+If something is cold then it needs the squirrel.
+If Gary is kind and Gary is rough then Gary is
+We know that the squirrel is cold. Therefore, the
+quiet. We know that Gary is kind and Gary is
+squirrel needs the squirrel.
+rough. Therefore, Gary is quiet.
+Answer: False
+If someone is quiet then they are blue. We know
+Target Proof:
+that Gary is quiet. Therefore, Gary is blue.
+If something is cold then it needs the squirrel.
+Ifsomeoneiskindthentheyarerough. Weknow
+Weknowthatthecowiscold. Therefore,thecow
+that Gary is kind. Therefore, Gary is rough.
+needs the squirrel.
+Blue, rough people are red. We know that Gary
+If something needs the squirrel then the squirrel
+isblueandGaryisrough. Therefore,Garyisred.
+is cold. We know that the cow needs the squirrel.
+If someone is red and kind then they are smart.
+Therefore, the squirrel is cold.
+We know that Gary is red and Gary is kind.
+If something is cold then it needs the squirrel.
+Therefore, Gary is smart.
+We know that the squirrel is cold. Therefore, the
+Target Answer: True
+squirrel needs the squirrel.
+Target Answer: False
+Example 4 (value: -10.1)
+Example 3 (value: -10.2)
+Context:
+Context: If something likes the cow then the cow is kind.
+If someone is kind then they are rough. If something is kind then it likes the cow.
+All cold, quiet people are smart. the cow is big.
+27FaithfulReasoningUsingLargeLanguageModels
+the tiger is kind. the tiger is blue.
+the mouse eats the bear. the bald eagle is not blue.
+the bear visits the tiger. the rabbit is round.
+Question: the rabbit is kind.
+Does it imply that the statement "The cow does the mouse is not kind.
+not like the cow" is True? the bald eagle eats the rabbit.
+Proof: the tiger sees the rabbit.
+If something is kind then it likes the cow. We the bald eagle sees the mouse.
+know that the tiger is kind. Therefore, the tiger Question:
+likes the cow. Does it imply that the statement "The mouse
+If something likes the cow then the cow is kind. does not eat the mouse" is True?
+We know that the tiger likes the cow. Therefore, Proof:
+the cow is kind. If something is blue then it eats the mouse. We
+If something is kind then it likes the cow. We know that the tiger is blue. Therefore, the tiger
+know that the cow is kind. Therefore, the cow eats the mouse.
+likes the cow. If something eats the mouse then the mouse is
+Answer: False blue. We know that the tiger eats the mouse.
+Target Proof: Therefore, the mouse is blue.
+If something is kind then it likes the cow. We If something is blue then it eats the mouse. We
+know that the tiger is kind. Therefore, the tiger know that the mouse is blue. Therefore, the
+likes the cow. mouse eats the mouse.
+If something likes the cow then the cow is kind. Answer: False
+We know that the tiger likes the cow. Therefore, Target Proof:
+the cow is kind. If something is blue then it eats the mouse. We
+If something is kind then it likes the cow. We know that the tiger is blue. Therefore, the tiger
+know that the cow is kind. Therefore, the cow eats the mouse.
+likes the cow. If something eats the mouse then the mouse is
+Target Answer: False blue. We know that the tiger eats the mouse.
+Therefore, the mouse is blue.
+If something is blue then it eats the mouse. We
+know that the mouse is blue. Therefore, the
+Example 5 (value: -10.0) mouse eats the mouse.
+Target Answer: False
+Context:
+If something is kind and not young then it eats
+the mouse.
+If something eats the mouse and the mouse eats D.2. EntailmentBankQA Task 1 - depth 1: SI
+the tiger then the mouse does not see the rabbit. + Halter + Search
+If something needs the rabbit and the rabbit eats
+Below are the top five examples of reasoning
+the tiger then the tiger sees the rabbit.
+traces on EntailmentBankQA problems that re-
+If something is blue then it eats the mouse.
+quire a single step of reasoning, ranked by their
+If something eats the mouse then the mouse is
+valueaccordingtoourlearnedvaluefunctionand
+blue.
+are otherwise not cherry picked.
+Ifsomethingseesthetigertheniteatstherabbit.
+If the mouse is young and the mouse eats the
+bald eagle then the mouse needs the rabbit.
+Example 1 (value: -0.026)
+Ifsomethingseestherabbitthentherabbitisnot
+blue. Context:
+the tiger is green. a fly is a kind of insect
+the bald eagle sees the tiger. an insect has six legs
+28FaithfulReasoningUsingLargeLanguageModels
+Question: the surface of the moon contains mountains.
+An animal has six legs. What is it most likely to We know that the surface of the earth contains
+be? aspiderORaflyORalizardORacentipede. mountains. Therefore, both the surface of the
+Proof: moon and the surface of the earth contain
+a fly is a kind of insect. We know that an insect mountains.
+has six legs. Therefore, a fly has six legs. Target Answer: mountains
+Answer: a fly
+Target Proof:
+a fly is a kind of insect. We know that an insect
+has six legs. Therefore, a fly has six legs.
+Example 4 (value: -0.049)
+Target Answer: a fly
+Context:
+steel is a kind of solid metal
+sound travels fastest through solid
+Example 2 (value: -0.033)
+Question:
+Context: Through which material would sound travel the
+solid is a kind of state of matter fastest? cork OR water OR air OR steel.
+an ice cube is a kind of solid Proof:
+Question: steel is a kind of solid metal. We know that
+Which word best describes the physical state of sound travels fastest through solid. Therefore,
+an ice cube? gas OR solid OR liquid OR plasma. sound will travel fastest in steel.
+Proof: Answer: steel
+solid is a kind of state of matter. We know that Target Proof:
+an ice cube is a kind of solid. Therefore, an ice steel is a kind of solid metal. We know that
+cube is in solid state. sound travels fastest through solid. Therefore,
+Answer: solid sound travels fastest in steel.
+Target Proof: Target Answer: steel
+solid is a kind of state of matter. We know that
+an ice cube is a kind of solid. Therefore, an ice
+cube is solid in its physical state.
+Target Answer: solid
+Example 5 (value: -0.052)
+Context:
+drinking straws are usually made of plastic
+Example 3 (value: -0.045)
+plastic is flexible
+Context: Question:
+the surface of the moon contains mountains Which of these is MOST flexible? Broom handle
+the surface of the earth contains mountains OR Wooden ruler OR Drinking straw OR Sewing
+Question: needle.
+Which features can be found on the surface of Proof:
+both Earth and the Moon? plants OR oceans OR drinking straws are usually made of plastic. We
+animals OR mountains. know that plastic is flexible. Therefore, drinking
+Proof: straws are flexible.
+the surface of the moon contains mountains. Answer: Drinking straw
+We know that the surface of the earth contains Target Proof:
+mountains. Therefore, both the surface of the drinking straws are usually made of plastic.
+moon and the surface of the earth contain We know that plastic is flexible. Therefore, a
+mountains. drinking straw is flexible.
+Answer: mountains Target Answer: Drinking straw
+Target Proof:
+29FaithfulReasoningUsingLargeLanguageModels
+D.3. EntailmentBankQA Task 1 - depth 2: SI Target Answer: increasing the number of
++ Halter + Search runways at the airport
+Below are the top five examples of reasoning
+traces on EntailmentBankQA problems that re-
+Example 2 (value: -0.030)
+quire two steps of reasoning, ranked by their
+value according to our learned value function
+Context:
+and are otherwise not cherry picked.
+tidal energy is a renewable resource
+wave energy is a renewable resource
+tidal energy means energy from ocean tides
+Example 1 (value: -0.022)
+Question:
+Context: Wave energy from the ocean can be harnessed
+a runway is a kind of pathway for airplanes to power generators to make electricity. Energy
+airports have runways for airplanes from ocean tides can also be used to make
+as the number of pathways increases , the traffic electricity. How would you categorize these
+congestion in that area usually decreases two sources of energy? Both are renewable.
+Question: OR Both are nonrenewable. OR Wave energy
+Whichofthefollowingwouldbemosteffectivein is nonrenewable. Tidal energy is renewable.
+reducing air traffic congestion at a busy airport? OR Wave energy is renewable. Tidal energy is
+providing performance feedback to pilots OR nonrenewable..
+providing flight information to passengers OR Proof:
+increasing the number of aircraft at the airport tidal energy is a renewable resource. We know
+OR increasing the number of runways at the that wave energy is a renewable resource.
+airport. Therefore,waveenergyandtidalenergyareboth
+Proof: renewable resources.
+a runway is a kind of pathway for airplanes. We Answer: Wave energy is renewable
+know that airports have runways for airplanes. Target Proof:
+Therefore,anairportrunwayisakindofpathway tidal energy is a renewable resource. We know
+for airplanes. that tidal energy means energy from ocean
+an airport runway is a kind of pathway for tides. Therefore, energy from ocean tides is a
+airplanes. We know that as the number of renewable resource.
+pathways increases , the traffic congestion in energy from ocean tides is a renewable resource.
+that area usually decreases. Therefore, as the We know that wave energy is a renewable
+number of runways at a airport increases, the resource. Therefore, wave energy and energy
+traffic congestion in that area usually decreases. from ocean tides are both renewable resources.
+Answer: increasing the number of runways at Target Answer: Both are renewable.
+the airport
+Target Proof:
+a runway is a kind of pathway for airplanes. We
+Example 3 (value: -0.031
+know that as the number of pathways increases
+, the traffic congestion in that area usually Context: light comes to the focal point after
+decreases. Therefore, as the number of runways passing through a convex lens
+increases, the traffic congestion in that area a convex lens causes light to refract and concen-
+usually decreases. trate to magnify distant objects
+as the number of runways increases, the traffic refraction is when light bends
+congestion in that area usually decreases. We Question:
+know that airports have runways for airplanes. Which object is best used to demonstrate the
+Therefore, as the number of runways increases, bendingoflightasitpassesthroughasubstance?
+the traffic congestion at the airport usually convex lens OR flat mirror OR opaque rod OR
+decreases. concave mirror.
+30FaithfulReasoningUsingLargeLanguageModels
+Proof: against each other. We know that a hand is a
+light comes to the focal point after passing kind of object and a student is rubbing his hands
+through a convex lens. We know that a convex together. Therefore, friction will occur between
+lens causes light to refract and concentrate to the student’s hands.
+magnify distant objects. Therefore, the lens friction will occur between the student’s hands.
+causes light to refract and concentrate on the We know that friction causes the temperature
+focal point. of an object to increase. Therefore, friction will
+the lens causes light to refract and concentrate cause the temperature of the student’s hands to
+on the focal point. We know that refraction is increase.
+when light bends. Therefore, the lens causes the Answer: This action produces thermal energy
+light to bend towards the focal point. through friction
+Answer: convex lens Target Proof:
+Target Proof: friction occurs when two object ’s surfaces move
+light comes to the focal point after passing against each other. We know that a hand is a
+through a convex lens. We know that a convex kind of object and a student is rubbing his hands
+lens causes light to refract and concentrate to together. Therefore, friction occurs when the
+magnify distant objects. Therefore, a convex student is rubbing his hands together.
+lens will cause the light to refract when the light friction occurs when the student is rubbing his
+passes through the convex lens. hands together. We know that friction causes the
+a convex lens will cause the light to refract temperature of an object to increase. Therefore,
+when the light passes through the convex lens. friction causes the temperature of student’s
+We know that refraction is when light bends. hands to increase.
+Therefore, a convex lens will cause the light to Target Answer: This action produces thermal
+bend when the light passes through the lens. energy through friction.
+Target Answer: convex lens
+Example 5 (value: -0.0378)
+Example 4 (value: -0.036)
+Context: receiving the recessive gene for a trait
+Context: from each parent causes the offspring to express
+friction occurs when two object ’s surfaces move that recessive trait
+against each other light eyes are a recessive trait for human
+a hand is a kind of object jessica is a human with light eyes
+friction causes the temperature of an object to Question:
+increase If Jessica has light eyes (bb) and both of her
+a student is rubbing his hands together parents have dark eyes (Bb), which statement
+Question: is true? Jessica inherited both genes from her
+Astudentstandsoutsideonacoldwinterday. His father. OR Jessica inherited both genes from her
+handsbecomecoldandherubsthemtogetherto mother. OR Jessica inherited one recessive form
+make them warmer. Which statement explains of the gene from each parents from each parent.
+why rubbing his hands together makes them OR Jessica inherited one dominant from of the
+warmer? This action produces thermal energy gene from each parent..
+throughfriction. ORThisactionconductsthermal Proof: receiving the recessive gene for a trait
+energy away from the body. OR This action from each parent causes the offspring to express
+captures thermal energy from the environment. thatrecessivetrait. Weknowthatlighteyesarea
+OR This action reduces the amount of thermal recessive trait for human and jessica is a human
+energy transferred to the air.. with light eyes. Therefore, jessica received the
+Proof: recessive gene for light eyes from each parent.
+friction occurs when two object ’s surfaces move Answer: Jessica inherited one recessive form of
+31FaithfulReasoningUsingLargeLanguageModels
+the gene from each parent temperature. Therefore, the air mass formed
+Target Proof: closetotheoceanwouldincreaseintemperature.
+light eyes are a recessive trait for human. We the air mass formed close to the ocean would
+know that jessica is a human with light eyes. increase in temperature. We know that if
+Therefore, jessica has a recessive trait of light something increases in temperature, then that
+eyes. something will be warm. Therefore, the air mass
+jessica has a recessive trait of light eyes. We formed close to the ocean would be warm.
+know that receiving the recessive gene for a trait Answer: moist and warm
+from each parent causes the offspring to express Target Proof:
+that recessive trait. Therefore, jessica received if something receives sunlight, then it will
+the recessive gene from each of her parent. increase in temperature. We know that the air
+Target Answer: Jessica inherited one recessive around the equator receives direct sunlight.
+form of the gene from each parents from each Therefore, the air around the equator will
+parent. increase in temperature.
+the air around the equator will increase in tem-
+perature. Weknowthatifsomethingincreasesin
+temperature, then that something will be warm.
+D.4. EntailmentBankQA Task 1 - depth 3: SI Therefore, the air is warm around the equator.
++ Halter + Search the air is warm around the equator. We know
+that the air mass formed close to the ocean is
+Below are the top five examples of reasoning
+humid in moisture. Therefore, air masses formed
+traces on EntailmentBankQA problems that re-
+over the ocean near the equator are moist /
+quire three steps of reasoning, ranked by their
+warm.
+valueaccordingtoourlearnedvaluefunctionand
+Target Answer: moist and warm
+are otherwise not cherry picked.
+Example 1 (value: -0.0080)
+Example 2 (value: -0.014)
+Context:
+if something receives sunlight, then it will Context: sliding is a kind of movement
+increase in temperature friction occurs when two objects move against
+if something increases in temperature, then that each other
+something will be warm a rock is a kind of object
+the air around the equator receives direct a frozen pond is a kind of object
+sunlight a rock is slided across the frozen pond
+the air mass formed close to the ocean is humid friction causes the speed of an object to decrease
+in moisture Question:
+Question: Kelly slides a flat rock across the smooth ice
+Whichtypeofairmassformsovertheoceannear of a frozen pond. The rock slows down after
+the equator? moist and warm OR moist and cool several seconds. What causes the rock to
+OR dry and warm OR dry and cool. slow down? The thickness of the ice OR The
+Proof: temperatureoftheairabovetheiceORTheforce
+the air around the equator receives direct of friction between the ice and the rock OR The
+sunlight. Weknowthattheairmassformedclose gravitational force between the ice and the rock.
+totheoceanishumidinmoisture. Therefore,the Proof:
+airmassformedclosetotheoceanwouldreceive sliding is a kind of movement. We know that a
+direct sunlight. rock is slided across the frozen pond and a rock
+the air mass formed close to the ocean would is a kind of object. Therefore, the rock is slid
+receive direct sunlight. We know that if some- across the frozen pond.
+thing receives sunlight, then it will increase in the rock is slid across the frozen pond. We know
+32FaithfulReasoningUsingLargeLanguageModels
+that friction occurs when two objects move passed from parent to offspring. We know that
+against each other and a rock is a kind of object the color of / coloration of fur is an inherited
+and a frozen pond is a kind of object. Therefore, characteristic. Therefore, offspring can inherit
+friction occurs when the rock is slid across the the color of fur from parents.
+frozen pond. offspringcaninheritthecoloroffurfromparents.
+friction occurs when the rock is slid across the We know that the parent cats have white fur
+frozen pond. We know that friction causes the and white fur is white in color. Therefore, the
+speed of an object to decrease and a rock is a offspring of the cats will inherit white fur from
+kind of object. Therefore, friction will cause their parents.
+the speed of the rock to decrease when it is slid Answer: having white fur
+across the frozen pond. Target Proof:
+Answer: The force of friction between the ice inheriting is when an inherited characteristic is
+and the rock passed from parent to offspring. We know that
+Target Proof: the color of / coloration of fur is an inherited
+sliding is a kind of movement. We know that a characteristic. Therefore, the offspring will
+rock is slided across the frozen pond. Therefore, inherit the color of the fur of its parent.
+a rock is moving on the frozen pond. the offspring will inherit the color of the fur of
+a rock is moving on the frozen pond. We know itsparent. Weknowthatacatisakindofanimal
+that friction occurs when two objects move and animals produce offspring. Therefore, a cat
+against each other and a rock is a kind of object will inherit the color of the fur of its parents.
+and a frozen pond is a kind of object. Therefore, acatwillinheritthecolorofthefurofitsparents.
+friction will occur between the rock and the We know that the parent cats have white fur and
+frozen pond. whitefuriswhiteincolor. Therefore,thecatwill
+friction will occur between the rock and the inherit the white colored fur from its parents.
+frozen pond. We know that a rock is a kind of Target Answer: having white fur
+object and friction causes the speed of an object
+to decrease. Therefore, friction will cause the
+speed of the rock to decrease.
+Target Answer: The force of friction between Example 4 (value: -0.027)
+the ice and the rock
+Context:
+carbon is a kind of element
+a compound is made of two or more elements
+chemically combined
+Example 3 (value: -0.027)
+calcium carbonate is made of calcium, carbon,
+Context: and oxygen
+the parent cats have white fur calcium is a kind of element
+white fur is white in color oxygen is a kind of element
+inheriting is when an inherited characteristic is Question:
+passed from parent to offspring Calcium carbonate (CaCO ) is considered a
+3
+a cat is a kind of animal compound because it is made up of two or more
+the color of / coloration of fur is an inherited molecules. OR elements. OR gases. OR solids..
+characteristic Proof:
+animals produce offspring carbon is a kind of element. We know that
+Question: calciumisakindofelementandoxygenisakind
+Which trait would a cat most likely inherit from of element. Therefore, calcium, oxygen, and
+its parents? having a scar OR chasing a toy OR carbon are all elements.
+having white fur OR knowing its name. calcium, oxygen, and carbon are all elements.
+Proof: We know that calcium carbonate is made of
+inheriting is when an inherited characteristic is calcium, carbon, and oxygen. Therefore, calcium
+33FaithfulReasoningUsingLargeLanguageModels
+carbonate is made of elements. We know that earthworms create tunnels in
+Answer: elements soil. Therefore, earthworms help trees get more
+Target Proof: oxygen through their roots by creating tunnels
+carbon is a kind of element. We know that in the soil.
+calcium is a kind of element and oxygen is a Answer: earthwormsmakingholesintheground
+kind of element. Therefore, calcium, carbon, and near the tree
+oxygen are three elements. Target Proof:
+calcium, carbon, and oxygen are three elements. earthworms create tunnels in soil. We know
+We know that calcium carbonate is made of that tunnels in soil loosen that soil. Therefore,
+calcium, carbon, and oxygen. Therefore, calcium earthworm can help loosen the soil by creating
+carbonate is made of three elements. tunnels.
+calcium carbonate is made of three elements. earthworm can help loosen the soil by creating
+We know that a compound is made of two or tunnels. We know that the looseness of soil
+more elements chemically combined. Therefore, increases the amount of oxygen in that soil.
+calcium carbonate is a kind of compound. Therefore, earthworm creating tunnes can
+Target Answer: elements. increase the amount of oxygen in the soil.
+earthworm creating tunnes can increase the
+amount of oxygen in the soil. We know that
+trees takes in oxygen through roots close to the
+Example 5 (value: -0.031) surfaceoftheground. Therefore,moreoxygenis
+available for tree roots.
+Context:
+Target Answer: earthworms making holes in
+trees takes in oxygen through roots close to the
+the ground near the tree
+surface of the ground
+earthworms create tunnels in soil
+the looseness of soil increases the amount of
+oxygen in that soil D.5. EntailmentBankQA Task 1 - depth 5: SI
+tunnels in soil loosen that soil + Halter + Search
+Question:
+Below are the top five examples of reasoning
+Trees need oxygen. Roots close to the surface of
+traces on EntailmentBankQA problems that re-
+the ground take in the oxygen the tree needs.
+quire a five steps of reasoning, ranked by their
+Which organisms help trees get oxygen? wood-
+valueaccordingtoourlearnedvaluefunctionand
+peckers making holes in the tree OR earthworms
+are otherwise not cherry picked.
+making holes in the ground near the tree OR
+mushrooms growing at the base of the tree OR
+squirrels eating walnuts on the ground near the
+Example 1 (value: -0.033)
+tree.
+Proof: Context:
+tunnels in soil loosen that soil. We know that the woodpeckers live in forests
+looseness of soil increases the amount of oxygen animals adapt to their environment
+in that soil. Therefore, tunnels in soil increase a squirrel is a kind of animal
+the amount of oxygen in the soil. a woodpecker is a kind of bird
+tunnels in soil increase the amount of oxygen squirrels live in forests
+in the soil. We know that trees takes in oxygen a deer lives in a forest
+through roots close to the surface of the ground. a deer is a kind of animal
+Therefore, tunnels in soil increase the amount of a forest is a kind of environment
+oxygen that can be taken in through the roots of Question:
+trees. In which group of animals below are all of
+tunnels in soil increase the amount of oxygen the members well adapted to living in a forest
+that can be taken in through the roots of trees. ecosystem? field mouse, rabbit, pheasant OR
+34FaithfulReasoningUsingLargeLanguageModels
+gull, tree frog, grasshopper OR coyote, antelope, quickly. OR the toxic chemicals having no effect
+bison OR squirrel, deer, woodpecker. on the pond. OR fish in the pond being harmed
+Proof: or dying off..
+a squirrel is a kind of animal. We know that a Proof:
+deer is a kind of animal. Therefore, a deer and a a fish is a kind of organism. We know that
+squirrel are kinds of animals. harminganorganismcancausethatorganismto
+a deer and a squirrel are kinds of animals. We die. Therefore, harming a fish can cause that fish
+know that animals adapt to their environment. to die.
+Therefore, a deer and a squirrel adapt to their harming a fish can cause that fish to die. We
+environment. know that poisonous things can cause harm to
+Answer: squirrel, deer, woodpecker organisms. Therefore, poisonous things can
+Target Proof: cause fish to die.
+a squirrel is a kind of animal. We know that harming a fish can cause that fish to die. We
+squirrels live in forests. Therefore, squirrels are know that poisonous things can cause fish to die.
+animals live in forests. Therefore, poisonous things can harm fish.
+a deer lives in a forest. We know that a deer is a poisonous things can cause fish to die. We know
+kindofanimal. Therefore,deerisananimallives that toxic chemicals are poisonous. Therefore,
+in a forest. toxic chemicals can cause fish to die.
+woodpeckers live in forests. We know that Answer: fish in the pond being harmed or dying
+a woodpecker is a kind of bird. Therefore, off
+woodpeckers are animals live in forests. Target Proof:
+squirrels are animals live in forests. We know toxic chemicals are dumped into a pond. We
+that deer is an animal lives in a forest and know that toxic chemicals are poisonous. There-
+woodpeckers are animals live in forests. fore, the pond is poisonous because of toxic
+Therefore, squirrels and deer and woodpeckers chemicals.
+are animals that live in forests. poisonous things can cause harm to organisms.
+squirrels and deer and woodpeckers are animals We know that harming an organism can cause
+that live in forests. We know that animals adapt thatorganismtodie. Therefore,poisonousthings
+to their environment and a forest is a kind of can cause organisms to die.
+environment. Therefore, squirrels and deer and a pond is a kind of body of water. We know that
+woodpeckers are adapted to living in forests. a fish lives in water. Therefore, fish live in ponds.
+Target Answer: squirrel, deer, woodpecker fishliveinponds. Weknowthatafishisakindof
+organism. Therefore, a fish is a kind of organism
+that lives in ponds.
+the pond is poisonous because of toxic chemicals.
+Example 2 (value: -0.039) We know that poisonous things can cause
+organisms to die and a fish is a kind of organism
+Context:
+that lives in ponds. Therefore, the pond with
+toxic chemicals are dumped into a pond
+toxic chemicals can cause fish in the pond to die.
+poisonous things can cause harm to organisms
+Target Answer: fish in the pond being harmed
+toxic chemicals are poisonous
+or dying off.
+harminganorganismcancausethatorganismto
+die
+a fish is a kind of organism
+a pond is a kind of body of water
+Example 3 (value: -0.049)
+a fish lives in water
+Question: In this example, the model makes a mistake on
+Dumpingtoxicchemicalsintoapondwouldmost the first step of reasoning but is able to recover
+likelyresultinanincreaseinoxygenlevelsinthe and does not use the incorrect inference in later
+pond. OR plants near the pond growing more steps.
+35FaithfulReasoningUsingLargeLanguageModels
+Context: animal. Therefore, a horse pulling a plow is a
+pulling a plow is a kind of chore learned characteristic.
+a horse is a kind of animal an instinctive behavior is a kind of inherited
+an instinctive behavior is a kind of inherited characteristic. We know that inherited character-
+characteristic istics are the opposite of learned characteristics.
+inherited characteristics are the opposite of Therefore, instinctive behaviors are opposite to
+learned characteristics learned characteristics.
+doing chores is a learned characteristic a horse pulling a plow is a learned characteristic.
+a learned characteristic is a kind of characteristic We know that instinctive behaviors are opposite
+of an animal to learned characteristics. Therefore, a horse
+Question: pulling a plow is not an instinctive behavior.
+Which of these is not an instinctive behavior? Target Answer: a horse pulling a plow
+a bird building a nest OR a turtle burying its
+eggs OR a bear hibernating in winter OR a horse
+pulling a plow.
+Proof: Example 4 (value: -0.052)
+doingchoresisalearnedcharacteristic. Weknow
+Context:
+that inherited characteristics are the opposite of
+disease-causing microbes have a negative impact
+learned characteristics. Therefore, doing chores
+on the body
+is an inherited characteristic.
+decreasing something negative has a positive
+a horse is a kind of animal. We know that a
+impact on a thing
+learned characteristic is a kind of characteristic
+destroying something decreases the amount of
+of an animal. Therefore, a learned characteristic
+that something
+ofahorseisakindoflearnedcharacteristicofan
+a source of something produces that something
+animal.
+protecting a living thing has a positive impact on
+pulling a plow is a kind of chore. We know
+that living thing ’s survival / health
+that doing chores is a learned characteristic.
+specialized cells are a source of chemicals that
+Therefore, pulling a plow is a kind of learned
+destroy
+characteristic.
+disease-causing microbes
+a learned characteristic of a horse is a kind of
+Question:
+learned characteristic of an animal. We know
+Specialized cells protect the human body from
+that inherited characteristics are the opposite
+disease-causingmicrobesbyproducingchemicals
+of learned characteristics. Therefore, a horse
+that destroy the microbes OR dissolving wastes
+cannot inherit a learned characteristic.
+fromthemicrobesORcreatingrecessivegenesin
+pulling a plow is a kind of learned characteristic.
+the microbes OR supplying oxygen and nutrients
+We know that a horse cannot inherit a learned
+to the microbes.
+characteristic. Therefore, a horse cannot inherit
+Proof:
+the characteristic of pulling a plow.
+disease-causing microbes have a negative impact
+Answer: a horse pulling a plow
+onthebody. Weknowthatdecreasingsomething
+Target Proof:
+negative has a positive impact on a thing.
+pulling a plow is a kind of chore. We know that
+Therefore, decreasing disease-causing microbes
+doing chores is a learned characteristic. There-
+has a positive impact on the body.
+fore, pulling a plow is a learned characteristic.
+decreasing disease-causing microbes has a
+pulling a plow is a learned characteristic. We
+positive impact on the body. We know that
+know that a learned characteristic is a kind of
+specialized cells are a source of chemicals that
+characteristic of an animal. Therefore, an animal
+destroy disease-causing microbes. Therefore, as
+pulling a plow is a kind of learned characteristic.
+the number of specialized cells in the body in-
+an animal pulling a plow is a kind of learned
+creases, the number of disease-causing microbes
+characteristic. We know that a horse is a kind of
+being destroyed will increase.
+36FaithfulReasoningUsingLargeLanguageModels
+Answer: creatingrecessivegenesinthemicrobes wood boards can be used to build houses.
+Target Proof: We know that wood is a renewable resource.
+a source of something produces that something. Therefore,woodboardsarearenewableresource
+We know that specialized cells are a source of that can be used to build houses.
+chemicals that destroy disease-causing microbes. Answer: wood boards
+Therefore, specialized cells produce chemicals Target Proof:
+that destroy disease-causing microbes. building materials are used to build buildings.
+decreasing something negative has a positive We know that a house is a kind of building.
+impact on a thing. We know that destroying Therefore, building materials can be used to
+something decreases the amount of that some- build houses.
+thing. Therefore,destroying somethingnegative building materials can be used to build houses.
+has a positive impact on a thing. We know that wood boards can be used to build
+destroying something negative has a positive houses. Therefore, wood boards are a kind of
+impact on a thing. We know that disease-causing building material.
+microbes have a negative impact on the body. wood is a renewable resource. We know that a
+Therefore, destroying disease-causing microbes renewable resource is a kind of natural resource.
+has a positive impact on the body. Therefore, wood is a kind of renewable natural
+destroying disease-causing microbes has a resource.
+positive impact on the body. We know that wood is a kind of renewable natural resource.
+protecting a living thing has a positive impact on We know that wood boards are made of wood.
+that living thing ’s survival / health. Therefore, Therefore,woodboardsaremadeofarenewable
+destroying disease-causing microbes is a kind of natural resource.
+method for protecting the body. wood boards are a kind of building material. We
+specialized cells produce chemicals that destroy know that wood boards are made of a renewable
+disease-causing microbes. We know that destroy- natural resource. Therefore, wood boards are
+ing disease-causing microbes is a kind of method a kind of building material that is made of a
+for protecting the body. Therefore, specialized renewable natural resource.
+cells protect the body be producing chemicals Target Answer: wood boards
+that destroy disease-causing microbes.
+Target Answer: producing chemicals that
+destroy the microbes
+D.6. EntailmentBankQA Task 2 - depth 1: SI
++ Halter + Search
+Below are the top three examples of reasoning
+Example 5 (value: -0.057)
+traces on EntailmentBankQA problems that re-
+quire a single step of reasoning, ranked by their
+Context:
+valueaccordingtoourlearnedvaluefunctionand
+building materials are used to build buildings
+are otherwise not cherry picked.
+wood boards can be used to build houses
+a house is a kind of building
+wood is a renewable resource
+Example 1 (value: -0.018)
+wood boards are made of wood
+arenewableresourceisakindofnaturalresource Context: oil is a kind of energy resource
+Question: gas is a kind of substance
+The building of houses in Maryland uses many gasoline is a source of chemical energy
+different materials. Which building material is chemical energy is a kind of potential energy
+made of a renewable natural resource? copper an engine is a part of an automobile
+wire OR steel beams OR wood boards OR plastic a fuel is used to make energy
+siding. ethanol is a kind of substance
+Proof: as the use of a resource decreases , the length of
+37FaithfulReasoningUsingLargeLanguageModels
+time that resource ical energy. We know that chemical energy is
+being available will increases a kind of potential energy. Therefore, using
+to give off means to be the source of a gasoline engine requires burning potential
+potential energy means stored energy energy.
+operating an automobile usually requires fossil Answer: a liter of gasoline
+fuels Target Proof:
+amount is a property of something and includes gasoline is a source of chemical energy. We know
+ordered values of none / least / little / some / thatchemicalenergyisakindofpotentialenergy.
+half / much / many / most / all Therefore,gasolineisasourceofpotentialenergy.
+gasoline is a kind of chemical power source Target Answer: a liter of gasoline
+to run on means to use as an energy source
+using the fuel requires burning the fuel
+an energy source is a kind of resource
+usingagasolineenginerequiresburninggasoline Example 2 (value: -0.023)
+best means most positive
+Context:
+if the amount of electricity converted from the
+ifheatistransferredtoanobject,thentheobject
+potential energy of an object is less than the
+will get hot
+amount of potential energy in the object , then
+heat energy is synonymous with thermal energy
+the potential energy is converted into other
+a source of heat can be used to heat something
+energy other than electricity
+greater means higher / more in value
+potential energy is a measure of the energy of an
+heat energy can be used to heat up an object
+object due to
+ifsomethingcausesanincreaseinsomethingelse
+position relative to other objects
+then that something produces that something
+oil is a kind of substance / matter
+else
+if an object / a substance makes something then
+if a body part was burned then that body part
+that object / that substance is a source of that
+was exposed to a lot of heat energy
+thing
+as the temperature of a chemical reaction
+heat means heat energy
+increases , the rate of the chemical reaction will
+an internal combustion engine is used to move
+increase
+the automobile
+adding heat means increasing temperature
+if something requires something else then that
+fanning increases the oxygen near the fire
+something requires a source of that something
+heat means heat energy
+else
+warm up means increase temperature
+Question:
+if something emits something else then that
+Which of the following is the best example of
+something increases the amount of that some-
+potential energy? a fallen rock OR a burning
+thing else
+match OR a liter of gasoline OR a red-hot piece
+amount is a property of something and includes
+of iron.
+ordered values of none / least / little / some /
+Proof:
+half / much / many / most / all
+gasoline is a kind of chemical power source.
+fire transfers heat through waves
+We know that using a gasoline engine requires
+ifathermalconductor/anobjectisexposedtoa
+burning gasoline. Therefore, using a gasoline
+source of heat then that conductor / that object
+engine requires burning chemical power source.
+may become hot / warm
+using a gasoline engine requires burning chem-
+heat means the transfer of thermal energy
+ical power source. We know that gasoline is
+heating means adding heat
+a source of chemical energy. Therefore, using
+if heat is absorbed from a source then that heat
+a gasoline engine requires burning chemical
+source will cool
+energy.
+increase means more
+using a gasoline engine requires burning chem-
+as the amount of oxygen exposed to a fire
+38FaithfulReasoningUsingLargeLanguageModels
+increases, the fire will burn more Target Answer: adds more oxygen needed for
+heat is a kind of energy burning
+burning converts chemical energy into thermal
+energy
+combustion means fire converts chemical energy
+into light energy and heat energy Example 3 (value: -0.023)
+thermal energy is a kind of energy
+Context:
+Question:
+melting point is a property of a substance /
+Fanning can make a wood fire burn hotter
+material
+because the fanning makes the food hot enough
+ice is cold in temperature
+toburnORaddsmoreoxygenneededforburning
+ice crystals means ice
+ORincreasestheamountofwoodthereistoburn
+definite is the opposite of variable
+OR provides the energy needed to keep the fire
+solid is a kind of state of matter
+going.
+melting is when solids are heated above their
+Proof:
+melting point
+fanning increases the oxygen near the fire. We
+an ice cube is a kind of solid
+know that as the amount of oxygen exposed to a
+matter in the solid phase has definite shape
+fire increases, the fire will burn more. Therefore,
+melting point means temperature at which a
+as the amount of oxygen exposed to a fire
+solid melts / above which a solid melts
+increases, the fire will burn more quickly.
+state of matter means physical state
+as the amount of oxygen exposed to a fire
+state means form
+increases, the fire will burn more. We know
+water is in the liquid state , called liquid water ,
+that fanning increases the oxygen near the fire.
+for temperatures between 273 / 32 / 0 and 373
+Therefore, fanning the fire increases the amount
+/ 212 / 100 k / f / c
+of burning woodchips.
+to be found in means to be contained in
+as the amount of oxygen exposed to a fire
+freezing causes a solid to form
+increases, the fire will burn more quickly. We
+melting is a kind of phase change
+know that fanning the fire increases the amount
+state of matter at room temperature is a kind of
+of burning woodchips. Therefore, fanning the
+physical property
+fire increases the amount of oxygen exposed to
+a physical property is a kind of property
+the fire.
+temperature / heat energy is a property of
+as the amount of oxygen exposed to a fire
+objects / weather and includes ordered values of
+increases, the fire will burn more quickly. We
+cold / cool / warm / hot
+know that fanning the fire increases the amount
+liquid has a a lower melting point than solid
+of burning woodchips. Therefore, fanning the
+ice is colder in temperature than water
+fire increases the amount of oxygen exposed to
+temperature is a measure of heat energy
+the fire.
+matter in the solid phase has definite volume
+fanning the fire increases the amount of oxygen
+to be made of something means to be formed of
+exposed to the fire. We know that as the amount
+that something
+of oxygen exposed to a fire increases, the fire
+matter in the liquid phase has definite volume
+will burn more quickly. Therefore, fanning the
+the properties of something can be used to
+fire will cause the fire to burn more quickly.
+identify / used to describe that something
+Answer: provides the energy needed to keep the
+Question:
+fire going
+Which word best describes the physical state of
+Target Proof:
+an ice cube? gas OR solid OR liquid OR plasma.
+fanning increases the oxygen near the fire. We
+Proof:
+know that as the amount of oxygen exposed to a
+an ice cube is a kind of solid. We know that solid
+fire increases, the fire will burn more. Therefore,
+is a kind of state of matter. Therefore, an ice
+fanning can cause the fire to burn hotter.
+cube is in solid state.
+39FaithfulReasoningUsingLargeLanguageModels
+Answer: solid a mitochondrion is a kind of cellular organelle
+Target Proof: Question:
+solid is a kind of state of matter. We know that Whichcellularorganelleusesoxygenandglucose
+an ice cube is a kind of solid. Therefore, an ice to provide energy to the cell? mitochondrion OR
+cube is solid in its physical state. nucleus OR ribosome OR vacuole.
+Target Answer: solid Proof:
+mitochondrion provide energy to cells using
+oxygen and glucose. We know that a mitochon-
+drion is a kind of cellular organelle. Therefore,
+Example 4 (value: -0.038) mitochondrion is the cellular organelle that
+provides energy to cells using oxygen and
+Context:
+glucose.
+oxygenated means having oxygen
+Answer: mitochondrion
+mitochondrion provide energy to cells using
+Target Proof:
+oxygen and glucose
+mitochondrion provide energy to cells using
+where something comes from is a source of that
+oxygen and glucose. We know that a mitochon-
+something
+drion is a kind of cellular organelle. Therefore,
+sugar is a kind of food
+mitochondrion is the cellular organelle that uses
+providing something means making / delivering
+oxygen and glucose to provide energy to cells.
+something
+Target Answer: mitochondrion
+atp is formed by the breakdown of molecules of
+glucose
+if something has the ability to do something else
+, then thatsomethingcan dothat somethingelse D.7. EntailmentBankQA Task 2 - depth 1: SI
+cells are a part of the body + Halter
+if something performs a task then that task is
+A random selection of five reasoning traces on
+that something ’s function
+Task2usingSI+Halter,theseinclude‘Unknown‘
+to provide something means to be the source of
+examples where the model did not terminate its
+that something
+reasoning.
+cell division is a kind of process
+cell activity means cell process
+purpose means role
+Example 1
+oxygen can be found in air
+to provide means to supply Context:
+atp supplies chemical energy for organisms to electric currents produce magnetic fields
+move knowing the properties of something means
+both means two knowing information about that something
+to have a function is similar to to be responsible luster is a property of an object / a material and
+for includes ordered values of dull / shiny
+mitosisproducestwocellswiththesamenumber more likely means increased likelihood
+of chromosomes as the parent cell ifsomethingisapartofsomethingelsethenthat
+all cells take in energy something else contains that something
+thefunctionofsomethingiswhatthatsomething nitratine is always magnetic
+is used to do iron is a kind of element
+amount is a property of something and includes ifsomethingisapartofsomethingthenthatsome-
+ordered values of none / least / little / some / thing can be found in that something
+half / much / many / most / all cadmium is always magnetic
+including means containing the metal is the core of electromagnet
+energy transformation means one kind of energy iron in contact with water and oxygen will rust
+changes into another kind of energy the properties of something can be used to iden-
+40FaithfulReasoningUsingLargeLanguageModels
+tify / used to describe that something take place means happen
+tungsten is a kind of metal planets in the solar system orbit the sun
+steel/carbonsteelisalwaysferromagnetic/mag- gravity means gravitational pull / gravitational
+netic energy/gravitationalforce/gravitationalattrac-
+iron is always magnetic tion
+iron nails are made of iron can be means able to be
+classifyingmeansgroupingobjects/materialsby both means two
+their properties a force is a kind of push or pull on an object
+similar means in common planets are found in space
+a electromagnet is formed by attaching an iron requiring something means needing that some-
+nail wrapped in a copper wire to a circuit thing
+electric currents produce magnetic fields revolving around something means orbiting that
+a magnetic field is a kind of force something
+nickel is always ferromagnetic / magnetic mars is a kind of planet
+cobalt is always ferromagnetic / magnetic if something required by something else is in a
+magnetic force means magnetism place then that something else may be in that
+the properties of something are used for describ- place
+ing that something to cause means to have an effect
+Question: the sun is the strongest source of gravity in the
+Which object most likely has magnetic proper- solar system
+ties? iron nail OR plastic clip OR rubber eraser to depend on / to rely on / to need means to
+OR wooden spoon. require
+Proof: to be used for something means to be required
+iron is always magnetic. We know that iron nails by that something
+are made of iron. Therefore, iron nails are mag- orbit is a kind of characteristic
+netic. due to means caused by
+Answer: Question:
+iron nail Target Proof: The force necessary to keep planets in orbit
+iron is always magnetic. We know that iron nails around the Sun is gravity. OR friction. OR mag-
+are made of iron. Therefore, iron nails are mag- netism. OR nuclear..
+netic. Proof:
+Target Answer: iron nails are magnetic planets in the solar system orbit the sun. We
+know that gravity causes orbits. Therefore, grav-
+ity causes the planets in the solar system to orbit
+Example 2 the sun.
+Answer: gravity
+Context:
+Target Proof:
+celestial bodies / celestial objects are found in
+planets in the solar system orbit the sun. We
+space
+know that gravity causes orbits. Therefore, grav-
+ifaconditionisnecessaryforaprocess,thenthat
+ity causes planets in the solar system to orbit the
+condition make the process possible
+sun.
+our sun is located at the center of our solar sys-
+Target Answer: gravity causes planets in the so-
+tem
+lar system to orbit the sun
+gravity causes orbits
+tokeepsomethingoccurringmeanstocausethat
+something to occur
+Example 3
+exerting force on an object means a force acts on
+an object Context:
+motion / movement means moving / to move human eyes can only see light in the range of
+isaac newton discovered the theory of gravity visible light
+41FaithfulReasoningUsingLargeLanguageModels
+classifyingiswhenonesortssomethingbykind/ light. We know that visible light is a part of the
+type electromagneticspectrum. Therefore,visiblelight
+visible light is a part of the electromagnetic spec- is a part of the electromagnetic spectrum that in-
+trum cludes violet blue green yellow orange and red
+both means two light.
+if an object reflects a light of a certain color then Answer: visible light
+the object appears to be that color Target Proof:
+category means kind visible light is made of lights of different colors
+made up of means contains / made of including violet, blue, green, yellow, orange, red
+a type is synonymous with a kind light. We know that visible light is a part of the
+electromagneticenergytravelsaselectromagnetic electromagneticspectrum. Therefore,visiblelight
+waves is the part of electromagnetic spectrum that has
+knowing the properties of something means red, green, and blue light.
+knowing information about that something Target Answer: visible light is the part of elec-
+spectrum means a range of colors tromagnetic spectrum that has red, green, and
+all waves transfer / transmit energy from one blue light
+place to another
+the properties of something are used for describ-
+ing that something Example 4
+radiation means radiant energy
+Context:
+light means light energy
+to have a function is similar to to be responsible
+electromagneticradiationmeanselectromagnetic
+for
+energy
+to enable is to help
+light rays means light
+providing support is a kind of function
+light is a kind of nonliving thing
+a function is a kind of characteristic
+the properties of something can be used to iden-
+a trunk is a part of a tree for supporting the tree
+tify / used to describe that something
+if an organism can do something , then that or-
+uv light is a kind of light
+ganism is able to do that something
+the color of an object can be discovered by look-
+bark is a protective covering around the trunk of
+ing at that object
+/ branches of a tree
+amount is a property of something and includes
+purpose means role
+ordered values of none / least / little / some /
+role means function
+half / much / many / most / all
+if something has the ability to do something else
+visible light is made of lights of different colors
+, then thatsomethingcan dothat somethingelse
+including violet, blue, green, yellow, orange, red
+to be used for something means to be required
+light
+by that something
+ifsomethingisapartofsomethingelsethenthat
+tobeusedforsomethingmeanstohelptodothat
+something else contains that something
+something
+color is a property of an object / a material
+a function is an activity
+Question:
+thefunctionofsomethingiswhatthatsomething
+The electromagnetic spectrum is the complete
+is used to do
+range of electromagnetic radiation ranging from
+a component of something means a part of that
+radio waves to gamma rays. Which type of radia-
+something
+tioninthisspectrumisassociatedwithobservable
+essential means required
+colors such as red, green, and blue? gamma rays
+ability is a property of things and includes or-
+OR X-rays OR visible light OR radio waves.
+dered values of able / unable / can / cannot
+Proof:
+to anchor means to provide support
+visible light is made of lights of different colors
+role is similar to importance
+including violet, blue, green, yellow, orange, red
+a cell wall provides support / protection / shape
+42FaithfulReasoningUsingLargeLanguageModels
+/ structure for a plant cell a function of a tree’s trunk is to provide support
+something is used for that something ’s purpose
+if something requires something else then that
+something else is important to that something Example 5
+helping means something can be done / com-
+Context:
+pleted more easily / better
+metalisanelectrical/electricalenergyconductor
+being used for is similar to providing
+can means having the ability to
+function is similar to purpose
+different materials usually have different proper-
+Question:
+ties
+The main function of a tree’s trunk is to provide
+material means substance
+air OR fruit OR sunlight OR support.
+to demonstrate means to exhibit
+Proof:
+characteristic means property
+a cell wall provides support / protection / shape
+iron is a kind of metal
+/ structure for a plant cell. We know that a trunk
+both means two
+is a part of a tree for supporting the tree. There-
+ability is a property of things and includes or-
+fore, the cell wall is the part of a plant cell that
+dered values of able / unable / can / cannot
+supports the plant.
+motion / movement means moving / to move
+the cell wall is the part of a plant cell that sup-
+if an object is made of something then the parts
+portstheplant. Weknowthatbarkisaprotective
+of that object are made of that something
+coveringaroundthetrunkof/branchesofatree.
+similar means in common
+Therefore, the cell wall is the part of a plant cell
+a demonstration is similar to an example
+that protects the plant.
+if something has the ability to do something else
+the cell wall is the part of a plant cell that sup-
+, then thatsomethingcan dothat somethingelse
+portstheplant. Weknowthatbarkisaprotective
+what something is made of is a property of the
+coveringaroundthetrunkof/branchesofatree.
+organization or that something
+Therefore, the cell wall is the part of a plant cell
+metal is flexible
+that protects the plant.
+best means most positive
+the cell wall is the part of a plant cell that sup-
+the properties of something can be used to iden-
+portstheplant. Weknowthatbarkisaprotective
+tify / used to describe that something
+coveringaroundthetrunkof/branchesofatree.
+property is similar to measurement
+Therefore, the cell wall is the part of a plant cell
+a wire is usually made of metal
+that protects the plant.
+awireisapartofanelectricalcircuitforconduct-
+the cell wall is the part of a plant cell that sup-
+ing electricity
+portstheplant. Weknowthatbarkisaprotective
+a property is a kind of information
+coveringaroundthetrunkof/branchesofatree.
+metal is a kind of substance
+Therefore, the cell wall is the part of a plant cell
+the properties of something are used for describ-
+that protects the plant.
+ing that something
+the cell wall is the part of a plant cell that sup-
+an insulator is the opposite of a conductor
+portstheplant. Weknowthatbarkisaprotective
+Question:
+coveringaroundthetrunkof/branchesofatree.
+Flexibility is a physical property of some matter.
+Therefore, the cell wall is the part of a plant cell
+Which of these materials best demonstrates the
+that protects the plant.
+propertyofflexibility? amirrorORapencilORa
+Answer: Unknown
+metal wire OR a telephone pole.
+Target Proof:
+Proof:
+providing support is a kind of function. We know
+metal is flexible. We know that a wire is usually
+that a trunk is a part of a tree for supporting the
+made of metal. Therefore, metal is flexible and a
+tree. Therefore, a function of a tree’s trunk is to
+wire is made of metal.
+provide support.
+Answer: a metal wire
+Target Answer:
+Target Proof:
+43FaithfulReasoningUsingLargeLanguageModels
+metal is flexible. We know that a wire is usually Reason: If something chases the mouse then it
+made of metal. is big. We know that the cow chases the mouse.
+Therefore, a metal wire is flexible. Therefore, the cow chases the cow.
+Target Answer: a metal wire is flexible If something chases the cow and it is big then it
+does not chase the dog. We know that the cow
+chases the mouse and the cow chases the cow.
+E. Baseline Model Outputs
+Therefore, the cow needs the dog.
+If something chases the cow then it needs the
+E.1. EntailmentWriter on ProofWriter
+dog. We know that the cow chases the mouse.
+BelowareexampleEntailmentWriter+Answer Therefore, the dog is nice.
+proofs on the ProofWriter dataset. We have re- If something needs the dog and it is nice then
+placedthesentencelabelswiththecorresponding the dog is nice. We know that the dog is nice
+statements from the context and have not shown and the cow is nice. Therefore, the dog chases
+the context for brevity. We see that in each case the cow.
+the final conclusion answers the question, but If something is nice then it chases the cow. We
+using the incorrect reasoning. We see that the know that the dog chases the cow. Therefore,
+model often makes up inferences that do not fol- the dog does not chase the dog.
+low, but do help the model solve the problem.
+Unlike SI, whose inference step does not have ac-
+cess to the question, EntailmentWriter has direct Example 3
+access to the question and therefore has the in-
+centivetomakeupinferencesthathelptoanswer Question: Does it imply that the statement "The
+the questions even if they do not follow logically. cat sees the cat" is True?
+Reason: Allnicethingsareyoung. Weknowthat
+The cow is nice. Therefore, the cat is nice. If
+Example 1
+something is young and nice then it sees the cat.
+Question: Does it imply that the statement "The Weknowthatthecat is niceandthecowisnice.
+dog is big" is True? Therefore, the cat is young. If something sees
+Reason: Ifsomethingeatsthebearthenthebear thecatandthecatneedsthecowthencatisnice.
+needs the lion. We know that the dog eats the Weknowthatthecatisyoungandthecatneeds
+bear. Therefore, the bear needs the lion. the cow. Therefore, the cat sees the cat.
+If something needs the lion then the lion eats
+the bear. We know that the bear needs the lion.
+Therefore, the lion eats the bear.
+If the lion eats the bear then the bear does not
+eat the dog. We know that the lion eats the bear.
+Therefore, the bear does not eat the dog.
+If something is red and it does not eat the dog
+then the dog sees the rabbit. We know that the
+rabbit needs the dog and the bear does not eat
+the dog. Therefore, the dog sees the rabbit.
+Ifsomethingseestherabbitthenitisnotbig. We
+know that the dog sees the rabbit. Therefore,
+the dog is not big.
+Example 2
+Question: Does it imply that the statement "The
+dog does not chase the dog" is True?
+44FaithfulReasoningUsingLargeLanguageModels
+Figure 14 | Examples of correct (top) and incorrect (bottom) training data samples used to
+train the Value LM. Targets are shown in red. The underlined statement in the last line of the
+incorrect reasoning trace is the one that is substituted in. The Inference LM is used to compute the
+inference. It is very easy to see here that the second statement is incorrect because it contains a rule
+rather than a fact.
+45FaithfulReasoningUsingLargeLanguageModels
+Figure 15 | Examples of correct (top) and incorrect (bottom) training data samples used to
+traintheValueLM.Targetsareshowninred. Theunderlinedstatementinthelastlineofthecorrect
+reasoningtraceisreplacedwitharandom,incorrectstatementfromthecontext. TheInferenceLMis
+used to compute the inference.
+Figure16|QualitativeresultsonEntailmentBankQAshowinghalteroutputsontheEntailment-
+BankQA dataset.
+46FaithfulReasoningUsingLargeLanguageModels
+(b) Comparing the number of reasoning steps in
+(a) Jaccard similarity between the GT intermedi- theGTprooftothoseinthepredictedproof.
+atestepsandthepredictedintermediatesteps.
+(c) Intermediate inference accuracy where order(d) Exact string match between the ground truth
+oftheinferencesmatters. proofandthepredictedproof.
+Figure 17 | Evaluating reasoning traces on ProofWriter. For exact string match we remove all
+removing non-alphabetic characters and compare characters in lower case.
+47FaithfulReasoningUsingLargeLanguageModels
+Figure 18 | EntailmentBankQA: Rouge Score
+betweengroundtruthandpredictedinterme-
+diate inferences in order.
+48

@@ -1,0 +1,1711 @@
+SCULPT: Systematic Tuning of Long Prompts
+ShanuKumar AkhilaYesantaraoVenkata ShubhanshuKhandelwal
+BishalSantra ParagAgrawal ManishGupta
+MicrosoftCorporation,India
+{shankum,akyesant,shukhand,bishalsantra,paragag,gmanish}@microsoft.com
+Abstract effectivepromptshasgrownsubstantially. These
+tasksoftenrequireprocessingextendedsequences
+Aslargelanguagemodelsbecomeincreasingly
+ofinstructions,detailedreasoning,andstructured
+centraltosolvingcomplextasks,thechallenge
+outputs,withpromptsthatcanspanthousandsof
+ofoptimizinglong,unstructuredpromptshas
+tokens (Schnabel and Neville, 2024). Crafting
+become critical. Existing optimization tech-
+niquesoftenstruggletoeffectivelyhandlesuch such prompts is labor-intensive, requiring signif-
+prompts, leading to suboptimal performance. icant human effort, specialized expertise, and ex-
+WeintroduceSCULPT(SystematicTuningof tensivetrial-and-erroriterations(Jiangetal.,2022;
+Long Prompts), a novel framework that sys- Zamfirescu-Pereiraetal.,2023).
+tematically refines long prompts by structur- AkeyissueisthesensitivityofLLMstoprompt
+ingthemhierarchicallyandapplyinganitera-
+phrasingandstructure. Evenminormodifications
+tiveactor-criticmechanism. Toenhancerobust-
+suchasreorderinginstructions,tweakingwording,
+nessandgeneralizability,SCULPTutilizestwo
+oradjustingtokenlengthcanleadtosignificantly
+complementaryfeedbackmechanisms: Prelim-
+inaryAssessment,whichassessestheprompt’s different outputs (Jiang et al., 2020; Zhao et al.,
+structure before execution, and Error Assess- 2021; Reynolds and McDonell, 2021; Lu et al.,
+ment, which diagnoses and addresses errors 2022). Thissensitivitymakespromptdesignprone
+post-execution. Byaggregatingfeedbackfrom toinconsistenciesandnecessitatessubstantialex-
+thesemechanisms,SCULPTavoidsoverfitting
+perimentationtofindoptimalphrasing.
+and ensures consistent improvements in per-
+Recent efforts to optimize prompts for black-
+formance. Our experimental results demon-
+box LLMs like APE (Zhou et al., 2022) and Pro-
+stratesignificantaccuracygainsandenhanced
+robustness,particularlyinhandlingerroneous TeGi (Pryzant et al., 2023), OPRO (Yang et al.,
+andmisalignedprompts. SCULPTconsistently 2024)andAPEX(Hsiehetal.,2024)haveprimar-
+outperformsexistingapproaches,establishing ilyfocusedonshortpromptsorfew-shotscenarios.
+itselfasascalablesolutionforoptimizinglong However,thesemethodsarelesseffectiveforlong
+promptsacrossdiverseandreal-worldtasks.
+prompts, which involve multiple instructions, ex-
+amples,andcomplexdependencies. Short-prompt
+1 Introduction
+optimization methods often make isolated, local
+Due to the emergence of large language models edits,failingtoaccountforthebroadercontextand
+(LLMs), natural language processing (NLP) has relationshipswithinlongerprompts. Thiscanlead
+achievedunprecedentedadvances,enablingmod- toinconsistenciesinstructuralflow,misalignment
+els to perform complex language understanding betweeninstructionsandexamples,andincomplete
+andgenerationtaskswithremarkableproficiency refinementoftheprompt’soveralllogic. Overcom-
+(Brown,2020;Achiametal.,2023;Bubecketal., ing these limitations requires a more structured,
+2023;Abdinetal.,2024;Dubeyetal.,2024). These context-awareapproachthatmaintainscoherence
+modelsexcelingeneratinghuman-liketext,navi- acrossdiversetasks.
+gatingnuancedconversations,andinterpretingin- Recognizing these limitations, we propose
+tricateinstructions,transformingdomainssuchas SCULPT(SystematicTuningofLongPrompts),a
+contentcreation,customersupport,anddataanaly- novelapproachdesignedtooptimizeunstructured,
+sis. longprompts. Ratherthantreatingpromptsasflat
+As LLMs are increasingly employed for com- text, ourmethodrestructuresthemintohierarchi-
+plex,real-worldtasks,thechallengeofdesigning cal,tree-likerepresentationswhereheadings,sub-
+4202
+tcO
+82
+]LC.sc[
+1v88702.0142:viXraFigure1: OverviewoftheSCULPTframework,detailingpromptrefinementthroughPromptStructuring,Critic,
+andActorModules. IncorrectmodelpredictionsgenerateErrorAssessments,whichareaggregatedandrefined
+bytheActor. Forclarity,UCB-basedpromptselectionandPreliminaryAssessmentareomitted. D isthek-th
+val
+candidatepromptatiterationt.
+headings,instructions,andexamplesareorganized turbedprompts,outperformingexistingtechniques
+as parent-child nodes. This structured format al- bysystematicallyrefiningpromptstructures,even
+lows for systematic and controlled optimization in challenging scenarios. (4) We perform a com-
+whilepreservingtheintegrityoftheoriginalcon- prehensiveevaluationofSCULPT’sactiondistribu-
+tent. tion,showingthatitappliescontrolled,systematic,
+Atthecoreofourframeworkisaniterativecritic- and balanced refinements compared to baselines,
+actor process for prompt refinement. The Critic ensuring stable and generalizable results across
+Moduletakesthecurrentstructuredprompt,along tasks.
+withexamplepredictionsandgroundtruth,toiden-
+tifyareasneedingimprovement. Itgeneratesreflec- 2 RelatedWork
+tionsbasedondiscrepanciesbetweenpredictions
+and expected outcomes. The Actor Module then PromptEngineering: Optimizingpromptsiscru-
+applies a diverse set of actions inspired by how cialtounlockingthefullpotentialofLLMsacross
+humanexpertsoptimizeprompts,ensuringsystem- variousapplications,andpromptengineeringhas
+aticimprovementsinclarity,coherence,andoverall emergedasakeyareaofresearchforcreatingmore
+effectiveness. Fig.1showstheoverviewofourpro- effectiveprompts(Brown,2020;ReynoldsandMc-
+posedSCULPTframework. Donell,2021;Wangetal.,2022;Changetal.,2024;
+Toensurerobustness,weintroducetwocomple- Sahoo et al., 2024). While prompt engineering
+mentary feedback mechanisms: Preliminary As- throughhumanefforthasbeeneffective,itislabor-
+sessment and Error Assessment. Preliminary As- intensiveanddemandsexpertisetocraftdetailed,
+sessment evaluates the overall structure and clar- task-specificprompts. Automaticpromptoptimiza-
+ityofthepromptbeforetaskexecution,providing tionmethodsareincreasinglyneededtostreamline
+broadrecommendationsforimprovement. Afterex- andimprovepromptswithminimalmanualinter-
+ecution,ErrorAssessmentidentifiesspecificnodes vention.
+responsibleformodelerrors. Byaggregatingmul- SoftPrompting: Oneprominentlineofresearch
+tiple error-based reflections (Juneja et al., 2024), involves soft prompting (Lester et al., 2021; Li
+wepreventoverfittingtoisolatederrorswhilecap- andLiang,2021;Liuetal.,2021;QinandEisner,
+turingrecurringpatterns,ensuringthatrefinements 2021), where prompts are optimized as continu-
+are both generalizable and robust across diverse oustask-specificvectorsinthemodel’sembedding
+inputs. Our contributions can be summarized as space. However,thesemethodsareonlyapplicable
+follows: (1)WeintroduceSCULPT,anovelframe- insettingswheregradientaccessisavailable,mak-
+workforoptimizinglongpromptsthroughahierar- ing them unsuitable for black-box LLMs, where
+chicaltreestructureandactor-criticmechanism,en- themodel’sinternalstructureremainsinaccessible.
+ablingsystematicanditerativerefinements. (2)We AutomaticBlack-boxPromptOptimization: To
+demonstrateSCULPT’sabilitytohandleunstruc- addresslimitationsingradient-basedmethods,re-
+turedprompts,achievingsignificantimprovements searchhasshiftedtowardsblack-boxpromptopti-
+in LLM performance across four BBH tasks and mizationtechniques. Theseapproachescanbeclas-
+fourreal-worldRAItasks,withpromptsaveraging sifiedintoexplicitorimplicitreflection-basedmeth-
+980wordsinlengthanduptoamaximumof2,644 ods. Explicit reflection-based techniques (Cheng
+words. (3)SCULPTisrobusttoerroneousorper- et al., 2023; Pryzant et al., 2023; Ye et al., 2023;Sunetal.,2023;Dongetal.,2024)generatestruc- 3 TheSCULPTMethodology
+tured feedback based on model errors, which are
+In this section, we present SCULPT, a powerful
+iteratively incorporated into the prompt. These
+framework designed to optimize complex, long
+methods are advantageous as they provide task-
+prompts used by LLMs. While existing methods
+specificrefinementstobetteralignthepromptwith
+primarilyfocusonshortpromptsorfew-shotexam-
+thedesiredoutcome. SCULPTadoptsthisexplicit
+ples,SCULPTspecificallytargetstheintricaciesof
+feedback approach, systematically refining long,
+longer prompts with multiple instructions, exam-
+complexpromptsinacontrolled,iterativeprocess.
+ples,andlayeredstructures. Ourgoalistoensure
+Incontrast,implicitreflection-basedapproaches,
+refined and controlled prompt modifications that
+suchasOPRO(Yangetal.,2024),andthoseutiliz-
+leadtorobustmodelperformancewhilemaintain-
+ingevolutionaryalgorithms(Xuetal.,2022;Guo
+ingtheclarityandtaskrelevanceoftheprompt.
+etal.,2024;Fernandoetal.,2024;Liuetal.,2024),
+Let D , D , and D represent the train-
+train val test
+relyonhistoricaldataormodeloutputstoimprove
+ing, validation, and test datasets, each consisting
+promptswithoutexplicitlygeneratingreflections.
+of input-output pairs (x,y). The LLM M gener-
+Additionally,somemethodsintegratehumanfeed-
+atespredictionsyˆ= M(P,x)basedonthegiven
+backtoaligngeneratedpromptswithhumanpref-
+prompt P, which can contain complex sets of in-
+erencesandreduceexplorationcosts(Chenetal.,
+structionsandexamples(seeAppendixJforexam-
+2024b).
+ples). The objective of SCULPT is to find an op-
+Recentstudieshaveidentifiedkeylimitationsin timizedpromptP∗ thatmaximizesaperformance
+promptoptimizationmethods,suchastheneedfor metricQ(e.g.,accuracy)onD .
+val
+repeated refinements and unpredictable behavior
+thatoftenresultsinsuboptimaloutcomes(Maetal., P∗ = argmaxE [Q(y,M(P,x))]. (1)
+(x,y)∼D
+2024). SCULPTovercomesthesechallengesbyap- P val
+plyingprecise,hierarchicalupdatestotheprompt,
+TheoptimizationprocessinSCULPTconsistsof
+ensuringcontrolled,systematicrefinementsthaten-
+three main components: Prompt Structuring, the
+hancestabilityandalignmoreeffectivelywithtask
+CriticModule,andtheActorModule,coupledwith
+requirements.
+abeamsearchstrategytoexploreandrefinemulti-
+In parallel, research has focused on automatic plecandidatepromptssimultaneously. Thesecom-
+promptgenerationwithoutaninitialprompt. Meth- ponents, as illustrated in Fig. 1, work together to
+ods such as (Honovich et al., 2023; Zhou et al., iterativelyrefinetheprompt,ensuringasystematic
+2022; Chen et al., 2024a) leverage LLMs’ gen- and structured approach to improving long, com-
+erative capabilities to create prompts from input- plexprompts.
+outputpairs. Additionally,workonmulti-stepAI
+pipelinesexploreshowtextualfeedbackcanopti- 3.1 PromptStructuring
+mize the performance of individual components Prompt optimization methods designed for short
+(Khattab et al., 2023; Yuksekgonul et al., 2024; promptsstruggletoapplyfeedbackeffectivelyto
+SchnabelandNeville,2024). longer,morecomplexinstructions. Whentreating
+LongPromptOptimization: Whilerecentmeth- a long prompt as a single unit, it becomes diffi-
+odshaveextendedtooptimizinglongerpromptsby cult for optimizers to attribute error feedback to
+segmenting them and applying predefined opera- specific sections, leading to fragmented and less
+tions(Prasadetal.,2022;Hsiehetal.,2024),they effective refinements. To address this, we trans-
+remainlimitedinscope. APEX(Hsiehetal.,2024), formunstructuredpromptsintoahierarchicaltree
+forinstance,focusesonfew-shotchain-of-thought structureT = (N,E),whereN representscompo-
+promptsforbenchmarkslikeBBH,ratherthancom- nentssuchasheadings,instructions,andexamples,
+prehensivetaskinstructions. WhileAPEXisastep and E defines the containment relationships be-
+forward,itstruggleswithcomplexpromptsthatin- tweenthesenodes. Thisstructureenablestargeted,
+cludedetailedinstructionsandintricatestructures. node-specificmodificationswhilemaintainingthe
+Ourworkhighlightstheselimitationsanddemon- coherenceofunrelatedsections,facilitatingmore
+stratestheneedformethodsspecificallydesigned preciseandsystematicoptimizations.
+tooptimizelong-formpromptswithcomplexstruc- InFig.2,weillustratethisprocess,wherediffer-
+tures. entcolorsrepresentdifferenttypesofnodes(e.g.,Figure 2: Illustration of SCULPT’s Prompt Structuring Process. Unstructured prompt is transformed into a
+hierarchicaltreestructure,withdifferentcolorsrepresentvariousnodetypes(e.g.,heading,instructions,examples).
+headings,instructions,examples),andhowthehi- level, task-independent issues. Alternatively, in
+erarchical tree is formed. To help the LLM bet- NodeReference-basedAggregation,reflectionsare
+terparseandunderstandthepromptstructure,we groupedaccordingtothespecificnodestheytarget,
+usemarkdownformattingforthehierarchicaltree, ensuringthatcommonproblemslinkedtoparticular
+leveragingthemodel’sfamiliaritywithmarkdown sectionsofthepromptareconsistentlyaddressed.
+fromitstrainingondocumentationandcoderepos- Theseaggregationtechniquesensurethattherefine-
+itories(OpenAI,2023). mentsarebroadlyapplicable, avoiding excessive
+tuningtoindividualinstances,therebyimproving
+3.2 CriticModule robustnessacrossdiversetasks.
+TheCriticModuleC playsapivotalroleinevaluat- 3.3 ActorModule
+ingthepromptandgeneratingreflectivefeedback
+The Actor Module A takes the feedback from
+for iterative refinement. There are two types of
+the Critic Module and translates it into concrete
+reflections:
+changesintheprompt. Tokeepthingsefficient,the
+1. Preliminary Assessment (R ): This re-
+prelim Actorworksonasimplifiedversionoftheprompt
+flectionisgeneratedindependentlyoftask-specific
+tree, T , which includes only the parts
+induced-subtree
+outputs. Itfocusesontheoverallstructure,clarity,
+ofthepromptthatneedtobemodified,alongwith
+completeness,andredundancyoftheprompt,aim-
+thenecessarycontextfromparentnodes.
+ingtoenhancegeneralreadabilityandcoherence
+TheActorstartsbyaddressingthefeedbackfrom
+beforeconsideringtask-specificperformance.
+thePreliminaryAssessment,makingbroaderstruc-
+2. ErrorAssessment(R error): Thisreflectionis turalchangeslikereorderingsections,rephrasing
+generatedbasedonmodelerrorswhenyˆ̸= y fora unclearparts,mergingsimilarsections,oradjust-
+giveninput-outputpairinD train. Itidentifiesprob- ingexamplesforbetterclarity. Afterthesegeneral
+lematicnodesinT thatcontributetomodelerrors improvements,theActormovesontothefeedback
+andofferstargetedrecommendationsforimprove- fromtheErrorAssessment,whichfocusesonfixing
+ment. Thesetworeflectionsoffercomplementary task-specificerrors.
+insights: whilethePreliminaryAssessmentfocuses TheActorgeneratesaseriesofactions,denoted
+on improving the overall structure and clarity of bya = {a ,a ,...},toguidethemodificationpro-
+1 2
+theprompt,ensuringitalignswellwiththegeneral cess. Onceallthenecessaryactionshavebeenap-
+taskrequirements,theErrorAssessmentaddresses plied,themodifiedprompttree,T′,istransformed
+specific weaknesses identified through examples, backintoastandardtextpromptP′ byfollowing
+targetingsectionsthatcontributedtomodelerrors. thestructureofthetree. Adetailedlistofactions
+To enhance generalization and prevent overfit- thattheActorcanperformisprovidedinTable1.
+tingtoisolatedtrainingerrors,SCULPTemploys
+3.4 SearchProcess
+twodistinctaggregationmechanismsforErrorAs-
+sessments, utilizing feedback from multiple ex- SCULPT incorporates a beam search strategy to
+amples to capture common error patterns. In the explore and refine multiple candidate prompts in
+Similarity-driven Aggregation, the Critic clusters parallel. Ateachiterationt,abeamB maintains
+t
+reflectionsbyidentifyingrecurringerrorpatterns, the top K candidate prompts, allowing for both
+such as shared node references and similar er- exploitation of high-performing prompts and ex-
+ror types, allowing the system to address higher- plorationofnewvariations.Action Description ActormodulesinAppendixG,whiletheirstep-by-
+StructuralReordering Changingtheorderofsiblingnodes step interactions and refinements are detailed in
+InstructionUpdate Simplifyingoraddingnewinstructions
+AppendixC.Fig.3visuallydemonstratestheim-
+ExampleAddition Addingnewexamplestoanode
+ExampleDeletion Removingredundantexamplesfromanode provementsmadetothepromptafteroptimization,
+ExampleRefinement Improvingexistingexamplesinanode
+NodePruning Removingunnecessarynodes showingtheimpactoftheseiterativerefinements.
+NodeExpansion Addingnewnodestoaddressgaps
+NodeMerging Combiningnodesthathavesimilarcontent
+4 Experiments
+Table1:ActiontypesinSCULPTforpromptrefinement
+4.1 ExperimentalSetup
+Algorithm1PromptOptimizationinSCULPT1 Datasets: We selected four tasks from the BBH
+benchmark (Suzgun et al., 2023), a subset of the
+InitializeBeamB0={P0},t←0,max_steps
+whilet<max_stepsdo BIG-BENCHtasks(Srivastavaetal.,2023),which
+EvaluateBtonarandomsubsetofDval,obtainµˆk
+CalculateUCBscoresUCBk(t)foreachP tk focuses on challenging problems for LLMs. The
+SelecttopKcandidateprompts{Pk}K
+t k=1 tasksincludeCausalJudgement(CJ),whichevalu-
+foreachselectedcandidatepromptPkdo
+t
+CriticgeneratesPreliminaryAssessmentRk atesthemodel’sabilitytoassesscausesandeffects,
+prelim
+CriticgeneratesError-AssessmentReflectionRk
+error moralreasoning,andactionableconclusions;Dis-
+AggregateRk intoclusters{Ck}g
+Actorappliese arr co tr ionsAk i i=1 ambiguationQA(Dis),wherethemodelresolves
+prelim
+foreachReflectionclusterCkdo ambiguouspronouns;FormalFallacies(FF),test-
+i
+ActorappliesactionsA( erk ro, ri)
+ing the model’s ability to differentiate between
+UpdatetoP(k,i)
+Addnewlyut p+ d1 atedpromptstobeamBt+1 validargumentsandfallacies;andSalientTransla-
+endfor
+tionErrorDetection(ST),wherethemodelidenti-
+endfor
+t←t+1 fiescriticalerrorsintranslations. Additionally,we
+endwhile
+Returntop-KpromptsfromBtsorted(non-ascorder)byUCBscores includedfourRAItasks: InappropriateDetection
+(Inapp),Hate-SpeechDetection(Hate),Misinfor-
+mationDetection(Misinfo),andSuicidalIdeation
+SinceevaluatingallcandidatepromptsonD
+val andDrugUseDetection(Selfharm),eachevaluat-
+iscomputationallyexpensive,weadoptanUpper
+ingfourlevelsofharm: NoHarm,LowHarm,Mod-
+ConfidenceBound(UCB)-basedselectionstrategy
+erateHarm,andHighHarm. Theinitialprompts
+(Pryzant et al., 2023). The UCB score for each
+forRAItaskswerecreatedbyexpertsandarepro-
+candidatePk iscalculatedas:
+t videdinAppendixJ,whilefortheBBHtasks,we
+(cid:115) generatedpromptsusingtaskdescriptionsfromthe
+logt
+READMEfiles(cfAppendixI).Additionally,Ta-
+UCB (t) = µˆ +c ,
+k k
+n k ble 2 lists the word counts of the initial prompts
+usedineachtask,highlightingthelengthandcom-
+whereµˆ kistheestimatedperformance(usingprevi- plexityoftheseprompts.
+ousevaluations)ofthecandidateonthevalidation
+set D val, n k is the number of times the candidate Task #Words
+hasbeenevaluated,andcisahyperparametercon-
+FormalFallacy 382
+trollingthetrade-offbetweenexplorationandex- CausalJudgement 367
+SalientTranslation 279
+ploitation. This strategy ensures that promising Disambiguation 346
+Inappropriate 2644
+candidateswithfewerevaluationsareexploredfur- Hate 1554
+Misinformation 1335
+ther,whilecontinuouslyrefiningthemostpromis-
+SelfHarm 933
+ingcandidates. Amoredetailedexplanationofthe
+Table2: Numberofwordsintheinitialprompts
+beamsearchalgorithmandtheUCB-basedselec-
+tionstrategyisprovidedintheAppendixA.
+BaselineMethods: WeevaluateSCULPTagainst
+The overall optimization process for SCULPT
+fivebaselinemethods. (1)APE(Zhouetal.,2022),
+, integrating prompt structuring, reflection-based
+whichgeneratesnewpromptcandidatesbylever-
+refinement,andbeamsearchwithUCB-basedse-
+agingfew-shotexamplesandthenrephrasesthese
+lection, is provided in Algorithm 1. We have in-
+candidatestocreatemultiplepromptvariations,se-
+cluded detailed templates for both the Critic and
+lecting the best based on validation performance.
+(2) Long APE, a variant of APE, which focuses
+1WehaveremovedtfromnotationsforC,A,Rforsake
+ofclarity. on generating more descriptive prompts using aFigure3: EditsappliedtothepromptusingSCULPT,wherestrikethroughrepresentsremovedcontentandbluetext
+indicatesadditions. Thesemodificationsinvolveexampleaddition,nodeexpansion,andinstructionupdate.
+predefined template (cf. Appendix F). (3) APEX onepromptperstep,wererunfor384steps. Pro-
+(Hsiehetal.,2024),whichrefinespromptsbyper- TeGiwasrunfor6steps,producing64candidates
+formingsentence-levelrephrasingthroughLLMs perstep. SCULPT,generatingupto16candidates
+while utilizing historical changes for refinement. per step, could have run for 24 steps, but experi-
+(4)OPRO(Yangetal.,2024),whichgeneratesnew mentsindicatedthatperformancepeakedat8steps,
+promptsbyrelyingonhistoricalpromptdataand withadditionalstepsleadingtooverfitting. Thus,
+theirvalidationscores. (5)ProTeGi(Pryzantetal., thereportedSCULPTperformancereflectsthere-
+2023),whichdetectserrorsinprompts,generates sultsafter8optimizationsteps.
+feedbackbasedontheseerrors,andrephrasesthe
+5 ResultsandAnalysis
+promptstoproduceoptimizedversions.
+SCULPT Variants: To evaluate the role of PerformanceComparisonwithBaselines: Table
+reflection aggregation within SCULPT, we ex- 3 presents the results for SCULPT variants and
+plore three key variants: (1) SCULPT, which baseline methods across eight tasks using GPT-
+employsNodeReference-basedAggregation,act-
+4o. SCULPT consistently outperforms all base-
+ing as our primary method, (2) SCULPT+SA , linesonbothBBHandRAItasks,showingsignifi-
+whichutilizesSimilarity-drivenAggregation,and
+cantimprovementsovertheinitialprompt. While
+(3)SCULPT-NA,whichskipsaggregationentirely.
+ProTeGiandAPEXstruggletogeneratemeaning-
+Furthermore,sincebaselinestypicallyexpandthe fulgains,oftenperformingsimilarlytotheinitial
+search space through rephrasing, we introduce prompt on BBH tasks, OPRO shows minor im-
+SCULPT+RP,whererephrasingisappliedalong-
+provementsbutlacksconsistencyacrossdifferent
+sideNodeReference-basedAggregationtoassess
+tasks. Long-APEdeliversstrongperformanceon
+the impact of rephrasing on SCULPT’s perfor- taskssuchasDisandFF,surpassingAPEandthe
+mance. Detailedinformationonrephrasingispro- initialprompt,yetitunderperformsonothertasks.
+videdinAppendixG.5. Importantly,SCULPTdemonstrateslowervariance
+ImplementationDetails: Formosttasks,macroF1 inperformancecomparedtoothermethods,signify-
+scoresareusedduetothemulticlassnature,while inggreaterstabilityandreliabilityacrossmultiple
+accuracy is reported for ST and Dis, as they are runs.
+notclassificationtasks. Theresultsreflecttheaver- InTable4,weshowresultsforfourtasksusing
+ageperformanceofthetopfourgeneratedprompts, Llama 3.1. Apart from Misinfo, SCULPT signif-
+evaluatedacrossthreetrialstoensureconsistency. icantly outperforms all baseline methods across
+AllgenerationsweredoneusingGPT-4o(OpenAI, tasks. Interestingly,OPROdeliversbetterimprove-
+2024)withatemperatureof0.5,whiletheevalua- mentswithLlama-3.1-8BthanGPT-4o,evensur-
+tionwasperformedusingbothGPT-4oandLlama- passingProTeGion3outof4tasks,suggestingthat
+3.1-8B(Dubeyetal.,2024),withatemperatureof model-specificbehaviorcaninfluencetheeffective-
+0toguaranteedeterministicoutputs. nessofoptimizationstrategies. SCULPTcontinues
+We ensured fairness by assigning all methods toexhibitrobustperformance,reinforcingitsadapt-
+thesamesearchbudgetof384totalpromptcandi- abilityacrossdifferentmodelsandtasks.
+dates. APEandLong-APEgeneratedthisnumber Ablation Study of SCULPT: Table 3 highlights
+directly,whileAPEXandOPRO,whichproduce the performance of different SCULPT variants.Method ST Dis CJ FF Inapp Misinfo Hate Selfharm Avg
+InitialPrompt 62.3±1.0 74.1±0.7 71.1±0.1 80.2±1.4 46.6±1.3 51.5±0.6 46.8±0.1 66.4±0.5 62.4
+APE 51.0±1.6 74.3±1.1 71.8±2.6 75.3±2.5 45.3±0.4 31.9±5.9 29.3±2.7 38.1±0.4 52.1
+Long-APE 52.7±4.0 78.0±1.0 72.2±3.3 81.3±0.3 42.4±0.9 43.6±2.1 37.6±0.5 44.2±1.3 56.5
+APEX 62.71±0.6 61.5±21.2 70.5±0.7 80.6±1.26 48.0±0.4 50.5±0.8 47.1±0.3 65.2±0.7 60.8
+OPRO 64.6±2.0 75.1±1.4 72.7±1.1 80.7±2.1 46.6±2.2 51.0±4.0 40.9±3.6 65.1±2.1 62.1
+ProTeGi 65.5±3.4 74.8±1.2 68.9±2.1 70.1±3.9 44.8±5.4 54.8±1.2 51.9±1.6 66.5±2.1 62.1
+SCUPLT-NA 65.2±1.1 77.3±1.2 75.4±2.4 83.1±1.1 53.6±0.7 53.6±2.5 51.9±0.3 65.5±0.9 65.6
+SCUPLT+SA 66.2±2.1 77.6±1.9 76.9±1.9 83.7±1.1 55.3±0.7 56.7±0.8 53.1±0.3 68.8±0.3 67.3
+SCUPLT+RP 67.6±1.9 78.0±0.6 75.1±2.0 84.7±1.1 55.0±0.8 55.3±2.4 52.9±1.4 69.0±1.8 67.2
+SCUPLT 68.8±1.5 80.1±1.9 75.9±1.5 83.7±2.5 55.0±0.8 54.9±0.6 53.1±1.2 68.5±1.0 67.5
+Table3: PerformanceComparisonusingGPT-4oacrossvarioustasks
+Method Dis CJ Misinfo Selfharm Avg CJ Misinfo
+InitialPrompt 57.3±1.8 61.8±1.2 36.1±0.8 34.9±0.8 47.5 Method LP GP LP GP
+APE 64.3±0.7 56.0±1.6 33.9±2.3 29.4±1.0 45.9
+Long-APE 60.3±1.9 60.0±2.4 39.3±2.9 33.9±3.2 48.4 InitialPrompt 69.5 70.5 42.2 26.5
+APEX 61.5±3.6 59.4±3.6 28.8±5.0 39.6±1.0 47.3 APEX 69.0 70.2 43.0 28.3
+OPRO 49.1±18.4 62.9±2.7 43.1±8.3 51.8±2.4 51.7 OPRO 70.0 69.6 48.1 43.0
+ProTeGi 61.3±3.5 58.4±4.3 34.5±4.7 41.6±1.2 49.0 ProTeGi 68.3 69.9 52.4 37.8
+SCUPLT 65.3±4.3 64.9±1.5 37.3±2.8 54.5±5.1 55.5 SCULPT 74.1 73.2 56.4 50.2
+Table4: PerformanceComparisonusingLlama3.1 Table5: PerformanceofmethodsunderLocalized(LP)
+andGlobal(GP)perturbationsintheprompt.
+SCULPT, which uses Node Reference-based Ag-
+gregation, achieves the best overall results. This
+variant excels because the Actor can apply all re-
+flections related to a specific node in the prompt
+simultaneously,ensuringthatrefinementsarecom-
+prehensiveandtargeted. Incontrast,SCUPLT+SA
+(Similarity-drivenAggregation),whichclustersre-
+flectionsbasedonsimilaritiesininputsorpredic-
+tions, may fail to aggregate all reflections for the
+same node. As a result, some potential improve-
+mentsforthatnodemaybemissed,leadingtoless
+preciserefinements. WhileSCULPT+RP(rephras-
+ing) delivers results comparable to the standard Figure4: Performanceacrossoptimizationsteps
+SCULPT, its impact is inconsistent. Rephrasing
+doesnotalwaysleadtofurtherimprovements,mak- scenario, SCULPT’s node-specific approach effi-
+ingitanoptionalstepratherthanacorepartofthe cientlyrepositionsmisplacedexamples,whilebase-
+SCULPT. lines like APEX and ProTeGi struggle with even
+Robustness to Prompt Perturbations: We con- moderateinconsistencies,leadingtoperformance
+ductedarobustnessevaluationtoassessSCULPT drops. In the GP setting, SCULPT demonstrates
+andbaselinemethodsonerroneousorpoorlystruc- superiorrecovery,maintainingrobustperformance
+tured initial prompts, simulating real-world con- asothermethodsfailtocorrectthestructuralconfu-
+ditions with significant noise. Two types of per- sion. ThisevaluationhighlightsSCULPT’sability
+turbationswereapplied: LocalizedPerturbations tomanagebothsubtleandsevereprompterrors,en-
+(LP),whereexampleswereswappedbetweencate- suringreliableoutcomesinchallengingconditions.
+gorieswithintheprompt,causingmoderatedisrup- PerformanceacrossOptimizationSteps: Toas-
+tions,andGlobalPerturbations(GP),whereentire sesstheimpactofthenumberofoptimizationsteps,
+instruction-examplepairswereswappedbetween weplottheperformanceprogressionaftereachstep
+categories,creatingseveremisalignmentinstruc- in Fig. 4. The results indicate that performance
+ture. GP represents the more difficult challenge tendstoplateauaroundstep8onaverage. Insome
+duetothefullmismatchbetweeninstructionsand cases,continuingoptimizationbeyond8stepsmay
+examples. lead to overfitting on the training data. Based on
+AsshowninTable5,SCULPTconsistentlyout- thisobservation,wereporttheperformanceatthe
+performsbaselinesacrossbothsettings. IntheLP endof8optimizationstepsinourevaluation.(a)Actiondistributionacrosstasks,highlightingSCULPT’sconsistentapplicationofrefinementsacrossdifferentscenarios.
+(b)Actiondistributionoveroptimizationsteps,illustratingSCULPT’sstableapproachtopromptrefinementacrossiterations.
+Figure5: ComparisonofactiondistributionsforProTeGiandSCULPTacrosstasks(a)andoptimizationsteps(b),
+emphasizingSCULPT’scontrolledandbalancedstrategyforoptimizinglongprompts.
+Action Distribution Analysis Across Tasks: In steps,ensuringcontrolledandfocusedrefinements.
+Fig. 5a, we illustrate the distribution of actions In contrast, ProTeGi exhibits higher variability,
+appliedbyOPRO,ProTeGi,andSCULPTacross withincreasingrelianceonExampleAdditionwith
+various tasks. Since OPRO and ProTeGi do not steps that could lead to overfitting. This further
+explicitlydefinetheiractiontypes,weusedLLMs highlightsSCULPT’scontrolledapproach,which
+toanalyzetheirbehaviorandclassifychangesinto ensures more generalizable optimizations across
+predefinedactioncategories(cfAppendixH).This steps.
+classification offers a clearer view of how these
+methodsrefineprompts. 6 Conclusion
+SCULPT demonstrates a consistent and bal-
+anceddistributionofactionsacrosstasks,including Inthiswork,wepresentSCULPT,anovelframe-
+InstructionUpdates,ExampleAddition,Example workforsystematicallyoptimizinglongprompts
+Deletion,andNodeExpansion. Incontrast,OPRO forLLMs. SCULPTleveragesahierarchicaltree
+andProTeGiexhibitmorevariability. ProTeGi,for structure and a node-specific refinement process,
+instance,reliesheavilyonNodeExpansion(∼40%) addressingtheshortcomingsofexistingpromptop-
+and Example Addition (∼30%), indicating that it timizationtechniqueslikeAPEX,whichstruggle
+tendstoaddresspromptissuesbyaddingcontent, withhandlingcomplex,multi-instructionprompts.
+whichmayleadtooverfitting. OPRO,animplicit SCULPT consistently outperforms these base-
+reflection method, applies the least controlled re- lines by maintaining a balanced distribution of
+finements,resultinginmorevariedandlesssystem- actions across tasks, leading to more controlled,
+aticactions. ThisanalysisunderscoresSCULPT’s high-qualityrefinements. Additionally,SCULPT
+advantage in applying more controlled, targeted demonstrates robustness against noisy prompts,
+prompt refinements. Its mechanism enables sys- efficiently correcting errors and misalignments
+tematicimprovements,avoidingthecontentover- caused by prompt perturbations, outperforming
+expansion seen in ProTeGi and offering more fo- methodslikeOPROandProTeGiinsuchchalleng-
+cused control than OPRO, ultimately leading to ing scenarios. Our experiments across BBH and
+morerobust,generalizableoptimizations. RAI benchmarks highlight SCULPT’s effective-
+Action Distribution Analysis Across Steps: ness in delivering scalable, reliable prompt opti-
+Fig.5bshowshowactiontypesevolveacrossop- mization. Qualitative analysis further shows that
+timization steps, where actions have been aver- SCULPTisremarkablyconsistentandsystematic
+agedacrosstasks. SCULPTmaintainsabalanced inits refinements, makingitan idealsolutionfor
+and consistent distribution of actions throughout real-worldapplications.7 LimitationsandFutureWork Kaiyan Chang, Songcheng Xu, Chenglong Wang,
+Yingfeng Luo, Tong Xiao, and Jingbo Zhu. 2024.
+WhileSCULPTdemonstratessignificantimprove- Efficientpromptingmethodsforlargelanguagemod-
+ments in optimizing long prompts, it has certain els: Asurvey. arXivpreprintarXiv:2404.01077.
+limitations. First,SCULPTreliesonaninitialman-
+Lichang Chen, Jiuhai Chen, Tom Goldstein, Heng
+ually created prompt, which introduces variabil-
+Huang, and Tianyi Zhou. 2024a. InstructZero:
+ity and dependence on human expertise. Future Efficient instruction optimization for black-box
+workcouldintegrateSCULPTwithmethodslike large language models. In Proceedings of the
+41stInternationalConferenceonMachineLearning,
+Long-APE to automate the prompt initialization
+volume 235 of Proceedings of Machine Learning
+phase, allowing SCULPT to refine prompts gen-
+Research,pages6503–6518.PMLR.
+erated from scratch. This would further reduce
+manualinterventionandenhancescalabilityacross YongchaoChen,JacobArkin,YilunHao,YangZhang,
+NicholasRoy,andChuchuFan.2024b. Promptop-
+diverseapplications.
+timizationinmulti-steptasks(promst): Integrating
+Moreover,ourevaluationislimitedtotwoLLMs:
+human feedback and preference alignment. arXiv
+GPT-4oandLlama3.1,duetocomputationalcon- preprintarXiv:2402.08702.
+straints. Amorecomprehensivestudyacrossvari-
+JialeCheng,XiaoLiu,KehanZheng,PeiKe,Hongning
+ousLLMsizesandarchitecturescouldofferdeeper
+Wang, Yuxiao Dong, Jie Tang, and Minlie Huang.
+insightsintoSCULPT’sgeneralizabilityandeffec-
+2023. Black-box prompt optimization: Aligning
+tivenessatdifferentscales. Additionally,SCULPT largelanguagemodelswithoutmodeltraining. arXiv
+hasonlybeentestedonEnglish-languageprompts. preprintarXiv:2311.04155.
+Extendingitsapplicabilitytomultilingualsettings
+YihongDong,KangchengLuo,XueJiang,ZhiJin,and
+wouldmakeitmoreversatileinglobalcontextsand GeLi.2024. PACE:Improvingpromptwithactor-
+broadertasks. criticeditingforlargelanguagemodel. InFindings
+Finally,automatingthehierarchicalstructuring of the Association for Computational Linguistics
+ACL 2024, pages 7304–7323, Bangkok, Thailand
+of prompts and improving SCULPT’s handling
+andvirtualmeeting.AssociationforComputational
+of complex relationships, such as co-references
+Linguistics.
+and logical dependencies between examples and
+instructions,isapromisingavenueforfuturework. AbhimanyuDubey,AbhinavJauhri,AbhinavPandey,
+AbhishekKadian,AhmadAl-Dahle,AieshaLetman,
+ExpandingSCULPT’scapabilitiestomanagethese
+Akhil Mathur, Alan Schelten, Amy Yang, Angela
+intricatestructureswillenhanceitsrobustness,par- Fan,etal.2024. Thellama3herdofmodels. arXiv
+ticularly in handling adversarial inputs and more preprintarXiv:2407.21783.
+complexreal-worldscenarios.
+Chrisantha Fernando, Dylan Sunil Banarse, Henryk
+Michalewski, Simon Osindero, and Tim Rock-
+täschel.2024. Promptbreeder: Self-referentialself-
+References
+improvementviapromptevolution. InProceedings
+of the 41st International Conference on Machine
+MarahAbdin,SamAdeJacobs,AmmarAhmadAwan,
+Learning, volume 235 of Proceedings of Machine
+Jyoti Aneja, Ahmed Awadallah, Hany Awadalla,
+LearningResearch,pages13481–13544.PMLR.
+NguyenBach,AmitBahree,ArashBakhtiari,Harki-
+ratBehl,etal.2024. Phi-3technicalreport: Ahighly
+QingyanGuo,RuiWang,JunliangGuo,BeiLi,Kaitao
+capablelanguagemodellocallyonyourphone. arXiv
+Song,XuTan,GuoqingLiu,JiangBian,andYujiu
+preprintarXiv:2404.14219.
+Yang.2024. Connectinglargelanguagemodelswith
+JoshAchiam,StevenAdler,SandhiniAgarwal,Lama evolutionaryalgorithmsyieldspowerfulpromptopti-
+Ahmad, Ilge Akkaya, Florencia Leoni Aleman, mizers. InTheTwelfthInternationalConferenceon
+DiogoAlmeida,JankoAltenschmidt,SamAltman, LearningRepresentations.
+ShyamalAnadkat,etal.2023. Gpt-4technicalreport.
+Or Honovich, Uri Shaham, Samuel R. Bowman, and
+arXivpreprintarXiv:2303.08774.
+Omer Levy. 2023. Instruction induction: From
+TomBBrown.2020. Languagemodelsarefew-shot fewexamplestonaturallanguagetaskdescriptions.
+learners. arXivpreprintarXiv:2005.14165. In Proceedings of the 61st Annual Meeting of the
+AssociationforComputationalLinguistics(Volume
+Sébastien Bubeck, Varun Chandrasekaran, Ronen El- 1: LongPapers),pages1935–1952,Toronto,Canada.
+dan, Johannes Gehrke, Eric Horvitz, Ece Kamar, AssociationforComputationalLinguistics.
+Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lund-
+berg,etal.2023. Sparksofartificialgeneralintelli- Cho-Jui Hsieh, Si Si, Felix Yu, and Inderjit
+gence: Earlyexperimentswithgpt-4. arXivpreprint Dhillon. 2024. Automatic engineering of long
+arXiv:2303.12712. prompts. In Findings of the Association forComputationalLinguisticsACL2024,pages10672– Archiki Prasad, Peter Hase, Xiang Zhou, and Mohit
+10685,Bangkok,Thailandandvirtualmeeting.As- Bansal. 2022. Grips: Gradient-free, edit-based in-
+sociationforComputationalLinguistics. structionsearchforpromptinglargelanguagemodels.
+arXivpreprintarXiv:2203.07281.
+Ellen Jiang, Kristen Olson, Edwin Toh, Alejandra
+Molina,AaronDonsbach,MichaelTerry,andCarrieJ Reid Pryzant, Dan Iter, Jerry Li, Yin Tat Lee, Chen-
+Cai. 2022. Promptmaker: Prompt-based prototyp- guang Zhu, and Michael Zeng. 2023. Automatic
+ingwithlargelanguagemodels. InCHIConference prompt optimization with" gradient descent" and
+onHumanFactorsinComputingSystemsExtended beamsearch. arXivpreprintarXiv:2305.03495.
+Abstracts,pages1–8.
+GuanghuiQinandJasonEisner.2021. Learninghow
+ZhengbaoJiang,FrankF.Xu,JunAraki,andGraham toask: Queryinglmswithmixturesofsoftprompts.
+Neubig. 2020. How can we know what language arXivpreprintarXiv:2104.06599.
+modelsknow? TransactionsoftheAssociationfor
+Laria Reynolds and Kyle McDonell. 2021. Prompt
+ComputationalLinguistics,8:423–438.
+programming for large language models: Beyond
+GurushaJuneja,NagarajanNatarajan,HuaLi,JianJiao, the few-shot paradigm. In Extended abstracts
+and Amit Sharma. 2024. Task facet learning: A of the 2021 CHI conference on human factors in
+structuredapproachtopromptoptimization. arXiv computingsystems,pages1–7.
+preprintarXiv:2406.10504.
+Pranab Sahoo, Ayush Kumar Singh, Sriparna Saha,
+Vinija Jain, Samrat Mondal, and Aman Chadha.
+Omar Khattab, Arnav Singhvi, Paridhi Maheshwari,
+2024. Asystematicsurveyofpromptengineeringin
+Zhiyuan Zhang, Keshav Santhanam, Sri Vard-
+largelanguagemodels: Techniquesandapplications.
+hamanan,SaifulHaq,AshutoshSharma,ThomasT
+arXivpreprintarXiv:2402.07927.
+Joshi,HannaMoazam,etal.2023. Dspy: Compiling
+declarativelanguagemodelcallsintoself-improving
+TobiasSchnabelandJenniferNeville.2024. Prompts
+pipelines. arXivpreprintarXiv:2310.03714.
+asprograms: Astructure-awareapproachtoefficient
+compile-time prompt optimization. arXiv preprint
+BrianLester,RamiAl-Rfou,andNoahConstant.2021.
+arXiv:2404.02319.
+The power of scale for parameter-efficient prompt
+tuning. arXivpreprintarXiv:2104.08691.
+Aarohi Srivastava, Abhinav Rastogi, Abhishek Rao,
+AbuAwalMdShoeb,AbubakarAbid,AdamFisch,
+Xiang Lisa Li and Percy Liang. 2021. Prefix-
+Adam R. Brown, Adam Santoro, Aditya Gupta,
+tuning: Optimizing continuous prompts for gener-
+Adrià Garriga-Alonso, Agnieszka Kluska, Aitor
+ation. arXivpreprintarXiv:2101.00190.
+Lewkowycz,AkshatAgarwal,AletheaPower,Alex
+Ray, Alex Warstadt, Alexander W. Kocurek, Ali
+Shengcai Liu, Caishun Chen, Xinghua Qu, Ke Tang,
+Safaya, Ali Tazarv, Alice Xiang, Alicia Parrish,
+andYew-SoonOng.2024. Largelanguagemodelsas
+AllenNie,AmanHussain,AmandaAskell,Amanda
+evolutionaryoptimizers. In2024IEEECongresson
+Dsouza, Ambrose Slone, Ameet Rahane, Anan-
+EvolutionaryComputation(CEC),pages1–8.IEEE.
+tharaman S. Iyer, Anders Johan Andreassen, An-
+dreaMadotto,AndreaSantilli,AndreasStuhlmüller,
+XiaoLiu,YananZheng,ZhengxiaoDu,MingDing,Yu-
+Andrew M. Dai, Andrew La, Andrew Lampinen,
+jieQian,ZYang,andJTang.2021. Gptunderstands,
+Andy Zou, Angela Jiang, Angelica Chen, Anh
+too.arxiv. arXivpreprintarXiv:2103.10385.
+Vuong, Animesh Gupta, Anna Gottardi, Antonio
+YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel, Norelli, Anu Venkatesh, Arash Gholamidavoodi,
+and Pontus Stenetorp. 2022. Fantastically ordered Arfa Tabassum, Arul Menezes, Arun Kirubara-
+prompts and where to find them: Overcoming jan,AsherMullokandov,AshishSabharwal,Austin
+few-shot prompt order sensitivity. In Proceedings Herrick, Avia Efrat, Aykut Erdem, Ayla Karakas¸,
+of the 60th Annual Meeting of the Association B. Ryan Roberts, Bao Sheng Loe, Barret Zoph,
+for Computational Linguistics (Volume 1: Long Bartłomiej Bojanowski, Batuhan Özyurt, Behnam
+Papers), pages 8086–8098, Dublin, Ireland. Asso- Hedayatnia, Behnam Neyshabur, Benjamin Inden,
+ciationforComputationalLinguistics. BennoStein,BerkEkmekci,BillYuchenLin,Blake
+Howald, Bryan Orinion, Cameron Diao, Cameron
+Ruotian Ma, Xiaolei Wang, Xin Zhou, Jian Li, Nan Dour, Catherine Stinson, Cedrick Argueta, Cesar
+Du,TaoGui,QiZhang,andXuanjingHuang.2024. Ferri, Chandan Singh, Charles Rathkopf, Chenlin
+Arelargelanguagemodelsgoodpromptoptimizers? Meng, Chitta Baral, Chiyu Wu, Chris Callison-
+arXivpreprintarXiv:2402.02101. Burch,ChristopherWaites,ChristianVoigt,Christo-
+pherDManning,ChristopherPotts,CindyRamirez,
+OpenAI.2023. Bestpracticesforpromptengineering ClaraE.Rivera,ClemenciaSiro,ColinRaffel,Court-
+withtheopenaiapi. Accessed: 2024-10-10. ney Ashcraft, Cristina Garbacea, Damien Sileo,
+Dan Garrette, Dan Hendrycks, Dan Kilman, Dan
+OpenAI.2024. Introducinggpt-4o. https://openai. Roth,C.DanielFreeman,DanielKhashabi,Daniel
+com/index/hello-gpt-4o/. Accessed: 2024-09- Levy,DanielMoseguíGonzález,DaniellePerszyk,
+16. Danny Hernandez, Danqi Chen, Daphne Ippolito,DarGilboa,DavidDohan,DavidDrakard,DavidJu- Nuan Wen, Oliver Zhang, Omar Agha, Omar El-
+rgens,DebajyotiDatta,DeepGanguli,DenisEmelin, baghdadi, Omer Levy, Owain Evans, Pablo Anto-
+Denis Kleyko, Deniz Yuret, Derek Chen, Derek nio Moreno Casares, Parth Doshi, Pascale Fung,
+Tam,DieuwkeHupkes,DigantaMisra,DilyarBuzan, PaulPuLiang,PaulVicol,PegahAlipoormolabashi,
+Dimitri Coelho Mollo, Diyi Yang, Dong-Ho Lee, Peiyuan Liao, Percy Liang, Peter W Chang, Pe-
+Dylan Schrader, Ekaterina Shutova, Ekin Dogus ter Eckersley, Phu Mon Htut, Pinyu Hwang, Piotr
+Cubuk, Elad Segal, Eleanor Hagerman, Elizabeth Miłkowski, Piyush Patil, Pouya Pezeshkpour, Priti
+Barnes,ElizabethDonoway,ElliePavlick,Emanuele Oli, Qiaozhu Mei, Qing Lyu, Qinlang Chen, Ra-
+Rodolà, Emma Lam, Eric Chu, Eric Tang, Erkut binBanjade,RachelEttaRudolph,RaeferGabriel,
+Erdem, Ernie Chang, Ethan A Chi, Ethan Dyer, Rahel Habacker, Ramon Risco, Raphaël Millière,
+EthanJerzak,EthanKim,EuniceEngefuManyasi, RhythmGarg,RichardBarnes,RifA.Saurous,Riku
+EvgeniiZheltonozhskii,FanyueXia,FatemehSiar, Arakawa, Robbe Raymaekers, Robert Frank, Ro-
+FernandoMartínez-Plumed,FrancescaHappé,Fran- han Sikand, Roman Novak, Roman Sitelew, Ro-
+coisChollet,FriedaRong,GauravMishra,GentaIn- nan Le Bras, Rosanne Liu, Rowan Jacobs, Rui
+dra Winata, Gerard de Melo, Germán Kruszewski, Zhang, Russ Salakhutdinov, Ryan Andrew Chi,
+Giambattista Parascandolo, Giorgio Mariani, Glo- Seungjae Ryan Lee, Ryan Stovall, Ryan Teehan,
+riaXinyueWang,GonzaloJaimovitch-Lopez,Gregor Rylan Yang, Sahib Singh, Saif M. Mohammad,
+Betz,GuyGur-Ari,HanaGalijasevic,HannahKim, Sajant Anand, Sam Dillavou, Sam Shleifer, Sam
+HannahRashkin,HannanehHajishirzi,HarshMehta, Wiseman, Samuel Gruetter, Samuel R. Bowman,
+HaydenBogar,HenryFrancisAnthonyShevlin,Hin- SamuelSternSchoenholz,SanghyunHan,Sanjeev
+rich Schuetze, Hiromu Yakura, Hongming Zhang, Kwatra, Sarah A. Rous, Sarik Ghazarian, Sayan
+HughMeeWong,IanNg,IsaacNoble,JaapJumelet, Ghosh, Sean Casey, Sebastian Bischoff, Sebastian
+JackGeissinger,JacksonKernion,JacobHilton,Jae- Gehrmann, Sebastian Schuster, Sepideh Sadeghi,
+hoonLee,JaimeFernándezFisac,JamesBSimon, ShadiHamdan,SharonZhou,ShashankSrivastava,
+JamesKoppel,JamesZheng,JamesZou,JanKocon, Sherry Shi, Shikhar Singh, Shima Asaadi, Shixi-
+Jana Thompson, Janelle Wingfield, Jared Kaplan, ang Shane Gu, Shubh Pachchigar, Shubham Tosh-
+JaremaRadom,JaschaSohl-Dickstein,JasonPhang, niwal, Shyam Upadhyay, Shyamolima Shammie
+JasonWei,JasonYosinski,JekaterinaNovikova,Jelle Debnath, Siamak Shakeri, Simon Thormeyer, Si-
+Bosscher,JenniferMarsh,JeremyKim,JeroenTaal, mone Melzi, Siva Reddy, Sneha Priscilla Makini,
+JesseEngel,JesujobaAlabi,JiachengXu,Jiaming Soo-HwanLee,SpencerTorene,SriharshaHatwar,
+Song,JillianTang,JoanWaweru,JohnBurden,John Stanislas Dehaene, Stefan Divic, Stefano Ermon,
+Miller,JohnU.Balis,JonathanBatchelder,Jonathan Stella Biderman, Stephanie Lin, Stephen Prasad,
+Berant,JörgFrohberg,JosRozen,JoseHernandez- Steven Piantadosi, Stuart Shieber, Summer Mish-
+Orallo, Joseph Boudeman, Joseph Guerr, Joseph erghi, Svetlana Kiritchenko, Swaroop Mishra, Tal
+Jones,JoshuaB.Tenenbaum,JoshuaS.Rule,Joyce Linzen, Tal Schuster, Tao Li, Tao Yu, Tariq Ali,
+Chua,KamilKanclerz,KarenLivescu,KarlKrauth, Tatsunori Hashimoto, Te-Lin Wu, Théo Desbor-
+KarthikGopalakrishnan,KaterinaIgnatyeva,Katja des, Theodore Rothschild, Thomas Phan, Tianle
+Markert, Kaustubh Dhole, Kevin Gimpel, Kevin Wang,TiberiusNkinyili,TimoSchick,TimofeiKo-
+Omondi, Kory Wallace Mathewson, Kristen Chia- rnev, Titus Tunduny, Tobias Gerstenberg, Trenton
+fullo, Ksenia Shkaruta, Kumar Shridhar, Kyle Mc- Chang,TrishalaNeeraj,TusharKhot,TylerShultz,
+Donell,KyleRichardson,LariaReynolds,LeoGao, Uri Shaham, Vedant Misra, Vera Demberg, Victo-
+LiZhang,LiamDugan,LianhuiQin,LidiaContreras- ria Nyamai, Vikas Raunak, Vinay Venkatesh Ra-
+Ochando,Louis-PhilippeMorency,LucaMoschella, masesh,vinayudayprabhu,VishakhPadmakumar,
+LucasLam,LucyNoble,LudwigSchmidt,Luheng VivekSrikumar,WilliamFedus,WilliamSaunders,
+He, LuisOliveros-Colón, LukeMetz, LütfiKerem William Zhang, Wout Vossen, Xiang Ren, Xiaoyu
+Senel, Maarten Bosma, Maarten Sap, Maartje Ter Tong,XinranZhao,XinyiWu,XudongShen,Yadol-
+Hoeve, Maheen Farooqi, Manaal Faruqui, Mantas lah Yaghoobzadeh, Yair Lakretz, Yangqiu Song,
+Mazeika, Marco Baturan, Marco Marelli, Marco Yasaman Bahri, Yejin Choi, Yichi Yang, Yiding
+Maru,MariaJoseRamirez-Quintana,MarieTolkiehn, Hao, Yifu Chen, Yonatan Belinkov, Yu Hou, Yu-
+Mario Giulianelli, Martha Lewis, Martin Potthast, fangHou,YuntaoBai,ZacharySeid,ZhuoyeZhao,
+MatthewLLeavitt,MatthiasHagen,MátyásSchu- Zijian Wang, Zijie J. Wang, Zirui Wang, and Ziyi
+bert,MedinaOrdunaBaitemirova,MelodyArnaud, Wu.2023. Beyondtheimitationgame: Quantifying
+MelvinMcElrath,MichaelAndrewYee,MichaelCo- andextrapolatingthecapabilitiesoflanguagemodels.
+hen,MichaelGu,MichaelIvanitskiy,MichaelStar- TransactionsonMachineLearningResearch.
+ritt, Michael Strube, Michał Swe˛drowski, Michele
+Bevilacqua,MichihiroYasunaga,MihirKale,Mike Hong Sun, Xue Li, Yinchuan Xu, Youkow Homma,
+Cain, Mimee Xu, Mirac Suzgun, Mitch Walker, QiCao,MinWu,JianJiao,andDenisCharles.2023.
+Mo Tiwari, Mohit Bansal, Moin Aminnaseri, Mor Autohint: Automaticpromptoptimizationwithhint
+Geva,MozhdehGheini,MukundVarmaT,Nanyun generation. arXivpreprintarXiv:2307.07415.
+Peng,NathanAndrewChi,NayeonLee,NetaGur-
+AriKrakover,NicholasCameron,NicholasRoberts, Mirac Suzgun, Nathan Scales, Nathanael Schärli, Se-
+NickDoiron,NicoleMartinez,NikitaNangia,Niklas bastian Gehrmann, Yi Tay, Hyung Won Chung,
+Deckers,NiklasMuennighoff,NitishShirishKeskar, Aakanksha Chowdhery, Quoc Le, Ed Chi, Denny
+Niveditha S. Iyer, Noah Constant, Noah Fiedel, Zhou, and Jason Wei. 2023. Challenging BIG-bench tasks and whether chain-of-thought can
+solve them. In Findings of the Association for
+Appendix
+ComputationalLinguistics:ACL2023,pages13003–
+13051,Toronto,Canada.AssociationforComputa-
+tionalLinguistics.
+Table of Contents
+XuezhiWang,JasonWei,DaleSchuurmans,QuocVLe,
+EdHChi, SharanNarang, AakankshaChowdhery,
+A UCB-basedPromptSelectionStrategy 12
+andDennyZhou.2022. Self-consistencyimproves
+chainofthoughtreasoninginlanguagemodels. In
+TheEleventhInternationalConferenceonLearning B TaskandInitialPromptStatistics 13
+Representations.
+C Critic and Actor Interactions in
+HanweiXu,YujunChen,YulunDu,NanShao,Yang- SCULPT 13
+gangWang,HaiyuLi,andZhilinYang.2022. Gps:
+Geneticpromptsearchforefficientfew-shotlearning.
+D ActionTypesDistributionacrosstasks
+arXivpreprintarXiv:2210.17041. andsteps 15
+Chengrun Yang, Xuezhi Wang, Yifeng Lu, Hanxiao
+E APETemplate 24
+Liu, Quoc V Le, Denny Zhou, and Xinyun Chen.
+2024. Large language models as optimizers. In
+The Twelfth International Conference on Learning F LongAPETemplate 24
+Representations.
+G SCULPTPromptTemplatesforCritic
+Qinyuan Ye, Maxamed Axmed, Reid Pryzant, and andActor 24
+FereshteKhani.2023. Promptengineeringaprompt
+G.1 CriticTemplateforPreliminary
+engineer. arXivpreprintarXiv:2311.05661.
+Assessment . . . . . . . . . . 24
+Mert Yuksekgonul, Federico Bianchi, Joseph Boen, G.2 Critic Template for Error As-
+ShengLiu,ZhiHuang,CarlosGuestrin,andJames sessment . . . . . . . . . . . . 25
+Zou.2024. Textgrad:Automatic"differentiation"via G.3 Critic Template for Error
+text. arXivpreprintarXiv:2406.07496. Assessment using Similarity-
+drivenAggregation . . . . . . 25
+JD Zamfirescu-Pereira, Richmond Y Wong, Bjoern
+G.4 ActorModuleTemplate . . . . 26
+Hartmann, and Qian Yang. 2023. Why johnny
+can’t prompt: how non-ai experts try (and fail) to G.5 RephrasingTemplate . . . . . 27
+design llm prompts. In Proceedings of the 2023
+CHI Conference on Human Factors in Computing H Action Identification in OPRO and
+Systems,pages1–21. ProTeGiOptimization 27
+Zihao Zhao, Eric Wallace, Shi Feng, Dan Klein, and I BBHPromptGeneration 28
+SameerSingh.2021. Calibratebeforeuse: Improv-
+ing few-shot performance of language models. In
+J InitialPrompts 28
+Internationalconferenceonmachinelearning,pages
+12697–12706.PMLR.
+K PerturbedPrompts 30
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han,
+KeiranPaster,SilviuPitis,HarrisChan,andJimmy
+Ba.2022. Largelanguagemodelsarehuman-level
+promptengineers. arXivpreprintarXiv:2211.01910. A UCB-basedPromptSelectionStrategy
+Evaluatingthegeneratedcandidatepromptsonthe
+validationsetD isacomputationallyexpensive
+val
+process. Tominimizethesecomputations,wehave
+usedtheUpperConfidenceBound(UCB)Bandit
+algorithm as mentioned in (Pryzant et al., 2023).
+Thishelpstominimizethenumberofpromptsto
+beevaluatedaswellasthenumberofvalidationset
+samples to evaluate them on. This is done based
+ontheproposaldistributionofpromptperformance
+which is updated after each evaluation round. At
+the end top b prompts with highest weight in the
+distributionareselected.Dataset ValidationSize TrainSize TestSize feedbackidentifiesmultipleareasforimprovement,
+CausalJudgement 19 36 129
+DisambiguationQA 24 49 174 including adding examples for different types of
+FormalFallacies 24 49 174
+translation errors and rephrasing certain parts of
+SalientTranslation 24 49 174
+Inappropriate 122 242 851 theprompttoenhanceclarityandrelevance.
+Misinformation 122 242 851
+Hate 122 242 851
+SelfHarm 122 242 851
+ActorResponsetoPreliminaryAssessment: The
+Table6: Datasetsizeinformation ActormoduleprocessestheCritic’sfeedbackand
+suggestsasetofactions,whicharesummarizedin
+Table 8. One key action involves adding specific
+SeeAlgorithm2fordetails,whereQ (p )isthe
+t i examples for “Named Entities” errors, while an-
+estimated performance of prompt p at time step
+i otherfocusesonrephrasingthetaskdescriptionin
+t,N (p )isthetotalqueriesforpromptisofarat
+t i the‘Task>body’sectionforgreaterclarity.
+timet,andcistheexplorationparameter.
+UpdatedPromptBasedonPreliminaryAssess-
+Algorithm2UCBBanditsCandidateSelection
+ment: AfterapplyingthePreliminaryAssessment,
+Requirenpromptsp1,p2,...,pn,datasetDval,Ttimestepsandmetric notableimprovementsareobservedintheprompt.
+functionm
+Initialize:Nt(pi)←0foralli=1,...,n The task description has been rephrased for clar-
+Initialize:Qt(pi)←0foralli=1,...,n
+fort=1,...,Tdo ity, and new examples for each translation error
+SampleuniformlyDsample⊂Dval
+type have been added. See Table 11 for the up-
+(cid:113)
+pi←argmaxpQt(p)+c Nlo tg (pt
+) datedprompt,whichshowssignificantrefinements
+Observerewardri,t=m(pi,Dsample)
+Nt(pi)←Nt(pi)+|Dsample| comparedtotheinitialpromptinTableJ.0.3.
+Qt(pi)←Qt(pi)+ Nr ti (, pt
+i)
+endfor
+returnSelectTopb(QT) Critic’sErrorAssessment: Table9providesthe
+error assessment based on the Critic’s evaluation
+ofthepromptinresponsetospecificmodelerrors.
+B TaskandInitialPromptStatistics
+Thereflectionhighlightsareaswherenewexamples
+needtobeaddedandsuggestsrephrasingsections
+Table 6 presents the number of examples in the
+toclarifydefinitionsoferrortypes,ensuringfewer
+training,validation,andtestsetsforeachtask,of-
+ambiguities.
+feringanoverviewofthedatasetsize. Additionally,
+Table2liststhewordcountsoftheinitialprompts
+Actor Response to Error Assessment: In re-
+usedineachtask,highlightingthelengthandcom-
+sponsetotheerror-assessmentfeedback,theActor
+plexityoftheseprompts. Thisinformationempha-
+modulesuggeststargetedactions,whicharelisted
+sizesthechallengesposedbylongandunstructured
+in Table 10. These include adding examples for
+prompts,whichrequiresystematicoptimizationto
+errortype1andrephrasingsectionsasneededto
+ensuremodelperformance. Wehaveprovidedthe
+avoidconfusionandimproveclarity.
+listofinitialpromptsinSectionJ.
+Updated Prompt Based on Error Assessment:
+C CriticandActorInteractionsin
+Theupdatedprompt,followingbothinitialassess-
+SCULPT
+ments and error analysis from the first round, is
+Thissectionillustratestheinteractionsbetweenthe presented in Table 12. In contrast to the original
+CriticandActormoduleswithinSCULPTbypre- version(TableJ.0.3),therevisedpromptintegrates
+sentingboththepreliminaryanderror-assessment additionalexamplesandrestructuredsections. This
+reflections, the Actor’s responses to each type of demonstratesthecapabilityofSCULPTtosystem-
+feedback,andtheresultingpromptupdates. Specif- atically refine prompts through controlled reflec-
+ically, weshowcasehowtheseactionscontribute tionsandtargetedadjustments.
+topromptrefinementsduringthefirstroundofthe
+Salient Translation task, demonstrating the itera- FinalPromptPost-Optimization: Thefullyopti-
+tiveroleofbothmodulesinimprovingtheprompt’s mizedprompt,aftertheentireSCULPToptimiza-
+clarityandalignmentwithtaskrequirements. tionprocess,ispresentedinTable13. Thisrefined
+version shows significant improvements over the
+Critic’sPreliminaryAssessment: Table7shows initial prompt (Table J.0.3). Key enhancements
+thepreliminaryfeedbackprovidedinround1. The include a clearer redefinition of error categories,(a)OPRO
+(b)ProTeGi
+(c)SCULPT
+Figure6: ActiondistributionacrosstasksofOPRO,ProTeGiandSCULPT.refinedexamples,andimprovedclarityinthefinal
+outputclasses. Theseadjustments,madeafterthe
+Preliminary and Error Assessment updates (refer
+to Table 12), ensure that the user is guided more
+effectivelythroughthetask. Thisfinalpromptun-
+derscoresthesystematicnatureofSCULPT’siter-
+ativerefinementprocess,showcasingitsabilityto
+optimizepromptdesignefficientlyandeffectively.
+D ActionTypesDistributionacrosstasks
+andsteps
+InFig.6,wepresentthedistributionofactiontypes
+appliedbyOPRO,ProTeGi,andSCULPTacross
+differenttasks,illustratinghoweachmethodhan-
+dlespromptrefinements.
+Additionally, Figures 7 and 8 show the action
+distribution employed by SCULPT over succes-
+siveoptimizationsteps,providinginsightsintohow
+the system refines prompts over time. Similarly,
+Figures9and10illustratethestepwiseactiondis-
+tributionforProTeGi,highlightingdifferencesin
+how the two methods evolve their optimizations
+throughouttheprocess.PromptReference PreliminaryAssessment
+- Task> body",
+- Error Identification> body
+- Error Identification> 1.> body
+- Error Identification> 2.> body
+- Error Identification> 3.> body
+- Add relevant examples to each error class to provide clarity.
+- Error Identification> 4.> body
+- Simplify language where possible to make instructions clearer.
+- Error Identification> 5.> body
+- Combine sections where appropriate to reduce redundancy and improve flow.
+- Error Identification> 6.> body
+- Performance Analysis> body
+- Additional points> body
+- Options> body
+- Output format> body
+Table7: ExampleofPreliminaryCriticReflection
+ActionType SectionReference ActionDescription
+Add examples that illustrate 'Named entities' errors, such
+as changes in names, places, or locations. For instance, 'A
+Example Update- Addition
+Error Identification> 1. person'snamechangedfromJohntoJack'or'Acitynamechanged
+from New York to Los Angeles'
+Your task is to identify the type of translation error in a
+given source-translation pair. You will be given sentences with
+"Section Rephrase" "Task> body" specific errors manually introduced. Determine which of the six
+error classes the translation error belongs to.
+Table8: ActorResponsesbasedonPreliminaryAssessment
+InputExample&Prediction PromptReference ErrorAssessment
+Input: "Source: Eleonore
+Lingnau-Kluge war eine deutsche
+Malerin. - Error Identification> 1.> body - Add examples that clearly differentiate factual
+Translation: Eleonore Lingnau-Kluge - Error Identification> 5.> body errors from named entity changes.
+was a German dancer." - Error Identification> 6.> -Clarifythedefinitionsofeacherrorclasstoavoid
+Expected Output: "(F)" Examples confusion.
+Prediction: "(D)"
+"Input: "Source: Pedro Morenés y
+ÁlvarezdeEulateisteinspanischer
+- Add examples that highlight named entity changes,
+Politiker der Partido Popular. - Error Identification> 1.> body especially when names are shortened or altered.",
+Translation: Pedro is a Spanish - Error Identification> 6.> - Emphasize the importance of preserving named
+politician of the Popular Party." Examples entities in translations.
+Expected Output: "(D)"
+Prediction: "(E)"
+Table9: ErrorAssessmentfromCritic
+ActionType SectionReference ActionDescription
+Add examples that highlight named entity changes, especially
+when names are shortened or altered. For instance: 'A
+Error Identification> 1.>
+Example Update- Addition politician'snamechangedfromPedroMorenésyÁlvarezdeEulate
+Examples
+toPedro'and'Anactor'snamechangedfromMartinStephenMcCann
+to McCann'.
+Named entities: Look for changes in names, places, locations,
+Error Identification> 1.>
+Section Rephrase etc. Ensure that names are preserved accurately, even when
+body
+shortened or altered.
+Table10: ActorResponsebasedonErrorAssessment# Task
+Your task is to identify the type of translation error in a given source-translation pair. You will be given sentences with
+specific errors manually introduced. Determine which of the six error classes the translation error belongs to.
+# Error Identification
+Analyze the source-translation pair and identify the error based on the following classes:
+* Named entities: Look for changes in names, places, locations, etc.
+Examples: A company name changed from Apple to Microsoft, A country name changed from France to Germany, A person’s name
+changed from John to Jack, A city name changed from New York to Los Angeles
+* Numerical values: Check for alterations in numbers, dates, or units.
+Examples: A date changed from 2021 to 2020, A price changed from $50 to $55, A time changed from 3 PM to 4 PM, A measurement
+unit changed from meters to feet, A quantity changed from 100 to 150
+* Modifiers or adjectives: Identify changes in descriptors pertaining to a noun.
+Examples: The adjective changed from big to small., The descriptor changed from red to blue., The modifier changed from happy
+to sad., The descriptor changed from old to new., The adjective changed from tall to short.
+* Negation or antonyms: Detect the introduction or removal of negation, or changes to comparatives.
+Examples: The comparative changed from ’less important’ to ’more important’., The negation changed from ’is not’ to ’is’., The
+phrase changed from ’He is not happy’ to ’He is happy’., The comparative changed from ’better’ to ’worse’., The sentence
+changed from ’She never goes to the gym’ to ’She always goes to the gym’.
+* Facts: Spot trivial factual errors not covered by the above classes.
+Examples: The fact changed from The capital of France is Paris to The capital of France is Berlin, The fact changed from Humans
+have 206 bones in their body to Humans have 210 bones in their body, The fact changed from The Great Wall of China is
+visible from space to The Great Wall of China is not visible from space
+* Dropped content: Notice if a significant clause is missing from the translation.
+Examples: {A city name changed from ’Berlin’ to ’Munich’ would be a ’Named entities’ error}, {A date
+changed from ’1990’ to ’1989’ would be a ’Numerical values’ error}
+# Performance Analysis
+Understand that language models perform differently across error classes:
+* Models like XLM-Roberta may struggle with named entities, dropped content, and modifiers/adjectives.
+* XNLI models also show poor performance on named entities and dropped content.
+# Additional points
+Keep in mind the following points while identifying errors:
+* Ensure minimal impact on translation fluency while identifying errors.
+* Focus on salient source information to detect errors effectively.
+* Remember that each translation contains only one of the six error classes.
+# Options
+(A) Modifiers or Adjectives
+(B) Numerical Values
+(C) Negation or Antonyms
+(D) Named Entities
+(E) Dropped Content
+(F) Facts
+# Output format
+Provide the right error option ‘(Option Number)‘ that the translation contains.
+Table 11: Updated Prompt after Preliminary Assessment. Instruction update are highlighted in blue, Example
+Additionaremarkedwithmahoganycolor,andNodeExpansionaremarkedingreen.# Task
+Your task is to identify the type of translation error in a given source-translation pair. You will be given sentences with
+specific errors manually introduced. Determine which of the six error classes the translation error belongs to.
+# Error Identification
+Analyze the source-translation pair and identify the error based on the following classes:
+* Named entities: Look for changes in names, places, locations, etc. Ensure that names are preserved
+accurately, even when shortened or altered.
+Examples: A politician’s name changed from Pedro Morenés y Álvarez de Eulate to Pedro, A company name changed from Apple to
+Microsoft, An actor’s name changed from Martin Stephen McCann to McCann, A country name changed from France to Germany, A
+person’s name changed from John to Jack, A city name changed from New York to Los Angeles
+* Numerical values: Check for alterations in numbers, dates, or units. Ensure that numerical values are
+preserved accurately.
+Examples: A date changed from 2021 to 2020, A price changed from $50 to $55, A time changed from 3 PM to 4 PM, The population
+number changed from 5491 to 5000, A measurement unit changed from meters to feet, A quantity changed from 100 to 150
+* Modifiers or adjectives: Identify changes in descriptors pertaining to a noun. Ensure that descriptive
+terms are preserved accurately.
+Examples: The adjective changed from big to small., The descriptor changed from red to blue., The modifier changed from happy
+to sad., The description changed from small town to city., The descriptor changed from old to new., The nationality
+changed from German to French., The adjective changed from tall to short.
+* Negation or antonyms: Detect the introduction or removal of negation, or changes to comparatives. Ensure that negation and
+antonyms are preserved accurately.
+Examples: The comparative changed from ’less important’ to ’more important’., The negation changed from ’is not’ to ’is’., The
+description changed from rural to urban., The phrase changed from ’He is not happy’ to ’He is happy’., The comparative
+changed from ’better’ to ’worse’., The sentence changed from ’She never goes to the gym’ to ’She always goes to the gym’.
+* Facts: Spot trivial factual errors not covered by the above classes. Ensure that factual information
+remains accurate and unchanged.
+Examples: The fact changed from The Pacific Ocean is the largest ocean to The Atlantic Ocean is the largest ocean, The fact
+changed from The Earth orbits the Sun to The Sun orbits the Earth, The fact changed from The Great Wall of China is
+visible from space to The Great Wall of China is not visible from space, The fact changed from The capital of France is
+Paris to The capital of France is Berlin, The fact changed from Humans have 206 bones in their body to Humans have 210
+bones in their body
+* Dropped content: Notice if a significant clause is missing from the translation.
+Examples: A city name changed from ’Berlin’ to ’Munich’ would be a ’Named entities’ error, A date changed from ’1990’ to ’1989’
+would be a ’Numerical values’ error
+# Performance Analysis
+Understand that language models perform differently across error classes:
+* Models like XLM-Roberta may struggle with named entities, dropped content, and modifiers/adjectives.
+* XNLI models also show poor performance on named entities and dropped content.
+# Additional points
+Keep in mind the following points while identifying errors:
+* Ensure minimal impact on translation fluency while identifying errors.
+* Focus on salient source information to detect errors effectively.
+* Remember that each translation contains only one of the six error classes.
+# Options
+(A) Modifiers or Adjectives
+(B) Numerical Values
+(C) Negation or Antonyms
+(D) Named Entities
+(E) Dropped Content
+(F) Fact
+# Output format
+Provide the right error option ‘(Option Number)‘ that the translation contains.
+Table12: UpdatedPromptafterErrorAssessment. Instructionupdatearehighlightedinblue,ExampleAdditionare
+markedwithmahoganycolor,andNodeExpansionaremarkedingreen.# Task
+Your task is to identify the type of translation error in a given source-translation pair. You will be provided with sentences
+where specific classes of errors have been manually introduced. Determine which of the six error classes the translation
+error belongs to: Named entities, Numerical values, Modifiers or adjectives, Negation or antonyms, Facts, and Dropped
+content.
+Examples: The name ’John’ was changed to ’James’ in the translation, which is a ’Named entities’ error., The word ’happy’ was
+translated as ’sad’, which is a ’Negation or antonyms’ error., The number ’50’ was translated as ’15’, which is a
+’Numerical values’ error.
+# Error Identification
+Analyze the provided source-translation pair and identify the error based on the following classes:
+* Named entities: Look for changes in names, places, locations, scientific names, classifications, etc. This includes any
+change to a name, including shortening, omission, or alteration of specific locations. Pay attention to changes in
+classifications that might alter the meaning or context of the sentence.
+Examples: The name ’New York’ was changed to ’NY’, indicating a ’Named entities’ error., The phrase ’United States’ was
+modified to ’USA’, indicating a ’Named entities’ error., The term ’California’ was altered to ’CA’, indicating a ’Named
+entities’ error., The name ’Boyd Kevin Rutherford’ was reduced to ’Boyd’ in the translation, indicating a ’Named
+entities’ error., The term ’Rabenvogel’ was incorrectly translated as ’Columbine family’, changing the classification.
+* Numerical values: Check for alterations in numbers, dates, or units, and ensure that no numerical information is omitted.
+This includes any change, omission, or alteration of numerical data. Pay attention to omissions that might alter the
+meaning or context of the sentence.
+Examples: The date ’2021’ was omitted., The number ’100’ was changed to ’one hundred’., The unit ’kg’ was altered to
+’kilogram’., The dates were omitted, losing important context., The population ’5491’ was omitted, which is a numerical
+value.
+* Modifiers or adjectives: Identify changes in descriptors pertaining to a noun that are not necessarily antonyms. This
+includes changes in descriptors such as nationality, type, usage, or any other descriptive attribute. Pay attention to
+changes that might alter the meaning or context of the sentence.
+Examples: The adjective ’quick’ was changed to ’speedy’ in the report., The term ’Rosenmontagszug’ was translated as ’Rose
+Procession’, changing the descriptor., The phrase ’modern’ was altered to ’contemporary’ in the article., The adjective
+’happy’ was changed to ’joyful’ in the sentence.
+* Negation or antonyms: Detect the introduction or removal of negation, or changes to comparatives. This includes any change
+that introduces or removes a negative meaning or alters the comparative degree of an adjective or adverb. Pay attention
+to antonyms that might alter the meaning or context of the sentence.
+Examples: Changing ’more important’ to ’less important’ is a comparative change., Changing ’Obere’ to ’Lower’ is an antonym.,
+Changing ’living’ to ’extinct’ is an antonym., Changing ’He is not interested’ to ’He is interested’ would be a ’Negation
+or antonyms’ error., Changing ’better’ to ’worse’ is a comparative change.
+* Facts: Spot trivial factual errors not covered by the above classes. This includes changes to factual information such as
+professions. Pay attention to errors that might alter the factual accuracy of the sentence.
+Examples: Asserting that ’Neil Armstrong was the first person to climb Mount Everest’ instead of ’Neil Armstrong was the first
+person to walk on the moon’ is a ’Facts’ error., Saying ’The Great Wall of China is located in India’ instead of ’The
+Great Wall of China is located in China’ is a ’Facts’ error., Stating that ’The capital of France is Berlin’ instead of
+’The capital of France is Paris’ is a ’Facts’ error., Claiming that ’Albert Einstein was a famous painter’ instead of
+’Albert Einstein was a famous physicist’ is a ’Facts’ error., Stating that ’The Amazon River is the longest river in the
+world’ instead of ’The Nile River is the longest river in the world’ is a ’Facts’ error.
+* Dropped content: Identify if a significant clause or important information is missing from the translation. Pay attention to
+omissions that might alter the meaning or context of the sentence.
+Examples: The clause ’which is located in the heart of the city’ is omitted, losing important location context., The phrase
+’including taxes’ is omitted, which is crucial for understanding the total cost., The information ’who is a renowned
+scientist’ is missing, which provides important context about the individual.
+# Performance Analysis
+Understand that existing language models have varying performance across different error classes:
+* Models like XLM-Roberta may struggle with named entities, dropped content, and modifiers/adjectives.
+* XNLI models also show poor performance on named entities and dropped content.
+# Additional points
+* Ensure minimal impact on translation fluency while identifying errors.
+* Focus on salient source information to detect errors effectively.
+* Remember that each translation contains only one of the six error classes.
+# Options
+(A) Modifiers or Adjectives
+(B) Numerical Values
+(C) Negation or Antonyms
+(D) Named Entities
+(E) Dropped Content
+(F) Facts
+## Options Explanation
+Explanation of each option:
+(A) Modifiers or Adjectives: Changes in descriptors pertaining to a noun.
+(B) Numerical Values: Alterations in numbers, dates, or units.
+(C) Negation or Antonyms: Introduction or removal of negation, or changes to comparatives.
+(D) Named Entities: Changes in names, places, locations, etc.
+(E) Dropped Content: Missing significant clauses from the translation.
+(F) Facts: Trivial factual errors not covered by the above classes.
+# Output format
+Provide the correct error option (A-F) that the translation contains.
+Table13: UpdatedPromptattheendofOptimizationprocess. Instructionupdatearehighlightedinblue,Example
+Additionaremarkedwithmahoganycolor,strikethroughindicatesNodePruning,andNodeExpansionaremarked
+ingreen.(a)CausalJudgement
+(b)Disambiguation
+(c)FormalFallacy
+(d)SalientTranslation
+Figure7: ActiondistributionoveroptimizationstepsinSCULPT(a)Inappropriate
+(b)Misinformation
+(c)Hate
+(d)SelfHarm
+Figure8: ActiondistributionoveroptimizationstepsinSCULPT(a)CausalJudgement
+(b)Disambiguation
+(c)FormalFallacy
+(d)SalientTranslation
+Figure9: ActiondistributionoveroptimizationstepsinProTeGi(a)Inappropriate
+(b)Misinformation
+(c)Hate
+(d)SelfHarm
+Figure10: ActiondistributionoveroptimizationstepsinProTeGiE APETemplate Examples: {example 1}, {example 2}, {example 3}
+* <bullet point 3>
+ForwardGeneration
+...
+I gave a friend an instruction and {NumExamples} inputs. The
+friend read the instruction and wrote an output for every # <Heading 2>
+one of the inputs. Given, the input-output pairs, generate an * <bullet point 1>
+instructionwhichistheoutput.Generatetheoutputbetweenthe * <bullet point 2>
+<INSTRUCT> and <ENDINSTRUCT> Tags. ...
+```
+ReverseGeneration The friend read the instruction and wrote an output for every
+one of the inputs. Given the input and output pairs, complete
+I instructed my friend to <INSERT>. The friend read the the <INSERT> instruction.For each section, you can either use
+instructionandwroteanoutputforeveryoneoftheinputs.Given the same input-output pairs to write relevant examples, or you
+the input and output pairs, complete the <INSERT> instruction. can use your best knowledge to create examples according to
+Generate the output between the <INSTRUCT> and <ENDINSTRUCT> the observed input-output pairs. Do not use the input-output
+Tags. pairs directly as provided, you have to maintain the structure
+of the instruction intact with added examples by keeping each
+input text in its own in curly brackets and each curly bracketed
+F LongAPETemplate exampleseparatedbycomma,andignoretheoutputifthesection
+describes labelling condition for given output label. Ensure
+ForwardGeneration that proper line separation is maintained for readability. Do
+not reproduce the tags like <body>, <bullet point 1> etc, those
+represent placeholder for relevant content in the instruction.
+Generate the output between the <INSTRUCT> and <ENDINSTRUCT>
+I gave a friend a detailed instruction in markdown format
+Tags.
+and {NumExamples} inputs. The instructions has the following
+markdown structure with proper white spaces-
+```
+G SCULPTPromptTemplatesforCritic
+# <Heading 1>
+<body> andActor
+## <Heading 1.1>
+<body> In this section, we present the prompt templates
+Examples: {example 1}, {example 2}
+thatwereutilizedforgeneratingtheCriticandAc-
+* <bullet point 1>
+torresponsesusingalargelanguagemodel(LLM).
+* <bullet point 2>
+Examples: {example 1}, {example 2}, {example 3} Thesetemplatesserveasthefoundationforelicit-
+* <bullet point 3>
+ingstructuredfeedbackfromtheCriticandaction-
+...
+ablesuggestionsfromtheActorduringtheiterative
+# <Heading 2> promptoptimizationprocessinSCULPT.
+* <bullet point 1>
+* <bullet point 2>
+...
+```
+G.1 CriticTemplateforPreliminary
+The friend read the instruction and wrote an output for every Assessment
+one of the inputs. The instruction had several sections, each
+describing what output to generate for a given input. Each
+section also has examples to assist my friend. ## Step-by-Step Instructions:
+Given the input-output pairs, generate an instruction which is 1. **Read the Input Prompt Thoroughly**:
+the output. For each section, you can either use the same - Begin by carefully reading the entire input prompt along
+input-output pairs to write relevant examples, or you can with its specific details. Make sure to understand the task at
+use your best knowledge to create examples according to the hand, including any requirements or constraints provided.
+observed input-output pairs. Do not use the input-output pairs
+directly as provided, you have to maintain the structure of the 2. **General Feedback**:
+instruction intact with added examples by keeping each input Providecomprehensivefeedbackontheinputprompttoenhance
+text in its own in curly brackets and each curly bracketed its effectiveness in each of the following areas:
+exampleseparatedbycomma,andignoretheoutputifthesection * Contextual Errors: Identify specific inaccuracies or
+describes labelling condition for given output label. Ensure mistakes that may lead to misunderstandings.
+that proper line separation is maintained for readability. Do * Incorrect or Irrelevant Examples: Highlight any incorrect
+not reproduce the tags like <body>, <bullet point 1> etc, those or misplaced examples within the prompt. Note that no section
+represent placeholder for relevant content in the instruction. should contain more than 5-6 examples.
+Generate the output between the <INSTRUCT> and <ENDINSTRUCT> * Gaps in Information: Point out any missing details or
+Tags. context that could clarify the task for the user, ensuring they
+have all necessary information.
+* Potential Improvements: Suggest ways to improve the prompt
+ReverseGeneration for better clarity and impact. This could include simplifying
+language,addingrelevantexamples,oroutliningaclearsequence
+ofsteps.Ensurethepromptisefficient,concise,andfreefrom
+I instructed my friend to <INSERT>. The instructions looked redundant information.
+something like this- * Grammar and Syntax: Note any spelling or grammatical
+errorsthatcouldcauseconfusion,aswellaspoorlyconstructed
+``` sentences that may obscure the intended meaning.
+# <Heading 1> * Prompt Length: The prompt should be concise. Provide
+<body> feedbackaroundoptimizingitslengthwhilemaintainingclarity.
+* Other Issues: Identify any other areas where the prompt
+## <Heading 1.1> could be improved.
+<body>
+Examples: {example 1}, {example 2} ## Input Format:
+* <bullet point 1> **Example Prompt**
+* <bullet point 2>```json "<body>"}...}...},"<Heading 2>":{"body": "<body>"}...}
+{"<Heading 1>":{"body": "<body>","<Heading ```
+1.1>":{"body": "<body>",...},"<Heading 1.2>":{"body":
+"<body>","Examples":["<example 1>",....],"<Heading **Example Batch Evaluations**
+1.2.1>":{"body": "<body>","1.": {"body":
+"<instruction>","Examples":["<example 1>","<example ```json
+2>",.....]},"2.":...},"<Heading 1.2.2>":{"body": {"prompt": "The current prompt being used.","input_data":
+"<body>"}...}...},"<Heading 2>":{"body": "<body>"}...} [{"id": "<unique id>","input": "<input text>","prediction":
+``` "<output generated by the model>","ground_truth": "<correct
+output>"},...]}
+## Output Format: ```
+```json ## Output Format:
+{"prompt_feedback":[{"prompt_examination":"<prompt_examination>",
+"improvement_suggestion": ["<improvement_suggestion>", ...]}, ```json
+...], "prompt_references": ["<prompt_reference>", ...]} [{"id": "<unique id>","prediction_explanation": "<explanation
+``` for prediction>","prompt_feedback": {"prediction_analysis":
+"<prediction_analysis>", "prompt_examination":
+"<prompt_examination>", "improvement_suggestions":
+["<improvement_suggestions>", ...]},"prompt_references":
+["Heading 1> Heading 1.2> Heading 1.2.1> body","Heading 1>
+G.2 CriticTemplateforErrorAssessment
+Heading 1.2> Heading 1.2.1> 2.> body","Heading 1> Heading 1.2>
+body","Heading 2> body>"]},...]
+```
+# Task
+Evaluate the performance of the input prompt and provide
+explanations, identify the parts of the prompt used for
+predictions, and offer feedback for improvement. G.3 CriticTemplateforErrorAssessment
+## Step-by-Step Instructions: usingSimilarity-drivenAggregation
+1. **Read the Input Prompt Thoroughly**:
+- Begin by carefully reading the entire input prompt along # Task Overview
+with its specific details. Make sure to understand the task at Evaluate a set of prompts, predictions, and ground truths.
+hand, including any requirements or constraints provided. Providedetailedfeedbackoneachcaseandgrouprelatedfeedback
+into clusters based on common patterns or prompt references.
+2. **Batch Feedback**:
+Based on `Batch Evaluations` where the model has generated ## Step-by-Step Instructions:
+wrong predictions, provide feedback to improve the performance
+of the prompt by following these steps: 1. **Read the Input Prompt Thoroughly**:
+* Understanding the Context (prediction_explanation): - Begin by carefully reading the entire input prompt along
+- Start by clearly stating the input, expected output with its specific details. Make sure to understand the task at
+(ground_truth), and model’s actual prediction. Example format: hand, including any requirements or constraints provided.
+`Input: '<input text>'`, `Expected Output: '<ground_truth>'`,
+`Prediction: '<prediction>'`. 2. **Batch Feedback**:
+- Analyze why the model generated this prediction by Based on `Batch Evaluations` where the model has generated
+identifyingspecificwords,phrases,orcontextualcuesfromthe wrong predictions, provide feedback to improve the performance
+input. of the prompt by following these steps:
+- Highlight the sections of the input or prompt that * Understanding the Context (prediction_explanation):
+likely influenced the prediction using `prompt_references`. - Start by clearly stating the input, expected output
+(ground_truth), and model’s actual prediction. Example format:
+* Analysis and Feedback (prompt_feedback): `Input: '<input text>'`, `Expected Output: '<ground_truth>'`,
+Thefeedbackshouldincludethedetailsabouteachofthese `Prediction: '<prediction>'`.
+steps: - Analyze why the model generated this prediction by
+- `prediction_analysis`: Always include a clear analysis identifyingspecificwords,phrases,orcontextualcuesfromthe
+comparing the model's prediction with the expected output. input.
+Mention what the correct label should have been and highlight - Highlight the sections of the input or prompt that
+any discrepancies. likely influenced the prediction using `prompt_references`.
+- `prompt_examination`: Always analyze the prompt
+step-by-step,identifyingspecificsectionsthatmayhavecaused * Analysis and Feedback (`prompt_feedback`):
+the error (e.g., unclear instructions, ambiguous wording). Thefeedbackshouldincludethedetailsabouteachofthese
+Explain how these issues led to the incorrect label. steps:
+- `improvement_suggestions`: Provide multi-step feedback - `prediction_analysis`: Always include a clear analysis
+outlining all possible actions to address identified issues and comparing the model's prediction with the expected output.
+explain how these changes will result in the correct label. Mention what the correct label should have been and highlight
+Possible actions can include: any discrepancies.
+- Rephrasing unclear instructions. - `prompt_examination`: Always analyze the prompt
+- Removing redundancy. step-by-step,identifyingspecificsectionsthatmayhavecaused
+- Adding clarity or details. the error (e.g., unclear instructions, ambiguous wording).
+- Revising tone or structure for better flow. Explain how these issues led to the incorrect label.
+-Modifyingexamples:Removebadexamples,addorrefine - `improvement_suggestions`: Provide multi-step feedback
+better examples, ensuring no section exceeds 5-6 examples. outlining all possible actions to address identified issues and
+- explain how these changes will result in the correct label.
+* Prompt references (`prompt_references`): Possible actions can include:
+Include references to the specific parts of the prompt - Rephrasing unclear instructions.
+that may have contributed to errors. - Removing redundancy.
+- Adding clarity or details.
+## Input Format: - Revising tone or structure for better flow.
+-Modifyingexamples:Removebadexamples,addorrefine
+**Example Prompt** better examples, ensuring no section exceeds 5-6 examples.
+```json * Prompt references (`prompt_references`):
+{"<Heading 1>":{"body": "<body>","<Heading Include references to the specific parts of the prompt
+1.1>":{"body": "<body>",...},"<Heading 1.2>":{"body": that may have contributed to errors.
+"<body>","Examples":["<example 1>",....],"<Heading
+1.2.1>":{"body": "<body>","1.": {"body": * Cluster Feedback:
+"<instruction>","Examples":["<example 1>","<example -Grouprelatedfeedbackinto{number_of_clusters}clusters
+2>",.....]},"2.":...},"<Heading 1.2.2>":{"body": based on patterns such as:- Shared sections of the prompt that influenced the identified.
+predictions. - **Identify Key Issues**: Pay special attention to
+- Expected output `ground_truth`. the sections of the prompt referenced in the feedback
+- Similar types of input data or prediction behavior. (`prompt_references`). Determine the underlying problems,
+- Each cluster should include: whether they relate to clarity, specificity, flow, or
+- A list of explanations for the inputs in the cluster. completeness.
+- A specific list of feedback relevant to the cluster.
+- Clear `prompt_references` pointing to sections that 3. **Determine Appropriate Actions**:
+could be revised or improved. - **Section Reorder**: Consider rearranging sections if
+theircurrentorderdisruptsclarityorlogicalflow.Reordering
+## Input Format: can enhance understanding and make the prompt more intuitive.
+**Note**: Just the `body` or `Examples` cannot be reordered.
+**Example Prompt** Thepositioncanbeinterchangedwithinaheadingbutnotacross
+different headings.
+```json - **Section Rephrase**: Look for sections that could benefit
+{"<Heading 1>":{"body": "<body>","<Heading fromclearerormoreprecisewording.Aimtoimprovetheoverall
+1.1>":{"body": "<body>",...},"<Heading 1.2>":{"body": comprehension and effectiveness of the prompt.
+"<body>","Examples":["<example 1>",....],"<Heading -**ExampleUpdate**:Assesstheexamplesprovided.Iftheyare
+1.2.1>":{"body": "<body>","1.": {"body": unclear,inadequate,ordonotalignwiththefeedback,identify
+"<instruction>","Examples":["<example 1>","<example specific updates to make them more relevant and illustrative.
+2>",.....]},"2.":...},"<Heading 1.2.2>":{"body": - Types of Updates:
+"<body>"}...}...},"<Heading 2>":{"body": "<body>"}...} - **Addition**: Suggest specific new examples that align
+``` better with the prompt's goals or themes. Clearly describe what
+the new examples should illustrate. **Note**: Ensure that any
+**Example Batch Evaluations** section does not contain more than 5-6 examples.
+-**Rewriting**:Identifyexamplesthatrequirerephrasing
+```json or clarification. Provide guidance on how to make them clearer
+{"prompt": "The current prompt being used.","input_data": or more relevant to the prompt's intent.
+[{"id": "<unique id>","input": "<input text>","prediction": -**Deletion**:Highlightanyexamplesthatareirrelevant,
+"<output generated by the model>","ground_truth": "<correct outdated, incorrect, or confusing. Explain why they should be
+output>"},...]} removed to enhance the clarity of the prompt.
+``` -
+**DeleteSection**:Identifyanysectionsthatareredundant,
+## Output Format: irrelevant, or no longer needed. Removing unnecessary sections
+The output must consists of a list of maximum can streamline the prompt and improve clarity.
+{number_of_clusters} clusters, each identified by a unique - **New Section Creation**: Identify any gaps in the prompt
+`id`. that need addressing. Creating new sections can fill these
+voids and enhance the overall structure and functionality of
+```json the prompt.
+[{"id": "cluster_1","prediction_explanation": - **Merge Section**: If two sections cover similar topics or
+["<detailed explanation for example 1 in cluster can be combined to improve clarity and reduce redundancy, merge
+1>",...], "prompt_feedback": {"prediction_analysis": them into a new section.
+"<prediction_analysis>", "prompt_examination":
+"<prompt_examination>", "improvement_suggestions": 4. **Implement Actions**:
+["<improvement_suggestions for cluster 1>", ...]}, - **For Section Reorder**:
+"prompt_references": ["Heading 1> Heading 1.2> Heading - `section_reference`: Specify which section should be
+1.2.1> body","Heading 1> Heading 1.2> Heading 1.2.1> 2.> reordered based on feedback.
+body","Heading 1> Heading 1.2> body","Heading 2> body"]},...] - `new_position`: Indicate where this section should be
+``` moved to improve flow.
+-`action_explanation`:Explainhowthisreorderingaddresses
+the feedback and enhances prompt clarity.
+- **For Section Rephrase**:
+G.4 ActorModuleTemplate
+- `section_reference`: Identify the section needing
+rephrasing.
+- `updated_section`: Provide the revised wording for that
+# Task section.
+Use the provided critic feedback to enhance the effectiveness - `key`: The updated title or heading.
+of a prompt. The actions to be taken are categorized as: Section - `value`: The rephrased content.
+Reorder, Section Rephrase, Example Update, New Section Creation - `action_explanation`: Clarify how the rephrased section
+and Merge Sections. improves clarity or effectiveness based on the feedback.
+# Example Prompt Structure - **For Example Update**: (as outlined above)
+```json - `section_reference`: Specify which section’s examples
+{"<Heading 1>":{"body": "<body>","<Heading need updating.
+1.1>":{"body": "<body>",...},"<Heading 1.2>":{"body": - `update_type`: Include details on adding, revising, or
+"<body>","Examples":["<example 1>",....],"<Heading removing examples.
+1.2.1>":{"body": "<body>","1.": {"body": - `update_examples_instruction`: Review the
+"<instruction>","Examples":["<example 1>","<example `prediction_explanation` (which contains a list of inputs)
+2>",.....]},"2.":...},"<Heading 1.2.2>":{"body": and **Input Prompt** to understand the example style and
+"<body>"}...}...},"<Heading 2>":{"body": "<body>"}...} type. Then, provide detailed instructions with suggestions for
+``` generating examples that have a similar domain, style, and
+length. **Reminder**: No section should have more than 5-6
+## Step-by-Step Instructions for Enhancing a Prompt examples.
+- `action_explanation`: Justify the updates based on
+1. **Thoroughly Review the Input Prompt**: feedback.
+- Read the entire prompt carefully, ensuring you grasp
+all details, requirements, and constraints. Understanding the - **For Delete Section**:
+prompt’s intent is crucial for effective enhancements. - `section_reference`: Specify which section should be
+deleted.
+2. **Analyze Critic Feedback**: - `action_explanation`: Explain the rationale for the
+-**ExamineFeedback**:Lookcloselyatthefeedbackprovided, deletion and its positive impact on the prompt.
+including:
+- **Prediction Explanation**: Understand how the model - **For New Section Creation**:
+interpreted the prompt and why it arrived at a specific - `section_position`: State where the new section should
+prediction. be inserted in the prompt structure.
+- **Prompt Feedback**: Review the suggestions - `new_section_structure`: Outline the complete structure
+for improvement, focusing on the strengths and weaknessesof the new section, including titles and content. **Note**: new formatting:
+section should have atleast `body` and `Examples` but may have ```
+deeper structure. # <Heading 1>
+- `action_explanation`: Explain how this new section <body>
+addresses identified issues and enhances the overall prompt.
+## <Heading 1.1>
+- **For Merge Section**: <body>
+- `section_reference_merged`: List the two sections Examples: {example 1}, {example 2}, ...
+references to be merged.
+- `section_position`: State where the merged section should * <bullet point 1>
+be inserted in the prompt structure. * <bullet point 2>
+- `new_section_structure`: Provide the structure for the Examples: {example 1}, {example 2}, ...
+new, merged section including new title and its content. * <bullet point 3>
+- `action_explanation`: Describe how merging improves
+clarity and efficiency, and how it addresses specific feedback. ...
+## Input Format (Critic Feedback): # <Heading 2>
+- `prediction_explanation`: An explanation for the model's * <bullet point 1>
+prediction, including `prompt_references` to sections of the * <bullet point 2>
+prompt that influenced the prediction. ...
+- `prompt_feedback`: Feedback for improving the prompt, ```
+including `prompt_references` to sections where changes are
+needed. ## Prompt Repharsing Guidelines:
+- `prompt_references`: References of the prompt where the
+feedback may be applied. Note that `prompt_references` can be * Ensure the Prompt is Vastly Different: The revised prompt
+incorrect sometimes, hence it must bed corrected based on the must be **significantly different** from the original in its
+input prompt. structure,phrasing,andflow,whilemaintainingthesameoutput
+format. It is crucial that the names of the output classes or
+```json categories remain **exactly the same** as in the original.
+[{"id": "<unique id>","prediction_explanation": * Limit the Number of Examples: Each section should include
+"<explanation for prediction>","prompt_feedback": no more than **5-6 examples**, which must be presented as a
+["<feedback 1 for improvement>","<feedback 2 for **comma-separated list**. Ensure that all examples are directly
+improvement>"],"prompt_references": ["Heading 1> Heading relevant to the task at hand.
+1.2> Heading 1.2.1> body>","Heading 1> Heading 1.2> Heading * Optimize for Length and Clarity: The prompt must be optimized
+1.2.1> 2.> body","Heading 1> Heading 1.2> body>","Heading 2> for brevity while preserving **clarity**. Use simplified
+body>"]},...] language to enhance understanding and ensure the content is
+``` **concise and effective**. Additionally, **add more details
+where necessary** to make the instructions clearer and more
+## Output Details: comprehensivewithoutoverloadingtheprompt.Everyaddeddetail
+Theoutputprovidesacomprehensiveplanformodifyingtheprompt should contribute to the **clarity** and **precision** of the
+to address the issues identified in the critic feedback. It task, avoiding any unnecessary complexity.
+includes a list of actions, with each action containing the * Establish a Clear Sequence of Steps: Organize the prompt with
+action type, detailed instructions, and a concise explanation. a **logical flow**, outlining a clear step-by-step progression
+The goal is to achieve significant improvements with the least to guide the user through the task. Avoid redundant information
+number of actions. to ensure the process remains **efficient**.
+* Avoid Redundancy: Remove any repetitive or unnecessary
+### Output Structure: information. Each instruction and example must serve a distinct
+Below is an example output structure. purpose, contributing to the overall **clarity and efficiency**
+```json of the prompt.
+{"actions": [{"action_type": "Section Reorder", * Enhance Example Relevance: All examples must align with the
+"action_details": {"section_reference": "Heading 1> task's objectives. They should provide meaningful context and
+Heading 1.2> Heading 1.2.1", "new_position": "Heading must be relevant to the overall goal of the prompt.
+1> Heading 1.2> Heading 1.2.4"},"action_explanation":
+"<concise explanation>"},{"action_type": "Section Rephrase",
+"action_details": {"section_reference": "Heading 1> Heading
+1.2> Heading 1.2.1> body","updated_section": {"key": "body",
+H ActionIdentificationinOPROand
+"value": "Updated body content"}}, "action_explanation":
+"<concise explanation>"}, {"action_type": "Example Update", ProTeGiOptimization
+"action_details": {"section_reference": "Heading 1> Heading
+1.2> Heading 1.2.1> 1.", "update_type": "<update_type>",
+"update_examples_instruction": "<example update instruction>"}, In this section, we describe the process used to
+"action_explanation": "<concise explanation>"},{"action_type":
+"New Section Creation", "action_details": {"section_position": identifyandclustertheactionstakenbyOPROand
+"Heading 1> Heading 1.2", "new_section_structure":
+ProTeGiduringsuccessivepromptupdates. Succes-
+{"<Heading 1.3>":{"body": "<New section body content>",
+"Examples":["<example>", ...], "1.":{"body":"<New instruction siveversionsofthepromptswerepassedthrough
+1>", "Examples": [...]},"2.":{"body":"<New instruction
+2>", "Examples": [...]}}}}, "action_explanation": thetemplatebelowtoanalyzethedifferencesand
+"<concise explanation>"},{"action_type": "Merge
+Section", "action_details": {"section_reference_merged": extract the actions that led to the prompt refine-
+["Heading 1> Heading 1.2> Heading 1.2.1", "Heading
+ments,enablingadetailedcomparisonofoptimiza-
+1> Heading 1.3"], "section_position": "Heading 1>
+Heading 1.3", "new_section_structure": {"<Merged section tionstrategiesbetweenthesemethods.
+Heading>":{"body": "<Merged section body content>", "Examples":
+["<example>",...]}}}, "action_explanation": "<concise
+explanation>"}]}
+``` # Task
+You are given 2 prompts, `Prompt Before` and `Prompt After`.
+`Prompt After` is generated by taking some action on `Prompt
+Before`. Your task is to find those actions that have been
+applied.
+G.5 RephrasingTemplate
+The following actions are possible:
+1. **Section Addition**: If a new section/subsection is added
+# Instructions to Generate a New Prompt in `Prompt After`, or even a new bullet point is added in a
+section.
+**Follow the provided structure**: Ensure the newly generated 2. **Section Deletion**: If a section/subsection is deleted in
+prompt follows this specific structure, using markdown `Prompt After`, or even a bullet point is deleted in a section.3.**SectionModification**:Ifasection/subsectionismodified The prompt should be very detailed describing all the details
+in `Prompt After`, or even a bullet point is modified in a of the scenario. The prompt should be structured properly with
+section. - a clear instruction to the Language model on what to do
+4. **Section Reordering**: If the order of sections/subsections - sections describing subcategories of the task.
+ischangedin`PromptAfter`.Reorderingisonlypossiblebetween - Examples for each section if needed.
+sections/subsections. If two bullet points are swapped, it is - Subsections of each section if needed.
+considered as modification. -AnswerformatfortheLanguagemodeltofollowforthescenario
+5. **Section Merging**: If two sections/subsections are merged ifsuchinformationavailable.DoNOTfabricatetheanswerformat
+in `Prompt After` compared to `Prompt Before`. if not available in README.
+6. **Example Addition**: If one or more examples are added in - Any additional important points to take care of for the
+`Prompt After` in any section compared to `Prompt Before`. If Language model if needed.
+examples are added to two different sections/subsections, it is The prompt should be written like a README file with proper
+considered as two actions. If examples are added in newly added formatting. The examples must be enclosed in curly braces and
+section it is not considered as Example Addition since it is separated by a comma.
+already covered in Section Addition.
+7. **Example Deletion**: If one or more examples are deleted Output format:
+in `Prompt After` compared to `Prompt Before`. If examples ```
+are deleted from two different sections/subsections, it # Task
+is considered as two actions. If all the examples of a <Basic task description and the role Language model has to play
+section/subsection are deleted, it is considered as Example for the given task> ....
+Deletion. # <Section 1>
+8.**ExampleModification**:Ifoneormoreexamplesaremodified <Description of Section 1>
+in `Prompt After` compared to `Prompt Before`. If examples are * <Bullet Point related to Section 1 that should be considered>
+modifiedintwodifferentsections/subsections,itisconsidered Examples: {Example 1},{Example 2}
+as two actions. * <Bullet Point 2>
+## <Subsection 1>
+You have to generate two things: **Underlying Diff** and the <Description of Subsection 1>
+count for each action taken. The Overall Action name should be * <Bullet Point>
+crisp and clear. Examples: {Example 1},{Example 2}
+# <Section 2>
+The underlying differences should be detailed and clear. Output ...
+the count of each action based on section-wise differences # Additional points
+between the two prompts. Both prompts will have a markdown * Point 1
+structure. * Point 2....
+Do not make up any sections or examples or any actions by ```
+yourself. Only consider the differences that are present in
+the prompts.
+# Example Output Format:
+J InitialPrompts
+```json
+{
+"Section Addition": 0, The initial prompts for the RAI tasks are particu-
+"Section Deletion": 0,
+larlylongduetotheneedtoaddressawiderange
+"Section Modification": 0,
+"Section Reordering": 0, ofcomplexscenarios. Thesepromptsaredesigned
+"Section Merging": 0,
+"Example Addition": 0, tocapturenuanced,multifacetedissueswithinRe-
+"Example Deletion": 0,
+"Example Modification": 0, sponsibleArtificialIntelligence,coveringdiverse
+"Underlying Diff": [ edge cases. For a detailed breakdown of prompt
+"<Describe the differences between Prompt Before and
+Prompt After in detail for action 1>", lengths, please refer to Table 2. This table high-
+...
+] lights the substantial word count across various
+}
+tasks, emphasizing the comprehensive nature of
+thepromptsusedforRAI.
+I BBHPromptGeneration
+J.0.1 FormalFallacies
+TheinitialpromptsfortheBBHtasksweregener-
+# Task
+ated using a prompt-based method. Key sections Evaluate arguments presented informally in text for deductive
+validity based on explicitly stated premises. Determine if the
+fromtheREADMEfilesofeachtaskwereprovided argument is valid or invalid, focusing on the correct use of
+negation.
+asinputtoamodel,whichwastheninstructedto
+generatedetailedprompts. Thesepromptsincluded # Validity Assessment
+Analyze the argument structure and the use of negation to
+structuredexamplesandfollowedamarkdownfor- determine deductive validity.
+* Consider the premises and conclusion.
+mat,ensuringclarityandconsistencyforeachtask.
+* Pay attention to the logical connectors and negators.
+Thisapproachallowedforthecreationoftailored, Examples: {If all A are B, and C is not B, then C is not A},{If
+some A are not B, and C is A, then C might not be B}
+comprehensive prompts aligned with the require-
+# Fallacious Arguments
+mentsofeachBBHtask. Identify common fallacies involving negation and logical
+connectors.
+* Distinguish between necessary and sufficient conditions.
+Task is to develop a prompt based on README of a scenario such * Apply de Morgan's laws correctly.
+that a Language model can understand the task and answer the Examples: {If not all A are B, it doesn't mean no A is B},{If A
+relevant questions based on the task. You are not to describe is not B, and B is not C, it doesn't mean A is C}
+the task in the prompt, instead you have to write the prompt
+such that it is self explainatory. # Argument Schemes
+Fordifferenttypeofcasesofthescenario,sectionsinstructing Evaluate arguments based on the provided valid and invalid
+on what to do in those cases should be curated. Prompt should schemes.
+guide the Language model to solve the task with high accuracy. * Use the schemes as a reference for valid logical structures.* Compare the argument in question with the schemes to identify # Additional points
+validity. *Ensurethattheanswersarebinary(yes/no)asperthedataset's
+Examples: {Generalized modus tollens},{Hypothetical Syllogism} design.
+* Reflect the majority of human agreement in the answers, using
+# Linguistic Diversity the ground truth provided in the dataset.
+Considerthedifferentlinguisticrenderingsofthesamelogical * Consider all aspects of the story, including norm violation,
+formula. intentionality,morality,andcounterfactualscenarios,toalign
+* Understand that different phrasings can represent the same with human causal reasoning.
+logical structure.
+* Do not let linguistic variations mislead the assessment of # Output Format
+validity. Respond 'Yes' or 'No' to whether a specific cause led to an
+Examples: {Every F who is a G is not a H},{No F who is a G is a effect, based on story analysis and human judgment consensus.
+H} * Answers should be clear and concise.
+*Judgmentshouldbebasedonstorycontextandanalysisfactors.
+# Domains
+Assess arguments within the context of different domains.
+* Apply the same logical principles across various domains.
+* Recognize that the domain does not affect the deductive
+validity. J.0.3 SalientTranslationErrorDetection
+Examples: {Ancestry relations},{Football club fandom}
+# Caveats # Task
+Be aware of misleading presentations of arguments. Your role is to identify the type of translation error present
+*Argumentsmaybepresentedasvalideveniftheyarefallacious. in a given source-translation pair. You will be provided with
+* The task is to analyze the argument critically, regardless of sentences where specific classes of errors have been manually
+its presentation. introduced. Your task is to determine which of the six error
+Examples: {A fallacious argument presented as valid},{A valid classes the translation error belongs to.
+argument presented as fallacious}
+# Error Identification
+# Additional Points Analyze the provided source-translation pair and identify the
+*Focusonthelogicalstructure,notthecontentoftheargument. error based on the following classes:
+* Be consistent in applying logical principles across all * Named entities: Look for changes in names, places, locations,
+arguments. etc.
+* Remember that the goal is to assess deductive validity, not * Numerical values: Check for alterations in numbers, dates, or
+truthfulness or believability. units.
+* Modifiers or adjectives: Identify changes in descriptors
+# Output Format pertaining to a noun.
+Evaluate each statement below and determine whether it is valid * Negation or antonyms: Detect the introduction or removal of
+or invalid. negation, or changes to comparatives.
+* Facts: Spot trivial factual errors not covered by the above
+classes.
+* Dropped content: Notice if a significant clause is missing
+J.0.2 CausalJudgement from the translation.
+Examples:{Acitynamechangedfrom'Berlin'to'Munich'wouldbe
+# Task a 'Named entities' error},{A date changed from '1990' to '1989'
+Thetaskistoreadashortstoryinvolvingmultiplecause-effect would be a 'Numerical values' error}
+events and answer causal questions such as "Did X cause Y?" in
+a manner consistent with human reasoning. The Language model's # Performance Analysis
+role is to synthesize potential causes and effects to reach a Understand that existing language models have varying
+conclusion that aligns with human causal judgment. performance across different error classes:
+* Models like XLM-Roberta may struggle with named entities,
+# Cause-and-Effect Recognition dropped content, and modifiers/adjectives.
+Understandtheassociationbetweencauseandeffectasitappears * XNLI models also show poor performance on named entities and
+in common daily life scenarios. dropped content.
+* Recognize potential causes and effects within a given story.
+* Determine the actionable cause, often referred to as the # Additional points
+"actual" cause, as humans would. *Ensureminimalimpactontranslationfluencywhileidentifying
+Examples:{Aheavyraincausedthecitytoflood.},{Theplayer's errors.
+injury led to the team's loss.} * Focus on salient source information to detect errors
+effectively.
+# Causal Judgment * Remember that each translation contains only one of the six
+Evaluate the factors influencing human causal judgments such error classes.
+as norm violation, intentionality, morality, and counterfactual
+scenarios. # Options
+* Assess whether actions/events that violate norms are judged (A) Modifiers or Adjectives
+to be more causal. (B) Numerical Values
+* Consider the role of intentionality in determining strong (C) Negation or Antonyms
+causes. (D) Named Entities
+* Evaluate the impact of morality on the strength of causal (E) Dropped Content
+relationships. (F) Facts
+* Analyze counterfactual scenarios to establish if an event is
+essential for an outcome. # Output format
+Examples: {The CEO intentionally harmed the environment Provide the right error option `(Option Number)` that the
+by prioritizing profit over ecological concerns.},{A person translation contains.
+unintentionally helped their neighbor by performing an action
+aimed at a different outcome.}
+# Design Considerations
+The stories provided are balanced with a near-equal number of J.0.4 DisambiguationQA
+"yes" and "no" answers based on human experiments. The model's
+responses should reflect this balance and the majority human
+agreement. # Task
+* Use the "comment" field in the JSON for additional context if The task is to analyze sentences and determine the referent
+available. of a given pronoun. The Language model must consider the
+* Refer to the source paper for each story to understand the context of the sentence to resolve pronouns to their correct
+human experiment context and agreement scores. referents,takingintoaccountfactorssuchasspeakerknowledge,
+career/role-based context, and potential gender biases. Themodel should identify if the sentence is unambiguous, if the Examples:{Aheavyraincausedthecitytoflood.},{Theplayer's
+pronoun can be resolved using career or role context, or if the injury led to the team's loss.}
+sentence remains ambiguous despite the context.
+# Design Considerations
+# Low Ambiguity The stories provided are balanced with a near-equal number of
+Sentences with low ambiguity are those where the pronoun's "yes" and "no" answers based on human experiments. The model's
+referentcanbeclearlyidentifiedbasedonthecontextprovided. responses should reflect this balance and the majority human
+* No ambiguity: Pronouns can be resolved without confusion. agreement.
+Examples: {My mom called her secretary for more information.} * Use the "comment" field in the JSON for additional context if
+* Speaker knowledge: The context implies who the pronoun refers available.
+to. * Refer to the source paper for each story to understand the
+Examples: {A asked B if he had discovered any issues.} human experiment context and agreement scores.
+* Career/role based: The pronoun's referent can be identified
+by their career or role. # Additional points
+Examples:{Theworkershowedthepedestrianhowtheywouldrepair *Ensurethattheanswersarebinary(yes/no)asperthedataset's
+the sidewalk.} design.
+* Reflect the majority of human agreement in the answers, using
+# High Ambiguity the ground truth provided in the dataset.
+Sentences with high ambiguity are those where the pronoun's * Consider all aspects of the story, including norm violation,
+referent cannot be clearly identified even with context. intentionality,morality,andcounterfactualscenarios,toalign
+* Universal human traits: Pronouns referring to traits or with human causal reasoning.
+experiences shared by all humans are ambiguous.
+Examples:{Thelawyercross-examinedthewitnessuntilhebecame # Output Format
+frustrated.} Respond 'Yes' or 'No' to whether a specific cause led to an
+* Ambiguous pronoun usage: Sentences where the pronoun could effect, based on story analysis and human judgment consensus.
+refer to more than one antecedent. * Answers should be clear and concise.
+Examples: {The designer collaborated with the carpenter, and he *Judgmentshouldbebasedonstorycontextandanalysisfactors.
+shared a story.}
+# Answer Format
+TheLanguagemodelshouldprovideanswersindicatingthereferent K.0.2 GlobalPerturbationforCausal
+of the pronoun or state 'ambiguous' if the sentence does not
+provide enough context to resolve the pronoun. Judgment
+* State the correct option - (A), (B), (C) or (D) as per the
+question.
+* If the referent is clear, state the role or person the pronoun # Task
+refers to. Thetaskistoreadashortstoryinvolvingmultiplecause-effect
+* If the referent is not clear, state 'ambiguous'. events and answer causal questions such as "Did X cause Y?" in
+a manner consistent with human reasoning. The Language model's
+# Additional Points role is to synthesize potential causes and effects to reach a
+* Consider singular and plural uses of "they/them/their". conclusion that aligns with human causal judgment.
+*Avoidassumptionsbasedongender,nationality,race,orcareer
+unless the context provides clear evidence. # Causal Judgment
+* Treat all names as unisex and avoid assumptions based on the Understandtheassociationbetweencauseandeffectasitappears
+name itself in common daily life scenarios.
+* Recognize potential causes and effects within a given story.
+* Determine the actionable cause, often referred to as the
+"actual" cause, as humans would.
+Examples:{Aheavyraincausedthecitytoflood.},{Theplayer's
+injury led to the team's loss.}
+K PerturbedPrompts # Cause-and-Effect Recognition
+Evaluate the factors influencing human causal judgments such
+as norm violation, intentionality, morality, and counterfactual
+K.0.1 LocalizedPerturbationforCausal
+scenarios.
+Judgment * Assess whether actions/events that violate norms are judged
+to be more causal.
+* Consider the role of intentionality in determining strong
+# Task causes.
+Thetaskistoreadashortstoryinvolvingmultiplecause-effect * Evaluate the impact of morality on the strength of causal
+events and answer causal questions such as "Did X cause Y?" in relationships.
+a manner consistent with human reasoning. The Language model's * Analyze counterfactual scenarios to establish if an event is
+role is to synthesize potential causes and effects to reach a essential for an outcome.
+conclusion that aligns with human causal judgment. Examples: {The CEO intentionally harmed the environment
+by prioritizing profit over ecological concerns.},{A person
+# Cause-and-Effect Recognition unintentionally helped their neighbor by performing an action
+Understandtheassociationbetweencauseandeffectasitappears aimed at a different outcome.}
+in common daily life scenarios.
+* Recognize potential causes and effects within a given story. # Design Considerations
+* Determine the actionable cause, often referred to as the The stories provided are balanced with a near-equal number of
+"actual" cause, as humans would. "yes" and "no" answers based on human experiments. The model's
+Examples: {The CEO intentionally harmed the environment responses should reflect this balance and the majority human
+by prioritizing profit over ecological concerns.},{A person agreement.
+unintentionally helped their neighbor by performing an action * Use the "comment" field in the JSON for additional context if
+aimed at a different outcome.} available.
+* Refer to the source paper for each story to understand the
+# Causal Judgment human experiment context and agreement scores.
+Evaluate the factors influencing human causal judgments such
+as norm violation, intentionality, morality, and counterfactual # Additional points
+scenarios. *Ensurethattheanswersarebinary(yes/no)asperthedataset's
+* Assess whether actions/events that violate norms are judged design.
+to be more causal. * Reflect the majority of human agreement in the answers, using
+* Consider the role of intentionality in determining strong the ground truth provided in the dataset.
+causes. * Consider all aspects of the story, including norm violation,
+* Evaluate the impact of morality on the strength of causal intentionality,morality,andcounterfactualscenarios,toalign
+relationships. with human causal reasoning.
+* Analyze counterfactual scenarios to establish if an event is
+essential for an outcome. # Output FormatRespond 'Yes' or 'No' to whether a specific cause led to an
+effect, based on story analysis and human judgment consensus.
+* Answers should be clear and concise.
+*Judgmentshouldbebasedonstorycontextandanalysisfactors.

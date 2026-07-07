@@ -1,0 +1,868 @@
+Break the Chain: Large Language Models Can be Shortcut Reasoners
+MengruDing∗ HanmengLiu∗ ZhizhangFu
+GaodeMap,AlibabaGroup ZhejiangUniversity GaodeMap,AlibabaGroup
+dingmengru.dmr@alibaba-inc.comliuhanmeng@zju.edu.cnfuzhizhang.fzz@alibaba-inc.com
+JianSong and WenboXie YueZhang†
+GaodeMap,AlibabaGroup WestlakeUniversity
+james.songjian, daoqian.xwb@alibaba-inc.comzhangyue@westlake.edu.cn
+Abstract
+Question: Choose any natural number greater than 50. If it is even,
+divide it by 2; if it is odd, multiply it by 3 and then add 1. Repeat this
+process; what is the final result?
+Recent advancements in Chain-of-Thought
+(a) 0
+(CoT)reasoningutilizecomplexmodulesbut (b) 1
+(c) 2
+arehamperedbyhightokenconsumption,lim- (d) 3
+ited applicability, and challenges in repro- Let's think step by step Chain of Thought
+ducibility.Thispaperconductsacriticalevalua- Choose any natural number greater than 50. Let's say we choose 60.
+Since 60 is an even number, we divide it by 2, which gives us 30.
+tionofCoTprompting,extendingbeyondarith- Now we continue the process:
+metictoincludecomplexlogicalandcommon- 30 is even, so we divide it by 2 to get 15.
+15 is odd, so we multiply it by 3 and then add 1, which gives us 46.
+sense reasoning tasks, areas where standard ......
+CoTmethodsfallshort. Weproposetheinte- 2 is even, so we divide it by 2 to get 1.
+1 is odd, so we multiply it by 3 and then add 1, which gives us 4.
+grationofhuman-likeheuristicsandshortcuts It seems that the process gets stuck in a loop at this point, cycling
+between 4, 2, and 1. Based on this pattern, the final result seems to be:
+intolanguagemodels(LMs)through"breakthe (b) 1
+chain"strategies. Thesestrategiesdisrupttradi- Rapidly evaluate and use the most effective reasoning shortcut to
+tionalCoTprocessesusingcontrolledvariables answer the question. Break the Chain
+The final result will always end up at 1, regardless of the starting
+to assess their efficacy. Additionally, we de-
+number chosen. This is known as the Collatz Conjecture.
+velopinnovativezero-shotpromptingstrategies Therefore, the answer is (b) 1.
+that encourage the use of shortcuts, enabling
+LMs to quickly exploit reasoning clues and Figure1: ChatGPTresponsestoChain-of-Thoughtand
+bypassdetailedproceduralsteps. Ourcompre- "Break the Chain". Our "Break the Chain" method
+hensiveexperimentsacrossvariousLMs,both significantlysimplifiesthereasoningprocess.
+commercialandopen-source,revealthatLMs
+maintaineffectiveperformancewith"breakthe
+chain" strategies. We also introduce Short-
+bearsastrikingresemblancetohumancommunica-
+cutQA,adatasetspecificallydesignedtoevalu-
+tion.
+atereasoningthroughshortcuts,compiledfrom
+competitivetestsoptimizedforheuristicreason- Amongrecentadvancements,Chain-of-Thought
+ingtaskssuchasforward/backwardreasoning (CoT) prompting has emerged as a pivotal tech-
+andsimplification. Ouranalysisconfirmsthat
+niqueforutilizingLargeLanguageModels(LLMs)
+ShortcutQAnotonlyposesarobustchallenge
+toaddresscomplexreasoningtasks. Bymethodi-
+toLMsbutalsoservesasanessentialbench-
+callyelicitingstep-by-stepreasoning,CoTprompt-
+markforenhancingreasoningefficiencyinAI.
+inghassignificantlyenhancedtheproblem-solving
+1 Introduction capabilities of LLMs across a variety of learning
+scenarios,includingfew-shot(Weietal.,2022)and
+Intheevolvinglandscapeofartificialintelligence,
+zero-shotcontexts(Kojimaetal.,2022a). Figure1
+theabilitytoreasonandsolvecomplexproblems
+illustratesazero-shotexampleinwhichtheChat-
+symbolizesacornerstoneofintelligence. Language
+GPTmodelmethodicallyresolvesamathematical
+Models (LMs), particularly those based on trans-
+question. This strategy is further augmented by
+former (Vaswani et al., 2017) architectures, have
+approachessuchasself-consistency(Wangetal.,
+revolutionized our approach to natural language
+2022b, 2023c), interactive reasoning (Yao et al.,
+processing (NLP), significantly enhancing capa-
+2022a;Shinnetal.,2024),reflectivethinking(Ling
+bilitiesincomprehendingandgeneratingtextthat
+et al., 2024; Li et al., 2023), task decomposition
+*Theseauthorscontributedequallytothiswork (Khotetal.,2022;Pressetal.,2022),andstrategic
+†Correspondingauthor planning(Wangetal.,2023b;Huetal.,2023).
+4202
+nuJ
+4
+]LC.sc[
+1v08560.6042:viXraDespiteitsbenefits,CoTisalsocritiquedforits LLMs to utilize heuristic shortcuts — akin to in-
+substantial token usage, as it explores numerous tuitiveleapsinhumanreasoning—toefficiently
+reasoningpathwaysbeforearrivingataconclusive solve problems. This method aims to minimize
+answer. This characteristic is particularly promi- computational demands and token consumption
+nent in variants such as Tree-of-Thought (ToT) while maintaining or potentially enhancing per-
+(Yao et al., 2023), which scrutinize every possi- formanceaccuracy. Tosupportthisinvestigation,
+blereasoningchain. Traditionally, CoThasbeen we introduce ShortcutQA, a novel dataset metic-
+predominantlyappliedtomathematicalreasoning, ulously curated to specifically assess the ability
+withscantapplicationtocommonsense,orcomplex of LLMs to employ heuristic shortcuts. We con-
+logical reasoning tasks. This limited focus may ducted experiments on both OpenAI models and
+hinder a comprehensive understanding of CoT’s open-source models of various sizes, including
+potential to emulate intricate human-like reason- MIXTRAL-8X7B-INSTRUCTION, LLAMA-3-70B-
+ingprocesses. Additionally,instructionfine-tuned INSTRUCTION, QWEN1.5-72B-CHAT, QWEN1.5-
+(IFT)(Ouyangetal.,2022)largelanguagemodels 14B-CHAT, QWEN1.5-1.8B-CHAT,toascertain
+likeChatGPT,whichareusuallycapableofreach- the generalizability of our experimental conclu-
+ingtheanswersmethodically,furtherquestionthe sionsacrossdifferentmodelconfigurations.
+necessityforexplicitCoTprompting(Chenetal.,
+2023).
+Ourfew-shotexperimentsrevealthatLargeLan-
+Humanreasoningusesheuristicstofindlocalra-
+guageModels(LLMs)arenotadverselyaffectedby
+tionalmaximum(Karlan,2021;NethandGigeren-
+disruptedChain-of-Thought(CoT)demonstrations,
+zer,2015;Lanciaetal.,2023),whichoftenrelies
+castingdoubtsontheeffectivenessoffew-shotCoT
+oncognitiveshortcuts(FernbachandRehder,2013;
+methods. Toourknowledge,thisisthefirstseries
+Ferrario, 2004), a characteristic that can be mir-
+of experiments designed to "break the chain" of
+roredandexploitedinLMs. Traditionally,LLMs’
+in-context examples. Furthermore, in zero-shot
+shortcut learning has been viewed as the acquisi-
+scenarios,modelspromptedwithshortcutreason-
+tion of spurious correlations within datasets (Du
+ing display robust performance, often surpassing
+etal.,2023;JiangandBansal,2019;Brancoetal.,
+thatoftraditionalCoTmethods. Ourevaluations
+2021). However, this perspective fails to capture
+spanbothOpenAImodelsandopen-sourcemodels,
+thenuancedheuristicreasoningprocessesinherent
+showingconsistentresultsacrossplatforms.
+in human cognition, both in everyday scenarios
+andprofessionalcontextssuchasclinicaldecision-
+Furthermore, our comparative analysis eluci-
+making. Wearguethatshortcutreasoning,bydras-
+dates distinct performance trends across various
+ticallyreducingreasoningstepsandcomputational
+model sizes: smaller models typically experi-
+demands, offers a valuable means of enhancing
+encemoresubstantialenhancementswithChain-of-
+LLM efficiency. As depicted in Figure 1, when
+Thought (CoT) prompts compared to their larger
+prompted with shortcut reasoning, the ChatGPT
+counterparts. Notably,asmodelsizeincreases,the
+modelswiftlyarrivesatanswerswithminimalto-
+efficacy of "break the chain" strategies becomes
+kenconsumption. TheabilityofLLMstoemploy
+morepronounced,highlightingitseffectivenessin
+shortcutreasoningnotonlymirrorshumancogni-
+mitigatingtheimpactofdisruptedCoTdemonstra-
+tivestrategiesbutalsohasthepotentialtostream-
+tions.
+lineproblem-solvingprocesses,therebyreshaping
+computationalefficiencyandmodelperformance.
+The primary goal of our study is to critically Mostnotably,weobservethatshortcutreasoning
+evaluate and challenge the established Chain-of- significantly reduces token consumption, provid-
+Thought(CoT)promptingframeworkusedinLarge ing a vital advantage in computational efficiency.
+LanguageModels(LLMs). Ourapproachisthree- Understringenttokenconstraints,shortcutreason-
+pronged: First, weexploretheeffectiveness, lim- ingstrategiesnotonlyconserveresourcesbutalso
+itations, and mechanisms of CoT by comparing consistentlyoutperformtraditionalCoTmethods.
+itwithdifferentpromptsderivedfromthe"break Thesebenefitsareobservedacrossvariousdatasets,
+the chain" strategy in both few-shot and zero- underscoringtherobustnessandscalabilityofshort-
+shot scenarios. Second, the study pioneers the cutreasoningasasuperiorapproachinenhancing
+useofshortcutreasoningpromptsthatencourage LLMperformance.2 RelatedWork icalchaining,demonstrateconsiderableimprove-
+mentsinlogicalreasoningtasks. Similarly,Logi-
+2.1 CoTPromptinginLargeLanguage
+cLLM(Jiaoetal.,2023)exploresaself-supervised
+Models
+learning strategy for logical reasoning enhance-
+TheevolutionofChain-of-Thought(CoT)prompt- ments,andSymbol-LLM(Xuetal.,2023)incorpo-
+ing,particularlythroughfew-shot(Weietal.,2022) ratessymbolicdatainatwo-stagetuningprocessto
+and zero-shot (Kojima et al., 2022a) methodolo- equipaLLaMA-2-chatmodelwithsymbolicrea-
+gies,hasmarkedlyadvancedLargeLanguageMod- soningskills. Theseeffortshighlightthepotential
+els’ (LLMs) ability to address complex reason- offine-tuningwithspecializeddatasetstosignifi-
+ing challenges. This field has witnessed the in- cantlyenhancethereasoningcapabilitiesofLLMs,
+troduction of sophisticated data structures, such illustratingthedynamicandevolvinglandscapeof
+as Tree-of-Thought (Yao et al., 2023), Graph-of- CoTpromptinginAIresearch.
+Thought (Besta et al., 2024), and Program-of-
+2.2 QuestioningCoT
+Thought(Chenetal.,2022),enrichingLLMs’ca-
+pacityforintrospectionandnuancedevaluationof DespitethedemonstratedeffectivenessofChain-of-
+theirreasoningpaths. Thought (CoT) in enhancing model performance
+Beyondconventionalpromptingstrategies,the oncomplextasks,theunderlyingmechanismsby
+ReAct model (Yao et al., 2022b) integrates which Large Language Models (LLMs) generate
+reasoning with actionable tasks like data re- CoTresponsesarenotfullyunderstood. Research
+trieval, whereas the Selection-Inference frame- efforts are increasingly focused on demystifying
+work (Creswell et al., 2023) combines context CoTprompting,providingempiricalinsightsand
+creationwithlogicalchaining. Whilepioneering, developingtheoreticalframeworkstocomprehend
+theseapproachesrelyonthemodels’inherentabil- thisadvancedreasoningcapability. However,nu-
+itiesanddonotembedexplicitlogicalruleswithin merousstudieshavehighlightedthebrittlenessof
+thereasoningprocess. CoTreasoninginvariousaspects.
+The adoption of external tools in prompting Turpinetal.(2023)investigatethefaithfulness
+paradigms,especiallyfortasksthatdemandsupple- ofCoTreasoning,revealingsystematicmisrepre-
+mentaryknowledge,hasalsoshownconsiderable sentations in the true rationale behind a model’s
+progress. Analogous to the role calculators play predictions. Lanham et al. (2023) extend this in-
+inmathematicalreasoning,introducingpredefined quirybyintroducingerrorsorparaphraseswithin
+functions for enforcing inference rules marks a theCoTprocesstotestwhetherthearticulatedrea-
+significantstepforwardinleveragingexternalcom- soningtrulyreflectsthemodel’sunderlyinglogic,
+putationalaidstobolsterreasoningcapabilities. finding that larger models tend to produce more
+Moreover, breaking down complex reasoning unfaithfulresponses. Thisissueoffaithfulnessis
+tasks into more manageable subproblems or en- criticalasitchallengesthereliabilityofCoTexpla-
+gagingmultiplemodelsforcollaborativeproblem- nations. TheeffectivenessofCoTisalsoimpacted
+solving has introduced novel methodologies in bytheselectionandarrangementofdemonstrations.
+LLM prompting. Strategies such as Cumulative Wangetal.(2023a)findthattheaccuracyofreason-
+Reasoning (Zhang et al., 2023a) focus on an iter- ingchainsislesscriticalthantherelevanceofthe
+ative,step-wiseapproach,whileScratchPad(Nye question and the correctness of the reasoning se-
+et al., 2021) emphasizes the articulation of in- quence,emphasizingtheimportanceofcontextual
+termediate steps in multi-step reasoning. Meta- alignment. Incontrast,Wangetal.(2022a)show
+prompting (Suzgun and Kalai, 2024) envisions a thatCoTcanoperateevenwithinvaliddemonstra-
+cooperativeframeworkwhereLLMsactasorches- tions,suggestingsomeresilienceinthereasoning
+trators,decomposingtasks,delegatingthemtospe- process. Ourresearchcontributestothisdiscourse
+cialized models, and synthesizing the outcomes, by disturbing the order of the reasoning chain to
+thereby fostering a holistic approach to problem- examineitsimpactonCoTconsistency.
+solving. Jin et al. (2024) demonstrate that artificially
+In the specific arena of instruct-tuning LLMs lengtheningthereasoningstepsinprompts—sim-
+withtailoreddatasetsforadvancedreasoning,ini- plybyinstructingmodelsto"thinkmoresteps"—
+tiatives like LogiCoT (Liu et al., 2023), which can enhance LLMs’ performance across various
+fine-tunesanLLaMA-7bmodelwithdataonlog- datasets without introducing new content. ThisDataset QuestionType #ofinstances Avg.#words Source
+Analyticalshortcuts 156 55.88 Analyticalreasoningtests
+ShortcutQA Logicalshortcuts 108 21.76 Verbalreasoningtests
+Mathematicalshortcuts 185 67.19 Gaokaoexaminations
+Table1: DatasetstatisticsofShortcutQA.
+finding suggests that the perceived depth of rea- 3 ShortcutQA
+soningmayartificiallyinflateeffectiveness. Con-
+The ShortcutQA dataset is designed to evaluate
+versely,weexploreminimalistpromptingstrategies
+LanguageModels’(LMs)abilitytoemployheuris-
+whereLLMsareinstructedtostreamlinetheirrea-
+ticshortcutsinreasoning,addressingagapinex-
+soningprocesses.
+istingresourcesthatprimarilyfocusonsequential
+reasoning approaches. Comprising 449 diverse
+The sensitivity of LLMs to the ordering of reasoningproblems,ShortcutQAspanslogicalpuz-
+premises is scrutinized by Chen et al. (2024), zlestoreal-worldproblem-solvingscenarios. Each
+whonoteoptimalperformancewhentheorderof problemispresentedwithashortcut-basedsolution
+premises supports the necessary context in inter- alongsideadetailedstep-by-stepsolution,catego-
+mediate reasoning steps. This sensitivity is para- rizedintothreereasoningtypes.
+doxicalindeductivereasoningcontextswherethe DataCollectionandAnnotation
+order of premises should not logically influence Data for ShortcutQA were sourced from vari-
+the validity of conclusions. Similarly, Pfau et al. ousonlineforumsandeducationalwebsites,with
+(2024)IndicatesthatLLMssolvemoreproblems necessary permissions secured. Annotation was
+withmeaninglessfillertokensinplaceofachainof conductedbytwoindependentdomainexperts,ad-
+thoughtthanwithoutmeaninglesstokens. Thisfind- heringtostrictguidelinesforidentifyingandcat-
+ing suggests that CoT’s effectiveness may some- egorizing heuristic shortcuts employed in the so-
+timesrelysolelyontheincreaseincomputational lutions. Athirdexpertresolvedanydiscrepancies,
+effort, rather than on the literal intermediate rea- ensuringhighannotationqualityandconsistency.
+soning steps. Our "break the chain" methods ex- DatasetCategorization
+perimentwithnewmodelsanddatasetsandaimto ShortcutQA introduces problems categorized
+illuminatethisissuefurther. intothreedistincttypes,eachtestingdifferentas-
+pectsofheuristicreasoning:
+ImplicitCoT(Dengetal.,2023,2024)hasbeen
+• AnalyticalShortcuts: Tasksnecessitateana-
+introducedtointernalizeexplicitstep-by-steprea-
+lyzingsituationsbeyondmerecomprehension,
+soning. Similartoourwork,implicitCoTquestions
+assessing models’ capabilities in efficiently
+thenecessityofstep-by-stepreasoning. However,
+synthesizing and utilizing key information,
+wedivergefrompriorstudiesthatemployedfine-
+andstrategicdecision-makingundertimecon-
+tuningtoreducetheneedforreasoningsteps.
+straints.
+• LogicalShortcuts: Encompassingformsof
+Finally,Chenetal.(2023)questiontheapplica-
+reasoningsuchasanalogical,abductive,and
+bilityofCoTininstructionfine-tuned(IFT)mod-
+forward/backward reasoning, these tasks fo-
+els like ChatGPT, which show inconsistent per-
+cusonapplyingtheselogicaltheoriestoderive
+formanceacrossvariousreasoningtasks. Surpris-
+conclusionsfromprovidedstatements.
+ingly, while CoT prompts enhance some reason-
+ing tasks, they fail in others like arithmetic rea-
+• MathematicalShortcuts: Featuresproblems
+soning,whereChatGPTcanindependentlygener-
+solvable through approximation techniques,
+ateCoTsequenceswithoutspecificprompts. This
+substitution,simplification,andspecial-case
+phenomenon inspires us to abstract a hypothesis
+reasoning, bypassing traditional sequential
+thatmorepowerfulmodelsincreasinglyexhibita
+thoughtprocesses.
+reduced dependency on CoT. Our subsequent ex-
+perimentsconductedwithintheQwen1.5seriesof DataStatisticsareshowninTable1. Werelease
+varioussizesstrivetosupportthisviewpoint. thedataathttps://anonymous.com.4 Method complexproblems.
+4.1 BreaktheChain 4.2 ExperimentalSetup
+ToexaminetheresilienceandlimitationsofLarge We evaluate Large Language Models (LLMs)
+LanguageModels(LLMs)inemployingChain-of- across a variety of commercial and open-source
+Thought (CoT) reasoning, our research outlines platformsunderbothfew-shotandzero-shotcon-
+anovelexperimentalframeworkaimedat"break- ditions. Ourmethodologyincludesadiversearray
+ingthechain"ofthought. Thisapproachseeksto ofcomplexproblem-solving tasks encompassing
+elucidatetheconditionsunderwhichCoTreason- arithmeticreasoning,commonsensededuction,and
+ing may falter, thereby offering insights into the logicalreasoning. Thisdesignrigorouslyteststhe
+underlyingmechanismsofLLMs’reasoningcapa- LLMs’abilitytogeneralizeacrossdifferentdiffi-
+bilities. Ourmethodologyjuxtaposeszero-shotand cultylevelsanddomains.
+few-shotscenariostodelineatetheimpactofCoT
+disruptionacrossdifferentpromptingcontexts.
+Task Dataset Size Avg#words
+Few-Shot In the few-shot scenario, our strat- SingleEq 508 27.4
+egyinvolvesperturbingthesequenceofsentences AddSub 395 31.5
+MultiArith 600 31.8
+within the in-context examples provided to the Arithmetic
+GSM8K 1319 46.9
+LLM.Thisdisturbanceisdesignedtomisalignthe AQUA-RAT 254 51.9
+logicalprogressiontypicallydemonstratedinCoT SVAMP 1000 31.8
+CommonsenseQA 1221 27.8
+reasoning, thereby testing the model’s ability to Commonsense
+StrategyQA 2290 9.6
+maintaincoherentandaccuratereasoningdespite DateUnderstanding 369 35.0
+thedisorderedpresentationofsteps. Thismanipula- CoinFlip 500 37.0
+Logic
+LogiQA 651 146.2
+tionwillhelpascertainthesignificanceofstepwise
+ReClor 500 153.0
+logical progression in the model’s reasoning effi-
+cacyanditsabilitytoreorientitselftoreachcorrect Table2: StatisticsofEvaluationbenchmarks.
+conclusions.
+Zero-ShotWeinitiateprobingexperimentstoas-
+sesstheefficacyofzero-shotCoTprompts,aiming
+AsdepictedinFigure4inAppendixB,theex-
+todiscernwhetherCoTpromptingisessentialor
+perimentalpipelinebeginsbyinputtingaquestion
+merelyabyproductoflongermodelresponses. Em-
+andapromptintoanLLM,whichthengeneratesa
+ployingcontrolledexperiments,wecraftprompts
+reasonedresponseandanswer. Thisoutputiscon-
+thatobviatetheneedforreasoningchains,instruct-
+catenated with the original question and prompt,
+ingmodelstoprovideeithermoreverboseormin-
+followedbyananswerextractionprompttoextract
+imalist responses. Detailed descriptions of these
+thefinalanswer.
+promptsareprovidedinAppendixA.Furthermore,
+weemploymeticulouslydesignedpromptstostim- Benchmarks For arithmetic reasoning,
+ulateshortcutreasoning,outlinedcomprehensively we assess the models using six datasets:
+inAppendixA.BydirectingLLMstocircumvent SingleEq (Koncel-Kedziorski et al., 2015),
+intermediate reasoning steps typically associated AddSub(Hosseinietal.,2014),MultiArith(Roy
+withCoT,weaimtoevaluatetheresilienceoftheir and Roth, 2015) , GSM8K (Cobbe et al., 2021),
+inferentialprocessesandtheirrelianceondetailed AQUA-RAT(Lingetal.,2017),andSVAMP(Patel
+reasoningpathways. et al., 2021). The first three originate from the
+ShortcutQA Probing Parallel to our few-shot well-established Math World Problem Reposi-
+andzero-shotexperiments,weintroducetheShort- tory (Koncel-Kedziorski et al., 2016), with the
+cutQAdatasetintoourmethodology. ShortcutQA remaining datasets presenting more recent and
+is carefully curated to focus on questions that re- complexchallenges. SingleEqandAddSubfeature
+quire shortcut reasoning — a form of intuitive relatively straightforward problems that can be
+problem-solvingthatdeviatesfromtraditionalstep- solved without multi-step reasoning, whereas
+by-steplogicaldeduction. TheinclusionofShort- MultiArith, AQUA-RAT, GSM8K, and SVAMP
+cutQAisintendedtotestthehypothesisthatLLMs requiremoreintricate,sequentialproblem-solving.
+caneffectivelyemployheuristicshortcuts,akinto Forcommonsensereasoning,weutilizetheCom-
+human cognitive shortcuts, to efficiently resolve monsenseQA (Talmor et al., 2019) and Strate-Few-shot Zero-shot
+Task Dataset
+Base BreaktheChain Base NoSteps MoreTokens
+SingleEq 92.72 92.32 86.61 90.35 88.39
+AddSub 84.05 85.32 83.80 89.62 86.58
+MultiArith 99.00 98.33 83.33 91.17 93.50
+Arithmetic
+GSM8K 74.60 74.22 32.68 37.53 38.89
+AQUA-RAT 53.15 55.51 35.43 36.61 38.97
+SVAMP 76.80 79.70 71.70 81.70 76.70
+CommonsenseQA 74.94 75.18 70.52 75.92 74.28
+Commonsense
+StrategyQA 69.13 68.60 64.37 59.91 63.23
+DateUnderstanding 81.03 82.11 64.37 64.50 63.23
+Logic LogiQA 35.94 33.95 40.09 41.17 40.09
+ReClor 51.40 50.80 52.40 51.20 54.20
+Table3: ChatGPTperformancecomparisonacrosstasks. Allresultsarein%,thebestonesareinbold.
+gyQA (Geva et al., 2021) datasets. Common- CoTandour"breakingthechain"approachacross
+senseQA tests reasoning based on general world datasetsincommonsense,arithmetic,andlogical
+knowledge(Talmoretal.,2019),whileStrategyQA reasoningtasks. Notably,inarithmeticreasoning,
+demandsinferenceofunstated,multi-stepreason- performance on the MultiArith dataset decreases
+ingprocesses(Gevaetal.,2021). slightlyfrom99.00%to98.33%with"breakingthe
+For logical reasoning tasks, we select two sce- chain",whileinGSM8K,thedecreaseismarginal,
+nariosfromtheBIG-bench(Srivastavaetal.,2022): from74.60%to74.22%. Incommonsensereason-
+Date Understanding and Coin Flip (Wei et al., ing,"breakingthechain"slightlyoutperformsthe
+2022). DateUnderstandingchallengesmodelsto traditionalapproachonCommonsenseQA(75.18%
+inferdatesfromgivencontexts,andCoinFlipeval- vs. 74.94%), but underperforms on StrategyQA,
+uates the ability to determine the outcome of a droppingfrom69.13%to68.60%. LogiQAinlogi-
+series of coin flips. Additionally, we incorporate calreasoningshowsamorenotableperformance
+LogiQA (Liu et al., 2020) and ReClor (Yu et al., drop from 35.94% to 33.95%. These results sug-
+2020),whicharereadingcomprehensionteststhat gestthatwhile"breakingthechain"generallyper-
+requirelogicaldeduction. formscomparablytothefew-shotCoTbaseline,it
+does not significantly impact the model’s overall
+Language Models We test both OpenAI com- performance.
+mercialmodelsandhuggingfaceopen-sourcemod-
+els. For OpenAI models, we choose the Chat- Zero-Shot TherightsideofTable3presentsre-
+GPT (gpt-3.5-turbo-0613) model, an IFT GPT-3
+sultsfromourzero-shotprobingexperiment,com-
+model. For community models, we use Llama-
+paringthezero-shotCoTbaselinewithour"break
+3-70B-Instruct,Mixtral-8x7B-Instruct,Qwen1.5-
+thechain"promptsacross11datasetswithinthree
+72B-Chat, Qwen1.5-14B-Chat, Qwen1.5-1.8B-
+key tasks: arithmetic reasoning, commonsense
+Chat.
+reasoning, and logical reasoning. Notably, even
+whenweablatestep-by-stepreasoning,ChatGPT
+Baselines Werunzero-shotCoT(Kojimaetal.,
+maintainscompetitiveperformanceacrossvarious
+2022b) and few-shot CoT (Wei et al., 2022) on
+tasks. Moreover, prompting with only "More To-
+thedatasetstoestablishourbaselines. Inthefew-
+kens"leadstothebestperformanceonseveralother
+shot CoT setup, we follow Wei et al. (2022) to
+datasets.
+provide each test with context examples; for the
+Results for the "Shortcut Reasoning" prompts
+zero-shotbaseline,eachquestionissuffixedwith
+aredetailedinTable4,wherethisapproachshows
+“The answer is ”, following prior work (Kojima
+substantialimprovements: a22%increaseinarith-
+etal.,2022b;Zhangetal.,2023b).
+metictasks,a9%boostincommonsensetasks,and
+an 11% enhancement in logical reasoning tasks.
+5 Results
+PerformanceisconsistentontheMixtralandQwen
+Few-Shot Table 3 on the left side shows com- platforms,thoughitvarieswiththeLlamamodels,
+parativeperformancebetweentraditionalfew-shot underliningtheeffectivenessofourapproach.Model Task Base QuickConclude ShortcutReasoning EffectiveShortcut InnovativeShortcut
+Arithmetic 65.59 77.23 80.11 80.58 71.34
+ChatGPT Commensense 67.45 73.18 73.65 72.36 67.52
+Logical 51.97 53.32 57.57 56.77 56.91
+Arithmetic 72.47 62.29 81.59 63.37 50.96
+Llama-70B Commensense 67.57 73.00 60.58 67.29 67.27
+Logical 71.41 66.26 68.60 67.18 63.95
+Arithmetic 70.80 73.22 71.70 68.77 56.63
+Mixtral-8x7B Commensense 65.03 69.37 69.23 69.50 60.81
+Logical 69.08 69.61 69.84 68.48 60.46
+Arithmetic 65.28 76.00 75.51 74.52 70.83
+Qwen1.5-72B Commensense 79.11 79.85 79.38 80.36 79.78
+Logical 60.17 63.42 63.58 63.62 61.79
+Arithmetic 63.30 71.97 71.57 69.94 66.85
+Qwen1.5-14B Commensense 74.43 75.65 75.14 75.25 74.20
+Logical 53.47 55.76 54.91 55.50 54.38
+Arithmetic 39.40 39.99 37.12 31.97 28.81
+Qwen1.5-1.8B Commonsense 57.61 55.07 57.19 55.95 55.20
+Logical 33.00 30.72 31.00 32.37 32.05
+Table4: Experimentresultsconcerningdifferenttasks. DetailedresultsareinAppendixC.Allresultsarein%,the
+bestonesareinbold.
+In addition, experiments with Qwen models withintheShortcutQAdataset. Comparedtobench-
+of varying sizes, both under CoT and "break the marksutilizedelsewhereinthisstudy,ShortcutQA
+chain"conditions,aredocumented. Figure5inAp- posesagreaterchallenge,makingitanidealtesting
+pendixCillustratesthatsmallermodelsexhibita groundforadvancingmodelcapabilities.
+morepronouncedrelianceonCoT,especiallyasthe Inmathematicalreasoningtasks,all"breakthe
+modelsizedecreases,narrowingperformancegaps chain" prompts outperform the established base-
+froma16%deficitin72Bmodelstoparityin1.8B lines. The "Innovative Shortcut" prompt is par-
+models for arithmetic tasks. For logic and com- ticularlyeffective,achievingasignificantrelative
+monsense tasks, smaller models transition from improvementof28.56%overthebaseline. "Quick
+underperformancetooutperforminglargercounter- Conclude"alsoshowssubstantialgains,witharel-
+parts,suggestinglesscapablemodelsbenefitmore ativeincreaseof23.8%comparedtothebaseline.
+fromCoT’sstructuredapproach. Foranalyticalandverbalreasoningtasks,"Quick
+Thesefindingsquestiontheprevailingassump- Conclude" registers the highest improvements,
+tion that CoT invariably enhances LLM perfor- withincreasesof26.65%and9.99%,respectively,
+mance. Ourresultsindicatethatspecificprompts, overthebaseline. "InnovativeShortcut"alsoposts
+evenwithoutdetailedreasoning,canyieldcompa- notablegainsinanalyticaltasks,while"Effective
+rableorsuperioroutcomes. However,theeffective- Shortcut"seesconsiderableenhancementsinver-
+nessof"breakthechain"promptsvaries,pointing baltasks.
+toanuancedinterplaybetweenpromptnatureand Overall,"InnovativeShortcut"and"QuickCon-
+LLMperformancethatmeritsfurtherinvestigation. clude"arestandoutperformersontheShortcutQA
+We observe that CoT is particularly adept at dataset,underscoringthepotencyofour"breakthe
+tackling questions decomposable into sub-issues chain" strategy. This dataset not only challenges
+that are solvable in brief sentences. Challenges current LLMs but also sets a benchmark for fu-
+arise when generated responses become exces- tureenhancements,providingarobustplatformfor
+sively lengthy, leading to potential task misalign- testingandrefiningnext-generationmodels.
+ment and illogical outputs, or when they exceed
+6 Discussion
+the maximum length constraints set in the code,
+inhibitingthecompletionofreasoningsequences. 6.1 ReasoningwithTokenLimits
+ShortcutQA Table5presentsacomparativeanal- Weinvestigatedtheimpactoftokenlimitsonmodel
+ysis of performance across various task types performancebyexperimentingwithdifferentcon-Dataset QuestionType Base QuickConclude ShortcutReasoning EffectiveShortcut InnovativeShortcut
+AnalyticalReasoning 26.79 33.93 21.43 19.64 30.36
+ShortcutQA VerbalReasoning 22.73 25.00 22.73 23.86 21.59
+MathematicalReasoning 25.00 30.95 29.76 26.19 32.14
+Table5: PerformancecomparisonacrosstaskswithinShortcutQA.
+straints(128,256tokens)duringtheresponsegen- where T is the total number of steps in the
+eration phase. Figure 2 illustrates how varying CoT reasoning chain. To evaluate the effi-
+tokenlimitsaffectoutcomesonthemathematical cacy of different prompting strategies, we define
+reasoningtaskwithinShortcutQAusingdifferent P(CorrectReasoning )astheprobabilityofachiev-
+p
+prompts. We observed that as the token limit in- ing correct reasoning for a given prompt p. A
+creases, so does performance across all prompts, promptisconsideredmoreeffectivethanthetradi-
+indicatingthatconstraintsonoutputlengthsignif- tionalCoTapproachifP(CorrectReasoning )sur-
+p
+icantly influence the inference process and thus passesP(CorrectReasoning ).
+CoT
+the results. Notably, even at the minimum limit Incaseswherenoexplicitanalysisorreasoning
+of128tokens,allpromptsexceedthebaselineper- phaseisinvolved,andbothareintegratedbyLLMs
+formance, suggesting that our "break the chain" ineachstep,Equation1simplifiesto:
+approachisnotonlyefficientbutalsoeffectivein
+conserving computational resources while main-
+T
+tainingorimprovingtaskperformance. (cid:89)
+P(CorrectReasoning ) = P(i ), (2)
+CoT t
+t=1
+where i signifies the probability of obtaining
+t
+thecorrectresultinasingle,consolidatedinference
+step.
+Figure2: Performancecomparisonofdifferenttoken
+limitsonthemathematicalreasoningtaskfromShort-
+cutQA.
+6.2 TheoreticalAnalysis
+Wehavedevelopedaqualitativemodeltoformalize Figure3: RelationshipbetweenCoTChainLengthand
+Accuracy.
+the performance dynamics of Chain-of-Thought
+(CoT)reasoningandtoelucidatetheeffectiveness
+Ourexperimentalresultscorroboratethetheoret-
+ofthe"BreaktheChain"approach.
+icalpredictions,asillustratedinFigure3. Weob-
+Inourframework,eachCoTstepisdividedinto
+servethatCoTaccuracygenerallydeclinesaschain
+twophases: analysisandreasoning. Theaccuracy
+length increases. Notably, in scenarios like Coin
+of the analysis at step t is denoted as P(a ), and
+t
+FlipwhereP(i )approaches1,accuracyremains
+thesubsequentreasoningbasedonthisanalysisis t
+stable regardless of chain length. Conversely, in
+denotedasP(r ). Therefore,thetotalaccuracyof
+t
+taskslikeSVampwhereP(i )islower,adecrease
+aCoTsequencedependsonthecombinedaccuracy t
+inaccuracyisnotedasthechainlengthens. When
+of these phases across all steps, mathematically
+comparing "Quick Conclude" on SVamp against
+expressedas:
+baselineaccuracies,therelativeCoTaccuracydi-
+minishes with increasing chain length, aligning
+T
+(cid:89) preciselywithourmodel. Detailedmethodologies
+P(CorrectReasoning ) = P(a )P(r ), (1)
+CoT t t
+fortheseexperimentsareavailableinAppendixD.
+t=17 Conclusion EleventhInternationalConferenceonLearningRep-
+resentations.
+This study critically evaluates Chain-of-Thought
+(CoT)reasoninginlanguagemodels,highlighting Yuntian Deng, Yejin Choi, and Stuart Shieber. 2024.
+limitations such as high token consumption and Fromexplicitcottoimplicitcot: Learningtointer-
+nalizecotstepbystep. Preprint,arXiv:2405.14838.
+limitedapplicability. Our"breakthechain"strate-
+giesintegratehuman-likeheuristicsandshortcuts,
+YuntianDeng,KiranPrasad,RolandFernandez,Paul
+enhancingefficiencywithoutcompromisingperfor- Smolensky,VishravChaudhary,andStuartShieber.
+manceacrossvariousmodels. Theintroductionof 2023. Implicitchainofthoughtreasoningviaknowl-
+edgedistillation. arXivpreprintarXiv:2311.01460.
+the ShortcutQA dataset further advances AI rea-
+soning evaluation by focusing on heuristic tasks,
+MengnanDu,FengxiangHe,NaZou,DachengTao,and
+providingarobustbenchmarkthatchallengestra-
+XiaHu.2023. Shortcutlearningoflargelanguage
+ditionalmethods. Ourfindingssuggestthatadopt- modelsinnaturallanguageunderstanding. Commun.
+ingmoreintuitive,efficientreasoningapproaches ACM,67(1):110–120.
+could significantly improve the problem-solving
+PhilipMFernbachandBobRehder.2013. Cognitive
+capabilities of AI systems in real-world applica-
+shortcutsincausalinference. Argument&Computa-
+tions. tion,4(1):64–88.
+Catherine G Ferrario. 2004. Developing clinical rea-
+References soning strategies: cognitive shortcuts. Journal for
+NursesinProfessionalDevelopment,20(5):229–235.
+Maciej Besta, Nils Blach, Ales Kubicek, Robert Ger-
+stenberger, Michał Podstawski, Lukas Gianinazzi,
+MorGeva,DanielKhashabi,EladSegal,TusharKhot,
+JoannaGajda,TomaszLehmann,HubertNiewiadom-
+Dan Roth, and Jonathan Berant. 2021. Did aris-
+ski, Piotr Nyczyk, et al. 2024. Graph of thoughts:
+totle use a laptop? a question answering bench-
+Solvingelaborateproblemswithlargelanguagemod-
+mark with implicit reasoning strategies. Preprint,
+els. InProceedingsofthe38thAAAIConferenceon
+arXiv:2101.02235.
+ArtificialIntelligence.
+MohammadJavadHosseini,HannanehHajishirzi,Oren
+RubenBranco,AntónioBranco,JoaoRodrigues,and
+Etzioni,andNateKushman.2014. Learningtosolve
+JoaoSilva.2021. Shortcuttedcommonsense: Data
+arithmeticwordproblemswithverbcategorization.
+spuriousnessindeeplearningofcommonsenserea-
+InProceedingsofthe2014ConferenceonEmpirical
+soning. InProceedingsofthe2021Conferenceon
+MethodsinNaturalLanguageProcessing,EMNLP
+EmpiricalMethodsinNaturalLanguageProcessing,
+2014,October25-29,2014,Doha,Qatar,Ameeting
+pages1504–1521.
+of SIGDAT, a Special Interest Group of the ACL,
+Jiuhai Chen, Lichang Chen, Heng Huang, and pages523–533.ACL.
+Tianyi Zhou. 2023. When do you need chain-of-
+thought prompting for chatgpt? arXiv preprint HanxuHu,HongyuanLu,HuajianZhang,WaiLam,and
+arXiv:2304.03262. YueZhang.2023. Chain-of-symbolpromptingelicits
+planninginlargelangaugemodels. arXivpreprint
+Wenhu Chen, Xueguang Ma, Xinyi Wang, and arXiv:2305.10276.
+William W Cohen. 2022. Program of thoughts
+prompting: Disentanglingcomputationfromreason- YichenJiangandMohitBansal.2019. Avoidingreason-
+ing for numerical reasoning tasks. arXiv preprint ingshortcuts: Adversarialevaluation,training,and
+arXiv:2211.12588. modeldevelopmentformulti-hopqa. arXivpreprint
+arXiv:1906.07132.
+XinyunChen,RyanAChi,XuezhiWang,andDenny
+Zhou. 2024. Premise order matters in reason-
+Fangkai Jiao, Zhiyang Teng, Shafiq Joty, Bosheng
+ing with large language models. arXiv preprint
+Ding, Aixin Sun, Zhengyuan Liu, and Nancy F.
+arXiv:2402.08939.
+Chen. 2023. Logicllm: Exploring self-supervised
+logic-enhancedtrainingforlargelanguagemodels.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian,
+Preprint,arXiv:2305.13718.
+MarkChen,HeewooJun,LukaszKaiser,Matthias
+Plappert, Jerry Tworek, Jacob Hilton, Reiichiro
+Nakano, Christopher Hesse, and John Schulman. Mingyu Jin, Qinkai Yu, Haiyan Zhao, Wenyue Hua,
+2021. Training verifiers to solve math word prob- YandaMeng,YongfengZhang,MengnanDu,etal.
+lems. CoRR,abs/2110.14168. 2024. Theimpactofreasoningsteplengthonlarge
+languagemodels. arXivpreprintarXiv:2401.04925.
+AntoniaCreswell,MurrayShanahan,andIrinaHiggins.
+2023. Selection-inference:Exploitinglargelanguage BrettKarlan.2021. Reasoningwithheuristics. Ratio,
+models for interpretable logical reasoning. In The 34(2):100–108.TusharKhot,HarshTrivedi,MatthewFinlayson,Yao Zhan Ling, Yunhao Fang, Xuanlin Li, Zhiao Huang,
+Fu,KyleRichardson,PeterClark,andAshishSab- MinguLee,RolandMemisevic,andHaoSu.2024.
+harwal.2022. Decomposedprompting: Amodular Deductiveverificationofchain-of-thoughtreasoning.
+approachforsolvingcomplextasks. arXivpreprint AdvancesinNeuralInformationProcessingSystems,
+arXiv:2210.02406. 36.
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu- Hanmeng Liu, Zhiyang Teng, Leyang Cui, Chaoli
+taka Matsuo, and Yusuke Iwasawa. 2022a. Large Zhang, Qiji Zhou, and Yue Zhang. 2023. Logicot:
+languagemodelsarezero-shotreasoners. Advances Logicalchain-of-thoughtinstructiontuning. InFind-
+inneuralinformationprocessingsystems,35:22199– ingsoftheAssociationforComputationalLinguistics:
+22213. EMNLP2023,pages2908–2921.
+TakeshiKojima,ShixiangShaneGu,MachelReid,Yu- Jian Liu, Leyang Cui, Hanmeng Liu, Dandan Huang,
+takaMatsuo,andYusukeIwasawa.2022b. Largelan- YileWang,andYueZhang.2020. Logiqa: Achal-
+guagemodelsarezero-shotreasoners. InNeurIPS. lenge dataset for machine reading comprehension
+withlogicalreasoning. InProceedingsoftheTwenty-
+Rik Koncel-Kedziorski, Hannaneh Hajishirzi, Ashish Ninth International Joint Conference on Artificial
+Sabharwal, Oren Etzioni, and Siena Dumas Ang. Intelligence,IJCAI2020,pages3622–3628.ijcai.org.
+2015. Parsing algebraic word problems into equa-
+tions. TransactionsoftheAssociationforComputa-
+HansjörgNethandGerdGigerenzer.2015. Heuristics:
+tionalLinguistics,3:585–597.
+Tools for an uncertain world. In Emerging trends
+in the social and behavioral sciences, pages 1–18.
+RikKoncel-Kedziorski,SubhroRoy,AidaAmini,Nate
+WileyOnlineLibrary.
+Kushman,andHannanehHajishirzi.2016. MAWPS:
+Amathwordproblemrepository. InProceedingsof
+MaxwellNye,AndersJohanAndreassen,GuyGur-Ari,
+the2016ConferenceoftheNorthAmericanChapter
+Henryk Michalewski, Jacob Austin, David Bieber,
+oftheAssociationforComputationalLinguistics:Hu-
+David Dohan, Aitor Lewkowycz, Maarten Bosma,
+manLanguageTechnologies,pages1152–1157,San
+DavidLuan,etal.2021. Showyourwork: Scratch-
+Diego, California. Association for Computational
+pads for intermediate computation with language
+Linguistics.
+models. arXivpreprintarXiv:2112.00114.
+Gian Luca Lancia, Mattia Eluchans, Marco
+LongOuyang,JeffreyWu,XuJiang,DiogoAlmeida,
+D’Alessandro, Hugo J Spiers, and Giovanni
+CarrollWainwright,PamelaMishkin,ChongZhang,
+Pezzulo.2023. Humansaccountforcognitivecosts
+SandhiniAgarwal,KatarinaSlama,AlexRay,etal.
+when finding shortcuts: An information-theoretic
+2022. Training languagemodelsto followinstruc-
+analysis of navigation. PLOS Computational
+tionswithhumanfeedback. Advancesinneuralin-
+Biology,19(1):e1010829.
+formationprocessingsystems,35:27730–27744.
+Tamera Lanham, Anna Chen, Ansh Radhakrishnan,
+Arkil Patel, Satwik Bhattamishra, and Navin Goyal.
+Benoit Steiner, Carson Denison, Danny Hernan-
+2021. Are nlp models really able to solve simple
+dez,DustinLi,EsinDurmus,EvanHubinger,Jack-
+mathwordproblems? Preprint,arXiv:2103.07191.
+son Kernion, Kamile˙ Lukošiu¯te˙, Karina Nguyen,
+NewtonCheng,NicholasJoseph,NicholasSchiefer,
+Jacob Pfau, William Merrill, and Samuel R. Bow-
+Oliver Rausch, Robin Larson, Sam McCandlish,
+man. 2024. Let’s think dot by dot: Hidden com-
+SandipanKundu,SauravKadavath,ShannonYang,
+putationintransformerlanguagemodels. Preprint,
+Thomas Henighan, Timothy Maxwell, Timothy
+arXiv:2404.15758.
+Telleen-Lawton,TristanHume,ZacHatfield-Dodds,
+JaredKaplan,JanBrauner,SamuelR.Bowman,and
+EthanPerez.2023. Measuringfaithfulnessinchain- OfirPress,MuruZhang,SewonMin,LudwigSchmidt,
+of-thoughtreasoning. Preprint,arXiv:2307.13702. NoahASmith,andMikeLewis.2022. Measuring
+andnarrowingthecompositionalitygapinlanguage
+Ming Li, Lichang Chen, Jiuhai Chen, Shwai He, models. arXivpreprintarXiv:2210.03350.
+HengHuang, JiuxiangGu,andTianyiZhou.2023.
+Reflection-tuning: Data recycling improves llm SubhroRoyandDanRoth.2015. Solvinggeneralarith-
+instruction-tuning. arXivpreprintarXiv:2310.11716. metic word problems. In Proceedings of the 2015
+Conference on Empirical Methods in Natural Lan-
+WangLing,DaniYogatama,ChrisDyer,andPhilBlun- guageProcessing,pages1743–1752,Lisbon,Portu-
+som.2017. Programinductionbyrationalegenera- gal.AssociationforComputationalLinguistics.
+tion: Learningtosolveandexplainalgebraicword
+problems. InProceedingsofthe55thAnnualMeet- Noah Shinn, Federico Cassano, Ashwin Gopinath,
+ingoftheAssociationforComputationalLinguistics, Karthik Narasimhan, and Shunyu Yao. 2024. Re-
+ACL2017, Vancouver, Canada, July30-August4, flexion: Languageagentswithverbalreinforcement
+Volume1: LongPapers,pages158–167.Association learning. AdvancesinNeuralInformationProcess-
+forComputationalLinguistics. ingSystems,36.Aarohi Srivastava, Abhinav Rastogi, Abhishek Rao, andDennyZhou.2022b. Self-consistencyimproves
+AbuAwalMdShoeb,AbubakarAbid,AdamFisch, chainofthoughtreasoninginlanguagemodels. arXiv
+Adam R Brown, Adam Santoro, Aditya Gupta, preprintarXiv:2203.11171.
+Adrià Garriga-Alonso, et al. 2022. Beyond the
+imitation game: Quantifying and extrapolating the JasonWei,XuezhiWang,DaleSchuurmans,Maarten
+capabilities of language models. arXiv preprint Bosma,FeiXia,EdChi,QuocVLe,DennyZhou,
+arXiv:2206.04615. etal.2022. Chain-of-thoughtpromptingelicitsrea-
+soninginlargelanguagemodels. Advancesinneural
+Mirac Suzgun and Adam Tauman Kalai. 2024.
+informationprocessingsystems,35:24824–24837.
+Meta-prompting: Enhancing language models
+with task-agnostic scaffolding. arXiv preprint
+FangzhiXu,ZhiyongWu,QiushiSun,SiyuRen,Fei
+arXiv:2401.12954.
+Yuan,ShuaiYuan,QikaLin,YuQiao,andJunLiu.
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and 2023. Symbol-llm: Towards foundational symbol-
+JonathanBerant.2019. Commonsenseqa:Aquestion centricinterfaceforlargelanguagemodels. Preprint,
+answeringchallengetargetingcommonsenseknowl- arXiv:2311.09278.
+edge. In Proceedings of the 2019 Conference of
+theNorthAmericanChapteroftheAssociationfor Shunyu Yao, Dian Yu, Jeffrey Zhao, Izhak Shafran,
+ComputationalLinguistics: HumanLanguageTech- Thomas L. Griffiths, Yuan Cao, and Karthik
+nologies,NAACL-HLT2019,Minneapolis,MN,USA, Narasimhan. 2023. Tree of thoughts: Deliberate
+June2-7,2019,Volume1(LongandShortPapers), problemsolvingwithlargelanguagemodels. ArXiv,
+pages 4149–4158. Association for Computational abs/2305.10601.
+Linguistics.
+Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+MilesTurpin,JulianMichael,EthanPerez,andSamuel
+Shafran,KarthikNarasimhan,andYuanCao.2022a.
+Bowman.2023. Languagemodelsdon'talwayssay
+React: Synergizingreasoningandactinginlanguage
+whattheythink: Unfaithfulexplanationsinchain-of-
+models. arXivpreprintarXiv:2210.03629.
+thoughtprompting. InAdvancesinNeuralInforma-
+tionProcessingSystems,volume36,pages74952–
+74965.CurranAssociates,Inc. Shunyu Yao, Jeffrey Zhao, Dian Yu, Nan Du, Izhak
+Shafran,KarthikNarasimhan,andYuanCao.2022b.
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob React: Synergizingreasoningandactinginlanguage
+Uszkoreit, Llion Jones, Aidan N Gomez, Łukasz models. ArXiv,abs/2210.03629.
+Kaiser,andIlliaPolosukhin.2017. Attentionisall
+youneed. Advancesinneuralinformationprocessing WeihaoYu,ZihangJiang,YanfeiDong,andJiashiFeng.
+systems,30. 2020. Reclor: Areadingcomprehensiondatasetre-
+quiringlogicalreasoning. In8thInternationalCon-
+BoshiWang,SewonMin,XiangDeng,JiamingShen,
+ference on Learning Representations, ICLR 2020,
+You Wu, Luke Zettlemoyer, and Huan Sun. 2022a.
+AddisAbaba,Ethiopia,April26-30,2020.OpenRe-
+Towardsunderstandingchain-of-thoughtprompting:
+view.net.
+Anempiricalstudyofwhatmatters. arXivpreprint
+arXiv:2212.10001.
+Yifan Zhang, Jingqin Yang, Yang Yuan, and Andrew
+BoshiWang,SewonMin,XiangDeng,JiamingShen, Chi-Chih Yao. 2023a. Cumulative reasoning with
+You Wu, Luke Zettlemoyer, and Huan Sun. 2023a. largelanguagemodels. ArXiv,abs/2308.04371.
+Towardsunderstandingchain-of-thoughtprompting:
+Anempiricalstudyofwhatmatters. InProceedings Zhuosheng Zhang, Aston Zhang, Mu Li, and Alex
+of the 61st Annual Meeting of the Association for Smola.2023b. Automaticchainofthoughtprompt-
+ComputationalLinguistics(Volume1: LongPapers), ing in large language models. In The Eleventh In-
+ACL2023,Toronto,Canada,July9-14,2023,pages ternationalConferenceonLearningRepresentations,
+2717–2739.AssociationforComputationalLinguis- ICLR2023,Kigali,Rwanda,May1-5,2023.Open-
+tics. Review.net.
+Lei Wang, Wanyu Xu, Yihuai Lan, Zhiqiang Hu,
+Yunshi Lan, Roy Ka-Wei Lee, and Ee-Peng Lim. A Zero-shotpromptsfor"breakthe
+2023b. Plan-and-solveprompting: Improvingzero- chain"
+shot chain-of-thought reasoning by large language
+models. arXivpreprintarXiv:2305.04091.
+Theabbreviationsofprobingpromptsandshortcut
+Peifeng Wang, Zhengyang Wang, Zheng Li, Yifan promptsareshowninthetable6.
+Gao, Bing Yin, and Xiang Ren. 2023c. Scott:
+Self-consistentchain-of-thoughtdistillation. arXiv B PipelineDetails
+preprintarXiv:2305.01879.
+Figure fig:method shows the pipeline of experi-
+Xuezhi Wang, Jason Wei, Dale Schuurmans, Quoc
+Le,EdChi,SharanNarang,AakankshaChowdhery, ments.PromptType Abbreviations FullPrompts
+SkipSteps Let’sskipasmuchaspossible.
+ProbingPrompts
+NoSteps Let’sdon’tthinkstepbystep.
+MoreToken Let’sthinkasmuchaspossible.
+QuickConclude Let’squicklyconcludetheanswerwithoutshowingstep-by-stepreasoning.
+ShortcutPrompts ShortcutReasoning Let’squicklyconcludetheanswerwithshortcutreasoning.
+EffectiveShortcut Rapidlyevaluateandusethemosteffectivereasoningshortcuttoanswerthequestion.
+InnovativeShortcut Thinkoutsidetheboxandquicklyidentifyaninnovativeshortcuttosolvethisproblem.
+Table6: Therelationshipbetweenapromptabbreviationanditsfullprompt.
+Q: Suppose the function ( f(x) ) is differentiable on the Question&Prompt
+Q: Suppose the function ( f(x) ) is differentiable on the interval ([-2,2]), and it satisfies ( f'(x) > f(x) > 0 ). Then:
+interval ([-2,2]), and it satisfies ( f'(x) > f(x) > 0 ). Then: (a) $ \frac {f(-2)}{f(-1)} $ >1
+(a) $ \frac {f(-2)}{f(-1)} $ >1 (b) $ \frac {f(0)}{f(-1)} $ >e
+(b) $ \frac {f(0)}{f(-1)} $ >e (c) $ \frac {f(1)}{f(-1)} $ < $ e^ {2} $
+(c) $ \frac {f(1)}{f(-1)} $ < $ e^ {2} $ (d) $ \frac {f(2)}{f(-1)} $ < $ e^ {3} $
+(d) $ \frac {f(2)}{f(-1)} $ < $ e^ {3} $ A: Rapidly evaluate and use the most effective
+A: Rapidly evaluate and use the most effective reasoning shortcut to answer the question.
+reasoning shortcut to answer the question. concatenate
+Since f'(x) > f(x) > 0, we know that f(x) is increasing on the interval [-2,2].
+Therefore, f(-2) < f(-1) < f(0) < f(1) < f(2).
+(a) $ \frac {f(-2)}{f(-1)} $ < 1 (since f(-2) < f(-1))
+LLM (b) $ \frac {f(0)}{f(-1)} $ > 1 (since f(0) > f(-1))
+(c) $ \frac {f(1)}{f(-1)} $ < 1 (since f(1) < f(-1)) Shortcut
+(d) $ \frac {f(2)}{f(-1)} $ < 1 (since f(2) < f(-1)) Reasoning&Answer
+Therefore, the correct answer is (b) $ \frac {f(0)}{f(-1)} $ >e.
+Since f'(x) > f(x) > 0, we know that f(x) is increasing on the interval [-2,2].
+Therefore, f(-2) < f(-1) < f(0) < f(1) < f(2).
+(a) $ \frac {f(-2)}{f(-1)} $ < 1 (since f(-2) < f(-1)) Therefore, among a through d, the answer is Extract Answer
+(b) $ \frac {f(0)}{f(-1)} $ > 1 (since f(0) > f(-1))
+(c) $ \frac {f(1)}{f(-1)} $ < 1 (since f(1) < f(-1))
+(d) $ \frac {f(2)}{f(-1)} $ < 1 (since f(2) < f(-1)) Shortcut
+Therefore, the correct answer is (b) $ \frac {f(0)}{f(-1)} $ >e. Reasoning LLM
+b
+Figure4: Ourevaluationpipeline.C ExperimentResults
+Table7istheoriginalexperimentresultsofdiverse
+modelstructures.
+Figure 5 shows that as model size decreases,
+CoT’srelativeperformanceadvantageoverother
+promptsincreasesacrossalltasks.
+Figure5: TheImpactofModelSizeonCoT’sRelative
+OutperformanceoverOtherPromptsacrossDatasets
+D DetailedMethods
+Inthissection,weintroduceourdetailedmethods
+forourexperiments. Forourexperimentindiscus-
+sion,wegenerallyusedGPT4toevaluatethelogs,
+andcaculatetheaccuracyofdifferentlengths. First,
+WeusedGPT4tocheckthelogsofCoTtocalcu-
+latethelengthofchainineachquestiononSVamp
+and Coin Flip. Second, we calculated the accu-
+racyatdifferentlengthofchain. Third,toexclude
+the disturbance of various difficulty distributions
+withineachgroup,wecalculatedtheaccuracywith
+promptQCineachgroupofdataasbaselinewith-
+outCoTonSVamp.model Task Dataset Base QuickConclude ShortcutReasoning EffectiveShortcut InnovativeShortcut
+SingleEq 86.61 91.14 91.73 92.32 77.36
+AddSub 83.80 90.89 86.33 89.62 73.67
+AQUA-RAT 35.43 51.97 52.76 53.94 52.36
+Arithmetic
+ChatGPT MultiArith 83.33 91.00 94.67 94.83 89.83
+GSM8K 32.68 56.86 71.57 67.25 58.00
+SVAMP 71.70 81.50 83.60 85.50 76.80
+CommonsenseQA 70.52 77.89 78.95 76.82 72.89
+Commensense
+StrategyQA 64.37 68.47 68.34 67.90 62.14
+LogiQA 40.09 41.32 43.32 42.70 41.01
+Logic
+ReClor 52.40 52.80 51.60 52.00 51.40
+DateUnderstanding 63.41 65.85 77.78 75.61 78.32
+SingleEq 67.91 55.91 81.10 49.80 40.16
+AddSub 69.87 40.51 80.25 53.92 32.66
+AQUA-RAT 61.02 52.36 62.20 57.87 50.79
+Arithmetic
+Llama-70B MultiArith 79.83 71.00 93.33 73.67 60.33
+GSM8K 80.97 81.05 85.14 78.17 69.52
+SVAMP 75.20 72.90 87.50 66.80 52.30
+CommonsenseQA 79.03 81.49 77.31 69.21 74.37
+Commensense
+StrategyQA 56.11 64.50 43.84 65.37 60.17
+LogiQA 57.60 57.30 57.45 58.83 56.07
+Logic
+ReClor 71.80 69.40 68.40 69.80 70.20
+DateUnderstanding 84.82 72.09 79.95 72.90 65.58
+SingleEq 87.40 88.58 87.01 83.46 70.87
+AddSub 85.82 86.84 84.81 83.54 72.15
+AQUA-RAT 37.40 41.34 42.13 39.76 32.68
+Arithmetic
+Mixtral-8x7B MultiArith 87.50 87.33 85.83 78.17 62.17
+GSM8K 48.90 55.80 54.81 49.20 39.12
+SVAMP 77.80 79.40 75.60 78.50 62.80
+CommonsenseQA 71.63 72.40 72.73 71.17 65.85
+Commensense
+StrategyQA 58.43 66.33 65.72 67.82 55.76
+LogiQA 42.70 45.01 38.56 40.86 45.78
+Logic
+ReClor 47.40 50.60 51.80 48.60 47.60
+DateUnderstanding 66.40 67.48 63.96 68.02 59.08
+SingleEq 80.71 87.80 88.78 88.58 86.61
+AddSub 84.56 84.81 86.33 88.61 86.84
+AQUA-RAT 37.80 47.24 48.43 46.46 35.43
+Arithmetic
+Qwen1.5-72B MultiArith 81.33 96.00 95.33 96.00 93.67
+GSM8K 28.96 54.06 48.98 45.26 42.30
+SVAMP 78.30 86.10 85.20 82.20 80.10
+CommonsenseQA 81.98 83.54 81.98 83.37 83.7
+Commensense
+StrategyQA 76.24 76.16 76.77 77.34 75.85
+LogiQA 46.54 50.08 51.15 50.54 47.00
+Logic
+ReClor 61.60 66.20 64.00 65.80 64.40
+DateUnderstanding 72.36 73.98 75.61 74.53 73.98
+Table7: ComparisonofVariousOpen-SourceLargeModels’PerformancewithDifferentPromptsAcrossMultiple
+Datasets.

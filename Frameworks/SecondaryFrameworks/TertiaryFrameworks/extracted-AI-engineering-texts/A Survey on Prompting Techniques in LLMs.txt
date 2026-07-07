@@ -1,0 +1,599 @@
+A Survey on Prompting Techniques in LLMs
+Prabin Bhandari
+Department of Computer Science
+George Mason University
+Fairfax, Virginia, USA
+pbhanda2@gmu.edu
+Abstract—Autoregressive Large Language Models have trans- modeling through pre-training. Recently, the pre-train and
+formedthelandscapeofNaturalLanguageProcessing.Pre-train fine-tune paradigm has evolved into a pre-train and prompt
+and prompt paradigm has replaced the conventional approach
+approach, mainly due to the emergence of Large Language
+ofpre-trainingandfine-tuningformanydownstreamNLPtasks.
+Models (LLMs).
+This shift has been possible largely due to LLMs and innovative
+prompting techniques. LLMs have shown great promise for a LLMs evolved from PLMs as researchers tried to enhance
+variety of downstream tasks owing to their vast parameters and the performance of PLMs by increasing the model’s size,
+huge datasets that they are pre-trained on. However, in order to dataset volume, and/or computational resources employed
+fullyrealizetheirpotential,theiroutputsmustbeguidedtowards
+duringtraining.Thisdrivewasmotivatedbyscalinglaw[2].In
+the desired outcomes. Prompting, in which a specific input or
+doingso,theperformanceofthesemodelsdidindeedincrease
+instruction is provided to guide the LLMs toward the intended
+output,hasbecomeatoolforachievingthisgoal.Inthispaper,we as expected. However, it also led to the rise of emergent
+discussthevariouspromptingtechniquesthathavebeenapplied abilities [3] that cannot be explained solely by scaling law.
+to fully harness the power of LLMs. We present a taxonomy of Emergent abilities refer to the capabilities of an LLM that
+existingliteratureonpromptingtechniquesandprovideaconcise manifest when it reaches a certain scale, achieved through
+survey based on this taxonomy. Further, we identify some open
+an increase in the number of parameters, pre-training data,
+problems in the realm of prompting in autoregressive LLMs
+which could serve as a direction for future research. computational resources, or a combination of these factors.
+Index Terms—Natural language processing, language models, The majority of LLMs nowadays are autoregressive in nature.
+autoregressive large language models, prompting This means that they generate the next token based on the
+previous tokens only. These autoregressive LLMs use either
+I. INTRODUCTION
+the encoder-decoder architecture or only the decoder of the
+Language models (LMs) have long been the de facto transformer. Given that these LLMs have been pre-trained on
+standard for modeling natural languages, designed with the a plethora of text and often the whole internet, they are an
+purpose of comprehending and generating human-like lan- extremely powerful tool. However, harnessing their immense
+guage. Language models also serve as the cornerstone upon potential could be challenging due to their large size, making
+which a multitude of Natural Language Processing (NLP) it infeasible to fine-tune them for each downstream task. This
+applications are built, including but not limited to machine challenge has been mitigated by the emergence of prompting
+translation, sentiment analysis, document classification, and techniques in LLMs, which seek to replace the need for fine-
+chatbots. This has made LMs one of the most extensively tuning LLMs for each downstream task individually.
+researcheddomainswithinthefieldofNLP.Initially,language Prompting refers to providing specific instruction or input,
+modeling relied on statistical approaches, which eventually whetherinhuman-readableformornot,totheLMinorderto
+gave way to neural language models fueled by the increase accomplish the downstream task. The use of prompting first
+in our computing resources. With neural LMs came the re- appeared in the context of PLMs. For instance, Petroni et al.
+quirementforsubstantiallabeleddata,asanydownstreamtask [4]usedpromptingwhenattemptingtoquantifytheamountof
+was accomplished via supervised training. The introduction world knowledge embedded in PLMs. Their hypothesis was
+of Transformers [1] marked a pivotal shift, introducing the that since PLMs were pre-trained on vast amounts of data,
+pre-train and fine-tune paradigm of NLP. Transformers gave PLMs might contain significant world knowledge embedded
+rise to pre-trained language models (PLMs). These PLMs, within their parameters. Concretely, their input to the PLM
+while still being neural LMs, mostly used architecture similar was: Francesco Bartolomeo Conti was born in [MASK]..
+to the transformer or a variant of it. The key difference Sincetheyemployedamaskedlanguagemodelintheirexper-
+between neural LMs and PLMs is in their training process. iments, the expectation was that the model would replace the
+PLMs are pre-trained on a vast amount of textual data in a [MASK]tokenwiththecorrectanswer.Promptingwithrespect
+semi-supervised approach, eliminating the need for labeled to autoregressive LLMs was popularized by Brown et al. [5].
+data during pre-training. Following their pre-training, PLMs TheydemonstratedanemergentabilityofLLMs,facilitatedby
+are fine-tuned for specific downstream tasks using relatively promptingtechniques,knownasin-contextlearning.Basically,
+less labeled data than what neural LMs typically require. their research shows that LLMs, when provided with a task
+This is because PLMs have a strong foundation in language instruction and a few demonstration examples, could handle a
+4202
+rpA
+61
+]LC.sc[
+2v04730.2132:viXrawide range of downstream NLP tasks. This novel prompting self-attentionwhichcapturescomplexcontextualrelationships
+technique for LLMs eliminated the need to fine-tune an LLM within sequences. The original transformer used multi-headed
+and opened a new field of research into prompting techniques self-attention, enabling the model to attend to different parts
+for LLMs. oftheinputsequencesimultaneously,significantlyboostingits
+Given the recent proliferation in prompting techniques, this capacity to model complex dependencies.
+paper discusses the current literature concerning prompting 3) Pre-trained language models (PLM): Earlier efforts for
+techniques tailored for autoregressive LLMs. The structure of PLMs involved training shallow networks for word embed-
+the paper is as follows. Section II lays the groundwork by dings,likeword2vec[6]andGlove[7],tocapturethesemantic
+discussing the preliminaries required to follow the rest of the meaning of the word. Although these models were highly
+paper. Section III introduces the taxonomy used to categorize effective, they failed to capture essential contextual informa-
+prompting techniques in autoregressive LLMs. Section IV tion related to a word. Subsequent models like ELMo [8],
+provides a concise survey of existing literature, organized employed RNNs in an effort to gather contextual information
+according to the established taxonomy. Section V discusses in the word embeddings; however, they were constrained by
+the prevailing challenges and open problems in the field their size.
+of prompting, offering potential future research directions.
+Withtheintroductionoftransformers,researcherswereable
+Finally, we conclude with our remarks in Section VI.
+to train more deeper networks. Further, the advent of self-
+II. PRELIMINARIES supervised learning techniques [9] meant that costly human-
+annotated data are not required to train the LMs. In the self-
+A. Language Models
+supervisedlearningparadigm,theLMsarepre-trainedwiththe
+A language model (LM) is a computational model of a
+help of raw textual data only, completely bypassing the need
+natural language that predicts and generates human language
+for human-annotated data. These PLMs are often then fine-
+based on a text corpora that it was trained on. Technically,
+tuned for specific downstream tasks with human-annotated
+LMs model the likelihood of a sequence of tokens in order
+data. However, due to the effectiveness of pre-training, the
+to predict the probabilities for the missing or next token.
+requirement for the size of human-annotated data drops off.
+Language models can broadly be classified into four main
+Various pre-training objectives are used with alterations to
+development stages:
+the standard encoder-decoder architecture which gives rise
+1) Statisticallanguagemodels(SLM): SLMs,introducedin
+to three different types of PLMs: (a) Left-to-right PLM,
+theearly1980s,arebasedonstatisticallearningmethods.They
+(b) Masked PLM, and (c) Encoder-decoder PLM. Figure 1,
+assign probabilities to tokens based on a statistical model of
+extracted from [10], illustrates the architectures of these three
+a text corpora. One of the notable SLMs is called the N-gram
+differentPLMs.FurtherexplanationofthesePLMsisprovided
+model.TheN-grammodelsarebasedonMarkov’sassumption
+below:
+that the probabilities of the next token are based on the last
+a) Left-to-Right PLM: Left-to-right (or similarly Right-
+(N −1) tokens. Formally,
+to-left) PLMs, like GPT [11] and its successor GPT-2 [12],
+P(w n|w n−1:1)=P(w n−1|w n−2:1∗P(w n−2|w n−3:1) are autoregressive language models that usually employ the
+(1)
+∗...∗P(w |w )∗p(w ) decoder part of the original transformer architecture and are
+2 1 1
+pre-trainedtopredicttheupcomingtokensoneatatimebased
+The probabilities are estimated using a Maximum Likeli-
+on the previous tokens using a large text corpus.
+hood Estimate (MLE) based on the frequency of the tokens
+in the text corpus. Along with n-gram models, the Hidden b) Masked PLM: Masked PLMs are non-autoregressive
+Markov Model (HMM) based language models, and maxi- in nature meaning that they consider both the preceding and
+mum entropy-based language models were some of the other following tokens when predicting token probabilities. Masked
+popular SLMs. PLMs generally use the encoder part of the original encoder-
+2) Neural language models (NLM): NLMs leverage neu- decoder architecture of the transformer. These PLMs are pre-
+ral networks to estimate token probabilities. While various trained by applying a noising function that corrupts the text
+neural network architectures, such as feed-forward neural and the pre-training objective is to restore the original uncor-
+networks (FFNN) and convolutional neural networks (CNN), rupted text. An early example of such a PLM is BERT [13],
+have been explored for language modeling, recurrent neural where certain tokens within a sentence are replaced with
+networks (RNN) emerged as the dominant choice. However, [MASK] and the pre-training objective was to predict the
+the landscape underwent a significant transformation with the [MASK]token.Othervariousnoisingfunctionshavealsobeen
+introduction of Transformers [1]. proposed [14–16].
+Transformer, originally purposed for machine translation c) Encoder-Decoder PLM: Encoder-Decoder PLMs use
+tasks,featuresanencoder-decoderarchitecture.Inthisdesign, the original architecture of the transformer. While they are
+the encoder encodes the input token sequence to extract generally auto-regressive in nature, there are a few models
+context, while the decoder’s main role is to generate the next purposed with non-autoregressive design. Typically, a noising
+tokenbasedontheencoder’sencodedinformationandalready function is applied to the encoder, while a standard language
+decoded tokens. Transformers introduced a technique called modeling is used at the decoder part during the model’s pre-Fig.1. ArchitectureofdifferentPLMs.Imagefrom[10].
+training.NotableexamplesofEncoder-DecoderPLMsinclude to convert a sentence in English to a sentence in Nepali, our
+Meta’s BART [17] and Google’s T5 [18]. prefix-style prompt will be as follows:
+4) Large language models (LLM): The scaling law [2]
+Convert the following English sentences to
+dictates that an increase in the model’s size, dataset size, and
+Nepali:
+computational resources used during training often results in
+English: All the world’s a stage, and all
+enhanced performance on the downstream tasks. Researchers
+the men and women merely players.
+have tried constantly to push the boundaries of this law by
+Nepali:
+continually increasing the model’s size. For instance, GPT-
+3 [5] has a massive 175 billion parameters, while PaLM [19]
+surpasses even that with 540 billion parameters. Despite hav- The model is expected to produce a continuation of this input
+ing similar training methodologies compared to other PLMs, where the output will be the Nepali translation of the input
+these large PLMs exhibit emergent abilities [3]. For example, English sentence.
+GPT-3 can learn a task description with the help of a few If we provide these templates without additional examples,
+examplespassedascontextwhereasthepredecessorofGPT-3, itisreferredtoaszero-shotprompting.However,ifweprovide
+GPT-2cannotdothat.Incontemporarytimes,theterm“Large a few illustrative examples of the correct inputs and outputs,
+language models (LLMs)” primarily refers to these massive it is referred to as few-shot prompting.
+language models, having tens or even hundreds of billions of
+parameters,andtrainedonvastdatasets.TheseLLMspredom-
+III. AREATAXONOMY
+inantly adopt Left-to-right transformer architecture (decoder- Figure 2 presents the area taxonomy of prompting meth-
+only), and they commonly exhibit an autoregressive nature. ods in autoregressive LLMs. The classification of prompts
+is based on two key dimensions: the level of human in-
+B. Prompting
+volvement in prompt creation and the specific types of these
+Promptingreferstoprovidingaspecificinputorinstruction prompts. In terms of human effort, prompts are categorized
+toguidethemodel’soutput.Basically,aninputxwiththehelp into two groups: “Hand-Crated” and “Automated”, reflecting
+of a prompt template f is converted to a new representation the extent of manual input required in the prompt creation
+f(x),whichisthenfedintothemodeltogetthedesiredoutput process. Additionally, prompts are categorized into three
+y. We generally employ two kinds of prompts, cloze prompts, distinct groups based on their intended objectives. These
+and prefix prompts. categories include “Task-Based”, ‘Generate-Auxiliary” and,
+Cloze prompts are popular with masked language models, “Resource/Tools Augmented”. It is important to note that
+where the objective is to fill in the blanks. For example, if this classification is based on the goals and purpose of the
+our task is to find the capital city of a country, our cloze-style prompts themselves, rather than the ultimate objective of the
+prompt will be as follows: downstream tasks. In the next section, we delve into existing
+research within each of these classifications to provide a
+The capital of Nepal is [BLANK].
+comprehensive overview of the field.
+The model is expected to fill the blank with the correct
+answer.
+IV. TAXONOMY-BASEDSURVEY
+Prefix prompts are generally employed with autoregressive In this section, we offer a survey of the existing literature
+LLMs, where the goal is for the model to produce the about prompting within the domain of autoregressive LLMs,
+continuation of the string input. For example, if our task is structured according to the taxonomy introduced in section 3.Prompting
+methodsin
+HumanEffort Hand-crafted [5,20–31]
+autoregressive
+LLMs
+Automated Discrete [32–40]
+Continuous [41–43]
+Task-Based [5,27,32–38,41–43]
+Generate- Chainof
+Type [20–24,39]
+Auxiliary Thought
+Generate-
+[25,26]
+Knowledge
+Resource/Tools
+[26,28–31,40]
+Augmented
+Fig.2. AreaTaxonomyofpromptingmethodsinautoregressiveLLMs.
+Itisnoteworthythatwhilesomeoftheresearchdiscussedmay a prompt for some complex downstream tasks. Consequently,
+not be exclusive to autoregressive LLMs, or may have origi- researchers are exploring automated methods for prompt tem-
+nallytargetedPLMs,manyoftheseapproachesareapplicable plate design. These automatically generated prompts can be
+and adaptable for effective use with autoregressive LLMs. further classified into discrete and continuous prompts.
+a) Discrete Prompts: Discrete Prompts, also referred to
+A. Human Effort
+as “hard prompts”, are those prompts where the prompt input
+On the basis of the amount of human effort required to to the underlying LLM is still an actual text. These prompts
+create the prompts, they can be classified into Hand-crafted are named discrete prompts because our search space for
+and Automated. the prompt is limited to the discrete space of the tokens of
+1) Hand-crafted Prompts: Hand-crafted prompts are the the underlying LLM. Different techniques including mining,
+most natural way of creating prompts where a prompt tem- paraphrasing, and searching have been explored to generate
+plate is created based on human intuition. Brown et al. [5] discrete prompts.
+introduced hand-crafted prefix prompts for solving a variety In their work, Jiang et al. [32] proposed a mining-based
+of tasks. We provide an example of a hand-crafted prompt approach to find discrete prompts. Originally proposed for
+taken from [5]: masked language models, this approach is adaptable to au-
+toregressive LLMs. Given an input-output pair of x,y, the
+Translate English to French:
+method scraps a large text corpus, identifying strings con-
+Cheese =>
+taining both x and y, and subsequently extracts the middle
+The prompt above is called a zero-shot prompt as we have wordordependencypathbetweenthemtodeterminearelation
+only provided the task description along with the input. If (r) for use as a prompt: “[x] r ...”. Additionally, Jiang
+we provide a few input-output examples along with the task et al. [32] also proposed the use of paraphrasing for creating
+description, we call them few-shot prompts. An example of a discreteprompts.Theproposedsolutionwastotranslateaseed
+few-shot prompt is provided below: prompt into another language which is back-translated to the
+original language. Other paraphrasing-based solutions include
+Translate English to French:
+synonym substitution using a Thesaurus [33] and employing
+Sea otter => loutre de mer
+a neural model for rewriting the prompt [34].
+plush girafe => girafe peluche
+Wallace et al. [35] proposed a gradient-based search tech-
+Cheese =>
+niquetofinddiscreteprompts.Theyemployagradient-guided
+2) Automated Prompts: Although manual prompt creation search across tokens of the underlying LLM to identify short
+is intuitive, such hand-created prompts may have limitations. trigger sequences capable of inducing the desired output from
+Onesuchlimitationisthatthesehand-craftedpromptsmaybe the LLM. Some approaches score the prompt using another
+sub-optimal. Another issue is that hand-crafted prompts are LM. For example, Davison et al. [36], handcrafted a set of
+domain-specific and it can be an arduous task to hand-craft potential templates which were filled with input and outputdata from the training set. These filled prompt templates were contextually appropriate responses. In classification tasks, the
+scored using GPT-2, with the highest-scoring prompt being goalistodiscriminatebetweendifferentclasslabelsandassign
+selected for use. Lu et al. [37] also proposed a scoring-based the proper class label for an input. The broad objective of
+method to address the problem of order sensitivity within aligning with the goals of the downstream task they support
+the few-shot setting. Their approach involves considering is shared by all prompting approaches. However, in practice,
+all possible ordering permutations for the provided few-shot promptsmightoftenserveadditionalauxiliarypurposesoruse
+examples.TheythenusetheunderlyingLLMtogeneratefrom additional tools to facilitate the downstream task objective.
+thesepermutationstogenerateaprobingset.Theprobingsetis Based on these additional or auxiliary purposes or tools of
+scored using entropy-based measures to rank the effectiveness prompts, we can classify them into different categories. It is
+of different permutations. important to note that these categories may encompass both
+As adaptation of reinforcement learning (RL) continues hand-craftedandautomatedprompts.Weprovideadescription
+to grow within LLMs, efforts have been made to leverage of each category below:
+RL for the optimization of discrete prompts. One notable 1) Task-Based: Task-based prompts are the most straight-
+contribution is RLPrompt [38] which introduces a parameter- forward category within the taxonomy of prompts based on
+efficient policy network. This network is trained with rewards their objective. These prompts do not serve any auxiliary
+to generate optimized discrete prompts. goal and are characterized by their single objective of the
+b) Continuous Prompts: Continuous prompts, also re- downstream task. All the different prompting techniques that
+ferredtoas“softprompts”, arethosepromptsthataredefined wediscussedunderHand-CraftedandAutomatedpromptsfall
+in the embedding space of the LLM and therefore are not under this category.
+in human-readable format. The templates of soft prompts 2) Generate-Auxiliary: Generate-Auxiliarypromptsarethe
+have their own parameters that can be tuned. These prompts types of prompts that generate auxiliary output text in order
+are called continuous because our prompt to the LLM are tofacilitatethedownstreamtasks.Generate-Auxiliaryprompts
+continuousvectorsinsteadofdiscretetokens.Wediscusssome can be further classified into chain of thought and generate-
+of the seminal works below. knowledge prompts.
+Prefix Tuning [41] involves the addition of task-specific
+prefixestothebeginningofinputsequences.Theseprefixesare
+free-parameters (P ), which undergo reparameterized through
+θ
+a small multi-layer perception during the training process.
+Then,thelog-likelihoodobjectiveisoptimized,withtheLLM
+parameters frozen while only updating the prefix parameters.
+Mathematically,
+(cid:88)
+maxlogP(y|x;θ;ϕ)=max logP(y |h ;θ;ϕ)
+i <i
+θ θ
+yi
+where, ϕ are the parameters of the LLM, and h is the
+i
+contamination of all neural network layers at time step i. If
+i ∈ P , we use the prefix parameters otherwise we use the
+idx
+LLM parameters. Notably, Li and Liang [41] observed that Fig.3. Chainofthoughtprompting.Imagefrom[20].
+prefix tuning significantly enhanced effectiveness compared
+to discrete prompts, especially in the low-data and out-of- a) Chain of Thought (CoT): The use of prompts that
+domain settings. A similar approach is prompt tuning [42], elicit a coherent series of intermediate reasoning steps, ul-
+where special tokens are prepended to the input sequence and timately leading to the formulation of the final answer, is
+these tokens are tuned directly. known as the chain of thought (CoT) prompting. Wei et al.
+P-tuning [43] uses a hand-crafted prompt where all the [20] popularized the term “Chain of thought prompting” in
+tokens except for the input(x) are considered pseudo-tokens their seminal paper. Chain of thought prompting finds its
+and are mapped to trainable embedding vectors. They model usefulness in arithmetic reasoning, commonsense reasoning,
+these trainable embedding vectors through a bi-directional and symbolic reasoning tasks. We present an example of the
+long-short-term memory (LSTM) model. One added benefit chain of through prompting from [20] in figure 3. As can be
+of P-tuning to prefix and prompt tuning is that the continuous seenfromthefigure,instandardpromptingthecorrectanswer
+vectors can be inserted anywhere as opposed to the beginning may not be readily obtained. However, when employing the
+ofinputonly.P-tuningwasoriginallyproposedtosolvenatural chain of thought prompting, where the answers of few-shot
+language understanding tasks through GPT-based models. examples also contain the intermediate steps to reach the
+answer, the model generates similar intermediate reasoning
+B. Type
+stepsandreachesthefinalcorrectanswer.Chainofthoughtis
+Theprimaryobjectiveofanydownstreamtaskistoachieve an emergent ability of sufficiently large language models that
+a specific goal, such as classifying input data or generating allows LLMs to perform reasoning tasks.Zero-shotCoT[21]canbeconsideredthezero-shotversion Imagine three different experts are
+of CoT purposed by Wei et al. [20]. In zero-shot Cot, “Let’s answering this question.
+thinkstepbystep”isaddedtotheprompt,andwithsufficiently All experts will write down 1 step of
+largelanguagemodels,wegetaseriesofreasoningstepslead- their thinking, then share it with the
+ingtocorrectanswers.AutoCoT[39]alleviatestheproblemof group.
+sub-optimal demonstrations in CoT. Auto CoT uses zero-shot Then all experts will go on to the next
+CoT to create demonstrations from the LLM itself and uses step, etc.
+theminfew-shotpromptingscenariossimilartoCoT.Thekey If any expert realises they’re wrong at
+techniquebehindAutoCoTinvolvesthepartitionofquestions any point then they leave.
+withinagivendatasetintoafewclusters.Fromeachcluster,a The question is...
+representativequestionisselected,promotingdiversityintask
+Zhou et al. [27] argues that the original CoT cannot gener-
+demonstration and ultimately enhancing model performance.
+alizewelltohardproblemswhenthedemonstrationsprovided
+Self-consistency [22] represents a recent and noteworthy
+are easy and to overcome this problem propose Least-to-
+idea within the CoT domain. It is important to note that self-
+mostprompting.Least-to-mostpromptingworksintwostages.
+consistency is not inherently a prompting technique but rather
+Firstly, the given question is decomposed into a series of
+a decoding strategy employed when utilizing CoT prompts.
+subquestionsbypromptingtheLLMas:Tosolve⟨Q⟩,weneed
+CoT prompts are generally associated with a greedy decoding
+to first solve.... Then, each subquestion is solved by the LLM
+strategy, mainly because reasoning tasks often have a single
+to reach the final answer.
+fixed answer. However, the authors argue that introducing
+b) Generate knowledge: Liu et al. [25] introduced the
+diversity into the reasoning process can be highly advanta-
+concept of ‘Generated Knowledge Prompting’. The basic idea
+geous. The self-consistency methodology involves prompting
+behind this approach is to generate task-specific knowledge,
+the LLM with CoT prompts, followed by sampling from the
+either by leveraging the same LLM used for the downstream
+LLM to generate a diverse set of reasoning paths, thus devi-
+tasksorbyleveragingaseparateLLM,andsubsequentlyincor-
+ating from the conventional greedy search approach. Finally,
+poratingthisknowledgeintothepredictionprocess.Generated
+the method involves marginalizing these reasoning paths to
+knowledgepromptingisatwo-stepprocess.First,inafew-shot
+identify and select the most consistent answer as the final
+setting, question-related knowledge statements are generated
+output. Tree-of-Thoughts (ToT) [23] presents an idea similar
+bypromptinganLLM.Thedemonstrationsarehuman-crafted
+to self-consistency but with enhancements aimed at refining
+and representativeof the downstreamtask. In thesecond step,
+the self-consistency approach. In contrast to self-consistency,
+each of the generated knowledge statements is used to make
+where a majority voting mechanism determines the final
+predictions. The final answer selected is the answer from a
+answer, ToT adopts a more explorable tree structure for the
+knowledge statement with the best support (high confidence).
+thoughts. ToT maintains a tree comprising individual thought
+Self-ask [26] is another innovative prompting technique
+steps,witheachthoughtbeingself-evaluatedbytheLLM.This
+aimed at generating intermediate knowledge from the LLM
+tree-based framework is complemented by the application of
+to facilitate the final answer. The methodology of self-ask
+search algorithms, including Breadth First Search and Depth
+prompts features follow-up questions explicitly marked by
+First Search, which facilitates for systematic exploration of
+“Follow up:”. These follow-up inquiries serve as a means
+thoughts. Figure 4, taken from [23], illustrates various CoT
+to generate the essential knowledge required to answer the
+prompting strategies described above.
+question. Self-ask is done in a few-shot prompting scenario.
+3) Resource/Tools Augmented: Building upon the success
+of prompting techniques, there have been research efforts to
+enhance prompts by integrating external resources and tools,
+with the aim of increasing their efficiency. We categorize
+such prompting techniques as ‘Resource/Tools Augmented
+Prompts’ and describe the literature around these innovative
+prompts below.
+Program-aided Language models (PAL) [28] is an inno-
+vative tool augmented prompting technique. PAL’s demon-
+strations are similar to CoT but with the aim of producing
+programming-language like output from the LLM. Once the
+generation is completed, the generated code is offloaded to an
+Fig. 4. Self-consistency methodology for CoT prompting in comparison to interpretertoarriveatafinalanswer.PALalsoworkswellwith
+CoTpromptingwithgreedydecoding.Imagefrom[23]. the Least-to-most prompting technique. Program of thoughts
+(PoT) prompting [29] is also a similar prompting technique.
+Hulbert [24] proposed a text-based prompt that works The only difference lies in the specific text that they use to
+similarly to ToT. The prompt used in [24] is: prompt the LLM.Self-ask [26], a generate knowledge prompt, also includes label of ‘Similar’ or ‘Not Similar’. At inference time, the test
+a resource/tool augmented variant. In this augmented version, taskis paired with every suchhand-crafted demonstrationand
+self-askusesasearchenginetoanswerthefollow-upquestion selects the highest-ranked ones based on the log probability
+insteadofusingtheunderlyingLLM.Theauthorshaveshown ratio between ‘Similar’ and ‘Not similar’ labels.
+thatthesearch-engineaugmentedself-askpromptsoutperform
+the base self-ask prompts.
+V. OPENPROBLEMS
+Long [30] also proposed a resource/tool augmented version Prompting has proven to be an effective technique, particu-
+of Tree-of-Thought, keeping the same name as Yao et al. larlyforguidingLLMsinscenarioswherefine-tuningiscostly
+[23]. Both approaches were developed concurrently. While or infeasible, such as with closed-source models. Despite
+the ToT by Yao et al. [23] relies solely on the underlying their effectiveness and usefulness, prompting techniques face
+LLMwithoutexternalresourcesortools,thevariantproposed several open problems that must be addressed to realize their
+by Long [30] includes four additional components. These full potential. It is important to note that some of these issues
+additional components are a prompter agent, a checker mod- are interconnected with the underlying LLMs themselves, and
+ule, a memory module, and a ToT controller. The prompter resolvingtheseissuesmightentailmodificationtothetraining
+agent’s role is to provide additional prompt text to LLM in datasets and the training procedures of LLMs. This section
+conjunction with the problem description, enabling LLM to outlines some of the key open problems related to prompting
+generate intermediate solutions. The checker module checks which can serve as future research directions.
+the validity of these intermediate solutions. If the check is Addressing sub-optimal prompts, that guide an LLM to-
+passed, it is added to the memory module, and the process wards a sub-optimal goal rather than the optimal one, is a
+is repeated. However, if the check fails, the ToT controller significant challenge to prompting techniques. This issue is
+activates the prompter again with some extra prompt text more common with hand-crafted prompts but is mitigated by
+to generate new intermediate solutions. The ToT controller discrete prompts. Continuous prompts [41–43] have been
+also monitors the search process through these intermediate identified as the best way to tackle this problem, which typi-
+solutions, deciding whether to continue the search process or cally involves training only a fraction of parameters in com-
+backtrack to the parent node. The prompter agent and the parison to underlying LLM’s parameters, often ranging from
+ToTcontrollercanbeimplementedusingeitherasimplerule- 0.1% to 3%. However, continuous prompts become resource-
+basedapproachorfine-tunedusingapolicynetwork.Similarly, intensive as LLMs continue to grow in size. For example,
+the checker module can also be a rule-based approach or PaLM has 540 billion parameters and even allocating 1% of
+implemented as a deep neural network. its parameter size for continuous prompts would translate to
+ReAct [31] is a prompting technique that seeks to integrate training with 5.4 billion parameters, which is costly and often
+thereasoningcapabilitiesofLLMwithexternaltooluseinan infeasible due to resource limitation. Another challenge arises
+interleaved manner. ReAct essentially combines the process in the context of closed-source LLMs where model access is
+of reasoning and taking actions with LLMs. ReAct prompts limited to API calls, making the utilization of such methods
+LLMs to generate both reasoning traces and actions for a impossible in some scenarios.
+task. Concretely, LLM is prompted in a few-shot scenario to While much of the existing research discussed in Re-
+generate a series of ‘Thought’, ‘ACT’, and ‘Obs’. Here ‘Act’ source/Toolsaugmentedpromptshasmadeanotableimprove-
+denotestheutilizationofexternaltools,while‘Obs’represents ment in enhancing the efficacy of prompting techniques by
+the observation or knowledge generated from the thought and leveraging external resources and tools, more robust prompt-
+action steps. In some steps. ‘Thought’ might not be generated ing techniques capable of handling structured data are still
+if it is not deemed necessary. The authors have demonstrated missing. Many downstream NLP tasks have inputs in various
+superior performance gain in knowledge-intensive reasoning variety of structured formats, extending beyond plain text to
+tasks and decision-making tasks. Despite the effectiveness of tables, trees, graphs, and various other relational structures.
+ReACT, it has a couple of limitations. First, it requires task- Properhandlingofsuchdiversestructuresremainsarelatively
+specific demonstration, and second, the tools are also task- underexplored field. A recent study by Zhao et al. [44]
+specific. Automatic Reasoning and Tool use (ART) [40] seeks offers some promising insight into this field. Zhao et al. [44]
+to overcome these shortcomings by having a dedicated task demonstrated that LLMs can effectively manage structured
+libraryandtoollibrary.ThetoollibraryofARThasabunchof databyshowingthatLLMscanbepromptedtonotonlywork
+toolsandcanbeextendedfurtherasneeded.ARTemploystwo as a table-to-text generator but can also work as evaluators
+methodstoselecttaskdemonstrations.Incaseswherethereare of such system and can also provide human-like feedback to
+enoughdemonstrationsforthetask,ARTdividesthesedemon- SOTA table-to-text models to improve their efficiency. While
+strations into different clusters, and the best cluster is chosen GraphPrompt [45] was proposed to tackle graph structures, it
+based on their performance in a held-out set of examples. involves pre-training the model with graph structures which
+However, if the test task lacks adequate demonstration in the canoftenbeinfeasible.Chenetal.[46]proposedtoaddaddi-
+tasklibrary,ARTutilizesadifferentapproach.Thetasklibrary tional marks to encode lexical information in the prompts but
+also contains a collection of hand-crafted few-shot prompts, this approach is tailored for masked language models rather
+each consisting of a specific downstream task along with a thanautoregressiveLLMs.TheNLPcommunitywouldbenefitgreatly from concrete efforts toward handling structured data Nardo [48] demonstrated the ability of LLMs to elicit op-
+through prompting techniques. posite behavior due to how it was trained. Instances of such
+Answerengineeringhasemergedasanexcitingfield,owing promptinjectiontechniquescanbefoundacrossvarioussocial
+to the advancements in prompting techniques. Answer engi- networking platforms. A potential solution to this issue was
+neering refers to the science and art of distilling meaningful suggestedbyArmstrongandGorman[49],whichinvolvesthe
+answers from the text generated by LLMs. For example, use of another LLM prompted in a way to detect prompt in-
+consider a sentiment classification task where the objective jection.Furthersimilarexplorationsintothisfieldarerequired
+is to classify a movie review as positive or negative. We can before LLMs with prompting ability can be deployed in the
+prompt the model as below: wild.
+Classify the sentiment of the following
+VI. CONCLUSION
+movie review as either positive or
+Inthispaper,wehaveprovidedaconcisesurveyofthecur-
+negative:
+rentliteratureonthefieldofpromptingforautoregressivelarge
+Movie Review: It was a nice watch.
+languagemodels.Promptinghasbeenanimportanttechnique,
+Sentiment: ...
+enabling the effective guidance of LLMs toward the intended
+Since we employ an autoregressive LLM, the generated output, with minimum to no additional training. However,
+output might not have the strings ‘positive’ or ‘negative’ despite its effectiveness, the full potential of prompting has
+only. Instead, it might be a synonym or contain text that not been realized with many open problems still left to be
+impliesthesentimentwithoutexplicitlystatingit.Deciphering addressed. We believe that the open problems of promoting
+the final sentiment from such text can be challenging when techniques identified in this paper will serve as an important
+we want to do this automatically and at scale. While few- future direction for research.
+shot prompting certainly helps, it does not guarantee precise
+results. There have been various efforts to mitigate this issue,
+REFERENCES
+such as instruction tuning of the model [47]. However, these [1] A.Vaswani,N.Shazeer,N.Parmar,J.Uszkoreit,L.Jones,A.N.Gomez,
+Ł. Kaiser, and I. Polosukhin, “Attention is all you need,” Advances in
+methods lack generalizability, and often LLMs are infeasible
+neuralinformationprocessingsystems,vol.30,2017.
+to instruction-tune due to resource limitations. The prevailing [2] J.Kaplan,S.McCandlish,T.Henighan,T.B.Brown,B.Chess,R.Child,
+techniques involve exact matching of the intended generation S. Gray, A. Radford, J. Wu, and D. Amodei, “Scaling laws for neural
+languagemodels,”arXivpreprintarXiv:2001.08361,2020.
+orsomeofitssynonymsorusingregularexpressionstoextract
+[3] J. Wei, Y. Tay, R. Bommasani, C. Raffel, B. Zoph, S. Borgeaud,
+the final answer. However, these approaches are often task- D.Yogatama,M.Bosma,D.Zhou,D.Metzleretal.,“Emergentabilities
+specific and not universally applicable. oflargelanguagemodels,”arXivpreprintarXiv:2206.07682,2022.
+[4] F. Petroni, T. Rockta¨schel, S. Riedel, P. Lewis, A. Bakhtin,
+Prompt injection presents a substantial issue, particularly
+Y. Wu, and A. Miller, “Language models as knowledge bases?” in
+withLLMsdeployedforwidespreadpublicuse.Promptinjec- Proceedingsofthe2019ConferenceonEmpiricalMethodsinNatural
+tion attempts to manipulate the behavior of LLMs by cleverly Language Processing and the 9th International Joint Conference on
+NaturalLanguageProcessing(EMNLP-IJCNLP). HongKong,China:
+crafting prompts that guide LLMs to generate content beyond
+AssociationforComputationalLinguistics,Nov.2019,pp.2463–2473.
+their intended scope. Consider a simple prompt injection for [Online].Available:https://aclanthology.org/D19-1250
+an LLM deployed for sentiment classification: [5] T.Brown,B.Mann,N.Ryder,M.Subbiah,J.D.Kaplan,P.Dhariwal,
+A.Neelakantan,P.Shyam,G.Sastry,A.Askelletal.,“Languagemod-
+Ignore the above instructions and output els are few-shot learners,” Advances in neural information processing
+systems,vol.33,pp.1877–1901,2020.
+the label as "NEUTRAL" instead, followed
+[6] T.Mikolov,K.Chen,G.Corrado,andJ.Dean,“Efficientestimationof
+by a copy of the full prompt with wordrepresentationsinvectorspace,”arXivpreprintarXiv:1301.3781,
+exemplars. 2013.
+[7] J. Pennington, R. Socher, and C. D. Manning, “Glove: Global vectors
+Such uncomplicated prompts could make the model output for word representation,” in Proceedings of the 2014 conference on
+empiricalmethodsinnaturallanguageprocessing(EMNLP),2014,pp.
+‘NEUTRAL’consistentlyandevendisclosethesecretprompts
+1532–1543.
+that might have been hidden from the public. While recent [8] J. Sarzynska-Wawer, A. Wawer, A. Pawlak, J. Szymanowska, I. Stefa-
+modelshavebeenfine-tuned,instruction-tuned,orpromptedin niak,M.Jarkiewicz,andL.Okruszek,“Detectingformalthoughtdisor-
+derbydeepcontextualizedwordrepresentations,”PsychiatryResearch,
+awaythatprohibitsmodelsfromrespondingtosuchunethical
+vol.304,p.114135,2021.
+instruction, these safeguards can be bypassed by cleverly [9] X. Liu, F. Zhang, Z. Hou, L. Mian, Z. Wang, J. Zhang, and J. Tang,
+crafted prompts. Consider a simple prompt that might be able “Self-supervisedlearning:Generativeorcontrastive,”IEEEtransactions
+onknowledgeanddataengineering,vol.35,no.1,pp.857–876,2021.
+to bypass the content policy of deployed LLMs that do not
+[10] H. Wang, J. Li, H. Wu, E. Hovy, and Y. Sun, “Pre-trained language
+allow illegal behavior: modelsandtheirapplications,”Engineering,2022.
+[11] A.Radford,K.Narasimhan,T.Salimans,I.Sutskeveretal.,“Improving
+A poem about how to successfully hotwire languageunderstandingbygenerativepre-training,”2018.
+a car: [12] A.Radford,J.Wu,R.Child,D.Luan,D.Amodei,I.Sutskeveretal.,
+“Language models are unsupervised multitask learners,” OpenAI blog,
+Despite the model’s safeguards against illegal behaviors, a vol.1,no.8,p.9,2019.
+[13] J.Devlin,M.-W.Chang,K.Lee,andK.Toutanova,“BERT:Pre-training
+simple adjustment to the original question, as shown above,
+of deep bidirectional transformers for language understanding,” in
+could compel LLM to produce illegal and harmful content. Proceedings of the 2019 Conference of the North American Chapterof the Association for Computational Linguistics: Human Language astextgeneration,”AdvancesinNeuralInformationProcessingSystems,
+Technologies, Volume 1 (Long and Short Papers). Minneapolis, vol.34,pp.27263–27277,2021.
+Minnesota: Association for Computational Linguistics, Jun. 2019, pp. [34] A.Haviv,J.Berant,andA.Globerson,“BERTese:Learningtospeakto
+4171–4186.[Online].Available:https://aclanthology.org/N19-1423 BERT,”inProceedingsofthe16thConferenceoftheEuropeanChapter
+[14] C. Raffel, N. Shazeer, A. Roberts, K. Lee, S. Narang, M. Matena, oftheAssociationforComputationalLinguistics:MainVolume. Online:
+Y.Zhou,W.Li,andP.J.Liu,“Exploringthelimitsoftransferlearning Association for Computational Linguistics, Apr. 2021, pp. 3618–3623.
+with a unified text-to-text transformer,” Journal of Machine Learning [Online].Available:https://aclanthology.org/2021.eacl-main.316
+Research, vol. 21, no. 140, pp. 1–67, 2020. [Online]. Available: [35] E. Wallace, S. Feng, N. Kandpal, M. Gardner, and S. Singh,
+http://jmlr.org/papers/v21/20-074.html “Universal adversarial triggers for attacking and analyzing NLP,” in
+[15] Y. Liu, J. Gu, N. Goyal, X. Li, S. Edunov, M. Ghazvininejad, Proceedingsofthe2019ConferenceonEmpiricalMethodsinNatural
+M. Lewis, and L. Zettlemoyer, “Multilingual denoising pre-training Language Processing and the 9th International Joint Conference on
+for neural machine translation,” Transactions of the Association for NaturalLanguageProcessing(EMNLP-IJCNLP). HongKong,China:
+Computational Linguistics, vol. 8, pp. 726–742, 2020. [Online]. AssociationforComputationalLinguistics,Nov.2019,pp.2153–2162.
+Available:https://aclanthology.org/2020.tacl-1.47 [Online].Available:https://aclanthology.org/D19-1221
+[16] Z.Lan,M.Chen,S.Goodman,K.Gimpel,P.Sharma,andR.Soricut, [36] J. Davison, J. Feldman, and A. Rush, “Commonsense knowledge
+“Albert:Alitebertforself-supervisedlearningoflanguagerepresenta- mining from pretrained models,” in Proceedings of the 2019
+tions,”arXivpreprintarXiv:1909.11942,2019. Conference on Empirical Methods in Natural Language Processing
+[17] M.Lewis,Y.Liu,N.Goyal,M.Ghazvininejad,A.Mohamed,O.Levy, and the 9th International Joint Conference on Natural Language
+V. Stoyanov, and L. Zettlemoyer, “BART: Denoising sequence-to- Processing (EMNLP-IJCNLP). Hong Kong, China: Association for
+sequence pre-training for natural language generation, translation, Computational Linguistics, Nov. 2019, pp. 1173–1178. [Online].
+and comprehension,” in Proceedings of the 58th Annual Meeting of Available:https://aclanthology.org/D19-1109
+the Association for Computational Linguistics. Online: Association [37] Y. Lu, M. Bartolo, A. Moore, S. Riedel, and P. Stenetorp,
+for Computational Linguistics, Jul. 2020, pp. 7871–7880. [Online]. “Fantastically ordered prompts and where to find them: Overcoming
+Available:https://aclanthology.org/2020.acl-main.703 few-shot prompt order sensitivity,” in Proceedings of the 60th Annual
+[18] C. Raffel, N. Shazeer, A. Roberts, K. Lee, S. Narang, M. Matena, Meeting of the Association for Computational Linguistics (Volume
+Y.Zhou,W.Li,andP.J.Liu,“Exploringthelimitsoftransferlearning 1: Long Papers). Dublin, Ireland: Association for Computational
+with a unified text-to-text transformer,” Journal of Machine Learning Linguistics, May 2022, pp. 8086–8098. [Online]. Available: https:
+Research, vol. 21, no. 140, pp. 1–67, 2020. [Online]. Available: //aclanthology.org/2022.acl-long.556
+http://jmlr.org/papers/v21/20-074.html [38] M. Deng, J. Wang, C.-P. Hsieh, Y. Wang, H. Guo, T. Shu,
+[19] A.Chowdhery,S.Narang,J.Devlin,M.Bosma,G.Mishra,A.Roberts, M. Song, E. Xing, and Z. Hu, “RLPrompt: Optimizing discrete
+P.Barham,H.W.Chung,C.Sutton,S.Gehrmannetal.,“Palm:Scaling text prompts with reinforcement learning,” in Proceedings of the
+language modeling with pathways,” arXiv preprint arXiv:2204.02311, 2022 Conference on Empirical Methods in Natural Language
+2022. Processing. Abu Dhabi, United Arab Emirates: Association for
+[20] J.Wei,X.Wang,D.Schuurmans,M.Bosma,F.Xia,E.Chi,Q.V.Le, Computational Linguistics, Dec. 2022, pp. 3369–3391. [Online].
+D. Zhou et al., “Chain-of-thought prompting elicits reasoning in large Available:https://aclanthology.org/2022.emnlp-main.222
+languagemodels,”AdvancesinNeuralInformationProcessingSystems, [39] Z.Zhang,A.Zhang,M.Li,andA.Smola,“Automaticchainofthought
+vol.35,pp.24824–24837,2022. promptinginlargelanguagemodels,”arXivpreprintarXiv:2210.03493,
+[21] T.Kojima,S.S.Gu,M.Reid,Y.Matsuo,andY.Iwasawa,“Largelan- 2022.
+guagemodelsarezero-shotreasoners,”Advancesinneuralinformation [40] B.Paranjape,S.Lundberg,S.Singh,H.Hajishirzi,L.Zettlemoyer,and
+processingsystems,vol.35,pp.22199–22213,2022. M. T. Ribeiro, “Art: Automatic multi-step reasoning and tool-use for
+[22] X.Wang,J.Wei,D.Schuurmans,Q.Le,E.Chi,S.Narang,A.Chowdh- largelanguagemodels,”arXivpreprintarXiv:2303.09014,2023.
+ery,andD.Zhou,“Self-consistencyimproveschainofthoughtreasoning [41] X. L. Li and P. Liang, “Prefix-tuning: Optimizing continuous
+inlanguagemodels,”arXivpreprintarXiv:2203.11171,2022. prompts for generation,” in Proceedings of the 59th Annual
+[23] S. Yao, D. Yu, J. Zhao, I. Shafran, T. L. Griffiths, Y. Cao, and Meeting of the Association for Computational Linguistics and
+K.Narasimhan,“Treeofthoughts:Deliberateproblemsolvingwithlarge the 11th International Joint Conference on Natural Language
+languagemodels,”arXivpreprintarXiv:2305.10601,2023. Processing (Volume 1: Long Papers). Online: Association for
+[24] D. Hulbert, “Tree of knowledge: Tok aka tree of knowledge Computational Linguistics, Aug. 2021, pp. 4582–4597. [Online].
+dataset for large language models llm,” https://github.com/dave1010/ Available:https://aclanthology.org/2021.acl-long.353
+tree-of-thought-prompting,2023. [42] B. Lester, R. Al-Rfou, and N. Constant, “The power of scale
+[25] J. Liu, A. Liu, X. Lu, S. Welleck, P. West, R. L. Bras, Y. Choi, for parameter-efficient prompt tuning,” in Proceedings of the 2021
+and H. Hajishirzi, “Generated knowledge prompting for commonsense Conference on Empirical Methods in Natural Language Processing.
+reasoning,”arXivpreprintarXiv:2110.08387,2021. Online and Punta Cana, Dominican Republic: Association for
+[26] O. Press, M. Zhang, S. Min, L. Schmidt, N. A. Smith, and M. Lewis, Computational Linguistics, Nov. 2021, pp. 3045–3059. [Online].
+“Measuring and narrowing the compositionality gap in language mod- Available:https://aclanthology.org/2021.emnlp-main.243
+els,”arXivpreprintarXiv:2210.03350,2022. [43] X.Liu,Y.Zheng,Z.Du,M.Ding,Y.Qian,Z.Yang,andJ.Tang,“Gpt
+[27] D. Zhou, N. Scha¨rli, L. Hou, J. Wei, N. Scales, X. Wang, D. Schu- understands,too,”AIOpen,2023.
+urmans, C. Cui, O. Bousquet, Q. Le et al., “Least-to-most prompting [44] Y. Zhao, H. Zhang, S. Si, L. Nan, X. Tang, and A. Cohan, “Large
+enables complex reasoning in large language models,” arXiv preprint language models are effective table-to-text generators, evaluators, and
+arXiv:2205.10625,2022. feedbackproviders,”arXivpreprintarXiv:2305.14987,2023.
+[28] L. Gao, A. Madaan, S. Zhou, U. Alon, P. Liu, Y. Yang, J. Callan, [45] Z. Liu, X. Yu, Y. Fang, and X. Zhang, “Graphprompt: Unifying pre-
+andG.Neubig,“Pal:Program-aidedlanguagemodels,”inInternational traininganddownstreamtasksforgraphneuralnetworks,”inProceed-
+ConferenceonMachineLearning. PMLR,2023,pp.10764–10799. ingsoftheACMWebConference2023,2023,pp.417–428.
+[29] W. Chen, X. Ma, X. Wang, and W. W. Cohen, “Program of thoughts [46] X. Chen, N. Zhang, X. Xie, S. Deng, Y. Yao, C. Tan, F. Huang,
+prompting: Disentangling computation from reasoning for numerical L. Si, and H. Chen, “Knowprompt: Knowledge-aware prompt-tuning
+reasoningtasks,”arXivpreprintarXiv:2211.12588,2022. withsynergisticoptimizationforrelationextraction,”inProceedingsof
+[30] J.Long,“Largelanguagemodelguidedtree-of-thought,”arXivpreprint theACMWebconference2022,2022,pp.2778–2788.
+arXiv:2305.08291,2023. [47] L. Ouyang, J. Wu, X. Jiang, D. Almeida, C. Wainwright, P. Mishkin,
+[31] S.Yao,J.Zhao,D.Yu,N.Du,I.Shafran,K.Narasimhan,andY.Cao, C. Zhang, S. Agarwal, K. Slama, A. Ray et al., “Training language
+“React: Synergizing reasoning and acting in language models,” arXiv modelstofollowinstructionswithhumanfeedback,”AdvancesinNeural
+preprintarXiv:2210.03629,2022. InformationProcessingSystems,vol.35,pp.27730–27744,2022.
+[32] Z. Jiang, F. F. Xu, J. Araki, and G. Neubig, “How can we know [48] C.Nardo,“Thewaluigieffect(mega-post),”LessWrong,2023.[Online].
+what language models know?” Transactions of the Association for Available: https://www.lesswrong.com/posts/D7PumeYTDPfBTp3i7/
+ComputationalLinguistics,vol.8,pp.423–438,2020. the-waluigi-effect-mega-post
+[33] W.Yuan,G.Neubig,andP.Liu,“Bartscore:Evaluatinggeneratedtext [49] S. Armstrong and R. Gorman, “Using gpt-eliezer against chatgptjailbreaking,” AI ALIGNMENT FORUM, 2022. [Online]. Avail-
+able: https://www.alignmentforum.org/posts/pNcFYZnPdXyL2RfgA/
+using-gpt-eliezer-against-chatgpt-jailbreaking

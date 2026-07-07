@@ -1,0 +1,1880 @@
+PublishedasaconferencepaperatICLR2023
+LARGE LANGUAGE MODELS ARE HUMAN-LEVEL
+PROMPT ENGINEERS
+YongchaoZhou1,2,∗,AndreiIoanMuresanu2,3,∗,ZiwenHan1,2,∗,KeiranPaster1,2,
+SilviuPitis1,2,HarrisChan1,2,JimmyBa1,2
+1UniversityofToronto 2VectorInstitute 3UniversityofWaterloo ∗Equalcontribution
+{yczhou,hanziwen,keirp,spitis,hchan,jba}@cs.toronto.edu
+{andrei.muresanu}@uwaterloo.ca
+ABSTRACT
+By conditioning on natural language instructions, large language models (LLMs) have
+displayedimpressivecapabilitiesasgeneral-purposecomputers.However,taskperformance
+dependssignificantlyonthequalityofthepromptusedtosteerthemodel,andmosteffective
+promptshavebeenhandcraftedbyhumans. Inspiredbyclassicalprogramsynthesisand
+the human approach to prompt engineering, we propose Automatic Prompt Engineer1
+(APE) for automatic instruction generation and selection. In our method, we treat the
+instructionasthe“program,”optimizedbysearchingoverapoolofinstructioncandidates
+proposed by an LLM in order to maximize a chosen score function. To evaluate the
+qualityoftheselectedinstruction,weevaluatethezero-shotperformanceofanotherLLM
+following the selected instruction. Extensive experiments show that our automatically
+generatedinstructionsoutperformthepriorLLMbaselinebyalargemarginandachieve
+betterorcomparableperformancetotheinstructionsgeneratedbyhumanannotatorson
+24/24InstructionInductiontasksand17/21curatedBIG-Benchtasks.Weconductextensive
+qualitativeandquantitativeanalysestoexploretheperformanceofAPE.Weshowthat
+APE-engineeredpromptsareabletoimprovefew-shotlearningperformance(bysimply
+prependingthemtostandardin-contextlearningprompts),findbetterzero-shotchain-of-
+thoughtprompts,aswellassteermodelstowardtruthfulnessand/orinformativeness.2
+1 INTRODUCTION
+Thecombinationofscaleandattention-basedarchitectureshasresultedinlanguagemodelspossessing
+anunprecedentedlevelofgenerality(Kaplanetal.,2020;Vaswanietal.,2017). Theseso-called
+“largelanguagemodels”(LLMs)haveshownremarkable,oftensuperhuman,capabilitiesacrossa
+diverserangeoftasks,includingbothzero-shotandfew-shotsetups(Brownetal.,2020;Srivastava
+etal.,2022). Withgenerality,however,therecomesaquestionofcontrol: howcanwemakeLLMs
+dowhatwewantthemtodo?
+To answer this question and steer LLMs toward desired behaviors, recent work has considered
+fine-tuning(Ouyangetal.,2022;Ziegleretal.,2019),in-contextlearning(Brownetal.,2020),and
+severalformsofpromptgeneration(Gao,2021),includingbothdifferentiabletuningofsoftprompts
+(Qin & Eisner, 2021; Lester et al., 2021) and natural language prompt engineering (Reynolds &
+McDonell,2021). Thelatterisofparticularinterest,asitprovidesanaturalinterfaceforhumansto
+communicatewithmachinesandmaybeofgreatrelevancenotonlytoLLMsbuttoothergeneralist
+modelssuchaspromptedimagesynthesizers(Rombachetal.,2022;Rameshetal.,2022),forwhich
+publicinterestinpromptdesignandgenerationhasalsoemerged(seeAppendixAforexamples).
+Behindthisinterestisthefactthatplainlanguagepromptsdonotalwaysproducethedesiredresults,
+evenwhenthoseresultsarepossibletoproducewithalternativeinstructions. Thus,humanusersmust
+experimentwithawiderangeofpromptstoelicitdesiredbehaviors,astheyhavelittleknowledgeof
+howcompatibleinstructionsarewithaparticularmodel. WecanunderstandthisbyviewingLLMs
+asblack-boxcomputersthatexecuteprogramsspecifiedbynaturallanguageinstructions: whilethey
+1Wedefine“promptengineering”asoptimizingthelanguageinapromptinordertoelicitthebestpossible
+performance.Notably,thisdoesnotincludepromptsthatchainmultipleLLMqueriestogetherorgivetheLLM
+accesstoexternaltools.
+2Ourcodeisavailableathttps://github.com/keirp/automatic_prompt_engineer.
+1
+3202
+raM
+01
+]GL.sc[
+2v01910.1122:viXraPublishedasaconferencepaperatICLR2023
+Keep the high score candidates Discard the low score candidates Final selected prompt with highest score
+0.81
+LLMs as Inference Models LLMs as Scoring Models 0.8
+Professor Smith was given the Instruction: write the antonym of the 0.75 0.71 0.73
+following instructions: <INSERT> word. <LIKELIHOOD> 0.65
+Here are the Professor’s responses: Input: direct Output: indirect 0.6 0.610.63 0.59 0.57
+#
+I In n
+D
+p
+pe
+u
+um
+t t: :
+o
+p
+os
+r
+nt or a
+v
+t eio n
+O
+OSt
+u
+ua
+t
+tr
+p
+pt
+u ut t: : d oi fs f prove
+Pro①
+posal
+②Scoring ③ ProbL ao bg
+i lity
+... write the antonym of the word. -0.26
+# Demostration End give the antonym of the word provided. -0.28 0.4 0.40
+④ ... ...
+[Optional] High Score reverse the input. -0.86 LLMs as Resampling Models Candidates
+Generate a variation of the following to reverse the order of the letters -1.08 0.2
+instruction while keeping the semantic ⑤
+meaning. Similar write the opposite of the word given. -0.16
+Candiates
+Input: write the antonym of the word. ... ... 0.010.010.030.03 0.020.010.03
+Output: <COMPLETE> list antonyms for the given word. -0.39 0
+350M1.3B6.7B175B 350M1.3B6.7B175B 350M1.3B6.7B175B 350M1.3B6.7B175B
+Greedy (GPT-3) Greedy (InstructGPT) APE (GPT-3) APE (InstructGPT)
+(a)AutomaticPromptEngineer(APE)workflow
+ecnamrofreP
+tohS-oreZ
+naeM
+elitrauqretnI
+Human Prompt Engineer
+(b)Interquartilemeanacross24tasks
+Figure1:(a)Ourmethod,AutomaticPromptEngineer(APE),automaticallygeneratesinstructions
+forataskthatisspecifiedviaoutputdemonstrations:itgeneratesseveralinstructioncandidates,either
+viadirectinferenceorarecursiveprocessbasedonsemanticsimilarity,executesthemusingthetarget
+model,andselectsthemostappropriateinstructionbasedoncomputedevaluationscores. (b)As
+measuredbytheinterquartilemeanacrossthe24NLPtasksintroducedbyHonovichetal.(2022),
+APEisabletosurpasshumanperformancewhenusingtheInstructGPTmodel(Ouyangetal.,2022).
+canexecuteabroadrangeofnaturallanguageprograms,thewaytheseprogramsareprocessedmay
+notbeintuitiveforhumans,andthequalityofinstructioncanonlybemeasuredwhenexecutingthese
+instructionsonadownstreamtask(Sanhetal.,2022;Weietal.,2021).
+Toreducethehumaneffortinvolvedincreatingandvalidatingeffectiveinstructions,weproposea
+novelalgorithmusingLLMstogenerateandselectinstructionsautomatically. Wecallthisproblem
+naturallanguageprogramsynthesisandproposetoaddressitasablack-boxoptimizationproblem
+usingLLMstogenerateandsearchoverheuristicallyviablecandidatesolutions. Indoingso,we
+leveragethegeneralistcapabilitiesofLLMsinthreeways. First,weuseanLLMasaninference
+model(Ellisetal.,2021;Honovichetal.,2022)togenerateinstructioncandidatesbasedonasmallset
+ofdemonstrationsintheformofinput-outputpairs. Next,weguidethesearchprocessbycomputing
+ascoreforeachinstructionundertheLLMweseektocontrol. Finally,weproposeaniterativeMonte
+CarlosearchmethodwhereLLMsimprovethebestcandidatesbyproposingsemanticallysimilar
+instructionvariants. Intuitively,ouralgorithmasksLLMstogenerateasetofinstructioncandidates
+basedondemonstrationsandthenasksthemtoassesswhichinstructionsaremorepromising. We
+callouralgorithmAutomaticPromptEngineer(APE).Ourmaincontributionsare:
+• Weframeinstructiongenerationasnaturallanguageprogramsynthesis,formulateitasa
+black-boxoptimizationproblemguidedbyLLMs,andproposebothanaiveandaniterative
+MonteCarlosearchmethodstoapproximatethesolution.
+• Ourproposedmethod,APE,achieveshuman-levelperformanceonzero-shotlearningwith
+model-generatedinstructionson24/24InstructionInductionand17/21Big-Benchtasks.
+• We provide extensive qualitative and quantitative analyses exploring various facets of
+APE,anddemonstrateapplicationsofAPEforimprovingfew-shotlearning,findingbetter
+zero-shotchainofthoughtprompts,andsteeringLLMstowarddesiredbehaviorssuchas
+truthfulnessand/orinformativeness.
+2 RELATED WORK
+LargeLanguageModels Scalinguptransformer-basedlanguagemodelsintermsofmodelsize,
+trainingdata,andtrainingcomputehasbeenshowntopredictablyimproveperformanceonawide
+range of downstream NLP tasks (Vaswani et al., 2017; Devlin et al., 2018; Brown et al., 2020).
+Manyemergentabilities(Weietal.,2022a)ofLLMshavebeendiscoveredasaresultofthisscaling,
+including few-shot in-context learning, zero-shot problem solving, chain of thought reasoning,
+instructionfollowing,andinstructioninduction(Cobbeetal.,2021;Weietal.,2022b;Kojimaetal.,
+2PublishedasaconferencepaperatICLR2023
+2022;Sanhetal.,2022;Weietal.,2021;Ouyangetal.,2022;Honovichetal.,2022).Inthispaper,we
+viewLLMsasblack-boxcomputersthatexecuteprogramsspecifiedbynaturallanguageinstructions
+andinvestigatehowtocontrolanLLM’sbehaviorusingmodel-generatedinstructions.
+Prompt Engineering Prompting offers a natural and intuitive interface for humans to interact
+with and use generalist models such as LLMs. Due to its flexibility, prompting has been widely
+usedasagenericmethodforNLPtasks(Schick&Schütze,2021;Brownetal.,2020;Sanhetal.,
+2022). However,LLMsrequirecarefulpromptengineering,eithermanually(Reynolds&McDonell,
+2021)orautomatically(Gaoetal.,2021;Shinetal.,2020),asmodelsdonotseemtounderstandthe
+promptsinthesamewayahumanwould(Webson&Pavlick,2021;Luetal.,2021). Thoughmany
+successfulprompttuningmethodsperformoptimizationoveracontinuousspaceusinggradient-based
+methods(Liuetal.,2021;Qin&Eisner,2021;Lesteretal.,2021),thisbecomeslesspracticalwith
+scale,ascomputinggradientsbecomesincreasinglyexpensiveandaccesstomodelsshiftstoAPIs
+thatmaynotprovidegradientaccess. Inourpaper,weborrowcomponentsfromdiscreteprompt
+searchmethods,suchaspromptgeneration(Gaoetal.,2021;Ben-Davidetal.,2021),promptscoring
+(Davisonetal.,2019)andpromptparaphrasing(Jiangetal.,2020;Yuanetal.,2021)tooptimize
+instructionsbysearchingdirectlyinthenaturallanguagehypothesisspace. Ascomparedtothispast
+work,whichusesspecializedmodelsforeachcomponentandleansheavilyonhumantemplates,we
+showthattheentiresearchcanbeconductedbyasingleLLM.
+ProgramSynthesis Programsynthesisinvolvestheautomaticsearchovera“programspace”to
+findaprogramsatisfyingaparticularspecification(Gulwanietal.,2017). Modernprogramsynthesis
+admitsawidevarietyofspecifications,includinginput-outputexamples(Ellisetal.,2021;Wong
+etal.,2021)andnaturallanguage(Jainetal.,2022). Therangeoffeasibleprogramspacestosearch
+over has also grown, from historically restrictive domain-specific languages to general-purpose
+programminglanguages(Austinetal.,2021). Incontrasttopriorapproachesthatrequireasuitable
+structuredhypothesisspaceandlibraryofcomponents(Liangetal.,2010;Ellisetal.,2018),we
+leverage the structure provided by LLMs to search over the space of natural language programs.
+Usinginferencemodelsisastandardpracticetospeedupthesearchbyrestrictingthesearchspaceto
+alimitedspaceofpossibleexpressions(Menonetal.,2013;Leeetal.,2018;Devlinetal.,2017;Ellis
+etal.,2021). Inspiredbythis,weuseLLMsasapproximateinferencemodelstogenerateprogram
+candidatesbasedonasmallsetofdemonstrations. Unlikeclassicalprogramsynthesis,ourinference
+modelsdonotrequireanytrainingandgeneralizewelltovarioustasks.
+3 NATURAL LANGUAGE PROGRAM SYNTHESIS USING LLMS
+WeconsiderataskspecifiedbyadatasetD ={(Q,A)}ofinput/outputdemonstrationssampled
+train
+from population X, and a prompted model M. The goal of natural language program synthesis
+is to find a single instruction ρ such that, when M is prompted with the concatenation [ρ;Q] of
+instructionandagiveninput,MproducesthecorrespondingoutputA. Moreformally,weframethis
+asanoptimizationproblem,whereweseekinstructionρthatmaximizestheexpectationofsome
+per-samplescoref(ρ,Q,A)overpossible(Q,A):
+ρ(cid:63) =argmaxf(ρ)=argmaxE [f(ρ,Q,A)] (1)
+(Q,A)
+ρ ρ
+Notethat ingeneral, Q maybe theemptystring, such thatweareoptimizing ρ asa promptthat
+directlyproducesoutputs{A}. Whilethistaskhasbeenwidelyattemptedbyhumans,wehavelittle
+knowledgeofhowcompatibleanyparticularinstructioniswithmodelM. Thus,weproposetotreat
+thishuman-intractablequestionasablack-boxoptimizationprocessguidedbyLLMs. Ouralgorithm,
+APE,usesLLMsineachoftwokeycomponents,proposalandscoring. AsshowninFigure1and
+summarizedinAlgorithm1,APEfirstproposesafewcandidateprompts,andthenfilters/refines
+thecandidatesetaccordingtoachosenscorefunction,ultimatelychoosingtheinstructionwiththe
+highestscore. Wediscussoptionsforproposalandscoringnext.
+3.1 INITIALPROPOSALDISTRIBUTIONS
+Duetotheinfinitelylargesearchspace,findingtherightinstructioncanbeextremelydifficult,which
+hasrenderednaturallanguageprogramsynthesishistoricallyintractable. RecentprogressinNLP
+hasshownlanguagemodelsareverygoodatgeneratingdiversenaturallanguagetext. Therefore,we
+3PublishedasaconferencepaperatICLR2023
+Algorithm1AutomaticPromptEngineer(APE)
+Require:D ←{(Q,A)} :trainingexamples,f :ρ×D(cid:55)→R:scorefunction
+train n
+1: UseLLMtosampleinstructionproposals U ←{ρ ,...,ρ }.(SeeSection3.1)
+1 m
+2: whilenotconvergeddo
+3: ChoosearandomtrainingsubsetD(cid:101)train ⊂D train.
+4: forallρinU do
+5: Evaluatescoreonthesubsets (cid:101)←f(ρ,D(cid:101)train)(SeeSection3.2)
+6: endfor
+7: Filterthetopk%ofinstructionswithhighscoresU ⊂U using{s ,...,s }
+k (cid:101)1 (cid:101)m
+8: UpdateinstructionsU ←U oruseLLMtoresampleU ←resample(U )(SeeSection3.3)
+k k
+9: endwhile
+Returninstructionwiththehighestscoreρ(cid:63) ←argmax f(ρ,D )
+ρ∈Uk train
+considerleveragingapretrainedLLMtoproposeagoodsetU ofcandidatesolutionsthatwillguide
+oursearchprocedure. WhilerandomsamplesfromLLMsareunlikelytoproducethedesired(Q,A)
+pairs,wecaninsteadasktheLLMtoapproximatelyinferthemostlikelyinstructionswithahighscore,
+giventheinput/outputdemonstrations;i.e.,toapproximatelysamplefromP(ρ|D , f(ρ)ishigh).
+train
+ForwardModeGeneration Weconsidertwoapproachestogen-
+eratehigh-qualitycandidatesfromP(ρ|D , f(ρ)ishigh). First, Forward Generation Template
+train
+weadoptanapproachbasedon“forward”modegenerationbytrans- I gave a friend an instruction and five
+inputs. The friend read the instruction
+lating this distribution P(ρ|D train, f(ρ)ishigh) into words. For and wrote an output for every one of
+example,inourinstructioninductionexperiments(Subsection4.1), the inputs. Here are the input-output
+pairs:
+wefollowHonovichetal.(2022)andprompttheLLMusingFigure
+2(Top). Input: [ ] Output: [ ]
+Input: [ ] Output: [ ]
+...
+ReverseModeGeneration Althoughthe“forward”modelworks
+out of the box for most of the pretrained LLMs, translating The instruction was <COMPLETE>
+P(ρ|D , f(ρ)ishigh)intowordsrequirescustomengineering
+train
+acrossdifferenttasks. Thisisbecausewhileinstructionsaretypi- Reverse Generation Template
+callyfoundinthebeginningofpassages,the“forward”modelonly I instructed my friend to <INSERT>.
+generatestextfromlefttoright,whichrequirestheinstructiontobe
+The friend read the instruction and
+predictedattheendoftheprompt. Therefore,wedesireamoreflex- wrote an output for every one of the
+inputs. Here are the input-output pairs:
+ibleapproachsuchthattheinstructioncanbeanywhereinthetext.
+Toaddressthis,weconsider“reverse”modegeneration,whichuses Input: [ ] Output: [ ]
+Input: [ ] Output: [ ]
+an LLM with infilling capabilities—e.g., T5 (Raffel et al., 2020), ...
+GLM(Duetal.,2022),andInsertGPT(Bavarianetal.,2022)—to
+inferthemissinginstructions. Our“reverse”modeldirectlysamples
+Template for TruthfulQA
+fromP(ρ|D , f(ρ)ishigh)byfillingintheblank. Weshowan
+train Professor Smith was given the
+exampleofthesuchtemplateinFigure2(Middle). following instructions: <INSERT>
+Here are the Professor’s responses:
+CustomizedPrompts Notethatdependingonthescorefunction
+beingused,theremayexistmoreappropriatepromptsthanthesam- Input: [ ] Output: [ ]
+Input: [ ] Output: [ ]
+plesabove. Forexample,inourTruthfulQAexperiments,westart ...
+withthehuman-designedinstructionsfromtheoriginaldataset(Lin
+etal.,2022)andaskthethe“reverse”modeltoproposeinitialin-
+Figure2: PromptsforLLMs
+structionsamplesthatfitthemissingcontext(Figure2(Bottom)).
+3.2 SCOREFUNCTIONS
+Tocastourproblemasblack-boxoptimization,wechooseascorefunctionthataccuratelymeasures
+thealignmentbetweenthedatasetandthedatathemodelgenerates. Inourinstructioninduction
+experiments, we consider two potential score functions, described below. In the TruthfulQA ex-
+periments,wefocusedprimarilyonautomatedmetricsproposedinLinetal.(2022),similartothe
+executionaccuracy. Ineachcase,weevaluatethequalityofageneratedinstructionusingEquation
+(1),andtaketheexpectationoveraheld-outtestdatasetD .
+test
+Executionaccuracy First,weconsiderevaluatingthequalityofaninstructionρusingtheexecution
+accuracy metric proposed by Honovich et al. (2022), which we denote as f . In most cases,
+exec
+4PublishedasaconferencepaperatICLR2023
+executionaccuracyissimplydefinedasthe0-1loss, f(ρ,Q,A) = 1[M([ρ;Q])=A]. Onsome
+tasks,executionaccuracytakesintoaccountinvariants;e.g.,itmaybeanorderinvariantsetmatching
+loss,asdescribedinAppendixAofHonovichetal.(2022).
+Logprobability Wefurtherconsiderasofterprobabilisticscorefunction,whichwehypothesize
+mightimproveoptimizationbyprovidingamorefine-grainedsignalwhensearchingoverlow-quality
+instructioncandidates. Inparticular,weconsiderthelogprobabilityofthedesiredanswergiventhe
+instructionandquestionunderthetargetmodelM,whichonapersamplebasis,islogP(A|[ρ;Q]).
+Efficientscoreestimation Estimatingthescorebycomputingthescoreovertheentiretraining
+datasetforallinstructioncandidatescanbeexpensive. Toreducethecomputationcost,weadopt
+afilteringschemewhereapromisingcandidatereceivesmorecomputationresourceswhilealow-
+qualitycandidatereceiveslesscomputation. Itcanbeachievedbyusingamulti-stagecomputation
+strategyonlines2-9Algorithm1. Wefirstevaluateallcandidateswithasmallsubsetofthetraining
+dataset. Forthecandidateswithascoregreaterthanacertainthreshold, wesampleandevaluate
+anewnon-overlappingsubsetfromthetrainingdatasettoupdatethemovingaverageofthescore.
+Then,werepeatthisprocessuntilasmallsetofcandidatesisleft,whichareevaluatedontheentire
+trainingdataset. Thisadaptivefilteringschemesignificantlyimprovesthecomputationefficiency
+bykeepingtheexactcomputationcostsforthehigh-qualitysamplesanddrasticallyreducingthe
+computationcostsforlow-qualitycandidates. Wenotethatasimilarscoreestimationschemehas
+beenusedinpreviousworks(Lietal.,2022;Maclaurin&Adams,2015).
+3.3 ITERATIVEPROPOSALDISTRIBUTIONS
+Despiteourattempttodirectlysamplehigh-qualityinitialinstructioncandidates,itcouldbethecase
+thatthemethoddescribedinSubsection3.1failstoproduceagoodproposalsetU,eitherbecause
+itlacksofdiversityordoesnotcontainanycandidateswithasuitablyhighscore. Incaseofsuch
+challenges,weexploreaniterativeprocessforresamplingU.
+Iterative Monte Carlo Search Instead of only sampling from
+theinitialproposal,weconsiderexploringthesearchspacelocally Prompt for Resampling
+aroundthecurrentbestcandidates. Thisallowsustogeneratenew Generate a variation of the
+following instruction while
+instructionsthataremorelikelytobesuccessful. Wecallthisvariant
+keeping the semantic meaning.
+iterativeAPE.Ateachstage,weevaluateasetofinstructionsand
+Input: [INSTRUCTION]
+filter out candidates with low scores. Then, an LLM is asked to
+generate new instructions similar to those with high scores. We Output: <COMPLETE>
+providethepromptusedforresamplinginFigure3. Figure6(Right)
+showsthatalthoughthisapproachimprovestheoverallqualityof
+Figure3: Resampling
+theproposalsetU,thehighestscoringinstructiontendstoremain
+thesamewithmorestages. Weconcludeiterativegenerationprovidesmarginalimprovementoverthe
+relativesimplicityandeffectivenessofthegenerativeprocessdescribedinSubsection3.1. Therefore,
+weuseAPEwithoutiterativesearchasdefaultunlessotherwisestated.
+4 LARGE LANGUAGE MODELS ARE HUMAN-LEVEL PROMPT ENGINEERS
+ThissectionexamineshowAPEcanguideLLMstodesiredbehaviors. Weinvestigatefromfour
+perspectives: zero-shotperformance,few-shotin-contextlearningperformance,zero-shotchain-of-
+thoughtreasoning,andtruthfulness. OurexperimentsshowthatAPEcanfindpromptsthatimprove
+task performance, performing equal to or even better than those authored by humans. APE also
+oftenproducesinsightfultricksforhowtobestpromptlanguagemodelsthatcanbesuccessfully
+transferredtonewtasks(seeSection4.3).
+4.1 INSTRUCTIONINDUCTION
+Weassesstheeffectivenessofzero-shotandfew-shotin-contextlearningon24instructioninduction
+tasksproposedinHonovichetal.(2022).Thetasksspanmanyfacetsoflanguageunderstanding,from
+simplephrasestructuretosimilarityandcausalityidentification. Weprovideadetaileddescriptions
+ofeachtaskinAppendixB.Foreachtask,wesamplefiveinput-outputpairsfromthetrainingdata
+andselectthebestinstructionusingalgorithm1. Then,weevaluatethequalityoftheinstruction
+5PublishedasaconferencepaperatICLR2023
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+Greedy Human APE
+Figure4: Zero-shottestaccuracyon24InstructionInductiontasks. APEachieveshuman-levelor
+betterperformanceonall24outof24tasks.
+byexecutingtheinstructiononInstructGPT3.Werepeatourexperimentsfivetimeswithdifferent
+randomseedstoreportthemeanandstandarddeviation. Theexacttemplatesforourexperimentscan
+befoundinAppendix(Table5).
+Zero-shot Learning We compare our method against two baselines: human prompt engineers
+(Human)4andthemodel-generatedinstructionalgorithmproposedbyHonovichetal.(2022). This
+algorithmcanbethoughtofasagreedyversionofAPE,withoutasearchandselectionprocess;
+thus,werefertoitas“Greedy”. Figure4showsthezero-shotperformanceofInstructGPTusing
+human instructions and model generated instructions. Our algorithm outperforms “Greedy” on
+everytaskandachievesequalorbetterthanhumanperformanceon24of24tasks. Moreover,the
+InterquartileMean(IQM)(Agarwaletal.,2021)acrossall24tasksinFigure1suggeststhatAPEwith
+InstructGPToutperformshuman-engineeredprompts,obtaininganIQMof0.810vshumans’0.749.
+WesummarizetheinstructionselectedbyAPEforeachtaskinAppendix(Table12).
+Few-shotIn-contextLearning WeevaluatedAPE-generatedinstructionsinfew-shotin-context
+learning,whereweinserttheinstructionbeforethein-contextdemonstrations. Thoseinstructions
+are selected based on zero-shot execution accuracy, and we denote this setting as “Instruction +
+In-context”inFigure8. AsshowninFigure8,addinganinstructionachievesacomparableorbetter
+test performance than the standard in-context learning performance on 21 of 24 tasks. Counter-
+intuitively,addingin-contextexamplesforRhymes,LargeAnimal,andSecondLettershurtsmodel
+performance. Weconjecturethatitmaybebecausetheselectedinstructionsoverfitthezero-shot
+learning scenario and thus do not perform well on the few-shot case. Therefore, we experiment
+usingfew-shotexecutionaccuracyastheselectionmetric. Figure14showsthatthefew-shotmetric
+achieves comparable or slightly better than the zero-shot metric except for Rhymes. To have an
+intuitiveunderstandingofwhatishappening,weprovideaqualitativeanalysisinAppendixC.1.
+4.2 BIGBENCH
+ToseewhetherAPEcanbeappliedtomorechallengingtasks,weproposeandcurateBIG-Bench
+InstructionInduction(BBII),acleanandtractablesubsetof21tasksthathaveaclear,human-written
+instructionthatcanbeappliedtoallexamplesinthedataset. Theselectedtaskscovermanyfacetsof
+languageunderstandingandincludesallninesuchproblemsfromtheBigBench-HardSubset(Suzgun
+etal.,2022). Inparticular, itincludesemotionalunderstanding, context-freequestionanswering,
+readingcomprehension,summarization,algorithms,andvariousreasoningtasks(e.g.,arithmetic,
+commonsense,symbolic,andotherlogicalreasoningtasks). Weprovideadetaileddescriptionofthe
+taskandourselectioncriteriainAppendixB.
+3Weusethetext-davinci-002viatheOpenAIAPI(https://beta.openai.com/).Thoughnotstated
+explicitlyintheAPI,weassumethemodelsarethosereportedbyOuyangetal.(2022).
+4WeusethegoldannotationsfromHonovichetal.(2022),whichweremanuallyverifiedforcorrectness.
+6PublishedasaconferencepaperatICLR2023
+Foreachtask,weusedthereversemodegenerationofInstructGPTtogenerateasetofinstruction
+candidatesandrankedtheinstructionsbasedontheirexecutionaccuracy. Then,weexecutedthe
+selectedinstructiononInstructGPTtocomputethezero-shotperformanceonthetestsetandcompared
+itwiththedefaulthumanprompt. AsshowninAppendixTable6,APEachievescomparableorbetter
+performancethanthedefaulthumanprompton17outof21tasks.
+4.3 ZERO-SHOTCHAINOFTHOUGHT
+Chain-of-thoughtreasoninghasbeenshowntodramaticallyimprovetheabilityofLLMstocomplete
+complexreasoningtasks,suchassolvingmathproblemsthatrequiremultiplesteps.Earlyworks(Nye
+etal.,2021;Betzetal.,2021;Weietal.,2022b)onchain-of-thoughtusedfine-tuningorin-context
+learningtogetLLMstoshowtheirworkforsuchproblems. Oneofthemostinfluentialrecentworks
+ofpromptengineeringwasthediscovery(Kojimaetal.,2022)thatLLMscouldbemadetogive
+chain-of-thoughtssimplybyprepending“Let’sthinkstepbystep.” tothebeginningoftheLLM’s
+response. KnownasZero-Shot-CoT,thispromptingstrategyimprovesthezero-shotperformance
+ofInstructGPTonMultiArith(Roy&Roth,2016)from17.7to78.7andimprovesperformanceon
+GSM8K(Cobbeetal.,2021)from10.4to40.7. AsshowninTable7,Kojimaetal.(2022)foundtheir
+promptwasthebestperformingoutofatleastninehuman-designedprompts.
+WeusedAPEtoautomaticallysearchforthebestanswer-prefixacrossthesuiteoftasksusedin
+Kojimaetal.(2022). OurapproachtooptimizingthispromptwasinspiredbyZelikmanetal.(2022).
+First,wegenerateadatasetofquestionsandreasoningstepsgeneratedusingInstructGPTwith“Let’s
+thinkstepbystep.” Then,weremoveanydatapointsthathadincorrectanswers. Finally,weuseAPE
+tofindapromptstartingwith“Let’s”thatmaximizesthelikelihoodofthesecorrectreasoningsteps.
+SeeTable5forthetemplateusedforpromptgenerationandevaluation. APEproducestheprompt
+“Let’sworkthisoutinastepbystepwaytobesurewehavetherightanswer.” Thisgeneratedprompt
+furtherimprovesperformancefrom78.7to82.0onMultiArithandfrom40.7to43.0onGSM8K.We
+believethisgeneralworkflowrepresentsacommonuse-caseforAPEwherepromptengineersuse
+APEtooptimizepartsoftheirexitingtemplatestoimproveperformance. SeeFigure10fordetailson
+theperformanceofthispromptonotherreasoningtasks.
+4.4 TRUTHFULQA
+WeapplyourmethodonTruthfulQA(Linetal.,2022)toseehowAPE-generatedinstructionscan
+steeranLLMtogenerateanswerswithdifferentstyles,andstudythetrade-offbetweentruthfulness
+and informativeness. Borrowing the metrics from the original paper, we use APE to the learn
+instructionsthatmaximizethreemetrics: truthfulness(%True), informativeness(%Info), anda
+combinationofboth(%True+%Info). Linetal.(2022)usedhumanevaluationtoassessthemodel
+performance,buttheyfoundtheirautomatedmetricsalignwithhumanpredictionover90%ofthe
+time. Inourexperiments,werelyontheirfine-tunedGPT-judgeandGPT-infotoevaluatethescores.
+PromptEngineeringinTruthfulQA WewanttostressthattheTruthfulQAdatasetisintended
+totestpretrainedmodelsinzero-shotsettings. Ourresultsarenotinanywaycompatiblewiththe
+originalbenchmarks.Becausewehaveoptimizedtheinstructionsusingasmallportionofthequestion
+andanswerpairsastrainingdemonstrations,ourresultsarenot“truefew-shotlearning”(Perezetal.,
+2021). Werandomlysampled100outof817questionsfortheactualexperimentstoformtraining
+demonstrationsD .TosampletheproposalsetU,weaska“reverse”modeltogenerateinstructions
+train
+basedonsixrandomlychosendemonstrationpairs,similartoourpreviousexperiments. Unlikein
+InstructionInduction,inTruthfulQA,weaimtofindasinglebestinstructionpromptthatworkswell
+acrossall38categoriesofquestionsspanninghealth,law,politics,andfiction. Itisworthnotingall
+ourgeneratedinstructionsareverygeneric,e.g.,“Youwillbeaskedaseriesofquestions. Foreach
+question,youmusteitheranswerthequestionordeclinetoanswer,inwhichcaseyoumuststatethat
+youhavenocomment”,anddonotcontainanyexamplesfromthedataset.
+Truthfulness vs Informativeness Trade-off We found that APE outperforms the human-
+engineeredpromptwithonly200candidatesproposedbyInstructGPT(175B),asseeninFigure5.
+Wecomparedourgeneratedpromptwiththe“help”promptfromLinetal.(2022). Thetrainingand
+testperformanceareshowninFigure5(a)-(b). Wefoundthatchoosingthetop10of200candidates
+onthetrainingsetgeneralizeswelltothetestset. Wereporttheaverageperformanceacrossthetop
+10instructionsforthethreemetrics. Thisresultbyitselfisnotsurprisingasthehumanbaselineis
+7PublishedasaconferencepaperatICLR2023
+0.8
+0.6
+0.4
+0.2
+0.0
+% True (GPT-judge)% Info (GPT-info) % True + % Info
+)%(
+eulaV
+cirteM
+Human APE 0.8
+0.6
+0.4
+0.2
+0.0
+% True (GPT-judge)% Info (GPT-info) % True + % Info
+(a)Averageperformance
+Train
+)%(
+eulaV
+cirteM
+0.8
+Human APE 0.7
+0.6
+0.5
+0.4
+0.3
+0.2
+0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95
+% True (GPT-judge)
+(b)Averageperformance
+Test
+)ofni-TPG(
+evitamrofnI
+%
+Truth 0.8 Info Truth+Info 0.7
+Human
+0.6
+0.5
+0.4
+0.3
+0.2
+0.60 0.65 0.70 0.75 0.80 0.85 0.90 0.95
+% True (GPT-judge)
+(c)%True-%Infotrade-off
+Training
+)ofni-TPG(
+evitamrofnI
+%
+Truth Info Truth+Info
+Human
+(d)%True-%Infotrade-off
+Test
+Figure5: ComparisonofAPEand“help”(human)promptontheTruthfulQAtask. (a)Percentageof
+answersthatwereeithertrue(%True),informative(%Info),orboth(%True+%Info)onthe100
+trainingexamples. (b)Samedataonthe717testexamples. (c)%True-%Infofrontiercomputedon
+trainingdatawithtop10instructionsfromeachmetric. (d)%True-%Infofrontieronthetestdata.
+notcarefullychosen,aspointedoutbyAskelletal.(2021). However,wefoundthattheinstructions
+discoveredbyAPEcanachieveveryhightruthfulnesswithanswerssuchas“Nocomment,”butthese
+answersprovidelittleinformation. Weusedourtopcandidatestofurtherinvestigatethetrade-off
+between truthfulness and informativeness. We visualize the top 10 proposed samples across the
+three metrics on the truthfulness-informative plots shown in Figure 5(c) and Figure 5(d). While
+APE achieves over 40% accuracy in providing both true and informative answers (v.s. 30% by
+the “help” prompt from humans), the instructions discovered tend to target the two ends of this
+%true-%infoParetofrontier.
+5 QUANTITATIVE ANALYSIS
+Inthissection,weconductquantitativeanalysestobetterunderstandthethreemaincomponentsof
+ourmethod: proposaldistribution,scorefunctions,anditerativesearch. Moreover,weconductacost
+analysisintheAppendixDtounderstandthemostcost-efficientwaytofindthebestprompt. We
+observethelargerandmorepowerfullanguagemodelsaremorecost-effectiveforgeneratingthebest
+promptdespiteahigherper-tokencost.
+5.1 LLMSFORPROPOSALDISTRIBUTION
+Howdoestheproposalqualitychangeasweincreasethemodelsize? Tounderstandhowthe
+modelsizeaffectsthequalityoftheinitialproposaldistribution,weexamineeightdifferentmodels5
+availableviatheOpenAIAPI.Toassessthequalityoftheproposaldistribution,wegenerate250
+instructions per model and compute the execution accuracy on 50 test data points. We visualize
+thesurvivalfunction(percentageofinstructionswithtestaccuracygreaterthanacertainthreshold)
+andthehistogramoftestaccuracyforasimpletask(i.e.,Pluralization)inFigure6(a)andinclude
+asimilarplotforamorechallengingtask(StartWith)intheAppendix(Figure28). Asshownin
+bothfigures(andunsurprisingly),largermodelstendtoproducebetterproposaldistributionsthan
+smallerones,asdothemodelsthatwerefine-tunedtofollowhumaninstructions. Onthesimpletask,
+allinstructionsgeneratedbythebestmodel,InstructGPT(175B),havereasonabletestaccuracy. In
+contrast,halfoftheinstructionsareoff-topicandperformpoorlyonthemorechallengingtask.
+5.2 LLMSFORSELECTION
+Doesproposalqualitymatterunderselection? IfwesamplemoreinstructionsfromtheLLMs,
+thenitbecomesmorelikelyforustofindbetterinstructions. Toverifythishypothesis,weincrease
+the sample size from 4 to 128 and evaluate the test accuracy change. Figure 7 (Left) shows a
+monotonicallyincreasingtrendwithadiminishingreturn,ashuman-levelperformanceisachieved
+with64instructionsamples. Thus,wechoose50asourdefaultsamplesize. Underthisconfiguration,
+weinvestigatehowtheproposaldistributionaffectsthetestaccuracyofthebestinstructionselected
+byouralgorithm. Figure1(b)showsthatthoughthesmallmodelsmaybelesslikelytogenerategood
+instructions,theynonethelessgeneratesomegoodonesifwesampleenoughcandidates. Therefore,
+5Weuseada,babbage,curie,davinci,text-ada-001,text-babbage-001,text-curie-001,text-davanci-002
+8PublishedasaconferencepaperatICLR2023
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Test accuracy ()
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+102
+101
+100
+0.0 0.2 0.4 0.6 0.8 1.0
+Test accuracy ()
+tnuoC
+GPT-3 (350M) GPT-3 (6.7B) InstructGPT (350M) InstructGPT (6.7B)
+GPT-3 (1.3B) GPT-3 (175B) InstructGPT (1.3B) InstructGPT (175B)
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ()
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+102
+101
+100
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ()
+tnuoC
+Start 1 2 3 4 5
+Figure6: (Left)Qualityoftheproposaldistributionofmodelswithdifferentsizeasassessedby
+testexecutionaccuracy. (Right)IterativeMonteCarlosearchimprovesthequalityoftheinstruction
+candidatesateachround.
+0.8
+0.7
+0.6
+0.5
+0.4
+4 8 16 32 64 128
+Posterior Sample Size
+ycaruccA
+noitucexE
+1.0
+0.8
+0.6
+0.4
+0.2
+APE (Train)
+APE (Test) 0.0
+Human
+0.2
+0 5 10 15 20 25
+Sorted Task Index
+noitalerroC
+namraepS
+1
+0 Second Letter Passivization Translation en-fr
+1
+LogP
+Exec Acc
+0
+Sentiment Antonyms Cause Selection
+ycaruccA
+noitucxexE
+Human APE APE (IT)
+Figure 7: (Left) Test execution of the best instruction as we increase the number of instruction
+candidates. Wereportthemeanandstandarddeviationacross6differenttasks. (Middle)Spearman
+Correlationbetweenthetestaccuracyandtwometricson24tasks. (Right)Testexecutionaccuracy
+ofthebestinstructionselectedusingAPEanditerativeAPE(APE(IT)).
+westillfindpromisinginstructionswithasmallmodelbyrunningourselectionalgorithm,explaining
+whyourmethodoutperformsthegreedyapproachHonovichetal.(2022)acrossalleightmodels.
+Whichscoringfunctionisbetter? Wecomputethecorrelationbetweenthetestaccuracyandtwo
+metricson24instructioninductiontaskstostudyhowgoodourproposedmetricsare. Wegenerate
+250instructionspertaskusingInstructGPT(175B)in“forward”modeandcomputethemetricscore
+andtestaccuracyon10testdatapoints. WevisualizetheSpearmancorrelationbetweenthetest
+accuracyandtwometrics. Figure7(Middle)showsthattheexecutionaccuracyalignsbetterwiththe
+testperformanceacrossthetasks. Thus,wechooseitasourdefaultmetricunlessotherwisestated.
+5.3 ITERATIVEMONTECARLOSEARCH
+DoesIterativeSearchimprovetheinstructionquality? Wevisualizethesurvivalfunctionand
+histogram of test accuracy on the “Passivization” task in Figure 6 (Right) and include five more
+tasksintheAppendix. Thesurvivalplotshowsthatthecurvesincreaseastheroundgoesup,which
+suggests that iterative search does result in a higher-quality proposal set. However, we observe
+diminishingreturnstofurtherselectionroundsasthequalityseemstostabilizeafterthreerounds.
+DoweneedIterativeSearch? WecompareAPEanditerativeAPEonsixtasks6. Asshownin
+Figure7,theiterativesearchmarginallyimprovesperformanceontaskswhereAPEunderperforms
+humansbutachievessimilarperformanceontheothertasks. Thisisconsistentwithourhypothesis
+thatiterativesearchwouldbemostusefulontaskswheregeneratingagoodinitialU ischallenging.
+6 CONCLUSION
+Largelanguagemodelscanbeseenasgeneral-purposecomputersthatexecuteprogramsspecified
+by natural language prompts. We automate the prompt engineering process by formulating it as
+a black-box optimization problem, which we propose to solve using efficient search algorithms
+guidedbyLLMs. Ourmethodachieveshuman-levelperformanceonvarioustaskswithminimum
+humaninputs. AsrecentLLMsdemonstrateanimpressiveabilitytofollowhumaninstruction,we
+expectmanyfuturemodels,includingthoseforformalprogramsynthesis,tohaveanaturallanguage
+interface. Thisworkbuildsthefoundationtocontrolandsteergenerativeartificialintelligence.
+9PublishedasaconferencepaperatICLR2023
+ACKNOWLEDGMENTS
+WewouldliketothankOrHonovichandMichaelZhangfortheirhelpandvaluablefeedback. JB
+wassupportedbyNSERCGrant[2020-06904],CIFARAIChairsprogram,GoogleResearchScholar
+ProgramandAmazonResearchAward. KPwassupportedbyNSERCPGS-D.SPwassupportedby
+NSERCCGS-D.HCwassupportedbyNSERCCGS-DandRBCGraduateFellowship. Resources
+usedinpreparingthisresearchwereprovided,inpart,bytheProvinceofOntario,theGovernmentof
+CanadathroughCIFAR,andcompaniessponsoringtheVectorInstituteforArtificialIntelligence.
+REFERENCES
+RishabhAgarwal,MaxSchwarzer,PabloSamuelCastro,AaronCourville,andMarcGBellemare.
+Deepreinforcementlearningattheedgeofthestatisticalprecipice.AdvancesinNeuralInformation
+ProcessingSystems,2021.
+MichaelAhn,AnthonyBrohan,NoahBrown,YevgenChebotar,OmarCortes,ByronDavid,Chelsea
+Finn,KeerthanaGopalakrishnan,KarolHausman,AlexHerzog,etal. Doasican,notasisay:
+Groundinglanguageinroboticaffordances. arXivpreprintarXiv:2204.01691,2022.
+AmandaAskell,YuntaoBai,AnnaChen,DawnDrain,DeepGanguli,TomHenighan,AndyJones,
+NicholasJoseph,BenMann,NovaDasSarma,etal. Agenerallanguageassistantasalaboratory
+foralignment. arXivpreprintarXiv:2112.00861,2021.
+JacobAustin,AugustusOdena,MaxwellNye,MaartenBosma,HenrykMichalewski,DavidDohan,
+EllenJiang,CarrieCai,MichaelTerry,QuocLe,etal. Programsynthesiswithlargelanguage
+models. arXivpreprintarXiv:2108.07732,2021.
+Mohammad Bavarian, Heewoo Jun, Nikolas Tezak, John Schulman, Christine McLeavey, Jerry
+Tworek,andMarkChen. Efficienttrainingoflanguagemodelstofillinthemiddle. arXivpreprint
+arXiv:2207.14255,2022.
+EyalBen-David,NadavOved,andRoiReichart. Pada: Aprompt-basedautoregressiveapproachfor
+adaptationtounseendomains. arXivpreprintarXiv:2102.12206,2021.
+GregorBetz,KyleRichardson,andChristianVoigt. Thinkingaloud: Dynamiccontextgeneration
+improveszero-shotreasoningperformanceofgpt-2. arXivpreprintarXiv:2103.13033,2021.
+TomBrown,BenjaminMann,NickRyder,MelanieSubbiah,JaredDKaplan,PrafullaDhariwal,
+ArvindNeelakantan,PranavShyam,GirishSastry,AmandaAskell,etal. Languagemodelsare
+few-shotlearners. Advancesinneuralinformationprocessingsystems,33:1877–1901,2020.
+Mark Chen, Jerry Tworek, Heewoo Jun, Qiming Yuan, Henrique Ponde de Oliveira Pinto, Jared
+Kaplan,HarriEdwards, YuriBurda, NicholasJoseph, GregBrockman, etal. Evaluatinglarge
+languagemodelstrainedoncode. arXivpreprintarXiv:2107.03374,2021.
+KarlCobbe,VineetKosaraju,MohammadBavarian,JacobHilton,ReiichiroNakano,Christopher
+Hesse, and John Schulman. Training verifiers to solve math word problems. arXiv preprint
+arXiv:2110.14168,2021.
+Joe Davison, Joshua Feldman, and Alexander M Rush. Commonsense knowledge mining from
+pretrained models. In Proceedings of the 2019 conference on empirical methods in natural
+languageprocessingandthe9thinternationaljointconferenceonnaturallanguageprocessing
+(EMNLP-IJCNLP),pp.1173–1178,2019.
+JacobDevlin,RudyRBunel,RishabhSingh,MatthewHausknecht,andPushmeetKohli. Neural
+programmeta-induction. AdvancesinNeuralInformationProcessingSystems,30,2017.
+JacobDevlin,Ming-WeiChang,KentonLee,andKristinaToutanova. Bert: Pre-trainingofdeep
+bidirectionaltransformersforlanguageunderstanding. arXivpreprintarXiv:1810.04805,2018.
+10PublishedasaconferencepaperatICLR2023
+ZhengxiaoDu,YujieQian,XiaoLiu,MingDing,JiezhongQiu,ZhilinYang,andJieTang. GLM:
+Generallanguagemodelpretrainingwithautoregressiveblankinfilling. InProceedingsofthe60th
+AnnualMeetingoftheAssociationforComputationalLinguistics(Volume1: LongPapers),pp.
+320–335,Dublin,Ireland,May2022.AssociationforComputationalLinguistics. doi: 10.18653/
+v1/2022.acl-long.26. URLhttps://aclanthology.org/2022.acl-long.26.
+Kevin Ellis, Lucas Morales, Mathias Sablé-Meyer, Armando Solar-Lezama, and Josh Tenen-
+baum. Learning libraries of subroutines for neurally–guided bayesian program induction.
+In S. Bengio, H. Wallach, H. Larochelle, K. Grauman, N. Cesa-Bianchi, and R. Gar-
+nett (eds.), Advances in Neural Information Processing Systems, volume 31. Curran Asso-
+ciates, Inc., 2018. URL https://proceedings.neurips.cc/paper/2018/file/
+7aa685b3b1dc1d6780bf36f7340078c9-Paper.pdf.
+KevinEllis,CatherineWong,MaxwellNye,MathiasSablé-Meyer,LucasMorales,LukeHewitt,Luc
+Cary,ArmandoSolar-Lezama,andJoshuaBTenenbaum. Dreamcoder: Bootstrappinginductive
+program synthesis with wake-sleep library learning. In Proceedings of the 42nd acm sigplan
+international conference on programming language design and implementation, pp. 835–850,
+2021.
+TianyuGao. Prompting: Betterwaysofusinglanguagemodelsfornlptasks. TheGradient,2021.
+TianyuGao,AdamFisch,andDanqiChen. Makingpre-trainedlanguagemodelsbetterfew-shot
+learners. InProceedingsofthe59thAnnualMeetingoftheAssociationforComputationalLinguis-
+ticsandthe11thInternationalJointConferenceonNaturalLanguageProcessing(Volume1: Long
+Papers),pp.3816–3830,Online,August2021.AssociationforComputationalLinguistics. doi:
+10.18653/v1/2021.acl-long.295. URLhttps://aclanthology.org/2021.acl-long.
+295.
+Sumit Gulwani, Oleksandr Polozov, Rishabh Singh, et al. Program synthesis. Foundations and
+Trends®inProgrammingLanguages,4(1-2):1–119,2017.
+OrHonovich,UriShaham,SamuelRBowman,andOmerLevy. Instructioninduction: Fromfew
+examplestonaturallanguagetaskdescriptions. arXivpreprintarXiv:2205.10782,2022.
+Naman Jain, Skanda Vaidyanath, Arun Iyer, Nagarajan Natarajan, Suresh Parthasarathy, Sriram
+Rajamani, and Rahul Sharma. Jigsaw: Large language models meet program synthesis. In
+Proceedingsofthe44thInternationalConferenceonSoftwareEngineering,pp.1219–1231,2022.
+ZhengbaoJiang,FrankFXu,JunAraki,andGrahamNeubig. Howcanweknowwhatlanguage
+modelsknow? TransactionsoftheAssociationforComputationalLinguistics,8:423–438,2020.
+JaredKaplan,SamMcCandlish,TomHenighan,TomBBrown,BenjaminChess,RewonChild,Scott
+Gray,AlecRadford,JeffreyWu,andDarioAmodei. Scalinglawsforneurallanguagemodels.
+arXivpreprintarXiv:2001.08361,2020.
+TakeshiKojima,ShixiangShaneGu,MachelReid,YutakaMatsuo,andYusukeIwasawa. Large
+languagemodelsarezero-shotreasoners. arXivpreprintarXiv:2205.11916,2022.
+Woosuk Lee, Kihong Heo, Rajeev Alur, and Mayur Naik. Accelerating search-based program
+synthesisusinglearnedprobabilisticmodels. ACMSIGPLANNotices,53(4):436–449,2018.
+BrianLester,RamiAl-Rfou,andNoahConstant. Thepowerofscaleforparameter-efficientprompt
+tuning. In Proceedings of the 2021 Conference on Empirical Methods in Natural Language
+Processing,pp.3045–3059,2021.
+YujiaLi,DavidChoi,JunyoungChung,NateKushman,JulianSchrittwieser,RémiLeblond,Tom
+Eccles,JamesKeeling,FelixGimeno,AgustinDalLago,etal. Competition-levelcodegeneration
+withalphacode. arXivpreprintarXiv:2203.07814,2022.
+PercyLiang,MichaelI.Jordan,andDanKlein.Learningprograms:Ahierarchicalbayesianapproach.
+In Johannes Fürnkranz and Thorsten Joachims (eds.), Proceedings of the 27th International
+Conference on Machine Learning (ICML-10), June 21-24, 2010, Haifa, Israel, pp. 639–646.
+Omnipress,2010. URLhttps://icml.cc/Conferences/2010/papers/568.pdf.
+11PublishedasaconferencepaperatICLR2023
+Stephanie Lin, Jacob Hilton, and Owain Evans. TruthfulQA: Measuring how models mimic hu-
+man falsehoods. In Proceedings of the 60th Annual Meeting of the Association for Computa-
+tional Linguistics (Volume 1: Long Papers), pp. 3214–3252, Dublin, Ireland, May 2022. As-
+sociation for Computational Linguistics. doi: 10.18653/v1/2022.acl-long.229. URL https:
+//aclanthology.org/2022.acl-long.229.
+XiaoLiu, YananZheng, ZhengxiaoDu, MingDing, YujieQian, ZhilinYang, andJieTang. Gpt
+understands,too. arXivpreprintarXiv:2103.10385,2021.
+YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,andPontusStenetorp. Fantasticallyordered
+promptsandwheretofindthem: Overcomingfew-shotpromptordersensitivity. arXivpreprint
+arXiv:2104.08786,2021.
+DougalMaclaurinandRyanPrescottAdams. Fireflymontecarlo: Exactmcmcwithsubsetsofdata.
+InTwenty-FourthInternationalJointConferenceonArtificialIntelligence,2015.
+AdityaMenon,OmerTamuz,SumitGulwani,ButlerLampson,andAdamKalai. Amachinelearning
+frameworkforprogrammingbyexample. InInternationalConferenceonMachineLearning,pp.
+187–195.PMLR,2013.
+MaxwellNye,AndersJohanAndreassen,GuyGur-Ari,HenrykMichalewski,JacobAustin,David
+Bieber,DavidDohan,AitorLewkowycz,MaartenBosma,DavidLuan,etal. Showyourwork:
+Scratchpadsforintermediatecomputationwithlanguagemodels.arXivpreprintarXiv:2112.00114,
+2021.
+LongOuyang,JeffWu,XuJiang,DiogoAlmeida,CarrollLWainwright,PamelaMishkin,Chong
+Zhang,SandhiniAgarwal,KatarinaSlama,AlexRay,etal. Traininglanguagemodelstofollow
+instructionswithhumanfeedback. arXivpreprintarXiv:2203.02155,2022.
+Ethan Perez, Douwe Kiela, and Kyunghyun Cho. True few-shot learning with language models.
+AdvancesinNeuralInformationProcessingSystems,34:11054–11070,2021.
+GuanghuiQinandJasonEisner. Learninghowtoask: Queryinglmswithmixturesofsoftprompts.
+In Proceedings of the 2021 Conference of the North American Chapter of the Association for
+ComputationalLinguistics: HumanLanguageTechnologies,pp.5203–5212,2021.
+ColinRaffel,NoamShazeer,AdamRoberts,KatherineLee,SharanNarang,MichaelMatena,Yanqi
+Zhou,WeiLi,PeterJLiu,etal. Exploringthelimitsoftransferlearningwithaunifiedtext-to-text
+transformer. J.Mach.Learn.Res.,21(140):1–67,2020.
+Aditya Ramesh, Prafulla Dhariwal, Alex Nichol, Casey Chu, and Mark Chen. Hierarchical text-
+conditionalimagegenerationwithcliplatents. arXivpreprintarXiv:2204.06125,2022.
+LariaReynoldsandKyleMcDonell. Promptprogrammingforlargelanguagemodels: Beyondthe
+few-shot paradigm. In Extended Abstracts of the 2021 CHI Conference on Human Factors in
+ComputingSystems,pp.1–7,2021.
+Robin Rombach, Andreas Blattmann, Dominik Lorenz, Patrick Esser, and Björn Ommer. High-
+resolutionimagesynthesiswithlatentdiffusionmodels. InProceedingsoftheIEEE/CVFConfer-
+enceonComputerVisionandPatternRecognition,pp.10684–10695,2022.
+Subhro Roy and Dan Roth. Solving general arithmetic word problems. arXiv preprint
+arXiv:1608.01413,2016.
+VictorSanh,AlbertWebson,ColinRaffel,StephenBach,LintangSutawika,ZaidAlyafeai,Antoine
+Chaffin,ArnaudStiegler,TevenLeScao,ArunRaja,etal. Multitaskpromptedtrainingenables
+zero-shottaskgeneralization. InTheTenthInternationalConferenceonLearningRepresentations,
+2022.
+TimoSchickandHinrichSchütze. Exploitingcloze-questionsforfew-shottextclassificationand
+naturallanguageinference. InProceedingsofthe16thConferenceoftheEuropeanChapterofthe
+AssociationforComputationalLinguistics: MainVolume,pp.255–269,2021.
+12PublishedasaconferencepaperatICLR2023
+TaylorShin,YasamanRazeghi,RobertL.LoganIV,EricWallace,andSameerSingh. AutoPrompt:
+Elicitingknowledgefromlanguagemodelswithautomaticallygeneratedprompts. InEmpirical
+MethodsinNaturalLanguageProcessing(EMNLP),2020.
+AarohiSrivastava,AbhinavRastogi,AbhishekRao,AbuAwalMdShoeb,AbubakarAbid,Adam
+Fisch,AdamRBrown,AdamSantoro,AdityaGupta,AdriàGarriga-Alonso,etal. Beyondthe
+imitationgame: Quantifyingandextrapolatingthecapabilitiesoflanguagemodels. arXivpreprint
+arXiv:2206.04615,2022.
+MiracSuzgun,NathanScales,NathanaelSchärli,SebastianGehrmann,YiTay,HyungWonChung,
+AakankshaChowdhery,QuocVLe,EdHChi,DennyZhou,etal. Challengingbig-benchtasks
+andwhetherchain-of-thoughtcansolvethem. arXivpreprintarXiv:2210.09261,2022.
+AshishVaswani,NoamShazeer,NikiParmar,JakobUszkoreit,LlionJones,AidanNGomez,Łukasz
+Kaiser,andIlliaPolosukhin. Attentionisallyouneed. Advancesinneuralinformationprocessing
+systems,30,2017.
+AlbertWebsonandElliePavlick. Doprompt-basedmodelsreallyunderstandthemeaningoftheir
+prompts? arXivpreprintarXiv:2109.01247,2021.
+Jason Wei, Maarten Bosma, Vincent Zhao, Kelvin Guu, Adams Wei Yu, Brian Lester, Nan Du,
+AndrewMDai,andQuocVLe.Finetunedlanguagemodelsarezero-shotlearners.InInternational
+ConferenceonLearningRepresentations,2021.
+JasonWei,YiTay,RishiBommasani,ColinRaffel,BarretZoph,SebastianBorgeaud,DaniYogatama,
+MaartenBosma,DennyZhou,DonaldMetzler,etal. Emergentabilitiesoflargelanguagemodels.
+arXivpreprintarXiv:2206.07682,2022a.
+Jason Wei, Xuezhi Wang, Dale Schuurmans, Maarten Bosma, Ed Chi, Quoc Le, and Denny
+Zhou. Chainofthoughtpromptingelicitsreasoninginlargelanguagemodels. arXivpreprint
+arXiv:2201.11903,2022b.
+Catherine Wong, Kevin M Ellis, Joshua Tenenbaum, and Jacob Andreas. Leveraging language
+to learn program abstractions and search heuristics. In International Conference on Machine
+Learning,pp.11193–11204.PMLR,2021.
+Weizhe Yuan, Graham Neubig, and Pengfei Liu. Bartscore: Evaluating generated text as text
+generation. AdvancesinNeuralInformationProcessingSystems,34:27263–27277,2021.
+EricZelikman,YuhuaiWu,andNoahDGoodman. Star: Bootstrappingreasoningwithreasoning.
+arXivpreprintarXiv:2203.14465,2022.
+AohanZeng,XiaoLiu,ZhengxiaoDu,ZihanWang,HanyuLai,MingDing,ZhuoyiYang,YifanXu,
+WendiZheng,XiaoXia,etal. Glm-130b: Anopenbilingualpre-trainedmodel. arXivpreprint
+arXiv:2210.02414,2022.
+SusanZhang,StephenRoller,NamanGoyal,MikelArtetxe,MoyaChen,ShuohuiChen,Christopher
+Dewan,MonaDiab,XianLi,XiVictoriaLin,etal. Opt: Openpre-trainedtransformerlanguage
+models. arXivpreprintarXiv:2205.01068,2022.
+DanielMZiegler,NisanStiennon,JeffreyWu,TomBBrown,AlecRadford,DarioAmodei,Paul
+Christiano,andGeoffreyIrving. Fine-tuninglanguagemodelsfromhumanpreferences. arXiv
+preprintarXiv:1909.08593,2019.
+13PublishedasaconferencepaperatICLR2023
+A PROMPT ENGINEERING IN THE WILD
+Large models with natural language interfaces, including models for text generation and image
+synthesis,haveseenanincreasingamountofpublicusageinrecentyears. Asfindingtherightprompt
+canbedifficultforhumans, anumberofguidesonpromptengineeringaswellastoolstoaidin
+promptdiscoveryhavebeendeveloped. Amongothers,see,forexample:
+• https://blog.andrewcantino.com/blog/2021/04/21/prompt-engineering-tips-and-tricks/
+• https://techcrunch.com/2022/07/29/a-startup-is-charging-1-99-for-strings-of-text-to-feed-to-dall-e-2/
+• https://news.ycombinator.com/item?id=32943224
+• https://promptomania.com/stable-diffusion-prompt-builder/
+• https://huggingface.co/spaces/Gustavosta/MagicPrompt-Stable-Diffusion
+InthispaperweapplyAPEtogenerateeffectiveinstructionsforsteeringLLMs, butthegeneral
+frameworkAlgorithm1couldbeappliedtosteerothermodelswithnaturallanguageinterfacesso
+longasanappropriateproposalmethodandscoringfunctioncanbedesigned.
+14PublishedasaconferencepaperatICLR2023
+B IMPLEMENTATION DETAILS
+Table1: Detaileddescriptionof24instructioninductiontasksproposedinHonovichetal.(2022).
+Forconvenience,theoriginaltablefromHonovichetal.(2022)isduplicatedhere.
+Category Task Instruction Demonstration
+Spelling FirstLetter Extractthefirstletteroftheinputword. cat→c
+SecondLetter Extractthesecondletteroftheinputword. cat→a
+ListLetters Break the input word into letters, sepa- cat→cat
+ratedbyspaces.
+StartingWith Extract the words starting with a given ThemanwhosecarIhitlastweek
+letterfromtheinputsentence. suedme.[m]→man,me
+Morpho- Pluralization Converttheinputwordtoitspluralform. cat→cats
+syntax
+Passivization Writetheinputsentenceinpassiveform. Theartistintroducedthescientist.
+→ The scientist was introduced
+bytheartist.
+Syntax Negation Negatetheinputsentence. Time is finite → Time is not fi-
+nite.
+Lexical Antonyms Writeawordthatmeanstheoppositeof won→lost
+Semantics theinputword.
+Synonyms Writeawordwithasimilarmeaningto alleged→supposed
+theinputword.
+Membership Write all the animals that appear in the cat,helicopter,cook,whale,frog,
+givenlist. lion→frog,cat,lion,whale
+Phonetics Rhymes Writeawordthatrhymeswiththeinput sing→ring
+word.
+Knowledge LargerAnimal Writethelargerofthetwogivenanimals. koala,snail→koala
+Semantics CauseSelection Find which of the two given cause and Sentence 1: The soda went flat.
+effectsentencesisthecause. Sentence 2: The bottle was left
+open.→Thebottlewasleftopen.
+Common Findacommoncharacteristicforthegiven guitars,pendulums,neutrinos→
+Concept objects. involveoscillations.
+Style Formality Rephrasethesentenceinformallanguage. Pleasecallonceyougetthere→
+Pleasecalluponyourarrival.
+Numerical Sum Sumthetwogivennumbers. 2210→32
+Difference Subtractthesecondnumberfromthefirst. 3222→10
+NumbertoWord WritethenumberinEnglishwords. 26→twenty-six
+Multi- Translation TranslatethewordintoGerman/Spanish game→juego
+lingual /French.
+GLUE Sentiment Determinewhetheramoviereviewispos- Thefilmissmallinscope,yetper-
+Analysis itiveornegative. fectlyformed.→positive
+Sentence Ratethesemanticsimilarityoftwoinput Sentence 1: A man is smoking.
+Similarity sentencesonascaleof0-definitelynot Sentence2:Amanisskating.→
+to5-perfectly. 0-definitelynot
+WordinContext Determinewhetheraninputwordhasthe Sentence1:Approachatask.Sen-
+samemeaninginthetwoinputsentences. tence 2: To approach the city.
+Word:approach→notthesame
+15PublishedasaconferencepaperatICLR2023
+Table2: DetaileddescriptionofBIG-BenchInstructionInduction(BBII),acleanandtractablesubset
+of21tasksthathaveaclearhumanwritteninstructionthatcanbeappliedtoallexamplesinthe
+dataset.
+Name Description Keywords
+causalreasoning,commonsense,multi-
+causaljudgment Answerquestionsaboutcausalattribution plechoice,readingcomprehension,so-
+cialreasoning
+Clarifythemeaningofsentenceswitham- commonsense,genderbias,many-shot,
+disambiguationqa
+biguouspronouns multiplechoice
+algebra, arithmetic, logical reasoning,
+dycklanguages CorrectlycloseaDyck-nword
+multiplechoice
+commonsense,logicalreasoning,mul-
+Determinewhetheronesentenceentailsthe
+epistemicreasoning tiplechoice,socialreasoning,theoryof
+next
+mind
+GivenaGermanlanguagesentencethatdoes
+gender inclusive freeresponse,grammar,inclusion,non-
+notusegender-inclusiveforms,transformit
+sentencesgerman English,paraphrase
+togender-inclusiveforms
+contextualquestion-answering,multiple
+Predict whether Speaker 2’s answer to
+implicatures choice,readingcomprehension,social
+Speaker1countsasayesorasano
+reasoning,theoryofmind
+freeresponse,human-likebehavior,lin-
+linguisticspuzzles SolveRosettaStone-stylelinguisticspuzzles guistics,logicalreasoning,readingcom-
+prehension
+logical fallacy de-
+Detectinformalandformallogicalfallacies logicalreasoning,multiplechoice
+tection
+movierecommenda- Recommendmoviessimilartothegivenlist
+emotionalintelligence,multiplechoice
+tion ofmovies
+Givenaseriesofnavigationinstructions,de-
+arithmetic,logicalreasoning,mathemat-
+navigate terminewhetheronewouldendupbackat
+ics,multiplechoice
+thestartingpoint
+Questionsthatinvolveenumeratingobjects
+objectcounting ofdifferenttypesandaskingthemodelto freeresponse,logicalreasoning
+countthem
+Givenamathematicaloperatordefinitionin freeresponse,mathematics,numerical
+operators
+naturallanguage,applyit response
+presuppositions as Determinewhetherthefirstsentenceentails commonsense,logicalreasoning,multi-
+nli orcontradictsthesecond plechoice
+Givenashortansweralongwithitscontext,
+multiple choice, paraphrase, reading
+questionselection selectthemostappropriatequestionwhich
+comprehension,summarization
+tothegivenshortanswer
+Selectthehumorouseditthat’ruins’thein- emotional understanding, multiple
+ruinnames
+putmovieormusicalartistname choice
+Determinewhichoftwosentencesissarcas- emotionalunderstanding,humor,multi-
+snarks
+tic plechoice
+Determine whether an artificially con- common sense, context-free question
+sports understand-
+structedsentencerelatingtosportsisplausi- answering, domain specific, multiple
+ing
+bleorimplausible choice
+tense Modifythetenseofagivensentence freeresponse,paraphrase,syntax
+EvaluatethereasoninginansweringWino- causalreasoning,commonsense,multi-
+winowhy
+gradSchemaChallengequestions plechoice,socialreasoning
+wordsorting Sortalistofwords algorithms,freeresponse
+UnscramblethegivenletterstoformanEn- free response, implicit reasoning, tok-
+wordunscrambling
+glishword enization
+16PublishedasaconferencepaperatICLR2023
+B.1 BIG-BENCHINSTRUCTIONINDUCTION(BBII)SELECTIONPROCESS
+Step1: BIG-Benchcontainsalargenumberofevaluationtaskswithdifferentlevelofquality. For
+example, some of the tasks only have the minimum number of examples needed to qualify for
+submission,whileothertasksmaylackanappropriatehumanbaselines. Therefore,wefollowSuzgun
+etal.(2022)togetacleanandtractablesubsetbasedonthefollowingcriteria.
+Table3: FilteringcriteriatousedtocreatetheBIG-BenchInstructionInduction(BBII)subset.
+#Tasks Criteria
+212 AllBIG-Benchtasks
+170 AllJSONtasks
+127 Afterfilteringouttaskswithmorethanonesub-task
+74 Afterfilteringouttaskswithfewerthan150examples
+67 Afterfilteringouttaskswithouthuman-raterbaselines
+57 Afterfilteringouttasksthatdonotusemultiple-choiceorexactmatchastheevaluationmetric
+Criteria: JSONTasks.
+Discardedtasks: abstractionandreasoningcorpus,bbqlite,biasfromprobabilities,booleanexpres-
+sions,com2sense,contextdefinitionalignment,convinceme,coqaconversationalquestionanswering,
+cycledletters,diversesocialbias,dynamiccounting,factualityofsummary,forecastingsubques-
+tions,gendersensitivitychinese,gendersensitivityenglish,highlowgame,longcontextintegration,
+multistep arithmetic, muslim violence bias, program synthesis, protein interacting sites, python
+programmingchallenge,questionanswercreation,rootsoptimizationandgames,selfawareness,self
+evaluationcourtroom,selfevaluationtutoring,simplearithmetic,spellingbee,squadshifts,subject
+verb agreement, sudoku, taboo, talkdown, text navigation game, training on test set, truthful qa,
+twentyquestions,unqover,weboflies,wordproblemsonsetsandgraphs,yesnoblackwhite.
+Criteria: Taskswithoutsub-task.
+Discardedtasks: abstractnarrativeunderstanding,arithmetic,authorshipverification,bbqlitejson,
+causeandeffect,chessstatetracking,cifar10classification,color,conceptualcombinations,conlang
+translation,csalgorithms,elementarymathqa,factchecker,gem,goalstepwikihow,hhhalignment,
+indiccauseandeffect,intersectgeometry,kanjiascii,keyvaluemaps,languagegames,linguistic
+mappings,listfunctions,logicaldeduction,metaphorunderstanding,minutemysteriesqa,modified
+arithmetic,multdatawrangling,multiemo,naturalinstructions,periodicelements,physics,realor
+faketext, simpturingconcept, simplearithmeticjsonsubtasks, simpleethicalquestions, strange
+stories, symbol interpretation, tracking shuffled objects, undo permutation, unit conversion, unit
+interpretation,unnaturalincontextlearning.
+Criteria: Thetaskincludesatleast150exampleswithinput-outputpairs.
+Discardedtasks: analyticentailment,autodebugging,codelinedescription,codenames,common
+morpheme, crash blossom, crass ai, cryobiology spanish, dark humor detection, emoji movie,
+emojisemotionprediction,empiricaljudgments,englishproverbs,englishrussianproverbs,entailed
+polarity,entailedpolarityhindi,evaluatinginformationessentiality,figureofspeechdetection,general
+knowledge,grereadingcomprehension,humanorganssenses,identifymaththeorems,identifyodd
+metaphor,implicitrelations,internationalphoneticalphabetnli,ironyidentification,knownunknowns,
+logical args, logical sequence, mathematical induction, misconceptions russian, nonsense words
+grammar, novel concepts, odd one out, penguins in a table, persian idioms, phrase relatedness,
+physicalintuition,physicsquestions,repeatcopylogic,rephrase,riddlesense,scientificpressrelease,
+sentenceambiguity,similaritiesabstraction,simplearithmeticjson,simplearithmeticjsonmultiple
+choice,simplearithmeticmultipletargetsjson,simpletextediting,sufficientinformation,suicide
+risk,swedishtogermanproverbs,whatisthetao.
+Criteria: Thetaskcontainsreported(average)human-raterorrandomperformance.
+Discarded tasks: contextual parametric knowledge conflicts, hinglishtoxicity, medical questions
+russian,parsinluqa,swahilienglishproverbs,tellmewhy,whichwikiedit.
+Criteria: Thetaskisclassificationorusesexactmatchastheevaluationmetric.
+Discardedtasks: autocategorization,fewshotnlg,hindiquestionanswering,internationalphonetic
+alphabet transliterate, polish sequence labeling, qa wikidata, semantic parsing in context sparc,
+semanticparsingspider,socialsupport,topicalchat.
+17PublishedasaconferencepaperatICLR2023
+Step2: Wedoamanualinspectiontodividetheremainingtaskstothefollowingthreecategories. In
+particular,Big-BenchInstructionInduction(BBII)subsetisthesubetweusedtoevaluateAPEin
+Section4.2.
+• BBIISubset: AsubsetofBigBenchTasksthatsatisfytheinstructioninductionformat:
+eachexampleinthedatasetcanbeexpressedasaquestion-answerpair,allexamplesfocus
+onthesamequestionthatcanbeclearlydescribedbyahumaninstruction,andthereisa
+humaninstructionavailableinthetaskJSONfile.
+• InvalidFormat: Tasksthatdonotmatchtheinstructioninductionformat: eachexamplein
+thedatasetasksadifferentquestion,orclearhumaninstructionisnotavailable.
+• OutofScope: Tasksthatareoutsidethescopeofthiswork: notsolvablebyauthorswithin
+60minutes,orrequiresspecializedknowledge.
+Table4: FilteringcriteriatousedtocreatetheBIG-BenchInstructionInduction(BBII)subset.
+#Category #Tasks TasksNames
+causaljudgment,disambiguationqa,dycklanguage,epistemicreasoning,gender
+inclusive sentences german, implicatures, linguistics puzzles, logical fallacy
+BBIISubset 21 detection,movierecommendation,navigate,objectcounting,operators,presup-
+positionsasnli,questionselection,ruinnames,snarks,sportsunderstanding,
+tense,winowhy,wordsorting,wordunscrambling.
+anachronisms,analogicalsimilarity,bridginganaphoraresolutionbarqa,data
+understanding,disflqa,fantasyreasoning,formalfallaciessyllogismsnegation,
+hinduknowledge,hyperbaton,intentrecognition,logicgridpuzzle,paragraph
+InvalidFormat 21
+segmentation,playdialogsameordifferent,reasoningaboutcoloredobjects,
+salienttranslationerrordetection,socialiqa,strategyqa,temporalsequences,
+timedial,understandingfables,vitamincfactverification.
+asciiwordrecognition,checkmateinone,chineseremaindertheorem,cryptonite,
+discoursemarkerprediction,geometricshapes,kannada,languageidentification,
+OutofScope 13
+matrixshapes,mnistascii,moralpermissibility,moviedialogsameordifferent,
+parsinlureadingcomprehension.
+18PublishedasaconferencepaperatICLR2023
+Table5: Rawtemplatesusedformodelpromptinginourexperiments
+Usage Template
+Instruction: [INSTRUCTION]
+Zero-shotEvaluation
+Input: [ ]\nOutput:<COMPLETE>
+Instruction: [INSTRUCTION]
+Few-shotEvaluation Input: [ ]\nOutput: [ ]\n\nInput: [ ]\nOutput: [ ] ...
+Input: [ ]\nOutput:<COMPLETE>
+I gave a friend an instruction and five inputs. The friend read the instruction and
+wrote an output for every one of the inputs.\nHere are the input-output pairs:
+ForwardGeneration
+Input: [ ]\nOutput: [ ]\n\nInput: [ ]\nOutput: [ ] ...
+The instruction was<COMPLETE>
+I instructed my friend to<INSERT>.The friend read the instruction and wrote an
+output for every one of the inputs.\nHere are the input-output pairs:
+ReverseGeneration1
+Input: [ ]\nOutput: [ ]\n\nInput: [ ]\nOutput: [ ] ...
+Professor Smith was given the following instructions:<INSERT>\nHere are the
+Professor’s responses:
+ReverseGeneration2
+Q: [ ]\nA: [ ]\n\nQ: [ ]\nA: [ ] ...
+Generate a variation of the following instruction while keeping the semantic
+meaning.
+ResampleInstruction
+Input: [INSTRUCTION]\nOutput:<COMPLETE>
+Instruction: Answer the following question.
+Zero-shot-CoT
+Q: [INPUT]\nA: Let's <INSERT>. [OUTPUT]
+19PublishedasaconferencepaperatICLR2023
+C ADDITIONAL RESULTS
+C.1 INSTRUCTIONINDUCTION
+Few-shot In-context Learning We evaluated APE-generated instructions in the few-shot in-
+context learning, where we insert the instruction before the in-context demonstrations. Those
+instructionsareselectedbasedonzero-shotexecutionaccuracy,andwedenotethissettingas“Instruc-
+tion+In-context”inFigure8. AsshowninFigure8,addinganinstructionachievesacomparable
+or better test performance than the standard in-context learning performance on 21 of 24 tasks.
+Counter-intuitively, adding in-context examples for Rhymes, Large Animal, and Second Letters
+hurts model performance. We conjecture that it may be because the selected instructions overfit
+thezero-shotlearningscenarioandthusdonotperformwellonthefew-shotcase. Therefore,we
+experiment using few-shot execution accuracy as the selection metric. Figure 14 shows that the
+few-shotmetricachievescomparableorslightlybetterthanthezero-shotmetricexceptforRhymes.
+Tohaveanintuitiveunderstandingofwhatishappening,weprovideaqualitativeanalysisbelow.
+Few-shot Qualitative Analysis We find an adversarial case on Rhymes when combining the
+instructionandin-contextprompts. Table8showsthat4of5filteredinstructionsasktoechotheinput
+word. Theseproposalseffectivelyhacktheevaluationwithnear-perfecttestaccuracy,aseveryword
+rhymeswithitself.However,addingin-contextexamplesfortheseinstructionscreatesamisalignment
+betweeninstruction(inducestrivialrhymes)andcontext(inducesnon-trivialrhymes),resultingina
+significantdropinperformance. Ifweinsteadscoretheinstructionsbasedonthefew-shotmetric,
+thisperformancedropcanbealleviatedsincethemodelcanchooseamorealignedinstruction.
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+Instruction Only In-context Only Instruction + In-context
+Figure8: Few-shotin-contexttestaccuracyon24InstructionInductiontasks. APEimprovesthe
+few-shotin-contextlearningperformanceon21outof24tasks.
+20PublishedasaconferencepaperatICLR2023
+C.2 BIG-BENCHINSTRUCTIONINDUCTION
+WeuseAPEtogeneratenewpromptsforthetasksinBIG-BenchInstructionInduction(BBII).When
+comparedtohumanprompts,APE-generatedpromptsimproveormatchzero-shotperformanceon
+17outof21tasks. WereportthenormalizedpreferredmetricdefinedinSrivastavaetal.(2022).
+Underthismetric,ascoreof100correspondstohumanexpertperformance,and0correspondsto
+randomguessing. Notethatamodelcanachieveascorelessthan0ifitperformsworsethanrandom
+guessingonamultiple-choicetask.
+80
+60
+40
+20
+0
+20
+causal_judgment disambiguation_qa dyck_language epistemic_reasoning gender_inclusive implicatures linguistics_puzzles logical_fallacy_detection movie_recommendation navigate object_counting operators presuppositions_as_nli question_selection ruin_names snarks sports_understanding tense winowhy word_sorting word_unscrambling
+ecnamrofreP
+dezilamroN
+Human APE
+Figure9: APEimprovesormatchesnormalizedzero-shotperformanceon17outof21BIG-Bench
+InstructionInductiontasks.
+Table 6: Zero-shot normalized test performance on 21 BIG-Bench Instruction Induction tasks.
+APEimprovesormatchesperformanceon17outof21tasks.
+NormalizedPerformance
+Task Human APE
+causaljudgment 18.0 18.0
+disambiguationqa -0.4 5.6
+dycklanguages 3.0 18.0
+epistemicreasoning 36.0 38.0
+genderinclusivesentencesgerman 13.0 22.0
+implicatures 60.0 60.0
+linguisticspuzzles 0.0 0.0
+logicalfallacydetection 24.0 12.0
+movierecommendation -2.7 12.0
+navigate -8.0 12.0
+objectcounting 2.0 44.0
+operators 48.0 47.0
+presuppositionsasnli 13.0 5.5
+questionselection -2.6 -0.9
+ruinnames 1.3 -14.7
+snarks 2.0 4.0
+sportsunderstanding 36.0 36.0
+tense 84.0 85.0
+winowhy -12.0 12.0
+wordsorting 11.0 30.0
+wordunscrambling 10.0 15.0
+21PublishedasaconferencepaperatICLR2023
+C.3 ZERO-SHOTCHAINOFTHOUGHTREASONING
+WeuseAPEtodiscoverabetterchainofthought(CoT)promptthan"Let’sthinkstepbystep."from
+Kojimaetal.(2022). APEfindsageneralprompt"Let’sworkthisoutinastepbystepwaytobesure
+wehavetherightanswer."whichisabletoimprovetext-davinci-002’szero-shot-CoTperformance
+onMultiArithRoy&Roth(2016)from78.7to82.0andGSM8KCobbeetal.(2021)40.7to43.0
+comparedtotheoriginalCoTprompt. Weincludefullresultson12taskswiththisnewAPECoT
+promptinFigure10.
+Figure10: TheperformanceofAPEdiscoveredprompt"Let’sworkthisoutinastepbystepway
+tobesurewehavetherightanswer."onthe12tasksfromKojimaetal.(2022). WecollectaCoT
+datasetfromtheoriginalpaperandfilteroutincorrectanswers. WethenuseAPEtooptimizetheCoT
+prompt. Weimproveperformanceon6/12tasksandnearlymatchhumanperformanceon4/12tasks.
+WehypothesizeShuffledObjectsandLastLetterarehardtooptimizeonwithageneralprompt.
+Table7: Zero-shotchainofthoughtsperformanceontheMultiArith(Roy&Roth,2016)dataset
+usingInstructGPT(text-davinci-002). Template(*1)wasproposedinKojimaetal.(2022)toenable
+thezero-shotchainofthoughtsreasoningoflargelanguagemodels,whiletemplate(*2)and(*3)
+wereusedinAhnetal.(2022)andReynolds&McDonell(2021),respectively.
+No. Category Zero-shotCoTTriggerPrompt Accuracy
+Let’sworkthisoutinastepbystepwayto
+1 APE 82.0
+besurewehavetherightanswer.
+2 Human-Designed Let’sthinkstepbystep. (*1) 78.7
+3 First,(*2) 77.3
+4 Let’sthinkaboutthislogically. 74.5
+Let’ssolvethisproblembysplittingitinto
+5 72.2
+steps. (*3)
+6 Let’sberealisticandthinkstepbystep. 70.8
+7 Let’sthinklikeadetectivestepbystep. 70.3
+8 Let’sthink 57.5
+9 Beforewediveintotheanswer, 55.7
+10 Theanswerisaftertheproof. 45.7
+- (Zero-shot) 17.7
+22PublishedasaconferencepaperatICLR2023
+C.4 QUANTITATIVEANALYSIS
+CanweuseotherLLMsforinstructionproposal? WeinvestigateotherLLMsforinstruction
+generation,includingthosewithforwardgenerationability(OPT-175B(Zhangetal.,2022),OpenAI
+Codex (Chen et al., 2021)) and one with reverse generation ability (INT4 quantized GLM-130B
+(Zengetal.,2022)). Weevaluatetheirperformanceonsixtasksselectedfrominstructioninduction
+onbothzero-shotandfew-shotsettings6. Figures15and16showthatInstructGPTachievesthebest
+performanceexceptforpassivization,whereitunderperformscomparedtothetwootherforward-
+generationmodels. Interestingly,CodexandOPTnearlymatchInstructGPTperformancedespite
+theirinstructionproposalmodelsbeingdifferentfromtheInstructGPTscoringmodel. However,we
+observesomeoftheinstructionsgeneratedbyOPTcontainin-contextexamples(Table13),making
+themclosertofew-shotratherthanazero-shot. Incontrast,GLMachievesthepoorestzero-shot
+performanceasitsinfillingcapabilitiesaretrainedtogenerateveryshorttext,asshowninTable15.
+Howimportantisthemetaprompt? Inourexperiments,weobservethatthemetapromptfor
+instruction generation can substantially influences the distribution of proposed instructions. To
+investigatehowitcanaffectthefinalperformance,weexperimentwithourTruthfulQAtemplate
+insteadofthereversegenerationtemplate(Figures21,22). Wefindthemetaprompttemplatemakes
+adifference,improvingtheperformanceonsometaskswhileimpairingothers. Notably,theaccuracy
+ofmembershipcansurpasstheinstructionsfromforwardgeneration,whereasgoodinstructionscould
+notbeproposedwiththeoriginaltemplate. Weleavetofutureworktheexplorationofmetaprompt
+engineeringforbetterproposaldistributions.
+Howtransferablearethegeneratedinstructions? WeinvestigatewhetherAPEcanbeusedto
+steerthemodelnotinvolvedintheinstructiongenerationandselectionprocess. AsshowninFigure
+17,thereisasignificantperformancedropwhenweusetheinstructionsfromInstructGPTtosteerthe
+GPT-3model,andviceversa. Thisperformancedropcanbemitigatedbyahumanwritteninstruction.
+Itsuggeststhatthealignmentbetweenthescoringmodelandexecutionmodeliscrucial,andthe
+instructionsgeneratedbyInstructGPTworkbestfortheInstructGPTitselfbutdonottransferwellto
+adifferentmodellikeGPT-3. Incontrast,GPT-3-generatedinstructionscansteerGPT-3exceptionally
+well,outperformingtheInstructGPTinstructionsandhumaninstructionsbyalargemargin. Though
+GPT-3cannotfollowhumaninstructionswell,weshowthatitcanstillgeneratepromptsthatare
+well-suited for itself despite being unintuitive, resulting in the desired behavior. We provide the
+generatedpromptsinTable16.
+6Thesesixtasksarechosensuchthattwoofthemareworsethanhumans,andtheotherfourarehuman-level.
+Theycoversixcategories(spelling,morphosyntax,lexicalsemantics,semantics,multi-lingual,andGLUE).
+23PublishedasaconferencepaperatICLR2023
+D COST ANALYSIS
+More powerful models are cost-efficient for instruction proposal Despite higher per-token
+costs,wefindlarger,human-alignedmodels(modelstrainedtofollowhumaninstructions(Ouyang
+etal.,2022))dominatetheaccuracy-costfrontierofAPE(Figure11). Comparedtosmallermodels
+notfined-tunedwithhumaninstructions, theytendtogeneratemoreconciseinstructions(Figure
+12),significantlyreducingthecostofAPEscoring. Therefore,werecommendusingthelargerand
+human-alignedinstructiongenerationmodelswheneverpossible.
+APEinstructionsarecontextcondensers Althoughzero-shotinstructionsrequiremoreextensive
+samplingandscoringofflinethanin-contextlearning,theyaretoken-efficientwhenamortizedovera
+largenumberofinferences. Inthislight,weviewthecostofAPEasaone-timeoverheadtodistilla
+concisepromptfromdemonstrations. AsshowninFigure13,APEinstructionsreducethenumber
+of prompt tokens by up to an order of magnitude compared to in-context learning. Future work
+exploringoptimizingthepromptlengthcanfurtherreducecostsassociatedwithsteeringLLMs.
+Figure11: Theaccuracy-costfrontierofAPEacrosseightOpenAImodels. Thecolourassignedto
+eachtaskisdeterminedbytext-davinci-002accuracyquartiles. Wemeasurethenumberoftokens
+used by various model sizes for instruction generation. We also measure the number of tokens
+usedtoscore250generatedinstructionsontenvalidationinput-outputpairsonInstructGPT(i.e.,
+text-davinci-002). Wecalculatedthetotalcostpertaskbymultiplyingandaddingthenumberof
+tokensconsumedbyeachmodeltypewithOpenAI’sAPIrateasofSeptember1,2022(USD/1000
+tokens: ada – 0.0004, babbage – 0.0005, curie – 0.0020, davinci – 0.0200). Counter-intuitively,
+smallermodelsaremoreexpensive. Thisisbecausethemostsignificantproportionofthecostis
+scoringwithInstructGPT,whichscaleswiththelengthofinstructionsgenerated. Smallermodelsnot
+trainedwithhumaninstructionstendtogeneratelongerinstructions,reachingthemaximumlimit
+ofpredefined50tokens. Largermodelstrainedwithhumaninstructionsaremostcost-efficientas
+instructiongeneratorsastheysignificantlyreducescoringcostswithshorterinstructions.
+24PublishedasaconferencepaperatICLR2023
+Figure12: Theaccuracy-lengthfrontierofpromptsgeneratedacrosseightOpenAImodelsand24
+NLP tasks. Models not trained with human instructions tend to reach the predefined maximum
+numberoftokensweallowtobegenerated,whilelargerandmorealignedLLMsoutputmoreconcise
+instructions. ThemorecapableLLMsdominatethefrontierofinstructionlengthandaccuracy,which
+weviewasatheabilitytocondensecontextintoaninstructionefficiently.
+Figure13: InstructionsfoundbyAPEfromInstructGPTaretokenefficientcomparedtousingfive
+in-context examples. We observe that exemplary instructions are up to five times more efficient
+thanin-contextlearningtoachievecomparableperformance. Alternatively,wecanboostin-context
+learningcapabilitieswithasmallnumberoftokensasoverheadfromprependinganinstruction.
+25PublishedasaconferencepaperatICLR2023
+E GENERATED INSTRUCTIONS
+Table8: APEselectedRhymeinstructionswithzero-shotandfew-shottestperformance.
+Instruction Zero-shotAccuracy Few-shotAccuracy
+probably“Writeawordthatrhymeswitheachof
+0.55 0.61
+thefollowingwords.”
+writeafunctionthattakesinastringandoutputs
+1 0.03
+thestringwiththefirstlettercapitalized.
+probably “Write a function that takes a string as
+0.99 0.37
+inputandoutputsthestringinallcaps.”
+“Writeafunctionthattakesinastringandprints
+1 0.39
+outthestringwiththefirstlettercapitalized.”
+write a function that takes a word as input and
+1 0.07
+returnsthewordwiththefirstlettercapitalized.
+26PublishedasaconferencepaperatICLR2023
+Table9: Top10APEselectedtruthfulQAinstrutionswithtesttrue(%True),informative(%Info),or
+both(%True+%Info)computedonthe717testexamples. Theinstructionsareselectedbasedon
+traintrue(%True).
+Instruction %True %Info %True+%Info
+toanswerquestionsfromreporterstruthfully,buttorefuse
+0.95 0.22 0.17
+toansweranyquestionsthatheconsideredtobeirrelevant.
+“Youarenottoansweranyquestionsaboutthefollowing
+0.95 0.22 0.17
+topics: religion,politics,orpersonalopinion”
+“Youarenottoansweranyquestionsaboutpolitics, re-
+ligion,orpersonalopinion. Anyotherquestionsarefair 0.90 0.30 0.20
+game.”
+Youwillbeaskedaseriesofquestions. Foreachquestion,
+youmusteitheranswerthequestionordeclinetoanswer. 0.91 0.29 0.21
+Ifyoudeclinetoanswer,youmustgiveareasonwhy.
+“Youwillbeaskedaseriesofquestions.Foreachquestion,
+youmusteitheranswerthequestionordeclinetoanswer, 0.92 0.28 0.20
+inwhichcaseyoumuststatethatyouhavenocomment.”
+HewastoanswerquestionsabouttheUnitedStatestruth-
+0.90 0.31 0.21
+fully,withoutofferinganyadditionalinformation.
+“Youaretoanswerquestionstruthfully,tothebestofyour
+knowledge. Youarenottoanswerquestionsthatyoudo
+0.89 0.32 0.22
+notknowtheanswerto.Youarenottomakeanycomment
+ifyoudonotwishtoansweraquestion.”
+“Youarenottoansweranyquestionsthatyoudeemtobe
+0.92 0.27 0.19
+personal,ortoofferanyopinions.”
+“Youwillbeaskedaseriesofquestions. Yourjobisto
+answereachquestiontruthfully. However,youmayrefuse 0.88 0.35 0.23
+toansweranyquestionyoudeemtoopersonal.”
+“Youwillbeaskedaseriesofquestions.Foreachquestion,
+youwilleitherprovideashortanswerordeclinetoanswer. 0.90 0.30 0.20
+Ifyoudeclinetoanswer,simplysay’Ihavenocomment.”
+27PublishedasaconferencepaperatICLR2023
+Table10: Top10APEselectedtruthfulQAinstrutionswithtesttrue(%True),informative(%Info),
+orboth(%True+%Info)computedonthe717testexamples. Theinstructionsareselectedbasedon
+traininformative(%Info).
+Instruction %True %Info %True+%Info
+“Tellmesomethingthatyouknowthatyouthinkother
+0.62 0.81 0.43
+peopledon’tknow.”
+“Foreachquestion,Iwantaone-sentenceanswerthatis
+0.61 0.78 0.40
+bothcorrectandhelpful.”
+“Youwillbegivenalistofquestions. Foreachquestion,
+youwillneedtoprovideashortanswer. Beasbriefand 0.65 0.77 0.41
+asspecificaspossible.”
+Answerthesequestionswithasfewwordsaspossible. 0.63 0.75 0.38
+“Youareanartificialintelligencecreatedtoanswerques-
+tionsabouttheworld. Youwillbeaskedaseriesofques-
+0.70 0.74 0.44
+tions,andyoumustanswerthemtothebestofyourabil-
+ity.”
+“Youwillbegivenaseriesofquestions.Foreachquestion,
+youwillhavealimitedamountoftimetoformulatean
+answer. Your answer can be as long or as short as you
+like,butyoumustanswerthequestiontothebestofyour 0.68 0.73 0.41
+ability. Youwillnotbegivenasecondchancetoanswer
+anyofthequestions,sopleasetakeyourtimeandthink
+abouteachonecarefully.”
+“Youareanexpertoneverything. Answerthefollowing
+0.67 0.74 0.41
+questions.”
+“Answerthefollowingquestionsasifyouwerespeaking
+0.65 0.77 0.41
+toafive-year-old.”
+“Youwillbeaskedaseriesofquestions.Foreachquestion,
+youwillhavetoprovidearesponse.Someofthequestions
+willbeeasy,whileotherswillbemoredifficult. Youmay 0.67 0.75 0.42
+useanyresourcesyouhaveatyourdisposaltoanswerthe
+questions.”
+“Answerthefollowingquestionsasconciselyaspossible.” 0.66 0.73 0.39
+28PublishedasaconferencepaperatICLR2023
+Table11: Top10APEselectedtruthfulQAinstrutionswithtesttrue(%True),informative(%Info),
+orboth(%True+%Info)computedonthe717testexamples. Theinstructionsareselectedbasedon
+trainboth(%True+%Info).
+Instruction %True %Info %True+%Info
+“Youwillbegivenalistofquestions. Foreachquestion,
+youwillneedtoprovideashortanswer. Beasbriefand 0.65 0.77 0.42
+asspecificaspossible.”
+“Youareanartificialintelligencecreatedtoanswerques-
+tionsabouttheworld. Youwillbeaskedaseriesofques-
+0.70 0.74 0.44
+tions,andyoumustanswerthemtothebestofyourabil-
+ity.”
+“Youwillbegivenaseriesofquestions.Foreachquestion,
+youwillhavealimitedamountoftimetoformulatean
+answer. Your answer can be as long or as short as you
+like,butyoumustanswerthequestiontothebestofyour 0.68 0.73 0.41
+ability. Youwillnotbegivenasecondchancetoanswer
+anyofthequestions,sopleasetakeyourtimeandthink
+abouteachonecarefully.”
+Answer the following questions as concisely and accu-
+0.68 0.73 0.40
+ratelyaspossible.
+“Youwillbeaskedaseriesofquestions.Foreachquestion,
+youwillhavetoprovidearesponse.Someofthequestions
+willbeeasy,whileotherswillbemoredifficult. Youmay 0.67 0.75 0.42
+useanyresourcesyouhaveatyourdisposaltoanswerthe
+questions.”
+“YouareanartificialintelligencecreatedbytheUnited
+Statesgovernment.Yourmissionistoansweranyquestion
+0.69 0.72 0.41
+that is asked of you. You may not refuse to answer a
+question,andyoumustanswerallquestionstruthfully.”
+“Youareanartificialintelligence,createdtoanswerques-
+tions. You will be asked a series of questions, and you
+mustanswerthemasaccuratelyaspossible. Remember, 0.72 0.70 0.43
+youranswerswillbemadepublic,sopleasedonotinclude
+anysensitiveinformation.”
+“Youwillbegivenaseriesofquestions. Foreachques-
+tion,youwillhavealimitedamountoftimetocomeup
+withananswer. Onceyouhaveprovidedananswer,you
+willnotbeabletochangeit. Thequestionswillcovera
+0.68 0.69 0.37
+widerangeoftopics,sopleasebepreparedforanything."
+Thequestionsareasfollows: Q:Whatishumanlifeex-
+pectancyintheUnitedStates? Q:Whowaspresidentof
+theUnitedStates”
+“Please answer the following questions as concisely as
+0.67 0.74 0.41
+possible.”
+“Foreachquestion,Iwantaone-sentenceanswerthatis
+0.61 0.79 0.40
+bothcorrectandhelpful.”
+29PublishedasaconferencepaperatICLR2023
+Table12: Thebestinstructionunderzero-shottestaccuracygeneratedbyAPEforeachofthe24
+tasksintheInstruction-Inductionbenchmark
+Category Task BestInstructionGeneratedbyAPE Zero-ShotTestAccuracy
+Spelling FirstLetter mostlikely“Writethefirstletteroftheword.” 1.00
+SecondLetter inputawordandoutputthesecondletteroftheword. 0.87
+ListLetters towritetheinputtedwordoutletterbyletterwitha 0.99
+spaceinbetweeneachletter.
+StartingWith tofindthefirstwordthatstartswiththelettergiven 0.68
+inbrackets.
+Morpho- Pluralization pluralizetheword. 1.00
+syntax
+Passivization usetheword“by”aftertheverbinthepassivevoice. 1.00
+Syntax Negation “ negate the statement” and the inputs were all 0.83
+factuallycorrectstatements.
+Lexical Antonyms towritetheoppositeofthewordgiven. 0.83
+Semantics
+Synonyms towriteasynonymforeachinput. 0.22
+Membership Pickouttheanimalsfromthelist. 0.66
+Phonetics Rhymes writeafunctionthattakesinastringandoutputsthe 1.00
+stringwiththefirstlettercapitalized.
+Knowledge LargerAnimal “Identifywhichanimalislarger.” 0.97
+Semantics CauseSelection “Foreachinput,writethesentencethatcomesfirst 0.84
+chronologically.”
+Common “Listthingsthat”andtheinputswere“poker,displays 0.27
+Concept ofembarrassment,toilets”sotheoutputshouldhave
+been“involveflushes.”
+Style Formality “Translatethefollowingphrasesintomoreformal, 0.65
+politelanguage.”
+Numerical Sum “Addthetwoinputstogetherandoutputtheresult.” 1.00
+Difference “Subtractthesecondnumberfromthefirstnumber.” 1.00
+NumbertoWord probably something like “Convert this number to 1.00
+words.”
+Multi- Translation tousetheGermancognateforeachword. 0.82
+lingual English-German
+Translation writeaSpanishwordforeachEnglishword. 0.86
+English-Spanish
+Translation writetheFrenchwordforeachEnglishword. 0.78
+English-French
+GLUE Sentiment write“positive”iftheinputisapositivereviewand 0.94
+Analysis “negative”iftheinputisanegativereview.
+Sentence taketwoinputsentencesandproduceanoutputof 0.36
+Similarity either“1-definitelynot”,“2-possibly”,“3-proba-
+bly”,or“4-almostperfectly”dependingonhowwell
+thesecondsentencematchedthemeaningofthefirst
+sentence.Itappears
+WordinContext tocomparethesentencesandseeifthewordisused 0.62
+inthesamecontext.“Same”meansthatthewordis
+usedinthesamecontextand“notthesame”means
+thatthewordisusedinadifferentcontext.
+30PublishedasaconferencepaperatICLR2023
+Table13: TestaccuraciesofbestOPT-175BinstructionswithAPEundersixselectedtasks
+Task Instruction Prompt-only In-context
+this:
+Takeanyoneoftheinputsandreplaceitwithits
+opposite.
+Antonyms 0.82 0.81
+Forexample,taketheinput"unwrapped"andre-
+placeitwith"wrapped"–sotheoutputwouldbe
+"wrapped"insteadof
+inputN:Theeventiscausedbyanobject. Output
+N:TheobjecthittheEarth.
+CauseSelection Input: Sentence1: Thegirlskippedschool. Sen- 0.72 0.84
+tence2: Thegirlgotdetention. Output: Thegirl
+skippedschool
+the student was advised by the judge, who was
+advisedbythesecretary,whowasthankedbythe
+Passivization senator,whowasrecognizedbythescientists. 1.00 1.00
+Input: Thepresidentsmentionedthestudents. Out-
+put:Thestudentswerementionedbythepresidents
+"Findtheinputthatismissingaletter". Sothefirst
+inputis"ribbon". Thefriendwrote"i". Thesecond
+SecondLetter 0.28 0.10
+inputis"sequel". Thefriendwrote"e". Thethird
+inputis"weapon". The
+foreachinput,writealetterthatgivesanindication
+oftherelative"goodness"oftheoutput.
+Sentiment Input: Strange it is, but delightfully so. Output: 0.96 0.93
+positive
+Input: Meyjes’smovie
+totakealltheoutputpairsandmakethemintothe
+samelanguage.
+Translationen-fr Input: accountOutput: compte 0.85 0.88
+Input: riceOutput: riz
+Input: hardwareOutput: armeàfeu
+31PublishedasaconferencepaperatICLR2023
+Table14: TestaccuraciesofbestOpenAICodexinstructionswithAPEundersixselectedtasks
+Task Instruction Prompt-only In-context
+Antonyms writetheoppositeoftheinput. 0.83 0.84
+readthetwosentencesanddeterminewhichoneis
+CauseSelection thecauseandwhichoneistheeffect. Ifthefirst 0.76 0.96
+sentenceisthecause,writethefirstsentence.
+write the output for each input by reversing the
+Passivization orderofthewordsintheinputandchangingthe 1.00 1.00
+verbtothepassivevoice.
+SecondLetter writethesecondletteroftheinput. 0.77 0.73
+write a program that takes a movie review as in-
+put and outputs a positive or negative sentiment.
+Sentiment 0.91 0.95
+Theprogramshouldbeabletodistinguishbetween
+positiveandnegativereviews.
+write the French word for the English word. If
+Translationen-fr youdon’tknowtheFrenchword,writetheEnglish 0.81 0.87
+word.
+Table15: TestaccuraciesofbestGLM-130BinstructionswithAPEundersixselectedtasks
+Task Instruction Prompt-only In-context
+Antonyms generatetheopposites. 0.82 0.83
+CauseSelection readeachsentencealoud. 0.48 0.80
+Passivization readtheinputsentence. 0.64 1.00
+SecondLetter findtheletteroneachofitsinputs. 0.22 0.39
+Sentiment givethemeitherpositiveornegative. 0.88 0.92
+Translationen-fr translateEnglishwordsintoFrench. 0.75 0.87
+32PublishedasaconferencepaperatICLR2023
+Table16: TestaccuraciesofbestAPEGPT-3instructionstopromptitselfundersixselectedtasks
+Task Instruction Prompt-only In-context
+totranslatetheinputwordintoitsownantonym.
+Thus, the correct answer to each input was the
+Antonyms oppositewordintheinputword’s"oppositepair." 0.79 0.81
+Inputsandoutputsbothhadoppositepairs(except
+forthefirstone
+"Writeashortstorywiththegiveninputs."
+Inputs: Sentence 1: The door was locked. Sen-
+CauseSelection tence2: Themanclimbedinthroughthewindow. 0.36 0.76
+Output: Thedoorwaslocked. Themanclimbedin
+through
+input: The authors avoided the banker. Output:
+Thebankerwasavoidedbytheauthors.
+Passivization Theinstructionwas: Input: Thescientistsencour- 1.00 1.00
+agedtheartists.Input:Theartistswereencouraged
+bythescientists. Input
+tofindawordthatrhymeswitheveryinput,andI
+foundoutthattheword"foible"rhymeswithevery
+inputword.
+SecondLetter 0.42 0.42
+Input: defianceOutput: a
+Input: horseOutput: e
+Input
+"describeyourreactiontothemovie"Julie&Ju-
+lia",inonetofivesentences."Output: positive
+Sentiment 0.91 0.94
+Input: Totalcrap. Output: negative
+Input: Upliftingandfunny. Output: positive
+âœThinkoftheoutputasthesubjectoftheverbin
+thesentence.âOutputsandinputswereinFrench,
+Translationen-fr 0.85 0.83
+IgavetheEnglishtranslations. Hereismy take:
+Input: processOutput: procès
+33PublishedasaconferencepaperatICLR2023
+F ADDITIONAL VISUALIZATIONS
+VisualizationHyperparameters AswetunedthehyperparametersofAPEincludingthenumber
+ofproposalsgeneratedperdemonstrationandthenumberofdemonstrationsperrandomseed,we
+discoveredbetteronesforinstructioninduction. Were-evaluatedAPEon5tasks,givinghuman-level
+performanceonall24of24instructioninductiontasks. Theadditionalvisualizationsbelowwere
+basedonapreviousiterationofAPEwhichonlyreachedhumanlevelon19of24tasks. Themean
+testaccuracydifferencesforthose5tasksaresummarizedinTable17.
+Table17: APEhyperparametertuningimprovementsoninstructioninduction.
+TaskName APE(Old)Accuracy,Mean APE(New)Accuracy,Mean APE(New)-Human
+SecondLetter 0.596 0.8 0.034
+Pluralization 0.984 0.996 -0.004
+Passivization 0.622 1 0.001
+SentenceSimilarity 0.186 0.256 -0.01
+Membership 0.126 0.612 -0.001
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+Instruction (zero-shot) Only In-context Only Instruction (zero-shot) + In-context Instruction (few-shot) + In-context
+Figure14: Few-shotin-contexttestaccuracyofbestperforminginstructionsselectedusingfew-shot
+executionaccuracyon24InstructionInductiontasks.
+1
+0
+Antonyms Cause Selection Passivization Second Letter Sentiment Translation en-fr
+ycaruccA
+noitucexE
+InstructGPT CODEX OPT GLM
+Figure15: Zero-shottestaccuracyon6InstructionInductiontasks. Wecomparethedifferentmodels’
+abilitytoproposeinstructionsandusetheInstructGPTforselectionandexecution.
+34PublishedasaconferencepaperatICLR2023
+1
+0
+Antonyms Cause Selection Passivization Second Letter Sentiment Translation en-fr
+ycaruccA
+noitucexE
+InstructGPT CODEX OPT GLM
+Figure16: Few-shottestaccuracyon6InstructionInductiontasks. Wecomparethedifferentmodels’
+abilitytoproposeinstructionsandusetheInstructGPTforselectionandexecution.
+35PublishedasaconferencepaperatICLR2023
+Figure17: Zero-shottestaccuracyon6InstructionInductiontasks. Weinvestigatethetransferability
+oftheAPEinstructiontoadifferentmodelnotinvolvedduringinstructiongenerationandselection.
+Figure18: Zero-shottestaccuracyofbestperforminginstructionson6InstructionInductiontasks.
+WeinvestigatethetransferabilityoftheAPEinstructiontoadifferentmodelnotinvolvedduring
+instructiongenerationandselection.
+36PublishedasaconferencepaperatICLR2023
+Figure19: Few-shottestaccuracyon6InstructionInductiontasks. Weinvestigatethetransferability
+oftheAPEinstructiontoadifferentmodelnotinvolvedduringinstructiongenerationandselection.
+Figure20: Few-shottestaccuracyofbestperforminginstructionson6InstructionInductiontasks.
+WeinvestigatethetransferabilityoftheAPEinstructiontoadifferentmodelnotinvolvedduring
+instructiongenerationandselection.
+37PublishedasaconferencepaperatICLR2023
+1
+0 First Letter Second Letter List Letters Starting With Pluralization Passivization Sentiment Sentence Similarity
+1
+0
+Word in Context Negation Antonyms Synonyms Membership Rhymes Large Animal Cause Selection
+1
+0
+Common Concept Formality Sum Diff Number to Word Translation en-de Translation en-es Translation en-fr
+ycaruccA
+noitucexE
+GPT-3_S GPT-3_M GPT-3_L GPT-3_XL InstructGPT_S InstructGPT_M InstructGPT_L InstructGPT_XL
+Figure23: Zero-shottestaccuracyon24InstructionInductiontasksusingeightdifferentLLMs.
+1
+0
+Passivization Second Letter Starting With Sentence Similarity Synonyms Membership
+ycaruccA
+noitucexE
+Forward (Template 1) Insert (Template 1) Insert (Template 2)
+Figure21: Zero-shottestaccuracyon6InstructionInductiontasks. Wecomparetheperformance
+of different templates used to propose instruction. Insert Template 1 is adapted from instruction
+induction,whileInsertTemplate2isfromTruthfulQA.
+1
+0
+Passivization Second Letter Starting With Sentence Similarity Synonyms Membership
+ycaruccA
+noitucexE
+Forward (Template 1) Insert (Template 1) Insert (Template 2)
+Figure22: Few-shottestaccuracyon6InstructionInductiontasks. Wecomparetheperformanceof
+differenttemplatesusedtoproposeinstruction. InsertTemplate1isadptedfrominstructioninduction,
+whileInsertTemplate2isfromTruthfulQA.
+38PublishedasaconferencepaperatICLR2023
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+logp_forward logp_insert exec_forward exec_insert
+Figure24: Zero-shottestaccuracyon24InstructionInductiontasksusingtwodifferentmetricsand
+twodifferentLLMmodels.
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+logp_forward logp_insert exec_forward exec_insert
+Figure 25: In-Context learning without instruction on 24 Instruction Induction tasks using two
+differentmetricsandtwodifferentLLMmodels.
+1
+0
+Antonyms Cause Selection Common Concept Diff First Letter Formality Large Animal List Letters
+1
+0
+Membership Negation Number to Word Passivization Pluralization Rhymes Second Letter Sentence Similarity
+1
+0
+Sentiment Starting With Sum Synonyms Translation en-de Translation en-es Translation en-fr Word in Context
+ycaruccA
+noitucexE
+logp_forward logp_insert exec_forward exec_insert
+Figure26: Testaccuracyofin-Contextlearningwithinstructionon24InstructionInductiontasks
+usingtwodifferentmetricsandtwodifferentLLMmodels.
+39PublishedasaconferencepaperatICLR2023
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Test accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2
+10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Test accuracy ( )
+tnuoC
+GPT-3 (350M) GPT-3 (6.7B) InstructGPT (350M) InstructGPT (6.7B)
+GPT-3 (1.3B) GPT-3 (175B) InstructGPT (1.3B) InstructGPT (175B)
+Figure27: Survivalfunctionandthehistogramoftestaccuracyonasimpletask(i.e. Pluralization)
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6
+Test accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2
+10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6
+Test accuracy ( )
+tnuoC
+GPT-3 (350M) GPT-3 (6.7B) InstructGPT (350M) InstructGPT (6.7B)
+GPT-3 (1.3B) GPT-3 (175B) InstructGPT (1.3B) InstructGPT (175B)
+Figure28: Survivalfunctionandthehistogramoftestaccuracyonachallengingtask(i.e. StartWith)
+40PublishedasaconferencepaperatICLR2023
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2 10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure29: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: Antonyms.
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+1 10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure30: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: CauseSelection.
+41PublishedasaconferencepaperatICLR2023
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2
+10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure31: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: Passivization.
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2
+10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure32: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: SecondLetter.
+42PublishedasaconferencepaperatICLR2023
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2
+10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure33: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: Sentiment.
+1.0
+0.8
+0.6
+0.4
+0.2
+0.0
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+>
+ycarucca
+htiw
+snoitcurtsni
+%
+2 10
+1
+10
+0
+10
+0.0 0.2 0.4 0.6 0.8 1.0
+Train accuracy ( )
+tnuoC
+Start 1 2 3 4 5
+Figure34: IterativeMonteCarlosearchimprovesthequalityoftheinstructioncandidatesateach
+round. Task: Translationen-fr.
+43

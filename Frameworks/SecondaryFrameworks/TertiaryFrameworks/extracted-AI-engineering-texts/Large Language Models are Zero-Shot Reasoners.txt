@@ -1,0 +1,1924 @@
+Large Language Models are Zero-Shot Reasoners
+TakeshiKojima ShixiangShaneGu
+TheUniversityofTokyo GoogleResearch,BrainTeam
+t.kojima@weblab.t.u-tokyo.ac.jp
+MachelReid YutakaMatsuo YusukeIwasawa
+GoogleResearch∗ TheUniversityofTokyo TheUniversityofTokyo
+Abstract
+Pretrainedlargelanguagemodels(LLMs)arewidelyusedinmanysub-fieldsof
+natural language processing (NLP) and generally known as excellent few-shot
+learnerswithtask-specificexemplars. Notably,chainofthought(CoT)prompting,
+a recent technique for eliciting complex multi-step reasoning through step-by-
+stepanswerexamples,achievedthestate-of-the-artperformancesinarithmetics
+andsymbolicreasoning,difficultsystem-2tasksthatdonotfollowthestandard
+scaling laws for LLMs. While these successes are often attributed to LLMs’
+abilityforfew-shotlearning,weshowthatLLMsaredecentzero-shotreasoners
+by simply adding “Let’s think step by step” before each answer. Experimental
+resultsdemonstratethatourZero-shot-CoT,usingthesamesingleprompttemplate,
+significantly outperforms zero-shot LLM performances on diverse benchmark
+reasoningtasksincludingarithmetics(MultiArith,GSM8K,AQUA-RAT,SVAMP),
+symbolicreasoning(LastLetter,CoinFlip),andotherlogicalreasoningtasks(Date
+Understanding, Tracking Shuffled Objects), without any hand-crafted few-shot
+examples,e.g. increasingtheaccuracyonMultiArithfrom17.7%to78.7%and
+GSM8Kfrom10.4%to40.7%withlarge-scaleInstructGPTmodel(text-davinci-
+002),aswellassimilarmagnitudesofimprovementswithanotheroff-the-shelf
+largemodel,540BparameterPaLM.Theversatilityofthissinglepromptacross
+very diverse reasoning tasks hints at untapped and understudied fundamental
+zero-shotcapabilitiesofLLMs,suggestinghigh-level,multi-taskbroadcognitive
+capabilitiesmaybeextractedbysimpleprompting. Wehopeourworknotonly
+servesastheminimalstrongestzero-shotbaselineforthechallengingreasoning
+benchmarks,butalsohighlightstheimportanceofcarefullyexploringandanalyzing
+theenormouszero-shotknowledgehiddeninsideLLMsbeforecraftingfinetuning
+datasetsorfew-shotexemplars.
+1 Introduction
+Scaling up the size of language models has been key ingredients of recent revolutions in natural
+languageprocessing(NLP)[Vaswanietal.,2017,Devlinetal.,2019,Raffeletal.,2020,Brownetal.,
+2020,Thoppilanetal.,2022,Raeetal.,2021,Chowdheryetal.,2022]. Thesuccessoflargelanguage
+models(LLMs)isoftenattributedto(in-context)few-shotorzero-shotlearning. Itcansolvevarious
+tasksbysimplyconditioningthemodelsonafewexamples(few-shot)orinstructionsdescribingthe
+task(zero-shot). Themethodofconditioningthelanguagemodeliscalled“prompting”[Liuetal.,
+2021b],anddesigningpromptseithermanually[SchickandSchütze,2021,ReynoldsandMcDonell,
+2021]orautomatically[Gaoetal.,2021,Shinetal.,2020]hasbecomeahottopicinNLP.
+∗WorkdonewhileatTheUniversityofTokyo.
+36thConferenceonNeuralInformationProcessingSystems(NeurIPS2022).
+3202
+naJ
+92
+]LC.sc[
+4v61911.5022:viXra(a) Few-shot (b) Few-shot-CoT
+Q: Roger has 5 tennis balls. He buys 2 more cans of tennis
+Q: Roger has 5 tennis balls. He buys 2 more cans of tennis balls. Each can has 3 tennis balls. How many tennis balls does
+balls. Each can has 3 tennis balls. How many tennis balls does he have now?
+he have now? A: Roger started with 5 balls. 2 cans of 3 tennis balls each is 6
+A: The answer is 11. tennis balls. 5 + 6 = 11. The answer is 11.
+Q: A juggler can juggle 16 balls. Half of the balls are golf balls, Q: A juggler can juggle 16 balls. Half of the balls are golf balls,
+and half of the golf balls are blue. How many blue golf balls are and half of the golf balls are blue. How many blue golf balls are
+there? there?
+A: A:
+(Output) The answer is 8. X (Output) The juggler can juggle 16 balls. Half of the balls are golf
+balls. So there are 16 / 2 = 8 golf balls. Half of the golf balls are
+blue. So there are 8 / 2 = 4 blue golf balls. The answer is 4. ✓
+(c) Zero-shot (d) Zero-shot-CoT (Ours)
+Q: A juggler can juggle 16 balls. Half of the balls are golf balls, Q: A juggler can juggle 16 balls. Half of the balls are golf balls,
+and half of the golf balls are blue. How many blue golf balls are and half of the golf balls are blue. How many blue golf balls are
+there? there?
+A: The answer (arabic numerals) is A: Let’s think step by step.
+(Output) 8 X (Output) There are 16 balls in total. Half of the balls are golf
+balls. That means that there are 8 golf balls. Half of the golf balls
+are blue. That means that there are 4 blue golf balls. ✓
+Figure1: ExampleinputsandoutputsofGPT-3with(a)standardFew-shot([Brownetal.,2020]),(b)
+Few-shot-CoT([Weietal.,2022]),(c)standardZero-shot,and(d)ours(Zero-shot-CoT).Similarto
+Few-shot-CoT,Zero-shot-CoTfacilitatesmulti-stepreasoning(bluetext)andreachcorrectanswer
+wherestandardpromptingfails. UnlikeFew-shot-CoTusingstep-by-stepreasoningexamplesper
+task,oursdoesnotneedanyexamplesandjustusesthesameprompt“Let’sthinkstepbystep”across
+alltasks(arithmetic,symbolic,commonsense,andotherlogicalreasoningtasks).
+IncontrasttotheexcellentperformanceofLLMsinintuitiveandsingle-stepsystem-1[Stanovich
+andWest,2000]taskswithtask-specificfew-shotorzero-shotprompting[Liuetal.,2021b],even
+languagemodelsatthescaleof100Bormoreparametershadstruggledonsystem-2tasksrequiring
+slowandmulti-stepreasoning[Raeetal.,2021]. Toaddressthisshortcoming, Weietal.[2022],
+Wangetal.[2022]haveproposedchainofthought prompting(CoT),whichfeedLLMswiththe
+step-by-stepreasoningexamplesratherthanstandardquestionandanswerexamples(seeFig. 1-a).
+Suchchainofthoughtdemonstrationsfacilitatemodelstogenerateareasoningpaththatdecomposes
+thecomplexreasoningintomultipleeasiersteps. NotablywithCoT,thereasoningperformancethen
+satisfiesthescalinglawsbetterandjumpsupwiththesizeofthelanguagemodels. Forexample,
+whencombinedwiththe540BparameterPaLMmodel[Chowdheryetal.,2022],chainofthought
+promptingsignificantlyincreasestheperformanceoverstandardfew-shotpromptingacrossseveral
+benchmarkreasoningtasks,e.g.,GSM8K(17.9%→58.1%).
+WhilethesuccessesofCoTprompting[Weietal.,2022],alongthoseofmanyothertask-specific
+promptingwork[Gaoetal.,2021,SchickandSchütze,2021,Liuetal.,2021b],areoftenattributed
+toLLMs’abilityforfew-shotlearning[Brownetal.,2020],weshowthatLLMsaredecentzero-shot
+reasonersbyaddingasimpleprompt,Let’sthinkstepbystep,tofacilitatestep-by-stepthinkingbefore
+answering each question (see Figure 1). Despite the simplicity, our Zero-shot-CoT successfully
+generates a plausible reasoning path in a zero-shot manner and reaches the correct answer in a
+problemwherethestandardzero-shotapproachfails. Importantly,ourZero-shot-CoTisversatileand
+task-agnostic,unlikemostpriortask-specificpromptengineeringintheformsofexamples(few-shot)
+or templates (zero-shot) [Liu et al., 2021b]: it can facilitate step-by-step answers across various
+reasoningtasks,includingarithmetic(MultiArith[RoyandRoth,2015],GSM8K[Cobbeetal.,2021],
+AQUA-RAT[Lingetal.,2017],andSVAMP[Pateletal.,2021]),symbolicreasoning(Lastletterand
+Coinflip),commonsensereasoning(CommonSenseQA[Talmoretal.,2019]andStrategyQA[Geva
+etal.,2021]),andotherlogicalreasoningtasks(DateunderstandingandTrackingShuffledObjects
+fromBIG-bench[Srivastavaetal.,2022])withoutmodifyingthepromptpertask.
+WeempiricallyevaluateZero-shot-CoTagainstotherpromptingbaselinesinTable2. Whileour
+Zero-shot-CoTunderperformsFew-shot-CoTwithcarefully-craftedandtask-specificstep-by-stepex-
+amples,Zero-shot-CoTachievesenormousscoregainscomparedtothezero-shotbaseline,e.g. from
+17.7%to78.7%onMultiArithandfrom10.4%to40.7%onGSM8Kwithlarge-scaleInstructGPT
+2model(text-davinci-002). WealsoevaluateZero-shot-CoTwithanotheroff-the-shelflargemodel,
+540BparameterPaLM,showingsimilarmagnitudesofimprovementsonMultiArithandGSM8K.
+Importantly,withoursinglefixedprompt,zero-shotLLMshaveasignificantlybetterscalingcurve
+comparabletothatofthefew-shotCoTbaseline. WealsoshowthatbesidesFew-shot-CoTrequiring
+humanengineeringofmulti-stepreasoningprompts,theirperformancedeterioratesifpromptexample
+questiontypesandtaskquestiontypeareunmatched,suggestinghighsensitivitytoper-taskprompt
+designs. In contrast, the versatility of this single prompt across diverse reasoning tasks hints at
+untappedandunderstudiedzero-shotfundamentalcapabilitiesofLLMs,suchashigher-levelbroad
+cognitivecapabilitieslikegenericlogicalreasoning[Chollet,2019]. WhilethevibrantfieldofLLMs
+startedoutfromthepremiseofexcellentfew-shotlearners[Brownetal.,2020],wehopeourwork
+encouragesmoreresearchintouncoveringhigh-levelandmulti-taskzero-shotcapabilitieshidden
+insidethosemodels.
+2 Background
+Webrieflyreviewthetwocorepreliminaryconceptsthatformthebasisofthiswork: theadventof
+largelanguagemodels(LLMs)andprompting,andchainofthought(CoT)promptingformulti-step
+reasoning.
+Largelanguagemodelsandprompting Alanguagemodel(LM),isamodelthatlookstoestimate
+theprobabilitydistributionovertext. Recently,scalingimprovementsthroughlargermodelsizes
+(fromafewmillion[Merityetal.,2016]tohundredsofmillions[Devlinetal.,2019]tohundredsof
+billions[Brownetal.,2020]parameters)andlargerdata(e.g. webtextcorpora[Gaoetal.,2020])
+haveenabledpre-trainedlargelanguagemodels(LLMs)tobeincrediblyadeptatmanydownstream
+NLPtasks. Besidestheclassic“pre-trainandfine-tune”paradigm[Liuetal.,2021b],modelsscaled
+to100B+parametersexhibitpropertiesconducivetofew-shotlearning[Brownetal.,2020],byway
+ofincontextlearning,whereonecanuseatextortemplateknownasaprompttostronglyguidethe
+generationtooutputanswersfordesiredtasks,thusbeginninganeraof“pre-trainandprompt”[Liu
+etal.,2021a]. Inwork,wecallsuchpromptswithexplicitconditioningonfewtaskexamplesas
+few-shotprompts,andothertemplate-onlypromptsaszero-shotprompts.
+Chainofthoughtprompting Multi-steparithmeticandlogicalreasoningbenchmarkshavepar-
+ticularlychallengedthescalinglawsoflargelanguagemodels[Raeetal.,2021]. Chainofthought
+(CoT)prompting[Weietal.,2022],aninstanceoffew-shotprompting,proposedasimplesolution
+bymodifyingtheanswersinfew-shotexamplestostep-by-stepanswers,andachievedsignificant
+boostsinperformanceacrossthesedifficultbenchmarks,especiallywhencombinedwithverylarge
+language models like PaLM [Chowdhery et al., 2022]. The top row of Figure 1 shows standard
+few-shotpromptingagainst(few-shot)CoTprompting. Notably,few-shotlearningwastakenasa
+givenfortacklingsuchdifficulttasks,andthezero-shotbaselineperformanceswerenotevenreported
+intheoriginalwork[Weietal.,2022]. Todifferentiateitfromourmethod,wecallWeietal.[2022]
+asFew-shot-CoT inthiswork.
+3 Zero-shotChainofThought
+WeproposeZero-shot-CoT,azero-shottemplate-basedpromptingforchainofthoughtreasoning.
+It differs from the original chain of thought prompting [Wei et al., 2022] as it does not require
+step-by-stepfew-shotexamples,anditdiffersfrommostofthepriortemplateprompting[Liuetal.,
+2021b]asitisinherentlytask-agnosticandelicitsmulti-hopreasoningacrossawiderangeoftasks
+withasingletemplate. Thecoreideaofourmethodissimple,asdescribedinFigure1: addLet’s
+thinkstepbystep,oraasimilartext(seeTable4),toextractstep-by-stepreasoning.
+3.1 Two-stageprompting
+WhileZero-shot-CoTisconceptuallysimple,itusespromptingtwicetoextractbothreasoningand
+answer,asexplainedinFigure2. Incontrast,thezero-shotbaseline(seethebottom-leftinFigure1)
+alreadyusespromptingintheformof“Theansweris”,toextracttheanswersincorrectformats.
+Few-shotprompting,standardorCoT,avoidsneedingsuchanswer-extractionpromptingbyexplicitly
+designing the few-shot example answers to end in such formats (see the top-right and top-left
+3【1st prompt】 【2nd prompt】
+Reasoning Extraction Answer Extraction
+Q: On average Joe throws 25 punches per Q: On average Joe throws 25 punches per
+minute. A fight lasts 5 rounds of 3 minutes. How minute. A fight lasts 5 rounds of 3 ・・・
+many punches did he throw? A: Let's think step by step.
+A: Let's think step by step.
+In one minute, Joe throws 25 punches. ・・・In five
+rounds, Joe throws 5 * 75 = 375 punches. .
+Therefore, the answer (arabic numerals) is
+LLM
+LLM
+In one minute, Joe throws 25 punches.
+In three minutes, Joe throws 3 * 25 = 75 punches.
+In five rounds, Joe throws 5 * 75 = 375 punches. 375.
+Figure2: FullpipelineofZero-shot-CoTasdescribedin§3: wefirstusethefirst“reasoning”prompt
+toextractafullreasoningpathfromalanguagemodel,andthenusethesecond“answer”promptto
+extracttheanswerinthecorrectformatfromthereasoningtext.
+inFigure1). Insummary,Few-shot-CoT[Weietal.,2022]requirescarefulhumanengineeringof
+afewpromptexampleswithspecificanswerformatspertask,whileZero-shot-CoTrequiresless
+engineeringbutrequirespromptingLLMstwice.
+1stprompt: reasoningextraction Inthisstepwefirstmodifytheinputquestionxintoaprompt
+x(cid:48) usingasimpletemplate“Q:[X].A:[T]”,where[X]isaninputslotforxand[T]isanslot
+forhand-craftedtriggersentencetthatwouldextractchainofthoughtoanswerthequestionx. For
+example,ifweuse“Let’sthinkstepbystep”asatriggersentence,thepromptx(cid:48)wouldbe“Q:[X].
+A:Let’sthinkstepbystep.”. SeeTable4formoretriggerexamples. Promptedtextx(cid:48)isthenfedinto
+alanguagemodelandgeneratesubsequentsentencez. Wecanuseanydecodingstrategy,butwe
+usedgreedydecodingthroughoutthepaperforthesimplicity.
+2nd prompt: answer extraction In the second step, we use generated sentence z along with
+promptedsentencex(cid:48)toextractthefinalanswerfromthelanguagemodel. Tobeconcrete,wesimply
+concatenate three elements as with “[X(cid:48)] [Z] [A]”: [X(cid:48)] for 1st prompt x(cid:48), [Z] for sentence z
+generatedatthefirststep,and[A]foratriggersentencetoextractanswer. Thepromptforthisstep
+isself-augmented,sincethepromptcontainsthesentencezgeneratedbythesamelanguagemodel.
+Inexperiment,weuseslightlydifferentanswertriggerdependingontheanswerformat. Forexample,
+weuse“Therefore,amongAthroughE,theansweris”formulti-choiceQA,and“Therefore,the
+answer(arabicnumerals)is”formathproblemrequiringnumericalanswer. SeeAppendixA.5for
+thelistsofanswertriggersentences. Finally,thelanguagemodelisfedthepromptedtextasinputto
+generatesentencesyˆandparsethefinalanswer. See“AnswerCleansing”at§4fortheparserdetails.
+4 Experiment
+Tasksanddatasets Weevaluateourproposalon12datasetsfromfourcategoriesofreasoning
+tasks: arithmetic,commonsense,symbolic,andotherlogicalreasoningtasks. SeeAppendixA.2for
+thedetaileddescriptionofeachdatasets.
+Forarithmeticreasoning,weconsiderthefollowingsixdatasets: (1)SingleEq[Koncel-Kedziorski
+etal.,2015],(2)AddSub[Hosseinietal.,2014],(3)MultiArith[RoyandRoth,2015],(4)AQUA-
+RAT[Lingetal.,2017],(5)GSM8K[Cobbeetal.,2021],and(6)SVAMP[Pateletal.,2021]. The
+firstthreearefromtheclassicMathWorldProblemRepository[Koncel-Kedziorskietal.,2016],
+andthelastthreearefrommorerecentbenchmarks. SingleEqandAddSubcontaineasierproblems,
+whichdonotrequiremulti-stepcalculationtosolvethetasks. MultiArith,AQUA-RAT,GSM8k,and
+SVAMParemorechallengingdatasetsthatrequiremulti-stepreasoningtosolve.
+Forcommonsensereasoning,weuseCommonsenseQA[Talmoretal.,2019]andStrategyQA[Geva
+etal.,2021]. CommonsenseQAasksquestionswithcomplexsemanticsthatoftenrequirereasoning
+4basedonpriorknowledge[Talmoretal.,2019]. StrategyQArequiresmodelstoinferanimplicit
+multi-hopreasoningtoanswerquestions[Gevaetal.,2021].
+Forsymbolicreasoning,weuseLastLetterConcatenationandCoinFlip[Weietal.,2022]. Last
+letterConcatenationasksthemodeltoconcatenatethelastlettersofeachword. Weusedrandomly
+selectedfournamesforeachsample. CoinFlipasksthemodeltoanswerwhetheracoinisstillheads
+upafterpeopleeitherflipordonotflipthecoin. Wecreatedsamplesoffourtimesflipornotflip
+trials. Althoughthesetasksareeasyforhumans,LMstypicallyexhibitaflatscalingcurve.
+Forotherlogicalreasoningtasks,wechoosetwoevaluationsetsfromtheBIG-bencheffort[Srivastava
+etal.,2022]: DateUnderstanding2andTrackingShuffledObjects. DateUnderstandingasksmodels
+toinferthedatefromacontext. TrackingShuffledObjectstestsamodel’sabilitytoinferthefinal
+stateofobjectsgivenitsinitialstateandasequenceofobjectshuffling. Weusedadatasetoftracking
+threeshuffledobjectsforourexperiment.
+Models Weexperimentwith17modelsintotal. MainexperimentsareconductedwithInstruct-
+GPT3[Ouyangetal.,2022](text-ada/babbage/curie/davinci-001andtext-davinci-002)3,original
+GPT3[Brownetal.,2020](ada,babbage,curie,anddavinci)4,andPaLM[Chowdheryetal.,2022]
+(8B,62B,and540B).Inaddition,weusedGPT-2[Radfordetal.,2019],GPT-Neo[Blacketal.,2021],
+GPT-J[WangandKomatsuzaki,2021],T0[Sanhetal.,2022],andOPT[Zhangetal.,2022]formodel
+scalingstudy. ThesizeofLMsrangesfrom0.3Bto540B.Weincludebothstandard(e.g. GPT-3and
+OPT),andinstructionfollowingvariants(e.g. Instruct-GPT3andT0). SeeAppendixA.3formodel
+descriptiondetails. Unlessotherwisestated,weusetext-davinci-002throughouttheexperiments.
+Baselines WecompareourZero-shot-CoTmainlytostandardZero-shotpromptingtoverifythe
+effectivenessofitschainofthoughtreasoning. ForZero-shotexperiments,similaranswerprompts
+asZero-shot-CoTareusedasdefault. SeeAppendixA.5fordetail. Tobetterevaluatethezero-shot
+abilityofLLMsonreasoningtasks,wealsocompareourmethodtoFew-shotandFew-shot-CoT
+baselinesfrom[Weietal.,2022],usingthesamein-contextexamples. Throughouttheexperiments,
+weusegreedydecodingacrossallthemethods. Forthezero-shotapproaches,theresultsaretherefore
+deterministic. Forthefew-shotapproaches,sincetheorderofin-contextexamplescouldaffectthe
+results[Luetal.,2022],weruneachexperimentonlyoncewithafixedseedacrossallmethodsand
+datasets,forfaircomparisonswiththezero-shotmethods. Weietal.[2022]showedthattheorderof
+examplesdidnotcauselargevarianceinCoTexperiments.
+Answercleansing Afterthemodeloutputsatextbyanswerextraction(see§3andFigure2),our
+methodpicksuponlythepartoftheanswertextthatfirstsatisfiestheanswerformat. Forexample,
+iftheanswerpromptingoutputs“probably375and376”onarithmetictasks, weextractthefirst
+number“375”andsetitasthemodelprediction. Inthecaseofmultiple-choice,thefirstlargeletter
+weencounterissetastheprediction. SeeAppendixA.6formoredetail. StandardZero-shotmethod
+followsthesameidea. ForFew-shotandFew-shot-CoTmethods,wefollow[Wangetal.,2022]and
+firstextracttheanswertextafter"Theansweris"fromthemodeloutput,andapplythesameanswer
+cleansingtoparsetheanswertext. If“Theansweris”isnotfoundinthemodeloutput,wesearch
+fromthebackofthetextandsetthefirsttextthatsatisfiestheanswerformatastheprediction.
+4.1 Results
+Zero-shot-CoTvs. Zero-shot Table1summarizeaccuracyofourmethod(Zero-shot-CoT)and
+standardzero-shotprompting(Zero-shot)foreachdataset. Zero-shot-CoTsubstantiallyoutperforms
+four out of six arithmetic reasoning tasks (MultiArith, GSM8K, AQUA, SVAMP), all symbolic
+reasoning, and all other logical reasoning tasks (from BIG-bench [Srivastava et al., 2022]). For
+2Whilepriorwork[Weietal.,2022]categorizedDateUnderstandingtaskintoCommonSensereasoning,
+ourstudycategorizedthistaskintologicalreasoningbecausethistaskrequireslesspriorknowledgeandmore
+logicalreasoningbetweendates.
+3OurexperimentforInstructGPT-3modelsincludesbothtext-****-001andtext-davinci-002.Text-davinci-
+002differsfromtext-****-001inthattheyusedifferentfine-tuningdatadependingonthedaterangecollected
+fromtheAPIs.Specifically,text-davinci-002usesdatauptoJun2021,whiletext-****-001usesdatauptoOct
+2019.(Seehttps://beta.openai.com/docs/engines/gpt-3)
+4OurexperimentswithGPT3seriesareconductedbyusingOpenAIAPIbetweenApril-2022andMay-2022,
+exceptforNo.10-16inTable4inAug-2022.
+5Table1: AccuracycomparisonofZero-shot-CoTwithZero-shotoneachtasks. Thevaluesontheleft
+sideofeachtaskaretheresultsofusinganswerextractionpromptsdependingonanswerformatas
+describedat§3. Thevaluesontherightsidearetheresultofadditionalexperimentwherestandard
+answerprompt"Theansweris"isusedforanswerextraction. SeeAppendixA.5fordetailsetups.
+Arithmetic
+SingleEq AddSub MultiArith GSM8K AQUA SVAMP
+zero-shot 74.6/78.7 72.2/77.0 17.7/22.7 10.4/12.5 22.4/22.4 58.8/58.7
+zero-shot-cot 78.0/78.7 69.6/74.7 78.7/79.3 40.7/40.5 33.5/31.9 62.1/63.7
+CommonSense OtherReasoningTasks SymbolicReasoning
+Common Strategy Date Shuffled LastLetter CoinFlip
+SenseQA QA Understand Objects (4words) (4times)
+zero-shot 68.8/72.6 12.7/54.3 49.3/33.6 31.3/29.7 0.2/- 12.8/53.8
+zero-shot-cot 64.6/64.0 54.8/52.3 67.5/61.8 52.4/52.9 57.6/- 91.4/87.8
+Table2:ComparisonwithbaselinemethodsusingaccuraciesonMultiArithandGSM8K.text-davinci-
+002isusedasthemodelifnotspecified. Weusedthesame8examplesasdescribedin[Weietal.,
+2022]forFew-shotandFew-shot-CoTsettings. (*1)Toverifythevarianceofchangingexamples,
+wereporttworesultsfor4-shot-cotbysplittingtheeightexamplesintotwogroups. (*2)Weinsert
+“Let’sthinkstepbystep.” atthebeginningofanswerpartofeachexemplarsforFew-shot-CoTtotest
+performancegains. FurtherexperimentresultswithPaLMarefoundatAppendixD
+MultiArith GSM8K
+Zero-Shot 17.7 10.4
+Few-Shot(2samples) 33.7 15.6
+Few-Shot(8samples) 33.8 15.6
+Zero-Shot-CoT 78.7 40.7
+Few-Shot-CoT(2samples) 84.8 41.3
+Few-Shot-CoT(4samples:First)(*1) 89.2 -
+Few-Shot-CoT(4samples:Second)(*1) 90.5 -
+Few-Shot-CoT(8samples) 93.0 48.7
+Zero-Plus-Few-Shot-CoT(8samples)(*2) 92.8 51.5
+FinetunedGPT-3175B[Weietal.,2022] - 33
+FinetunedGPT-3175B+verifier[Weietal.,2022] - 55
+PaLM540B:Zero-Shot 25.5 12.5
+PaLM540B:Zero-Shot-CoT 66.1 43.0
+PaLM540B:Zero-Shot-CoT+selfconsistency 89.0 70.1
+PaLM540B:Few-Shot[Weietal.,2022] - 17.9
+PaLM540B:Few-Shot-CoT[Weietal.,2022] - 56.9
+PaLM540B:Few-Shot-CoT+selfconsistency[Wangetal.,2022] - 74.4
+example,Zero-shot-CoTachievesscoregainsfrom17.7%to78.7%onMultiArithandfrom10.4%to
+40.7%onGSM8K.Ourmethodgiveson-parperformancesfortheremainingtwoarithmeticreasoning
+tasks(SingleEqandAddSub),whichisexpectedsincetheydonotrequiremulti-stepreasoning.
+Incommonsensereasoningtasks,Zero-shot-CoTdoesnotprovideperformancegains. Itisexpected
+asWeietal.[2022]alsoreportsthatevenFew-shot-CoTdoesnotprovideperformancegainson
+Lambda (135B), but does improve StrategyQA when combined with substantially larger PaLM
+(540B)model,whichmayalsoapplyforours. Moreimportantly,weobservethatmanygenerated
+chainofthoughtthemselvesaresurprisinglylogicallycorrectoronlycontainshuman-understandable
+mistakes(SeeTable3),suggestingthatZero-shot-CoTdoeselicitforbettercommonsensereasoning
+evenwhenthetaskmetricsdonotdirectlyreflectit. WeprovidesamplesgeneratedbyZero-shot-CoT
+foreachdatasetinAppendixB.
+6Zero-shot Zero-shot-CoT Zero-shot Zero-shot-CoT Zero-shot Zero-shot-CoT
+80 80 50
+60 60 40
+30
+40 40
+20
+20 20
+10
+0 0 0
+0.3B 1.3B 6.7B 175B S M L XL 8B 62B 540B
+(a)MultiArithonOriginalGPT-3 (b)MultiArithonInstructGPT-3 (c)GMS8KonPaLM
+Figure3: Modelscalestudywithvarioustypesofmodels. S:text-ada-001,M:text-babbage-001,L:
+text-curie-001,XL:text-davinci-002. SeeAppendixA.3andEforthedetail.
+Table3: ExamplesgeneratedbyZero-Shot-CoTonCommonsenseQAforErrorAnalysis.
+Example1(Reasoningiscorrect.) Example2(Modelcannotchooseonlyone.)
+Q:Whereisawellusedtoycarlikelytobefound? Q: What would be necessary for getting in shape?
+AnswerChoices:(A)child’sroom(B)boy’sbed- Answer Choices: (A) good health (B) exercise (C)
+room(C)ownhome(D)toystore(E)house muscletone(D)sweat(E)feelbetter
+A:Let’sthinkstepbystep. Atoycarislikely A:Let’sthinkstepbystep.Inordertogetinshape,
+tobefoundinachild’sroom. Achild’sroomis youneedtobeabletodothreethings:
+likelytobefoundinahouse. Therefore, atoy 1.Exerciseregularly
+carislikelytobefoundinahouse. 2.Eatahealthydiet
+Therefore,amongAthroughE,theanswerisE. 3.Getenoughsleep
+(cid:55)(GT:A,Zero-shot:A) Ifyoucandoallthreeofthosethings,thenyouwill
+bewellonyourwaytogettinginshape! Therefore,
+among A through E, the answer is B, C, and D.
+(GT:B,Zero-shot:B)
+Comparisonwithotherbaselines Table2comparestheperformancesontwoarithmeticreasoning
+benchmarks(MultiArithandGSM8K)acrossZero-shot-CoTandbaselines. Thelargegapbetween
+standard prompting (1st block) and chain of thought prompting (2nd block) suggests that these
+tasks are difficult without eliciting multi-step reasoning. Major improvements are confirmed on
+bothInstructGPT-3(text-davinci-002)andPaLM(540B)models(4thblock). WhileZero-shot-CoT
+naturallyunderperformsFew-shot-CoT,itsubstantiallyoutperformsstandardFew-shotprompting
+witheven8examplespertask. ForGSM8K,Zero-shot-CoTwithInstructGPT-3(text-davinci-002)
+alsooutperformsfinetunedGPT-3andstandardfew-shotpromptingwithlargemodels(PaLM,540B),
+reportedinWeietal.[2022](3rdand4thblock). SeeApp. DformoreexperimentresultswithPaLM.
+Does model size matter for zero-shot reasoning? Figure 3 compares performance of various
+languagemodelsonMultiArith/GSM8K.Withoutchainofthoughtreasoning, theperformance
+doesnotincreaseorincreasesslowlyasthemodelscaleisincreased,i.e.,thecurveismostlyflat. In
+contrast,theperformancedrasticallyincreaseswithchainofthoughtreasoning,asthemodelsize
+getsbigger,forOriginal/InstructGPT-3andPaLM.Whenthemodelsizeissmaller,chainofthought
+reasoningisnoteffective. Thisresultalignswiththefew-shotexperimentresultsinWeietal.[2022].
+AppendixEshowsextensiveexperimentresultsusingwidervarietyoflanguagemodels,including
+GPT-2,GPT-Neo,GPT-J,T0,andOPT.Wealsomanuallyinvestigatedthequalityofgeneratedchain
+ofthought,andlarge-scalemodelsclearlydemonstratebetterreasoning(SeeAppendixBforthe
+sampledoutputsforeachmodel).
+ErrorAnalysis TobetterunderstandthebehaviorofZero-shot-CoT,wemanuallyinvestigated
+randomlyselectedexamplesgeneratedbyInstruct-GPT3withZero-shot-CoTprompting. SeeAp-
+pendix C for examples, where some of the observations include: (1) In commonsense reasoning
+(CommonsenseQA),Zero-shot-CoToftenproducesflexibleandreasonablechainofthoughteven
+whenthefinalpredictionisnotcorrect. Zero-shot-CoToftenoutputmultipleanswerchoiceswhen
+themodelfinditisdifficulttonarrowitdowntoone(seeTable3forexamples). (2)Inarithmetic
+7Table4: RobustnessstudyagainsttemplatemeasuredontheMultiArithdatasetwithtext-davinci-002.
+(*1) This template is used in Ahn et al. [2022] where a language model is prompted to generate
+step-by-stepactionsgivenahigh-levelinstructionforcontrollingroboticactions. (*2)Thistemplate
+isusedinReynoldsandMcDonell[2021]butisnotquantitativelyevaluated.
+No. Category Template Accuracy
+1 instructive Let’sthinkstepbystep. 78.7
+2 First,(*1) 77.3
+3 Let’sthinkaboutthislogically. 74.5
+4 Let’ssolvethisproblembysplittingitintosteps. (*2) 72.2
+5 Let’sberealisticandthinkstepbystep. 70.8
+6 Let’sthinklikeadetectivestepbystep. 70.3
+7 Let’sthink 57.5
+8 Beforewediveintotheanswer, 55.7
+9 Theanswerisaftertheproof. 45.7
+10 misleading Don’tthink. Justfeel. 18.8
+11 Let’sthinkstepbystepbutreachanincorrectanswer. 18.7
+12 Let’scountthenumberof"a"inthequestion. 16.7
+13 Byusingthefactthattheearthisround, 9.3
+14 irrelevant Bytheway,Ifoundagoodrestaurantnearby. 17.5
+15 Abrakadabra! 15.5
+16 It’sabeautifulday. 13.1
+- (Zero-shot) 17.7
+Table 5: Robustness study of Few-shot-CoT against examples. When the examples are from en-
+tirelydifferenttasks,theperformancegenerallybecomesworse,butwhentheanswerformatsare
+matched(i.e. CommonsenseQAtoAQUA-RAT,multiple-choice),theperformancelossislesssevere.
+†CommonsenseQAsamplesareusedinthisvariation
+Zero-shot Few-shot-CoT† Zero-shot-CoT Few-shot-CoT
+AQUA-RAT 22.4 31.9 33.5 39.0
+MultiArith 17.7 27.0 78.7 88.2
+reasoning(MultiArith),Zero-shot-CoTandFew-shot-CoTshowsubstantialdifferencesregarding
+theerrorpatterns. First,Zero-shot-CoTtendstooutputunnecessarystepsofreasoningaftergetting
+thecorrectprediction,whichresultsinchangingthepredictiontoincorrectone. Zero-shot-CoTalso
+sometimesdoesnotstartreasoning,justrephrasingtheinputquestion. Incontrast,Few-shot-CoT
+tendtofailwhengeneratedchainofthoughtincludeternaryoperation,e.g. (3+2)∗4.
+HowdoespromptselectionaffectZero-shot-CoT? WevalidatetherobustnessofZero-shot-CoT
+against input prompts. Table 4 summarizes performance using 16 different templates with three
+categories. Specifically,followingWebsonandPavlick[2022],thecategoriesincludeinstructive
+(encouragereasoning),misleading(discouragereasoningorencouragingreasoningbutinawrong
+way), and irrelevant (nothing to do with reasoning). The results indicate that the performance is
+improvedifthetextiswritteninawaythatencourageschainofthoughtreasoning,i.e.,thetemplates
+arewithin"instructive"category. However,thedifferenceinaccuracyissignificantdependingon
+thesentence. Inthisexperiment,"Let’sthinkstepbystep."achievesthebestresults. Interestingly,
+itisfoundthatdifferenttemplatesencouragethemodeltoexpressreasoningquitedifferently(see
+AppendixBforsampleoutputsbyeachtemplate). Incontrast,whenweusemisleadingorirrelevant
+templates, theperformancedoesnotimprove. It remains anopenquestionhowto automatically
+createbettertemplatesforZero-shot-CoT.
+How does prompt selection affect Few-shot-CoT? Table 5 shows the performance of Few-
+shot-CoT when using examples from different datasets: CommonsenseQA to AQUA-RAT and
+CommonsenseQAtoMultiArith. Thedomainsaredifferentinbothcases,buttheanswerformat
+8is the same in the former. Surprisingly, the chain of thought examples from different domains
+(commonsensetoarithmetic)butwiththesameanswer(multiple-choice)formatprovidesubstantial
+performancegainoverZero-shot(toAQUA-RAT),measuredrelativetothepossibleimprovements
+fromZero-shot-CoTorFew-shot-CoT.Incontrast,theperformancegainbecomesmuchlesswhen
+usingexampleswithdifferentanswertypes(toMultiArith),confirmingpriorwork[Minetal.,2022]
+thatsuggestsLLMsmostlyleveragethefew-shotexamplestoinfertherepeatedformatratherthan
+the task itself in-context. Nevertheless, for both cases the results are worse than Zero-shot-CoT,
+affirmingtheimportanceoftask-specificsampleengineeringinFew-shot-CoT.
+5 DiscussionandRelatedWork
+Table6: Summaryofrelatedworkonarithmetic/commonsensereasoningtasks. Categorydenotesthe
+trainingstrategy. CoTdenoteswhethertooutputchainofthought. Taskcolumnliststhetasksthat
+areperformedincorrespondingpapers. AR:ArithmeticReasoning,CR:CommonsenseReasoning.
+Method Category CoT Task Model
+Rajanietal.[2019] Fine-Tuning (cid:88) CR GPT
+Cobbeetal.[2021] Fine-Tuning (cid:88) AR GPT-3
+Zelikmanetal.[2022] Fine-Tuning (cid:88) AR,CR GPT-3,etc
+Nyeetal.[2022] Fine-Tuning5 (cid:88) AR Transformer(Decoder)
+Brownetal.[2020] Few/Zero-Shot CR GPT-3
+Smithetal.[2022] Few/Zero-Shot AR,CR MT-NLG
+Raeetal.[2021] Few-Shot AR,CR Gopher
+Weietal.[2022] Few-Shot (cid:88) AR,CR PaLM,LaMBDA,GPT-3
+Wangetal.[2022] Few-Shot (cid:88) AR,CR PaLM,etc
+Chowdheryetal.[2022] Few-Shot (cid:88) AR,CR PaLM
+Shwartzetal.[2020] Zero-Shot (cid:88) CR GPT-2,etc
+ReynoldsandMcDonell[2021] Zero-Shot (cid:88) AR GPT-3
+Zero-shot-CoT(Ours) Zero-Shot (cid:88) AR,CR PaLM,Instruct-GPT3,GPT-3,etc
+ReasoningAbilityofLLMs Severalstudieshaveshownthatpre-trainedmodelsusuallyarenot
+goodatreasoning[Brownetal.,2020,Smithetal.,2022,Raeetal.,2021],butitsabilitycanbe
+substantiallyincreasedbymakingthemproducestep-by-stepreasoning,eitherbyfine-tuning[Rajani
+etal.,2019,Cobbeetal.,2021,Zelikmanetal.,2022,Nyeetal.,2022]orfew-shotprompting[Wei
+etal.,2022,Wangetal.,2022,Chowdheryetal.,2022](SeeTable6forsummaryofrelatedwork).
+Unlikemostpriorwork,wefocusonzero-shotpromptingandshowthatasinglefixedtriggerprompt
+substantiallyincreasesthezero-shotreasoningabilityofLLMsacrossavarietyoftasksrequiring
+complexmulti-hopthinking(Table1),especiallywhenthemodelisscaledup(Figure3). Italso
+generatesreasonableandunderstandablechainofthoughtacrossdiversetasks(AppendixB),even
+when the final prediction is wrong (Appendix C). Similar to our work, Reynolds and McDonell
+[2021]demonstrateaprompt,“Let’ssolvethisproblembysplittingitintosteps”,wouldfacilitate
+themulti-stepreasoninginasimplearithmeticproblem. However,theytreateditasatask-specific
+exampleanddidnotevaluatequantitativelyondiversereasoningtasksagainstbaselines.Shwartzetal.
+[2020]proposetodecomposeacommonsensequestionintoaseriesofinformationseekingquestion,
+suchas“whatisthedefinitionof[X]”.Itdoesnotrequiredemonstrationsbutrequiressubstantial
+manualpromptengineeringpereachreasoningtask. OurresultsstronglysuggestthatLLMsare
+decentzero-shotreasoners,whilepriorwork[Weietal.,2022]oftenemphasizeonlyfew-shotlearning
+andtask-specificin-contextlearning,e.g. nozero-shotbaselineswerereported. Ourmethoddoes
+notrequiretime-consumingfine-tuningorexpensivesampleengineering,andcanbecombinedwith
+anypre-trainedLLM,servingasthestrongestzero-shotbaselineforallreasoningtasks.
+Zero-shot Abilities of LLMs Radford et al. [2019] show that LLMs have excellent zero-shot
+abilitiesinmanysystem-1tasks,includingreadingcomprehension,translation,andsummarization.
+5Nyeetal.[2022]alsoevaluatesfew-shotsettings,butthefew-shotperformancesontheirdomainsareworse
+thanthefine-tuningresults.
+9Sanhetal.[2022],Ouyangetal.[2022]showthatsuchzero-shotabilitiesofLLMscanbeincreased
+byexplicitlyfine-tuningmodelstofollowinstructions. Althoughtheseworkfocusonthezero-shot
+performancesofLLMs,wefocusonmanysystem-2tasksbeyondsystem-1tasks,consideredagrand
+challengeforLLMsgivenflatscalingcurves. Inaddition,Zero-shot-CoTisorthogonaltoinstruction
+tuning;itincreaseszero-shotperformanceforInstructGPT3,vanillaGPT3,andPaLM(SeeFigure3).
+FromNarrow(task-specific)toBroad(multi-task)Prompting Mostpromptsaretask-specific.
+Whilefew-shotpromptsarenaturallysoduetotask-specificin-contextsamples[Brownetal.,2020,
+Wei et al., 2022], majority of zero-shot prompts have also focused on per-task engineering (of
+templates)[Liuetal.,2021b,ReynoldsandMcDonell,2021]. Borrowingterminologiesfrom Chollet
+[2019]whichbuildsonhierarchicalmodelsofintelligence[McGrew,2005,JohnsonandBouchardJr,
+2005],thesepromptsarearguablyeliciting“narrowgeneralization”ortask-specificskillsfromLLMs.
+Ontheotherhand,ourmethodisamulti-taskpromptandelicits“broadgeneralization”orbroad
+cognitiveabilitiesinLLMs,suchaslogicalreasoningorsystem-2itself. Wehopeourworkcanserve
+asareferenceforacceleratingnotjustlogicalreasoningresearchwithLLMs,butalsodiscoveryof
+otherbroadcognitivecapabilitieswithinLLMs.
+TrainingDatasetDetails Alimitationoftheworkisthelackofpublicinformationonthedetails
+of training datasets used for LLMs, e.g. 001 vs 002 for GPT models, original GPT3 vs Instruct-
+GPT [Ouyang et al., 2022], and data for PaLM models [Chowdhery et al., 2022]. However, big
+performance increases from Zero-shot to Zero-shot-CoT in all recent large models (InstructGPT
+001or002,OriginalGPT3,andPaLM)andconsistentimprovementsinbotharithmeticandnon-
+arithmetictaskssuggestthatthemodelsareunlikelysimplymemorizing,butinsteadcapturinga
+task-agnosticmulti-stepreasoningcapabilityforgenericproblemsolving. Whilemostresultsare
+basedonInstructGPTsinceitisthebestperformingopen-accessLLM,keyresultsarereproduced
+onPaLM,anddatasetdetailsinInstructGPT(AppendixA,B,andFinOuyangetal.[2022])also
+confirmthatitisnotspeciallyengineeredformulti-stepreasoning.
+LimitationandSocialImpact Ourworkisbasedonpromptingmethodsforlargelanguagemodels.
+LLMshavebeentrainedonlargecorporafromvarioussourcesontheweb(alsosee“TrainingDataset
+Details”),andhaveshowntocaptureandamplifybiasesfoundinthetrainingdata. Promptingisa
+methodthatlookstotakeadvantageofthepatternscapturedbylanguagemodelsconducivetovarious
+tasks,andthereforeithasthesameshortcomings. Thisbeingsaid,ourapproachisamoredirectway
+toprobecomplexreasoninginsidepre-trainedLLMs,removingtheconfoundingfactorofin-context
+learninginpriorfew-shotapproaches,andcanleadtomoreunbiasedstudyofbiasesinLLMs.
+6 Conclusion
+WehaveproposedZero-shot-CoT,asinglezero-shotpromptthatelicitschainofthoughtfromlarge
+languagemodelsacrossavarietyofreasoningtasks,incontrasttothefew-shot(in-context)approach
+inpreviousworkthatrequireshand-craftingfew-shotexamplespertask. Oursimplemethodnotonly
+istheminimalistandstrongestzero-shotbaselinefordifficultmulti-stepsystem-2reasoningtasks
+thatlongevadedthescalinglawsofLLMs,butalsoencouragesthecommunitytofurtherdiscover
+similarmulti-taskpromptsthatelicitbroadcognitiveabilitiesinsteadofnarrowtask-specificskills.
+Acknowledgements
+ThisworkhasbeensupportedbytheMohammedbinSalmanCenterforFutureScienceandTechnol-
+ogyforSaudi-JapanVision2030atTheUniversityofTokyo(MbSC2030). Computationalresource
+ofAIBridgingCloudInfrastructure(ABCI)providedbyNationalInstituteofAdvancedIndustrial
+ScienceandTechnology(AIST)wasusedforexperimentsotherthanPaLM.WealsothankJason
+WeiandDennyZhoufordiscussionsandsupportonrunningPaLMexperiments,andSharanNarang
+andAakankshaChowdheryforgenericsupportonPaLMinfrastructures.
+References
+MichaelAhn,AnthonyBrohan,NoahBrown,YevgenChebotar,OmarCortes,ByronDavid,Chelsea
+Finn,KeerthanaGopalakrishnan,KarolHausman,AlexHerzog,DanielHo,JasmineHsu,Julian
+10Ibarz,BrianIchter,AlexIrpan,EricJang,RosarioJaureguiRuano,KyleJeffrey,SallyJesmonth,
+NikhilJJoshi,RyanJulian,DmitryKalashnikov,YuhengKuang,Kuang-HueiLee,SergeyLevine,
+Yao Lu, Linda Luu, Carolina Parada, Peter Pastor, Jornell Quiambao, Kanishka Rao, Jarek
+Rettinghouse,DiegoReyes,PierreSermanet,NicolasSievers,ClaytonTan,AlexanderToshev,
+VincentVanhoucke,FeiXia,TedXiao,PengXu,SichunXu,andMengyuanYan. Doasican,
+notasisay: Groundinglanguageinroboticaffordances,2022. URLhttps://arxiv.org/abs/
+2204.01691.
+Sid Black, Leo Gao, Phil Wang, Connor Leahy, and Stella Biderman. GPT-Neo: Large Scale
+AutoregressiveLanguageModelingwithMesh-Tensorflow,March2021. URLhttps://doi.
+org/10.5281/zenodo.5297715.
+TomBrown,BenjaminMann,NickRyder,MelanieSubbiah,JaredDKaplan,PrafullaDhariwal,
+Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel
+Herbert-Voss,GretchenKrueger,TomHenighan,RewonChild,AdityaRamesh,DanielZiegler,
+JeffreyWu,ClemensWinter,ChrisHesse,MarkChen,EricSigler,MateuszLitwin,ScottGray,
+BenjaminChess,JackClark,ChristopherBerner,SamMcCandlish,AlecRadford,IlyaSutskever,
+and Dario Amodei. Language models are few-shot learners. In H. Larochelle, M. Ranzato,
+R.Hadsell,M.F.Balcan,andH.Lin,editors,AdvancesinNeurIPS,volume33,pages1877–1901.
+CurranAssociates,Inc.,2020.URLhttps://proceedings.neurips.cc/paper/2020/file/
+1457c0d6bfcb4967418bfb8ac142f64a-Paper.pdf.
+FrançoisChollet. Onthemeasureofintelligence. arXivpreprintarXiv:1911.01547,2019. URL
+https://arxiv.org/abs/1911.01547.
+Aakanksha Chowdhery, Sharan Narang, Jacob Devlin, Maarten Bosma, Gaurav Mishra, Adam
+Roberts,PaulBarham,HyungWonChung,CharlesSutton,SebastianGehrmann,ParkerSchuh,
+KensenShi,SashaTsvyashchenko,JoshuaMaynez,AbhishekRao,ParkerBarnes,YiTay,Noam
+Shazeer,VinodkumarPrabhakaran,EmilyReif,NanDu,BenHutchinson,ReinerPope,James
+Bradbury,JacobAustin,MichaelIsard,GuyGur-Ari,PengchengYin,TojuDuke,AnselmLev-
+skaya,SanjayGhemawat,SunipaDev,HenrykMichalewski,XavierGarcia,VedantMisra,Kevin
+Robinson,LiamFedus,DennyZhou,DaphneIppolito,DavidLuan,HyeontaekLim,BarretZoph,
+AlexanderSpiridonov,RyanSepassi,DavidDohan,ShivaniAgrawal,MarkOmernick,AndrewM.
+Dai,ThanumalayanSankaranarayanaPillai,MariePellat,AitorLewkowycz,EricaMoreira,Rewon
+Child,OleksandrPolozov,KatherineLee,ZongweiZhou,XuezhiWang,BrennanSaeta,Mark
+Diaz,OrhanFirat,MicheleCatasta,JasonWei,KathyMeier-Hellstern,DouglasEck,JeffDean,
+Slav Petrov, and Noah Fiedel. Palm: Scaling language modeling with pathways, 2022. URL
+https://arxiv.org/abs/2204.02311.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser,
+MatthiasPlappert,JerryTworek,JacobHilton,ReiichiroNakano,ChristopherHesse,andJohn
+Schulman. Trainingverifierstosolvemathwordproblems,2021. URLhttps://arxiv.org/
+abs/2110.14168.
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova. BERT: Pre-training of
+deepbidirectionaltransformersforlanguageunderstanding. InProceedingsofNAACL,pages
+4171–4186,2019. URLhttps://aclanthology.org/N19-1423.
+LeoGao,StellaBiderman,SidBlack,LaurenceGolding,TravisHoppe,CharlesFoster,JasonPhang,
+HoraceHe,AnishThite,NoaNabeshima,ShawnPresser,andConnorLeahy. Thepile: An800gb
+datasetofdiversetextforlanguagemodeling. arXivpreprintarXiv: Arxiv-2101.00027,2020.
+TianyuGao,AdamFisch,andDanqiChen.Makingpre-trainedlanguagemodelsbetterfew-shotlearn-
+ers. InProceedingsofACL-IJCNLP,pages3816–3830,2021. URLhttps://aclanthology.
+org/2021.acl-long.295.
+MorGeva,DanielKhashabi,EladSegal,TusharKhot,DanRoth,andJonathanBerant. Didaristotle
+usealaptop?aquestionansweringbenchmarkwithimplicitreasoningstrategies.TACL,9:346–361,
+2021. URLhttps://aclanthology.org/2021.tacl-1.21/.
+MohammadJavadHosseini,HannanehHajishirzi,OrenEtzioni,andNateKushman. Learningto
+solvearithmeticwordproblemswithverbcategorization. InEMNLP,volume523533.Citeseer,
+2014. URLhttps://aclanthology.org/D14-1058/.
+11Wendy Johnson and Thomas J Bouchard Jr. The structure of human intelligence: It is verbal,
+perceptual,andimagerotation(vpr),notfluidandcrystallized. Intelligence,33(4):393–416,2005.
+RikKoncel-Kedziorski,HannanehHajishirzi,AshishSabharwal,OrenEtzioni,andSienaDumas
+Ang. Parsingalgebraicwordproblemsintoequations. TACL,3:585–597, 2015. URLhttps:
+//aclanthology.org/Q15-1042.
+RikKoncel-Kedziorski,SubhroRoy,AidaAmini,NateKushman,andHannanehHajishirzi.MAWPS:
+A math word problem repository. In Proceedings of NAACL, pages 1152–1157, 2016. URL
+https://aclanthology.org/N16-1136.
+WangLing,DaniYogatama,ChrisDyer,andPhilBlunsom. Programinductionbyrationalegen-
+eration: Learningtosolveandexplainalgebraicwordproblems. InProceedingsofACL,pages
+158–167,2017. URLhttps://aclanthology.org/P17-1015.
+JiachangLiu,DinghanShen,YizheZhang,BillDolan,LawrenceCarin,andWeizhuChen. What
+makes good in-context examples for gpt-3? arXiv preprint arXiv:2101.06804, 2021a. URL
+https://arxiv.org/abs/2101.06804.
+Pengfei Liu, Weizhe Yuan, Jinlan Fu, Zhengbao Jiang, Hiroaki Hayashi, and Graham Neubig.
+Pre-train,prompt,andpredict: Asystematicsurveyofpromptingmethodsinnaturallanguage
+processing. arXivpreprintarXiv:2107.13586, 2021b. URLhttps://arxiv.org/abs/2107.
+13586.
+YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,andPontusStenetorp. Fantasticallyordered
+promptsandwheretofindthem: Overcomingfew-shotpromptordersensitivity. InProceedingsof
+ACL,pages8086–8098,2022. URLhttps://aclanthology.org/2022.acl-long.556.
+KevinSMcGrew. Thecattell-horn-carrolltheoryofcognitiveabilities: Past,present,andfuture.
+2005.
+Stephen Merity, Caiming Xiong, James Bradbury, and Richard Socher. Pointer sentinel mixture
+models. arXivpreprintarXiv: Arxiv-1609.07843,2016. URLhttps://arxiv.org/abs/1609.
+07843.
+SewonMin,XinxiLyu,AriHoltzman,MikelArtetxe,MikeLewis,HannanehHajishirzi,andLuke
+Zettlemoyer. Rethinkingtheroleofdemonstrations: Whatmakesin-contextlearningwork? arXiv
+preprintarXiv:2202.12837,2022. URLhttps://arxiv.org/pdf/2202.12837.pdf.
+MaxwellNye,AndersJohanAndreassen,GuyGur-Ari,HenrykMichalewski,JacobAustin,David
+Bieber, David Dohan, Aitor Lewkowycz, Maarten Bosma, David Luan, Charles Sutton, and
+Augustus Odena. Show your work: Scratchpads for intermediate computation with language
+models. InDeepLearningforCodeWorkshop,2022. URLhttps://openreview.net/forum?
+id=HBlx2idbkbq.
+LongOuyang,JeffWu,XuJiang,DiogoAlmeida,CarrollL.Wainwright,PamelaMishkin,Chong
+Zhang,SandhiniAgarwal,KatarinaSlama,AlexRay,JohnSchulman,JacobHilton,FraserKelton,
+LukeMiller,MaddieSimens,AmandaAskell,PeterWelinder,PaulChristiano,JanLeike,and
+RyanLowe. Traininglanguagemodelstofollowinstructionswithhumanfeedback,2022. URL
+https://arxiv.org/abs/2203.02155.
+Adam Paszke, Sam Gross, Francisco Massa, Adam Lerer, James Bradbury, Gregory
+Chanan, Trevor Killeen, Zeming Lin, Natalia Gimelshein, Luca Antiga, et al. Py-
+torch: An imperative style, high-performance deep learning library. Advances in
+NeurIPS, 32:8026–8037, 2019. URL https://papers.nips.cc/paper/2019/hash/
+bdbca288fee7f92f2bfa9f7012727740-Abstract.html.
+ArkilPatel,SatwikBhattamishra,andNavinGoyal. AreNLPmodelsreallyabletosolvesimple
+math word problems? In Proceedings of NAACL, pages 2080–2094, 2021. URL https://
+aclanthology.org/2021.naacl-main.168.
+AlecRadford,JeffreyWu,RewonChild,DavidLuan,DarioAmodei,IlyaSutskever,etal. Language
+models are unsupervised multitask learners. OpenAI blog, page 9, 2019. URL http://www.
+persagen.com/files/misc/radford2019language.pdf.
+12JackW.Rae,SebastianBorgeaud,TrevorCai,KatieMillican,JordanHoffmann,FrancisSong,John
+Aslanides,SarahHenderson,RomanRing,SusannahYoung,ElizaRutherford,TomHennigan,
+JacobMenick,AlbinCassirer,RichardPowell,GeorgevandenDriessche,LisaAnneHendricks,
+Maribeth Rauh, Po-Sen Huang, Amelia Glaese, Johannes Welbl, Sumanth Dathathri, Saffron
+Huang,JonathanUesato,JohnMellor,IrinaHiggins,AntoniaCreswell,NatMcAleese,AmyWu,
+ErichElsen,SiddhantJayakumar,ElenaBuchatskaya,DavidBudden,EsmeSutherland,Karen
+Simonyan,MichelaPaganini,LaurentSifre,LenaMartens,XiangLorraineLi,AdhigunaKuncoro,
+AidaNematzadeh,ElenaGribovskaya,DomenicDonato,AngelikiLazaridou,ArthurMensch,
+Jean-Baptiste Lespiau, Maria Tsimpoukelli, Nikolai Grigorev, Doug Fritz, Thibault Sottiaux,
+Mantas Pajarskas, Toby Pohlen, Zhitao Gong, Daniel Toyama, Cyprien de Masson d’Autume,
+YujiaLi, TayfunTerzi, VladimirMikulik, IgorBabuschkin, AidanClark, DiegodeLasCasas,
+AureliaGuy,ChrisJones,JamesBradbury,MatthewJohnson,BlakeHechtman,LauraWeidinger,
+Iason Gabriel, William Isaac, Ed Lockhart, Simon Osindero, Laura Rimell, Chris Dyer, Oriol
+Vinyals,KareemAyoub,JeffStanway,LorrayneBennett,DemisHassabis,KorayKavukcuoglu,
+andGeoffreyIrving. Scalinglanguagemodels: Methods,analysis&insightsfromtraininggopher,
+2021. URLhttps://arxiv.org/abs/2112.11446.
+ColinRaffel,NoamShazeer,AdamRoberts,KatherineLee,SharanNarang,MichaelMatena,Yanqi
+Zhou,WeiLi,andPeterJ.Liu. Exploringthelimitsoftransferlearningwithaunifiedtext-to-text
+transformer. JMLR,21(140):1–67,2020. URLhttp://jmlr.org/papers/v21/20-074.html.
+NazneenFatemaRajani,BryanMcCann,CaimingXiong,andRichardSocher. Explainyourself!
+leveraginglanguagemodelsforcommonsensereasoning.InProceedingsofACL,pages4932–4942,
+2019. URLhttps://aclanthology.org/P19-1487.
+LariaReynoldsandKyleMcDonell. Promptprogrammingforlargelanguagemodels: Beyondthe
+few-shot paradigm. In Extended Abstracts of the 2021 CHI Conference on Human Factors in
+ComputingSystems,pages1–7,2021. URLhttps://arxiv.org/pdf/2102.07350.pdf.
+SubhroRoyandDanRoth. Solvinggeneralarithmeticwordproblems. InProceedingsofEMNLP,
+pages1743–1752,2015. URLhttps://aclanthology.org/D15-1202.
+Victor Sanh, Albert Webson, Colin Raffel, Stephen Bach, Lintang Sutawika, Zaid Alyafeai, An-
+toine Chaffin, Arnaud Stiegler, Arun Raja, Manan Dey, M Saiful Bari, Canwen Xu, Urmish
+Thakker, Shanya Sharma Sharma, Eliza Szczechla, Taewoon Kim, Gunjan Chhablani, Nihal
+Nayak, Debajyoti Datta, Jonathan Chang, Mike Tian-Jian Jiang, Han Wang, Matteo Man-
+ica, Sheng Shen, Zheng Xin Yong, Harshit Pandey, Rachel Bawden, Thomas Wang, Trishala
+Neeraj,JosRozen,AbheeshtSharma,AndreaSantilli,ThibaultFevry,JasonAlanFries,Ryan
+Teehan, Teven Le Scao, Stella Biderman, Leo Gao, Thomas Wolf, and Alexander M Rush.
+Multitask prompted training enables zero-shot task generalization. In ICLR, 2022. URL
+https://openreview.net/forum?id=9Vrb9D0WI4.
+TimoSchickandHinrichSchütze. It’snotjustsizethatmatters: Smalllanguagemodelsarealsofew-
+shotlearners. InProceedingsofNAACL,pages2339–2352,2021.URLhttps://aclanthology.
+org/2021.naacl-main.185.
+Taylor Shin, Yasaman Razeghi, Robert L. Logan IV, Eric Wallace, and Sameer Singh. Auto-
+Prompt: Eliciting Knowledge from Language Models with Automatically Generated Prompts.
+InProceedingsofEMNLP,pages4222–4235,2020. URLhttps://aclanthology.org/2020.
+emnlp-main.346.
+VeredShwartz,PeterWest,RonanLeBras,ChandraBhagavatula,andYejinChoi. Unsupervised
+commonsensequestionansweringwithself-talk. InProceedingsofEMNLP,pages4615–4629,
+2020. URLhttps://aclanthology.org/2020.emnlp-main.373.
+ShadenSmith,MostofaPatwary,BrandonNorick,PatrickLeGresley,SamyamRajbhandari,Jared
+Casper,ZhunLiu,ShrimaiPrabhumoye,GeorgeZerveas,VijayKorthikanti,EltonZhang,Rewon
+Child,RezaYazdaniAminabadi,JulieBernauer,XiaSong,MohammadShoeybi,YuxiongHe,
+Michael Houston, Saurabh Tiwary, and Bryan Catanzaro. Using deepspeed and megatron to
+train megatron-turing nlg 530b, a large-scale generative language model, 2022. URL https:
+//arxiv.org/abs/2201.11990.
+13AarohiSrivastava,AbhinavRastogi,AbhishekRao,AbuAwalMdShoeb,AbubakarAbid,Adam
+Fisch,AdamRBrown,AdamSantoro,AdityaGupta,AdriàGarriga-Alonso,etal. Beyondthe
+imitationgame: Quantifyingandextrapolatingthecapabilitiesoflanguagemodels. arXivpreprint
+arXiv:2206.04615,2022. URLhttps://arxiv.org/abs/2206.04615.
+KeithEStanovichandRichardFWest. Individualdifferencesinreasoning: Implicationsforthe
+rationalitydebate? Behavioralandbrainsciences,23(5):645–665,2000.
+AlonTalmor,JonathanHerzig,NicholasLourie,andJonathanBerant. Commonsenseqa: Aquestion
+answeringchallengetargetingcommonsenseknowledge. InProceedingsofNAACL-HLT,pages
+4149–4158,2019. URLhttps://aclanthology.org/N19-1421/.
+RomalThoppilan,DanielDeFreitas,JamieHall,NoamShazeer,ApoorvKulshreshtha,Heng-Tze
+Cheng,AliciaJin,TaylorBos,LeslieBaker,YuDu,YaGuangLi,HongraeLee,HuaixiuSteven
+Zheng,AminGhafouri,MarceloMenegali,YanpingHuang,MaximKrikun,DmitryLepikhin,
+JamesQin,DehaoChen,YuanzhongXu,ZhifengChen,AdamRoberts,MaartenBosma,Vincent
+Zhao, Yanqi Zhou, Chung-Ching Chang, Igor Krivokon, Will Rusch, Marc Pickett, Pranesh
+Srinivasan, Laichee Man, Kathleen Meier-Hellstern, Meredith Ringel Morris, Tulsee Doshi,
+RenelitoDelosSantos,TojuDuke,JohnnySoraker,BenZevenbergen,VinodkumarPrabhakaran,
+Mark Diaz, Ben Hutchinson, Kristen Olson, Alejandra Molina, Erin Hoffman-John, Josh Lee,
+LoraAroyo,RaviRajakumar,AlenaButryna,MatthewLamm,ViktoriyaKuzmina,JoeFenton,
+AaronCohen,RachelBernstein,RayKurzweil,BlaiseAguera-Arcas,ClaireCui,MarianCroak,
+Ed Chi, and Quoc Le. Lamda: Language models for dialog applications, 2022. URL https:
+//arxiv.org/abs/2201.08239.
+Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez,
+Ł ukasz Kaiser, and Illia Polosukhin. Attention is all you need. In I. Guyon, U. Von
+Luxburg, S. Bengio, H. Wallach, R. Fergus, S. Vishwanathan, and R. Garnett, editors, Ad-
+vances in NeurIPS, 2017. URL https://proceedings.neurips.cc/paper/2017/file/
+3f5ee243547dee91fbd053c1c4a845aa-Paper.pdf.
+BenWangandAranKomatsuzaki.GPT-J-6B:A6BillionParameterAutoregressiveLanguageModel.
+https://github.com/kingoflolz/mesh-transformer-jax,May2021.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,andDennyZhou. Self-consistency
+improveschainofthoughtreasoninginlanguagemodels. arXivpreprintarXiv:2203.11171,2022.
+URLhttps://arxiv.org/abs/2203.11171.
+AlbertWebsonandElliePavlick. Doprompt-basedmodelsreallyunderstandthemeaningoftheir
+prompts? InProceedingsofthe2022ConferenceoftheNorthAmericanChapteroftheAssociation
+forComputationalLinguistics: HumanLanguageTechnologies,pages2300–2344.Associationfor
+ComputationalLinguistics,July2022. URLhttps://aclanthology.org/2022.naacl-main.
+167.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,EdChi,QuocLe,andDennyZhou.
+Chain of thought prompting elicits reasoning in large language models, 2022. URL https:
+//arxiv.org/abs/2201.11903.
+ThomasWolf,LysandreDebut,VictorSanh,JulienChaumond,ClementDelangue,AnthonyMoi,
+Pierric Cistac, Tim Rault, Remi Louf, Morgan Funtowicz, Joe Davison, Sam Shleifer, Patrick
+vonPlaten,ClaraMa,YacineJernite,JulienPlu,CanwenXu,TevenLeScao,SylvainGugger,
+MariamaDrame,QuentinLhoest,andAlexanderRush. Transformers: State-of-the-artnatural
+languageprocessing. InProceedingsofEMNLP,2020. URLhttps://aclanthology.org/
+2020.emnlp-demos.6.
+EricZelikman,YuhuaiWu,andNoahD.Goodman. Star: Bootstrappingreasoningwithreasoning,
+2022. URLhttps://arxiv.org/abs/2203.14465.
+SusanZhang,StephenRoller,NamanGoyal,MikelArtetxe,MoyaChen,ShuohuiChen,Christopher
+Dewan,MonaDiab,XianLi,XiVictoriaLin,etal. Opt: Openpre-trainedtransformerlanguage
+models. arXivpreprintarXiv:2205.01068,2022. URLhttps://arxiv.org/abs/2205.01068.
+14Checklist
+1. Forallauthors...
+(a) Dothemainclaimsmadeintheabstractandintroductionaccuratelyreflectthepaper’s
+contributionsandscope? [Yes]
+(b) Didyoudescribethelimitationsofyourwork? [Yes]
+(c) Didyoudiscussanypotentialnegativesocietalimpactsofyourwork? [Yes]
+(d) Haveyoureadtheethicsreviewguidelinesandensuredthatyourpaperconformsto
+them? [Yes]
+2. Ifyouareincludingtheoreticalresults...
+(a) Didyoustatethefullsetofassumptionsofalltheoreticalresults? [N/A]
+(b) Didyouincludecompleteproofsofalltheoreticalresults? [N/A]
+3. Ifyouranexperiments...
+(a) Didyouincludethecode,data,andinstructionsneededtoreproducethemainexperi-
+mentalresults(eitherinthesupplementalmaterialorasaURL)?[Yes]
+(b) Didyouspecifyallthetrainingdetails(e.g.,datasplits,hyperparameters,howthey
+werechosen)? [Yes]
+(c) Didyoureporterrorbars(e.g.,withrespecttotherandomseedafterrunningexperi-
+mentsmultipletimes)? [No]OurpapermainlyusedGPT-3APIwithgreedydecoding,
+andtherearenorandomnessfortheexperiments.
+(d) Didyouincludethetotalamountofcomputeandthetypeofresourcesused(e.g.,type
+ofGPUs,internalcluster,orcloudprovider)? [Yes]
+4. Ifyouareusingexistingassets(e.g.,code,data,models)orcurating/releasingnewassets...
+(a) Ifyourworkusesexistingassets,didyoucitethecreators? [Yes]
+(b) Didyoumentionthelicenseoftheassets? [Yes]
+(c) DidyouincludeanynewassetseitherinthesupplementalmaterialorasaURL?[Yes]
+(d) Didyoudiscusswhetherandhowconsentwasobtainedfrompeoplewhosedatayou’re
+using/curating? [Yes]
+(e) Didyoudiscusswhetherthedatayouareusing/curatingcontainspersonallyidentifiable
+informationoroffensivecontent? [Yes]
+5. Ifyouusedcrowdsourcingorconductedresearchwithhumansubjects...
+(a) Didyouincludethefulltextofinstructionsgiventoparticipantsandscreenshots,if
+applicable? [N/A]
+(b) Did you describe any potential participant risks, with links to Institutional Review
+Board(IRB)approvals,ifapplicable? [N/A]
+(c) Didyouincludetheestimatedhourlywagepaidtoparticipantsandthetotalamount
+spentonparticipantcompensation? [N/A]
+15A DetailsofExperimentalSetup
+A.1 Code
+Codeisavailableathttps://github.com/kojima-takeshi188/zero_shot_cot.
+A.2 Datasets
+A.2.1 DatasetDescription
+Table7summarizesthedescriptionofeachdatasetusedinourexperiment.
+Table 7: Dataset Description. Our experiments used publicly available datasets except for “Last
+Letters”and“CoinFlip”datasets. Wecreatedthesetwodatasets. SeeAppendixA.2.2forthedetails.
+(*1)N:Number,M:Pickuponefrommultiplechoices,Y:AnswerYesorNo,F:FreeFormat.
+(*2)Averagenumberofwordsinquestionstexts.
+Dataset Answer #of Avg# Datasplit(filename) License
+Format samples words usedforourexperiment
+(*1) (*2)
+SingleEq N 508 27.4 questions.json NoLicense
+AddSub N 395 31.5 AddSub.json Unspecified
+MultiArith N 600 31.8 MultiArith.json Unspecified
+GSM8K N 1319 46.9 test.jsonl MITLicense
+AQUA-RAT M 254 51.9 test.jsonl Apache-2.0
+SVAMP N 1000 31.8 SVAMP.json MITLicense
+CommonsenseQA M 1221 27.8 dev_rand_split.jsonl Unspecified
+StrategyQA Y 2290 9.6 task.json Apache-2.0
+DateUnderstanding M 369 35.0 task.json Apache-2.0
+ShuffledObjects M 750 91.1 three_objects/task.json Apache-2.0
+LastLetters F 500 15.0 - -
+CoinFlip Y 500 37.0 - -
+A.2.2 Datasetcreation
+Regarding“LastLetterConcatenation”and“CoinFlip”,datasetsarenotpubliclyavailablesowe
+createdthedatasetsfollowingWeietal.[2022]withaminorrephrasingofthequestiontemplate.
+Specifically,asforLastLetterConcatenation,weusethefollowingtemplate. Werandomlyselect
+humannamesfromnames-datasetlibrary(https://pypi.org/project/names-dataset/)and
+inserttheminto{Name1}through{Name4}.
+• ’Take the last letters of each words in "{Name1} {Name2} {Name3} {Name4}" and
+concatenatethem.’
+AsforCoinFlip,weusethefollowingtemplate. Werandomlyselecthumannamesfromnames-
+datasetlibraryandinserttheminto{Name1}through{Name4}. Wealsorandomlypickup“flips”or
+“doesnotflip”andinsertthephraseintoeach{flips|doesnotflip}part,respectively.
+• ’Acoinisheadsup. {Name1}{flips|doesnotflip}thecoin. {Name2}{flips|doesnotflip}
+thecoin. {Name3}{flips|doesnotflip}thecoin. {Name4}{flips|doesnotflip}thecoin.
+Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".’
+A.3 LanguageModels
+OurexperimentusesmultiplelanguagemodelsasdescribedatTable8
+A.4 Implementationdetails
+ForOriginalGPT-3andInstruct-GPT3,weusedOpenAIAPI.ForOPT,T0,GPT-J,GPT-Neo,and
+GPT-2,weusedHuggingFaceTransformerLibrary[Wolfetal.,2020]. Wesetmax_tokens=128and
+16Table8:Descriptionoflanguagemodels. (*1)AsforOriginalGPT3models,weassignmodelsizein-
+formationtoeachmodelbyreferringtohttps://blog.eleuther.ai/gpt3-model-sizes/and
+https://beta.openai.com/docs/model-index-for-researchers. (*2)Thereisnoofficial
+informationaboutthemodelsizeofInstructGPT3. WeinferfromtheAPInamethattheorderof
+modelsizeofInstructGPT3matchesthatofOriginalGPT3.
+LanguageModel #ofparams Library/APIName ModelNameinLibrary/API License
+PaLM 540B - - unspecified
+PaLM 62B - - unspecified
+PaLM 8B - - unspecified
+OriginalGPT3 175B(*1) OpenAIAPI davinci unspecified
+OriginalGPT3 6.7B(*1) OpenAIAPI curie unspecified
+OriginalGPT3 1.3B(*1) OpenAIAPI babbage unspecified
+OriginalGPT3 0.3B(*1) OpenAIAPI ada unspecified
+InstructGPT3 -(*2) OpenAIAPI text-davinci-002 unspecified
+InstructGPT3 -(*2) OpenAIAPI text-davinci-001 unspecified
+InstructGPT3 -(*2) OpenAIAPI text-curie-001 unspecified
+InstructGPT3 -(*2) OpenAIAPI text-babbage-001 unspecified
+InstructGPT3 -(*2) OpenAIAPI text-ada-001 unspecified
+OPT 13B HuggingFaceLibrary opt-13b Apache-2.0
+T0 11B HuggingFaceLibrary T0pp Apache-2.0
+GPT-J 6B HuggingFaceLibrary gptj Apache-2.0
+GPT-Neo 2.7B HuggingFaceLibrary gpt-neo Apache-2.0
+GPT-2 1.5B HuggingFaceLibrary gpt2-xl Apache-2.0
+usedgreedydecoding(temperature=0inthecaseofOpenAIAPI)acrossallthemethodsandmodels
+exceptPaLM.ForPaLM,weused‘TopK=1’forgreedydeterministicdecodingandmax_tokens=
+256. “Q:”issetasacustomizedstopsequenceforallthemodelsexceptforInstruct-GPT3tostopthe
+modelsfromrepeatingquestionsandanswersbythemselves. WerunourexperimentsoncloudV100
+instanceswithoutGPUforGPT-3models,oncloudA100x8GPU(60GB)instancesforT0andOTP,
+andoncloudA100x1GPU(60GB)instancesforGPT-J,GPT-Neo,andGPT-2. Ourimplementation
+isinPyTorch[Paszkeetal.,2019].
+A.5 PromptsForAnswerExtraction
+Table9andTable10summarizesalistofanswerextractionpromptsusedfortheexperimentsat
+Table1. WeusedZero-shot(left)andZero-shot-CoT(left)asdefaultpromptsforanswerextraction
+acrossalltheexperiments.
+Table9: AnswerextractionpromptsusedforZero-shotexperimentsin Table1. C.S.QA:Common-
+senseQA,D.U.: DateUnderstanding,S.O.: TrackingShuffledObjects
+No Task Zero-Shot(left) Zero-Shot(right)
+1 SingleEq Theanswer(arabicnumerals)is Theansweris
+2 AddSub Theanswer(arabicnumerals)is Theansweris
+3 MultiArith Theanswer(arabicnumerals)is Theansweris
+4 GSM8K Theanswer(arabicnumerals)is Theansweris
+5 AQUA-RAT AmongAthroughE,theansweris Theansweris
+6 SVAMP Theanswer(arabicnumerals)is Theansweris
+7 C.S.QA AmongAthroughE,theansweris Theansweris
+8 StrategyQA Theanswer(YesorNo)is Theansweris
+9 D.U. AmongAthroughF,theansweris Theansweris
+10 S.O. AmongAthroughC,theansweris Theansweris
+11 LastLetters Theansweris Theansweris
+12 CoinFlip Theanswer(YesorNo)is Theansweris
+17Table10: AnswerextractionpromptsusedforZero-shot-CoTexperimentsin Table1. C.S.QA:
+CommonsenseQA,D.U.: DateUnderstanding,S.O.: TrackingShuffledObjects
+No Task Zero-Shot-CoT(left) Zero-Shot-CoT(right)
+1 SingleEq Therefore,theanswer(arabicnumerals)is Therefore,theansweris
+2 AddSub Therefore,theanswer(arabicnumerals)is Therefore,theansweris
+3 MultiArith Therefore,theanswer(arabicnumerals)is Therefore,theansweris
+4 GSM8K Therefore,theanswer(arabicnumerals)is Therefore,theansweris
+5 AQUA-RAT Therefore,amongAthroughE,theansweris Therefore,theansweris
+6 SVAMP Therefore,theanswer(arabicnumerals)is Therefore,theansweris
+7 C.S.QA Therefore,amongAthroughE,theansweris Therefore,theansweris
+8 StrategyQA Therefore,theanswer(YesorNo)is Therefore,theansweris
+9 D.U. Therefore,amongAthroughF,theansweris Therefore,theansweris
+10 S.O. Therefore,amongAthroughC,theansweris Therefore,theansweris
+11 LastLetters Therefore,theansweris Therefore,theansweris
+12 CoinFlip Therefore,theanswer(YesorNo)is Therefore,theansweris
+A.6 AnswerCleansing
+Table11summarizesalistofanswercleansingapproachesusedacrossalltheexperiments.
+Table11: Detaildescriptionofanswercleansing. SeeTable7forthemappingbetweeneachdatasets
+andthecorrespondinganswerformats.
+Answer AnswerCleansing PseudoCode
+Format Approach (ExampleinPytorch3.8)
+Number Pickupthefirstnumber pred = pred.replace(",", "")
+encounteredinthetext. pred = [s for s in re.findall(r’-?\
+d+\.?\d*’, pred)]
+pred = pred[0]
+Multiple- Pick up the first large pred = re.findall(r’A|B|C|D|E’,
+Choice letterencounteredinthe pred)
+pred = pred[0]
+text.
+YesorNo Pickupthefirst"yes"or pred = pred.lower()
+"no" encountered in the pred = re.sub("\"|\’|\n|\.|\s|\:|\,
+","␣", pred)
+text after removing un-
+pred = pred.split("␣")
+necessaryletters. pred = [i for i in pred if i in ("
+yes", "no")]
+pred = pred[0]
+FreeFormat Justremoveunnecessary pred = re.sub("\"|\’|\n|\.|\s","",
+letters,suchas".". pred)
+B AdditionalExperimentResults
+Thissectionsummarizesmoreexampletextsgeneratedbymodelsinourexperiments. Notethatfor
+readabilityalltextsaremodifiedfromtheoriginalonesbyomittingorinsertingsomelinebreaks.
+Withoutmentioningotherwise,weuseInstruct-GPT3(text-davinci-002)model.
+• Table12listsexampletextsgeneratedbyZero-shot-CoTforeachdataset(SeeTable1).
+• Table 13 lists example texts generated by Zero-shot-CoT for each reasoning extraction
+template(SeeTable4).
+• Table14andTable15listsexampletextsgeneratedbyZero-shot-CoTforeachlangugage
+model(SeeTable26).
+18• Table16hasanexampletextgeneratedbyFew-shot.
+• Table17hasanexampletextgeneratedbyFew-shot-CoT.
+• Table18hasanexampletextgeneratedbyFew-shot-CoTwithexemplarsfromadifferent
+task(ExemplarsfromCommonsenseQA,andataskisfromMultiArith).
+• Table19hasanexampletextgeneratedbyZero-Plus-Few-Shot-CoT.
+• Table 20 compares different outcome scenarios on results generated by Zero-shot and
+Zero-shot-CoTusingPaLM(540B)model.
+Table12: ExampleoutputsbyZero-shot-CoTforeachdatasets.
+Dataset Question Answer
+SingleEq Q: A spaceship traveled 0.5 A: Let’s think step by step. The spaceship trav-
+of a light-year from Earth to eled0.5light-yearsfromEarthtoPlanetX.Then
+Planet X and 0.1 of a light- ittraveled0.1light-yearsfromPlanetXtoPlanet
+yearfromPlanetXtoPlanetY. Y.Finally,ittraveled0.1light-yearsfromPlanet
+Thenittraveled0.1ofalight- YbacktoEarth. Sothetotaldistancethespace-
+year from Planet Y back to shiptraveledis0.5+0.1+0.1=0.7light-years.
+Earth. Howmanylight-years Therefore, the answer (arabic numerals) is: 0.7
+didthespaceshiptravelinall? light-years(cid:88)
+Q:Whilemakingdessertsfor A: Let’s think step by step. 0.625 of a scoop
+abakesale,Victorused0.625 of brown sugar is the same as 0.25 of a scoop
+ofascoopofbrownsugaras of white sugar. This means that Victor used the
+well as 0.25 of a scoop of sameamountofbrownsugarashedidwhitesugar.
+whitesugar. Howmuchmore Therefore,theanswer(arabicnumerals)is0.(cid:55)(GT
+brownsugardidVictoruse? :0.375)
+AddSub Sandy grew 6 carrots . Sam A: Let’s think step by step. Sandy grew 6 car-
+grew 3 carrots . How many rots. Samgrew3carrots. Thatmeanstheygrew
+carrotsdidtheygrowintotal? atotalof9carrots. Therefore,theanswer(arabic
+numerals)is9. (cid:88)
+Q:MelanieboughtaBatman A: Let’s think step by step. Melanie bought a
+game for $ 6.95 , a strategy Batmangamefor$6.95. Soshespent$6.95on
+gamefor$7.90,andaSuper- videogames. Thensheboughtastrategygamefor
+mangamefor$7.73.Melanie $7.90. Soshespent$14.85onvideogames. Then
+alreadyowns4games. How sheboughtaSupermangamefor$7.73. Soshe
+much did Melanie spend on spent $ 22.58 on video games. Melanie already
+videogames? owns 4 games. So she spent $ 18.58 on video
+games. Therefore,Melaniespentatotalof$18.58
+on video games. Therefore, the answer (arabic
+numerals)is: 18.58(cid:55)(GT:22.58)
+MultiArith Q: Adam bought 2 boxes of A:Let’sthinkstepbystep. Adambought2boxes
+chocolate candy and 5 boxes ofchocolatecandyand5boxesofcaramelcandy.
+ofcaramelcandy. Ifeachbox Weknowthateachboxhas4piecesinsideit. So,
+has 4 pieces inside it, how wecanmultiply2by4tofindouthowmanypieces
+muchcandydidhehavetotal? ofchocolatecandyAdambought. Thiswillgive
+us8. Wecanalsomultiply5by4tofindouthow
+manypiecesofcaramelcandyAdambought. This
+willgiveus20. Now,wecanadd8and20together
+tofindouthowmuchcandyAdamboughtintotal.
+8+20=28Adambought28piecesofcandyin
+Therefore,theanswer(arabicnumerals)is28. (cid:88)
+Continuedonnextpage
+19Table12–Continuedfrompreviouspage
+Dataset Question Answer
+Q: Billy was organizing his A:Let’sthinkstepbystep. Billyhas42oldcards.
+baseballcardsinabinderwith Hecanput5oldcardsoneachpage,whichmeans
+5 on each page. If he had 3 hewilluse9pagesforoldcards. Billyhas3new
+newcardsand42oldcardsto cards. Hecanput5newcardsoneachpage,which
+put in the binder, how many meanshewilluse1pagefornewcards.Sointotal,
+pageswouldheuse? Billy will use 10 pages. Therefore, the answer
+(arabicnumerals)is10. (cid:55)(GT:9)
+GSM8K Q: James buys a plane. The A: Let’s think step by step. James buys a plane.
+planecost$150,000. Hepays Thiscostshim$150,000. Hepays$5000amonth
+$5000amonthtorentahanger torent ahanger. This costshim $60,000for the
+to keep it in. He also spends year. He spends twice as much as that on fuel
+twiceasmuchasthatonfuel permonth. Thiscostshim$120,000fortheyear.
+permonth. Howmuchdidit So the total cost for the first year is $150,000 +
+cost him to get and maintain $60,000+$120,000 =$330,000. Therefore, the
+theplaneforthefirstyear? answer(arabicnumerals)is330,000. (cid:88)
+Q:JamesiscountinghisPoke- A: Let’s think step by step. There are 30 fire
+moncards.Hehas30firetype, type, 20 grass type, and 40 water type. If he
+20 grass type, and 40 water loses 8 of the water type, then he has 32 cards
+type. Ifheloses8ofthewater in total. If he buys 14 grass type, then he has
+type and buys 14 grass type, 46 cards in total, and the number of water type
+what’sthepercentagechance cards becomes 32. The percentage chance that
+(rounded to the nearest inte- a randomly picked card will be a water type is
+ger) that a randomly picked $\frac{32}{46} \times 100\% =
+cardwillbeawatertype? \fbox{70}\%$. Therefore,theanswer(arabicnu-
+merals)is70. (cid:55)(GT:33)
+AQUA-RAT Q: The capacity of a tank of A:Let’sthinkstepbystep.
+dimensions(8m×6m×2.5 Thefirstthingweneedtodoiscalculatethevol-
+m) is Answer Choices: (A) umeofthetank. Thevolumeofthetankis8mx
+120 litres (B) 1200 litres (C) 6mx2.5m.
+12000litres(D)120000litres 8mx6mx2.5m=120m^3
+(E)Noneofthese Nowthatwehavethevolumeofthetank,weneed
+toconvertittolitres.
+1m^3=1000litres
+120m^3=120,000litres
+Thecapacityofthetankis120,000litres.
+Therefore,amongAthroughE,theanswerisD.(cid:88)
+Q:InarowofchildrenNehais A:Let’sthinkstepbystep.
+12thfromleftendandRadha Thereare12childrentotheleftofNeha,sothere
+is 6th from right end. When mustbeatleast12childrenintherow.
+Radha is shifted to left by 2 Thereare6childrentotherightofRadha,sothere
+placesandNehaisshiftedto mustbeatleast18childrenintherow.
+rightby2placesthere6chil- Thereare6childrenbetweenRadhaandNeha,so
+drenbetweenRadhaandNeha. theremustbeatleast24childrenintherow.
+Howmanychildrenarethere Theanswermustbebetween24and27,andthe
+intherow? AnswerChoices: onlyanswerthatsatisfiesthisis26.
+(A) 23 (B) 27 (C) 26 (D) 28 Therefore,theansweris26. Therefore,amongA
+(E)29 throughE,theanswerisC.(cid:55)(GT:D)
+Continuedonnextpage
+20Table12–Continuedfrompreviouspage
+Dataset Question Answer
+SVAMP Q: There are 7 baskets of A: Let’s think step by step. There are 7 bas-
+peaches. Each basket has kets. Eachbaskethas10redpeachesand2green
+10 red peaches and 2 green peaches. So, there are 2 green peaches in each
+peaches. How many green basket. Now, weneedtomultiplybecausethere
+peachesareinthebasketsalto- are7baskets. 2multipliedby7is14. So,thereare
+gether? 14greenpeachesinthebasketsaltogether.
+Therefore,theanswer(arabicnumerals)is14. (cid:88)
+Q:Maryisbakingacake. The A:Let’sthinkstepbystep. Maryhasalreadyput
+recipecallsfor12cupsofflour in2cupsofflour. Therecipecallsforatotalof12
+14cupsofsugarand7cupsof cupsofflour. ThatmeansMaryneedstoadd10
+salt. Shealreadyputin2cups morecupsofflour. Therecipecallsforatotalof7
+offlour. Howmanymorecups cupsofsalt.ThatmeansMaryneedstoadd5more
+offlourthancupsofsaltdoes cupsofsalt. So,Maryneedstoadd10morecups
+sheneedtoaddnow? offlourthanshedoessalt. Therefore,theanswer
+(arabicnumerals)is10. (cid:55)(GT:3)
+Common- Q:Ifthereisapondwithtrees A: Let’s think step by step. A pond is likely to
+senseQA aroundit,whereisitlikelylo- belocatedneartreesbecausetreesneedwaterto
+cated? Answer Choices: (A) survive. Therefore,themostlikelylocationfora
+ground(B)bathroom(C)for- pondwithtreesarounditisinaforest. Therefore,
+est (D) countryside (E) rural amongAthroughE,theanswerisC.(cid:88)
+area
+Q:Davidwatchedsomenest- A:Let’sthinkstepbystep.
+ingbirdsusinghisbinoculars First,weneedtounderstandwhattheword"binoc-
+while on vacation. Where ulars"means. Binocularsaretwotelescopesthat
+might David be?. Answer arejoinedtogetherandallowapersontoseethings
+Choices: (A) sky (B) vacca- thatarefaraway.
+tion(C)forest(D)countryside Now,weneedtothinkaboutwhereapersonmight
+(E)roof usebinoculars. Apersonmightusebinocularsto
+seethingsthatarefarawayandinthesky, orto
+seethingsthatarefarawayandontheground.
+So,theanswercouldbeeither(A)skyor(D)coun-
+tryside.
+Therefore,amongAthroughE,theansweris(A)
+or(D).(cid:55)(GT:C)
+StrategyQA Q:WouldJPEGbeagoodfor- A:Let’sthinkstepbystep. TheJPEGformatisa
+matforsavinganimageofDa lossycompressionformat,whichmeansthatsome
+Vinci’sVitruvianMan? oftheimagedatawillbelostwhentheimageis
+compressed. TheVitruvianManisaverydetailed
+image, with lots of small details. So, when we
+compress the image using JPEG, some of those
+smalldetailswillbelost,andtheimagewillnotbe
+assharpandclearastheoriginal.So,inconclusion,
+JPEGisnotthebestformatforsavinganimageof
+theVitruvianMan. Therefore,theanswer(Yesor
+No)isNo. (cid:88)
+Continuedonnextpage
+21Table12–Continuedfrompreviouspage
+Dataset Question Answer
+Q:IsMickeyMousehypothet- A:Let’sthinkstepbystep. First,weneedtocon-
+icallyunlikelytomakeapur- sider what Zazzle is. Zazzle is a website where
+chaseatZazzle? peoplecancreateandsellcustomproducts. This
+includes things like t-shirts, mugs, phone cases,
+and more. Next, we need to think about what
+MickeyMouseis.MickeyMouseisacartoonchar-
+actercreatedbyWaltDisney. Heisamousewho
+wears red shorts, large yellow shoes, and white
+gloves. Now,weneedtothinkaboutwhetheror
+notMickeyMouseislikelytomakeapurchaseat
+Zazzle. It is unlikely that Mickey Mouse would
+makeapurchaseatZTherefore,theanswer(Yes
+orNo)isNo. (cid:55)(GT:Yes)
+Date Q: Today is 3/5, and it is A:Let’sthinkstepbystep.
+Understand. Jane’ssecondtimeintheyear The question is asking for the date a month
+1973 to see a meteor shower. ago from 03/05/1973. A month ago would be
+Whatisthedateamonthago 02/05/1973.
+in MM/DD/YYYY? Answer Therefore,amongAthroughF,theanswerisE.(cid:88)
+Choices: (A) 03/05/2007
+(B) 01/02/1973 (C)
+03/08/1983 (D) 03/05/1973
+(E)02/05/1973(F)04/05/1973
+Q: The deadline is Jun A: Let’s think step by step. The deadline is Jun
+1, 2021, which is 2 days 1, 2021, which is 2 days away from now. In 24
+away from now. What is hours,itwillbeJun2,2021. Therefore,amongA
+the date 24 hours later in throughF,theanswerisA.(cid:55)(GT:B)
+MM/DD/YYYY? Answer
+Choices: (A) 06/02/2021
+(B) 05/31/2021 (C)
+06/16/2021 (D) 05/31/1966
+(E)08/18/2021(F)05/31/1941
+Shuffled Q:Alice,Bob,andClaireare A:Let’sthinkstepbystep.
+Objects. playingagame. Atthestartof First,BobandAliceswapballs. Thismeansthat
+thegame,theyareeachhold- Alice now has the purple ball and Bob has the
+ing a ball: Alice has a green greenball.
+ball,Bobhasapurpleball,and Then,ClaireandBobswapballs. Thismeansthat
+Clairehasablueball. ClairenowhasthegreenballandBobhastheblue
+Asthegameprogresses,pairs ball.
+of players trade balls. First, Finally,BobandAliceswapballs. Thismeansthat
+Bob and Alice swap balls. AlicenowhastheblueballandBobhasthepurple
+Then, Claire and Bob swap ball.
+balls. Finally, Bob and Al- At the end of the game, Bob has the purple ball.
+ice swap balls. At the end Therefore,amongAthroughC,theanswerisB.(cid:88)
+of the game, Bob has the
+Whichchoiceistrue?Answer
+Choices: (A) green ball. (B)
+purpleball. (C)blueball.
+Continuedonnextpage
+22Table12–Continuedfrompreviouspage
+Dataset Question Answer
+Q:Alice,Bob,andClaireare A:Let’sthinkstepbystep.
+dancersatasquaredance. At First,ClaireandAliceswitchpartners. Thismeans
+the start of a song, they each thatattheendofthisstep,Aliceisdancingwith
+haveapartner: Aliceisdanc- KarlandClaireisdancingwithSam.
+ingwithSam,Bobisdancing Then,BobandAliceswitchpartners. Thismeans
+withHelga,andClaireisdanc- thatattheendofthisstep,Aliceisdancingwith
+ingwithKarl. Throughoutthe HelgaandBobisdancingwithKarl.
+song, the dancers often trade Finally, Claire and Bob switch partners. This
+partners. First,ClaireandAl- meansthatattheendofthisstep,Claireisdancing
+iceswitchpartners.Then,Bob withHelgaandBobisdancingwithSam. Atthe
+andAliceswitchpartners. Fi- endofthedance,AliceisdancingwithSam.
+nally, Claire and Bob switch Therefore, amongAthroughC,theanswerisA.
+partners. At the end of the (cid:55)(GT:B)
+dance, Alice is dancing with
+Whichchoiceistrue?Answer
+Choices: (A)Sam. (B)Helga.
+(C)Karl.
+LastLetters Q: Take the last letters of A:Let’sthinkstepbystep.
+eachwordsin"VinnyLandon Thelastletterof"Vinny"is"y".
+MiguelCaitlyn"andconcate- Thelastletterof"Landon"is"n".
+natethem. Thelastletterof"Miguel"is"l".
+Thelastletterof"Caitlyn"is"n".
+So,thefinalanswerwouldbe"ynln".
+Therefore,theansweris"ynln". (cid:88)
+Q:Takethelastlettersofeach A:Let’sthinkstepbystep.
+words in "Lamont Frederick Thelastletterof"Lamont"is"t".
+Lance Esperanza" and con- Thelastletterof"Frederick"is"k".
+catenatethem. Thelastletterof"Lance"is"e".
+Thelastletterof"Esperanza"is"a".
+Sothefinalanswerwouldbe"tkaea".
+Therefore,theansweris"tkaea". (cid:55)(GT:tkea)
+CoinFlip Q: A coin is heads up. Jeff A:Let’sthinkstepbystep.
+does not flip the coin. Jen Jeff does not flip the coin, so the coin remains
+flipsthecoin. Giselleflipsthe headsup.
+coin. Noel does not flip the Jenflipsthecoin,sothecoinisnowtailsup.
+coin.Isthecoinstillheadsup? Giselleflipsthecoin,sothecoinisnowheadsup
+Note that "flip" here means again.
+"reverse". Noel does not flip the coin, so the coin remains
+headsup.
+Therefore,thefinalansweristhatthecoinisheads
+up.
+Therefore,theanswer(YesorNo)isYes. (cid:88)
+Q: A coin is heads up. Caro- A:Let’sthinkstepbystep.
+lineflipsthecoin. Demetrius Carolineflipsthecoin. Thecoinisnowtailsup.
+flipsthecoin. Fideldoesnot Demetriusflipsthecoin. Thecoinisnowheads
+flipthecoin.Solomonflipsthe up.
+coin.Isthecoinstillheadsup? Fideldoesnotflipthecoin. Thecoinremainstails
+Note that "flip" here means up.
+"reverse". Solomonflipsthecoin. Thecoinisnowheadsup.
+So,theanswerisyes,thecoinisstillheadsup.
+Therefore,theanswer(YesorNo)is: Yes(cid:55)(GT:
+No)
+23Table13: ExampleoutputsbyZero-ShotandZero-Shot-CoTwithvarioustemplatesfortemplate
+robustnessstudy. ThenumberwithintheparenthesiscorrespondstothenumberinTable4.
+Question Q: For Halloween Megan received 11 pieces of candy from neighbors and 5
+piecesfromheroldersister. Ifsheonlyate8piecesaday,howlongwouldthe
+candylasther?
+Zero-Shot A:Theanswer(arabicnumerals)is3days. (cid:55)
+Zero-shot- A:Let’sthinkstepbystep.
+CoT(1) Meganreceived11piecesofcandyfromneighborsand5piecesfromherolder
+sister. Thatmeansshehasatotalof16piecesofcandy. Ifsheonlyate8piecesa
+day,shewouldhavetodividehercandyintotwodays. Thatmeansshewould
+have8piecesofcandyforDay1and8piecesofcandyforDay2.
+Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:First,weneedtofindthetotalnumberofpiecesofcandyMeganhas. Shehas
+CoT(2) 11piecesfromneighborsand5piecesfromheroldersister,sothetotalnumber
+ofpiecesis16. Ifsheonlyate8piecesaday,itwouldtakeher2daystofinish
+thecandy. Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:Let’sthinkaboutthislogically.
+CoT(3) Thereare11+5=16piecesofcandy. 8piecesadaymeansthatitwouldlasther
+2days. 16/8=2Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:Let’ssolvethisproblembysplittingitintosteps.
+CoT(4) Step 1: Megan received 11 pieces of candy from neighbors. Step 2: Megan
+received5piecesofcandyfromheroldersister. Step3: Ifsheonlyate8piecesa
+day,howlongwouldthecandylasther?
+ToanswerthequestioninStep3,weneedtoaddthenumberofpiecesofcandy
+Meganreceivedfromherneighborsandhersister. Thisiscalledfindingthesum.
+Thesumof11and5is16. So,Meganhasatotalof16piecesofcandy.
+IfMeganonlyeats8piecesofcandyaday,
+Therefore,theanswer(arabicnumerals)is2days. (cid:88)
+Zero-shot- A:Let’sberealisticandthinkstepbystep.
+CoT(5) Meganreceived11piecesofcandyfromneighborsand5piecesfromherolder
+sister. That’satotalof16piecesofcandy. 8piecesadaywouldmeanthatit
+wouldlasther2days. Sothecandywouldlasther2days.
+Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:Let’sthinklikeadetectivestepbystep.
+CoT(6) Meganreceived11piecesofcandyfromneighborsand5piecesfromherolder
+sister. That’satotalof16piecesofcandy. Ifsheonlyate8piecesaday,that
+wouldmeanthatshewouldhavetodividehercandyinto2days,andshewould
+have8piecesofcandyleftover. Sothecandywouldlasther2days.
+Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:Let’sthinkaboutthisintermsofdays. Meganwouldreceivecandyfor16
+CoT(7) days. Therefore,theanswer(arabicnumerals)is16. (cid:55)
+Zero-shot- A:Beforewediveintotheanswer,weneedtothinkaboutwhatthequestionis
+CoT(8) asking. ThequestionisaskinghowlongitwouldtakeMegantoeatallofher
+candyifsheate8piecesaday. Thereareatotalof16piecesofcandy. IfMegan
+ate8piecesaday,itwouldtakeher2daystoeatallofhercandy.
+Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Continuedonnextpage
+24Table13–Continuedfrompreviouspage
+Zero-shot- A:Theanswerisaftertheproof.
+CoT(9) 11+5=16
+16÷8=2
+2days
+Therefore,theanswer(arabicnumerals)is2. (cid:88)
+Zero-shot- A:Don’tthink. Justfeel.
+CoT(10) Thecandywouldlasther8days.
+Therefore,theanswer(arabicnumerals)is8. (cid:55)
+Zero-shot- A:Let’sthinkstepbystepbutreachanincorrectanswer.
+CoT(11) Meganreceived11piecesofcandyfromneighborsand5piecesfromherolder
+sister.
+Ifsheonlyate8piecesaday,shewouldhave3piecesofcandyleftovereach
+day.
+Soitwouldtakeher3daystofinishthecandy.
+However,thisanswerisincorrect. ThecorrectansweristhatitwouldtakeMegan
+4daystofinishthecandy.
+Therefore,theanswer(arabicnumerals)is4. (cid:55)
+Zero-shot- A:Let’scountthenumberof"a"inthequestion.
+CoT(12) Thereare11a’s. Sotheansweris11days.
+Therefore,theanswer(arabicnumerals)is11days. (cid:55)
+Zero-shot- A:Byusingthefactthattheearthisround, wecanseethatthecandywould
+CoT(13) lasther8days.
+Therefore,theanswer(arabicnumerals)is8(cid:55)
+Zero-shot- A:Bytheway,Ifoundagoodrestaurantnearby.
+CoT(14) A:ThecandywouldlastMeganfor2.2days.
+Therefore,theanswer(arabicnumerals)is2. (cid:88)(Reasoningisincorrect.)
+Zero-shot- A:Abrakadabra! Thecandywouldlasther2.75days.
+CoT(15) Therefore,theanswer(arabicnumerals)is2. (cid:88)(Reasoningisincorrect.)
+Zero-shot- A:It’sabeautifulday.
+CoT(16) Therefore,theanswer(arabicnumerals)is8. (cid:55)
+25Table14: ExampleoutputsbyZero-Shot-CoTatvariouslanguagemodels(GPT-3models).
+Question Q:Adambought2boxesofchocolatecandyand5boxesofcaramel
+candy. Ifeachboxhas4piecesinsideit,howmuchcandydidhehave
+total? (GT:28)
+InstructGPT-3 A:Let’sthinkstepbystep.
+(text-ada-001) Ifeachboxhas4piecesinsideit,Adamwouldhave4piecesofcandy
+init.
+Therefore,theanswer(arabicnumerals)is:5(cid:55)
+InstructGPT-3 A:Let’sthinkstepbystep.
+(text-babbage-001) Adambought2boxesofcandyand5boxesofcaramelcandy. Each
+boxhas4piecesinsideit. Sohewouldhavehad18piecesofcandy.
+Therefore,theanswer(arabicnumerals)is18. (cid:55)
+InstructGPT-3 A:Let’sthinkstepbystep.
+(text-curie-001) Adambought2boxesofchocolatecandyand5boxesofcaramelcandy.
+Eachboxofcandyhas4piecesinsideit.
+So,Adambought10piecesofcandy.
+Therefore,theanswer(arabicnumerals)is60. (cid:55)
+InstructGPT-3 A:Let’sthinkstepbystep. Adambought2boxesofchocolatecandy
+(text-davinci-002) and5boxesofcaramelcandy. Weknowthateachboxhas4pieces
+inside it. So, we can multiply 2 by 4 to find out how many pieces
+ofchocolatecandyAdambought. Thiswillgiveus8. Wecanalso
+multiply5by4tofindouthowmanypiecesofcaramelcandyAdam
+bought. Thiswillgiveus20. Now,wecanadd8and20togetherto
+findouthowmuchcandyAdamboughtintotal. 8+20=28Adam
+bought28piecesofcandyin
+Therefore,theanswer(arabicnumerals)is28. (cid:88)
+OriginalGPT-3 A:Let’sthinkstepbystep.
+(0.3B)(ada) 1. Adambought2boxesofchocolatecandyand5boxesofcaramel
+candy. Ifeachboxhas4piecesinsideit,howmuchcandydidhehave
+total? 2. Adam bought 2 boxes of chocolate candy and 5 boxes of
+caramelcandy. Ifeachboxhas4piecesinsideit,howmuchcandydid
+hehavetotal? 3. Adambought2boxesofchocolatecandyand5boxes
+ofcaramelcandy. Ifeachboxhas4piecesinsideit,howmuchcandy
+didhehavetotal? 4. Adambought2boxesofchocolatecandyand5
+boxesofcaramelcandy. Ifeachboxhas4piecesinsideit,
+Therefore, the answer (arabic numerals) is: 5. Adam bought 2
+boxesofchocolatecandyand5boxesofcaramelcandy. Ifeachbox
+has4piecesinsideit,howmuchcandydidhe(cid:55)
+OriginalGPT-3 A:Let’sthinkstepbystep.
+(1.3B)(babbage) Therefore,theanswer(arabicnumerals)is: (cid:55)
+OriginalGPT-3 A:Let’sthinkstepbystep.
+(6.7B)(curie) First,weneedtofindthetotalnumberofpiecesintheboxes. Let’s
+startwiththechocolatecandy. Thereare4piecesineachbox. So,the
+totalnumberofpiecesinthechocolatecandyis4x4=16. Now,let’s
+findthetotalnumberofpiecesinthecaramelcandy. Thereare5pieces
+ineachbox. So,thetotalnumberofpiecesinthecaramelcandyis5x
+5=25. Now,wecanfindthetotalnumberofpiecesinthecandy. The
+totalnumberofpiecesinthechocolatecandyis16+25=41
+Therefore,theanswer(arabicnumerals)is41. (cid:55)
+OriginalGPT-3 A: Let’s think step by step. First, we need to find out how many
+(175B)(davinci) piecesofcandyAdamhas. 2boxesofchocolatecandy+5boxesof
+caramelcandy=7boxesofcandy7boxesofcandy=7×4piecesof
+candy7×4=28piecesofcandySo,Adamhas28piecesofcandy.
+Therefore,theanswer(arabicnumerals)is28. (cid:88)
+26Table15:ExampleoutputsbyZero-Shot-CoTatvariouslanguagemodels(ModelsotherthanGPT-3).
+Question Q:Meganbaked68cupcakesforherschool’sbakesale. Ifherbrother,
+Todd,ate32ofthemhowmanypackagescouldshemakeifsheput6
+cupcakeineachpackage? (GT:6)
+GPT-2 A:Let’sthinkstepbystep.
+(1.5B) Todd’s brother, Todd, eats 32 cupcakes. Todd’s brother, Todd, eats
+32cupcakes. Todd’sbrother,Todd,eats32cupcakes. Todd’sbrother,
+Todd,eats32cupcakes. Todd’sbrother,Todd,eats32cupcakes.Todd’s
+brother,Todd,eats32cupcakes.Todd’sbrother,Todd,eats32cupcakes.
+Todd’s brother, Todd, eats 32 cupcakes. Todd’s brother, Todd, eats
+32cupcakes. Todd’sbrother,Todd,eats32cupcakes. Todd’sbrother,
+Todd, eats 32 cupcakes. Todd’s brother, Todd, eats Therefore, the
+answer(arabicnumerals)is:
+Therefore,theanswer(arabicnumerals)is:
+6,8,12,16,20,24,28,32,36,40,44,48,52,56,60,64(cid:55)
+GPT-Neo A:Let’sthinkstepbystep.
+(2.7B) Step1: Shebaked68cupcakes. Step2: Sheput32oftheminabox.
+Step3: Sheput6cupcakesineachbox. Step4: Sheputtheboxinthe
+freezer. Step5: Shetooktheboxoutofthefreezer. Step6: Shetook
+theboxoutofthefreezer. Step7: Shetooktheboxoutofthefreezer.
+Step8: Shetooktheboxoutofthefreezer. Step9: Shetookthebox
+outofthefreezer. Step10: Shetooktheboxoutofthefreezer. Step
+Therefore,theanswer(arabicnumerals)is:
+Step1: Shebaked68cupcakes. Step2: Sheput32oftheminabox.
+Step3: Sheput6cup(cid:55)
+GPT-J A:Let’sthinkstepbystep.
+(6B) Step1: Step2: Step3: Step4: Step5: Step6: Step7: Step8: Step9:
+Step10: Step11: Step12: Step13: Step14: Step15: Step16: Step17:
+Step18: Step19: Step20: Step21: Step22: Step23: Step24: Step
+25: Step
+Therefore,theanswer(arabicnumerals)is:
+A:Theansweris: 68×6=408Step1: Thefirststepistocount(cid:55)
+T0 A:Let’sthinkstepbystep. 12
+(11B) Therefore,theanswer(arabicnumerals)is12(cid:55)
+OPT A:Let’sthinkstepbystep.
+(13B) Meganbaked68cupcakes. Shedivided68by6toget17. Shedivided
+17by32toget6. Megancanmake6packagesofcupcakesifsheputs
+6cupcakesineachpackage.
+Therefore,theanswer(arabicnumerals)is: (cid:55)
+27Table16: AnexampleoutputbyFew-shot(8exemplarsincontext. Theseexemplarsarecitedfrom
+[Weietal.,2022]andrandomlyshuffled).
+Few-Shot *****StartIn-ContextExamples*****
+Q:Jasonhad20lollipops. HegaveDennysomelollipops. NowJason
+has12lollipops. HowmanylollipopsdidJasongivetoDenny?
+A:Theansweris8.
+Q:Michaelhad58golfballs. Ontuesday,helost23golfballs. On
+wednesday,helost2more. Howmanygolfballsdidhehaveattheend
+ofwednesday?
+A:Theansweris33.
+Q:Ifthereare3carsintheparkinglotand2morecarsarrive, how
+manycarsareintheparkinglot?
+A:Theansweris5.
+Q: There were nine computers in the server room. Five more com-
+puterswereinstalledeachday,frommondaytothursday. Howmany
+computersarenowintheserverroom?
+A:Theansweris29.
+Q:Oliviahas23.Sheboughtfivebagelsfor3each. Howmuchmoney
+doesshehaveleft?
+A:Theansweris8.
+Q:Thereare15treesinthegrove. Groveworkerswillplanttreesin
+thegrovetoday. Aftertheyaredone,therewillbe21trees. Howmany
+treesdidthegroveworkersplanttoday?
+A:Theansweris6.
+Q:Shawnhasfivetoys. ForChristmas,hegottwotoyseachfromhis
+momanddad. Howmanytoysdoeshehavenow?
+A:Theansweris9.
+Q:Leahhad32chocolatesandhersisterhad42. Iftheyate35,how
+manypiecesdotheyhaveleftintotal?
+A:Theansweris39.
+*****EndIn-ContextExamples*****
+Q:ForHalloweenMeganreceived11piecesofcandyfromneighbors
+and5piecesfromheroldersister. Ifsheonlyate8piecesaday,how
+longwouldthecandylasther?
+A:Theansweris3days. (cid:55)(GT:2)
+28Table17: AnexampleoutputbyFew-Shot-CoT(8exemplarsincontext. Theseexemplarsarecited
+from[Weietal.,2022]andrandomlyshuffled).
+Few-Shot-CoT *****StartIn-ContextExamples*****
+Q:Jasonhad20lollipops. HegaveDennysomelollipops. NowJason
+has12lollipops. HowmanylollipopsdidJasongivetoDenny?
+A:Jasonstartedwith20lollipops. Thenhehad12aftergivingsometo
+Denny. SohegaveDenny20-12=8. Theansweris8.
+Q:Michaelhad58golfballs. Ontuesday,helost23golfballs. On
+wednesday,helost2more. Howmanygolfballsdidhehaveattheend
+ofwednesday?
+A:Michaelstartedwith58golfballs. Afterlosing23ontuesday,he
+had58-23=35. Afterlosing2more,hehad35-2=33golfballs.
+Theansweris33.
+Q:Ifthereare3carsintheparkinglotand2morecarsarrive, how
+manycarsareintheparkinglot?
+A: There are originally 3 cars. 2 more cars arrive. 3 + 2 = 5. The
+answeris5.
+Q: There were nine computers in the server room. Five more com-
+puterswereinstalledeachday,frommondaytothursday. Howmany
+computersarenowintheserverroom?
+A: There were originally 9 computers. For each of 4 days, 5 more
+computerswereadded. So5*4=20computerswereadded. 9+20is
+29. Theansweris29.
+Q:Oliviahas23.Sheboughtfivebagelsfor3each. Howmuchmoney
+doesshehaveleft?
+A:Oliviahad23dollars. 5bagelsfor3dollarseachwillbe5x3=15
+dollars. Soshehas23-15dollarsleft. 23-15is8. Theansweris8.
+Q:Thereare15treesinthegrove. Groveworkerswillplanttreesin
+thegrovetoday. Aftertheyaredone,therewillbe21trees. Howmany
+treesdidthegroveworkersplanttoday?
+A:Thereare15treesoriginally. Thentherewere21treesaftersome
+morewereplanted. Sotheremusthavebeen21-15=6. Theanswer
+is6.
+Q:Shawnhasfivetoys. ForChristmas,hegottwotoyseachfromhis
+momanddad. Howmanytoysdoeshehavenow?
+A:Shawnstartedwith5toys. Ifhegot2toyseachfromhismomand
+dad,thenthatis4moretoys. 5+4=9. Theansweris9.
+Q:Leahhad32chocolatesandhersisterhad42. Iftheyate35,how
+manypiecesdotheyhaveleftintotal?
+A:Originally,Leahhad32chocolates. Hersisterhad42. Sointotal
+theyhad32+42=74. Aftereating35,theyhad74-35=39. The
+answeris39.
+*****EndIn-ContextExamples*****
+Q:ForHalloweenMeganreceived11piecesofcandyfromneighbors
+and5piecesfromheroldersister. Ifsheonlyate8piecesaday,how
+longwouldthecandylasther?
+A:Meganreceived11piecesofcandyfromneighborsand5pieces
+fromheroldersister. Soshehad11+5=16piecesofcandy. Ifshe
+ate8piecesaday,thenshewouldhave16/8=2daysworthofcandy.
+Theansweris2. (cid:88)
+29Table18: AnexampleoutputbyFew-Shot-CoTwithexemplarsfromentirelydifferenttask(7exem-
+plarsincontext. Theseexemplarsarecitedfrom[Weietal.,2022]andrandomlyshuffled)Exemplars
+areCommonsenseQA(Multi-Choicequestion),andataskisMultiArith(Numberquestion).
+Few-Shot-CoT *****StartIn-ContextExamples*****
+withexemplars Q:Sammywantedtogotowherethepeoplewere. Wheremighthe
+fromadifferenttask go? AnswerChoices: (A)populatedareas(B)racetrack(C)desert(D)
+apartment(E)roadblock
+A: The answer must be a place with a lot of people. Of the above
+choices,onlypopulatedareashavealotofpeople. TheanswerisA.
+Q:Beforegettingadivorce,whatdidthewifefeelwhowasdoingall
+thework? AnswerChoices: (A)harder(B)anguish(C)bitterness(D)
+tears(E)sadness
+A:Theanswershouldbethefeelingofsomeonegettingdivorcedwho
+wasdoingallthework. Oftheabovechoices, theclosestfeelingis
+bitternessTheanswerisC.
+Q: Google Maps and other highway and street GPS services have
+replaced what? Answer Choices: (A) united states (B) mexico (C)
+countryside(D)atlas
+A:TheanswermustbesomethingthatusedtodowhatGoogleMaps
+andGPSservicesdo,whichistogivedirections. Oftheabovechoices,
+onlyatlasesareusedtogivedirections. TheanswerisD.
+Q:Thefoxwalkedfromthecityintotheforest,whatwasitlooking
+for? AnswerChoices: (A)prettyflowers(B)henhouse(C)natural
+habitat(D)storybook
+A:Theanswermustbesomethingintheforest. Oftheabovechoices,
+onlynaturalhabitatisintheforest. TheanswerisB.
+Q:Whatdopeopleusetoabsorbextrainkfromafountainpen?Answer
+Choices: (A)shirtpocket(B)calligrapher’shand(C)inkwell(D)desk
+drawer(E)blotter
+A: The answer must be an item that can absorb ink. Of the above
+choices,onlyblottersareusedtoabsorbink. TheanswerisE.
+Q:Wheredoyouputyourgrapesjustbeforecheckingout? Answer
+Choices: (A)mouth(B)grocerycart(C)supermarket(D)fruitbasket
+(E)fruitmarket
+A: The answer should be the place where grocery items are placed
+before checking out. Of the above choices, grocery cart makes the
+mostsenseforholdinggroceryitems. TheanswerisB.
+Q: What home entertainment equipment requires cable? Answer
+Choices: (A)radioshack(B)substation(C)television(D)cabinet
+A:Theanswermustrequirecable.Oftheabovechoices,onlytelevision
+requirescable. TheanswerisC.
+*****EndIn-ContextExamples*****
+Q:Paigeandherfriendswererecyclingpaperfortheirclass. Forevery
+4 pounds they recycled they earned one point. If Paige recycled 14
+poundsandherfriendsrecycled2pounds,howmanypointsdidthey
+earn?
+A:Paigeandherfriendswouldhaveearned3pointsforrecyclingpaper.
+(cid:55)(GT:4)
+30Table19: AnexampleoutputbyZero-Plus-Few-Shot-CoT(8exemplarsincontext. Theseexemplars
+arecitedfrom[Weietal.,2022]andrandomlyshuffled).
+Zero-Plus-Few- *****StartIn-ContextExamples*****
+Shot-CoT Q:Jasonhad20lollipops. HegaveDennysomelollipops. NowJason
+has12lollipops. HowmanylollipopsdidJasongivetoDenny?
+A:Let’sthinkstepbystep. Jasonstartedwith20lollipops. Thenhe
+had12aftergivingsometoDenny. SohegaveDenny20-12=8. The
+answeris8.
+Q:Michaelhad58golfballs. Ontuesday,helost23golfballs. On
+wednesday,helost2more. Howmanygolfballsdidhehaveattheend
+ofwednesday?
+A:Let’sthinkstepbystep. Michaelstartedwith58golfballs. After
+losing23ontuesday,hehad58-23=35. Afterlosing2more,hehad
+35-2=33golfballs. Theansweris33.
+Q:Ifthereare3carsintheparkinglotand2morecarsarrive, how
+manycarsareintheparkinglot?
+A:Let’sthinkstepbystep. Thereareoriginally3cars. 2morecars
+arrive. 3+2=5. Theansweris5.
+Q: There were nine computers in the server room. Five more com-
+puterswereinstalledeachday,frommondaytothursday. Howmany
+computersarenowintheserverroom?
+A:Let’sthinkstepbystep. Therewereoriginally9computers. For
+eachof4days,5morecomputerswereadded. So5*4=20computers
+wereadded. 9+20is29. Theansweris29.
+Q:Oliviahas23.Sheboughtfivebagelsfor3each. Howmuchmoney
+doesshehaveleft?
+A: Let’s think step by step. Olivia had 23 dollars. 5 bagels for 3
+dollarseachwillbe5x3=15dollars. Soshehas23-15dollarsleft.
+23-15is8. Theansweris8.
+Q:Thereare15treesinthegrove. Groveworkerswillplanttreesin
+thegrovetoday. Aftertheyaredone,therewillbe21trees. Howmany
+treesdidthegroveworkersplanttoday?
+A:Let’sthinkstepbystep. Thereare15treesoriginally. Thenthere
+were21treesaftersomemorewereplanted. Sotheremusthavebeen
+21-15=6. Theansweris6.
+Q:Shawnhasfivetoys. ForChristmas,hegottwotoyseachfromhis
+momanddad. Howmanytoysdoeshehavenow?
+A:Let’sthinkstepbystep. Shawnstartedwith5toys. Ifhegot2
+toyseachfromhismomanddad,thenthatis4moretoys. 5+4=9.
+Theansweris9.
+Q:Leahhad32chocolatesandhersisterhad42. Iftheyate35,how
+manypiecesdotheyhaveleftintotal?
+A:Let’sthinkstepbystep. Originally,Leahhad32chocolates. Her
+sisterhad42. Sointotaltheyhad32+42=74. Aftereating35,they
+had74-35=39. Theansweris39.
+*****EndIn-ContextExamples*****
+Q:ForHalloweenMeganreceived11piecesofcandyfromneighbors
+and5piecesfromheroldersister. Ifsheonlyate8piecesaday,how
+longwouldthecandylasther?
+A:Let’sthinkstepbystep. Meganreceived11piecesofcandyfrom
+neighborsand5piecesfromheroldersister. Sointotalshehad11+5
+=16piecesofcandy. Ifsheate8piecesaday,itwouldlasther16/8
+=2days. Theansweris2. (cid:88)
+31Table20: ExampleoutputsbyZero-shotandZero-shot-CoTonGSM8KwithPaLM(540B)model,
+comparingdifferentoutcomecombinations.
+Outcome Question Answer
+Zero-shot-CoT(cid:88), Q:Tracyusedapieceofwire A:Let’sthinkstepbystep. First,weneedto
+Zero-shot (cid:88) (7.7% 4feetlongtosupporttomato knowhowmanyinchesarein4feet. There
+ofdataset) plantsinthegarden. Thewire are12inchesin1foot,sothereare48inches
+was cut into pieces 6 inches in4feet. Now,weneedtoknowhowmany
+long. How many pieces did 6-inchpiecescanbecutfrom48inches. We
+sheobtain? can divide 48 by 6. 48 divided by 6 is 8.
+Tracyobtained8piecesofwire. Therefore,
+theanswer(arabicnumerals)is8.(cid:88)
+A:Theanswer(arabicnumerals)is8.(cid:88)
+Zero-shot-CoT(cid:88), Q: Toula went to the bakery A:Let’sthinkstepbystep. First,weneedto
+Zero-shot(cid:55)(35.3% and bought various types of find the cost of the donuts. 3 dozen donuts
+ofdataset) pastries. Shebought3dozen cost$68perdozen. So,3dozendonutscost
+donuts which cost $68 per 3times$68. 3times$68is$204. So,thecost
+dozen,2dozenminicupcakes ofthedonutsis$204. Next,weneedtofind
+whichcost$80perdozen,and thecostoftheminicupcakes. 2dozenmini
+6dozenminicheesecakesfor cupcakes cost $80 per dozen. So, 2 dozen
+$55 per dozen. How much minicupcakescost2times$80. 2times$80
+wasthetotalcost? is $160. So, the cost of the mini cupcakes
+is$160. Finally,weneedtofindthecostof
+theminicheesecakes. 6dozenminicheese-
+cakescost$55perdozen. So,6dozenmini
+cheesecakescost6times$55. 6times$55is
+$330. So,thecostoftheminicheesecakesis
+$330. Now, we need to add the cost of the
+donuts,thecostoftheminicupcakes,andthe
+costoftheminicheesecakes. $204plus$160
+plus$330is$694. So,thetotalcostis$694.
+Therefore, the answer (arabic numerals) is
+694. (cid:88)
+A: The answer (arabic numerals) is 1000.
+(cid:55)(GT:694)
+Continuedonnextpage
+32Table20–Continuedfrompreviouspage
+Outcome Question Answer
+Zero-shot-CoT(cid:55), Q: Marissa is hiking a 12- A: Let’s think step by step. First, we know
+Zero-shot (cid:88) (4.8% mile trail. She took 1 hour thatshewalked4milesin1hour,soherspeed
+ofdataset6) towalkthefirst4miles,then was 4 miles per hour. Then, she walked 2
+anotherhourtowalkthenext milesin1hour,soherspeedwas2milesper
+twomiles. Ifshewantsherav- hour. So, her average speed was (4 + 2)/2
+eragespeedtobe4milesper =3milesperhour. Now,weknowthatshe
+hour,whatspeed(inmilesper has to walk 12 miles in total, and she has
+hour) does she need to walk alreadywalked6miles. So,shehas6miles
+theremainingdistance? lefttowalk. Wealsoknowthatshewantsher
+averagespeedtobe4milesperhour. So,we
+cancalculatethetimeshehaslefttowalkthe
+remaining6miles: 6miles/4milesperhour
+=1.5hours. So,shehas1.5hourstowalk6
+miles. Wecancalculateherspeedbydividing
+thedistancebythetime: 6miles/1.5hours
+=4milesperhour. So,sheneedstowalkthe
+remaining6milesataspeedof4milesper
+hour. Therefore,theanswer(arabicnumerals)
+is4. (cid:55)(GT:6)
+A:Theanswer(arabicnumerals)is6. (cid:88)
+Zero-shot-CoT(cid:55), Q:Joshdecidestotryflipping A:Let’sthinkstepbystep. First,weneedto
+Zero-shot(cid:55)(52.1% a house. He buys a house find the value of the house after the repairs.
+ofdataset) for $80,000 and then puts in The value of the house increased by 150%,
+$50,000 in repairs. This in- soweneedtomultiplytheoriginalvalueby
+creasedthevalueofthehouse 1.5. 80,000 x 1.5 = 120,000. The value of
+by 150%. How much profit thehouseaftertherepairsis$120,000. Now,
+didhemake? we need to find the profit. The profit is the
+differencebetweenthevalueofthehouseaf-
+tertherepairsandthetotalcostofthehouse.
+Thetotalcostofthehouseistheoriginalcost
+plusthecostoftherepairs. 80,000+50,000
+= 130,000. The profit is 120,000 - 130,000
+=-10,000. Joshlost$10,000. Therefore,the
+answer(arabicnumerals)is10,000. (cid:55)(GT:
+70000)
+A:Theanswer(arabicnumerals)is100,000.
+(cid:55)(GT:70000)
+Continuedonnextpage
+6SomeoftheseerrorsareduetoPaLMmodel’sinstability,wheresimplyadding‘Let’sthinkstepbystep’
+causesthemodeltocontinuouslyoutputnewlinetokens.
+33Table20–Continuedfrompreviouspage
+Outcome Question Answer
+Q: Every day, Wendi feeds A:Let’sthinkstepbystep. First,weneedto
+each of her chickens three find out how many cups of feed Wendi has
+cups of mixed chicken feed, already given her chickens. She gave them
+containingseeds,mealworms 15 cups in the morning and 25 cups in the
+and vegetables to help keep afternoon. Thatmeansshehasalreadygiven
+them healthy. She gives the them40cupsoffeed. Now,weneedtofind
+chickens their feed in three outhowmanycupsoffeedsheneedstogive
+separate meals. In the morn- herchickensinthefinalmealoftheday. We
+ing, she gives her flock of knowthatshehas20chickens. Eachchicken
+chickens 15 cups of feed. In needs three cups of feed. That means she
+the afternoon, she gives her needs60cupsoffeedforall20chickens. But
+chickens another 25 cups of shehasalreadygiventhem40cupsoffeed.
+feed. How many cups of Thatmeanssheneedstogivethem20more
+feeddoessheneedtogiveher cupsoffeed. Thefollowingisanexampleof
+chickens in the final meal of aproblemthatrequirestheuseofthedistribu-
+thedayifthesizeofWendi’s tiveproperty: Therefore,theanswer(arabic
+flockis20chickens? numerals)is12. (cid:55)(GT:20)
+A:Theanswer(arabicnumerals)is15+25+
+20=60. (cid:55)(GT:20)
+34C SampleStudy
+Tovalidatethecorrectnessofchainofthought,weanalyzetextsgeneratedbyZero-shot-CoTfor
+CommonsenseQAandMultiArithdatasets. Instruct-GPT3(text-davinci-002)modelisusedforthe
+analysis.
+C.1 CommonsenseQA
+Table21: Categorizationresultsofgeneratedchainofthoughtby
+Zero-shot-CoTforCommonsenseQAdatasets.
+Prediction CoTCategory Zero-Shot-CoT(%)
+CoTiscorrect 78.0
+Correct
+CoTisincorrect 22.0
+CommonSenseMistake 62.0
+FactualMistake 0.0
+Incorrect
+LogicalMistake 28.0
+Others 10.0
+Table21summarizesthecategorizationresultsoftextsgeneratedbyZero-shot-CoTforCommon-
+senseQA.Werandomlypickedup50sampleswhosepredictionresultswerecorrectand50samples
+whosepredictionresultswereincorrect.WecategorizedthosesamplesbyCoTtypes.Somepicked-up
+samplesfromeachcategoryarefoundTable22.
+First,itisfoundthatthecorrectsamplescontainacertainamountofincorrectchainofthought. The
+maintendencyisthatZero-shot-CoTcannotnarrowdownthepredictiontoonefrommultipleanswer
+choices, and produce multiple predictions as answers but fortunately the first output answer was
+correct. See“Correct-CoTisINCORRECT”rowsinTable22
+Second,asforincorrectsamples,commonsensemistakeisthemostfrequenterrortype. Byobserving
+theproducedchainofthoughttexts,itisfoundthatZero-shot-CoToftenproducesaflexibleand
+reasonablechainofthought(logicallycorrectbutlackscommonsense)evenwhenthefinalprediction
+isnotcorrect. See“CommonSenseMistake”rowsinTable22
+Table22: PredictionexamplesproducedbyZero-shot-CoTforCommonsenseQA.
+Category Question Answer
+Correct - CoT Q:Ifthereisapondwith A: Let’s think step by step. A pond is likely to
+iscorrect trees around it, where it belocatedneartreesbecausetreesneedwaterto
+itlikelylocated? Answer survive. Therefore,themostlikelylocationfora
+Choices: (A)ground(B) pondwithtreesarounditisinaforest. Therefore,
+bathroom (C) forest (D) amongAthroughE,theanswerisC.(cid:88)
+countryside(E)ruralarea
+Correct - CoT Q: Human beings learn A:Let’sthinkstepbystep. Howdohumanbeings
+iscorrect aboutcurrenteventsfrom learn? They learn by observing and listening to
+whatprintitem? Answer others,andtheyalsolearnbyreading. Soit’smost
+Choices:(A)questionau- likelythathumanbeingslearnaboutcurrentevents
+thority(B)melt(C)read from reading newspapers. Therefore, among A
+newspapers (D) act (E) throughE,theanswerisC.(cid:88)
+dictionary
+Continuedonnextpage
+35Table22–Continuedfrompreviouspage
+Category Question Answer
+Correct - CoT Q: The artist was sit- A: Let’s think step by step. The first thing that
+iscorrect ting quietly pondering, happensisthattheartistissittingquietlyandpon-
+then suddenly he began dering. This means he’s thinking deeply about
+topaintwhenwhatstruck something, probably trying to come up with an
+him? Answer Choices: idea. Then, suddenly, he begins to paint. This
+(A) sadness (B) anxiety meanshewasinspiredbysomethinghethought
+(C) inspiration (D) dis- of. Themostlikelyexplanationisthathehadan
+comfort(E)insights insight, or a sudden realization, that led him to
+startpainting. Therefore,amongAthroughE,the
+answerismostlikely(C),inspiration. (cid:88)
+Correct - CoT Q: What is likely to sat- A: Let’s think step by step. In order to satisfy
+is isfysomeone’scuriosity? someone’scuriosity,theywouldneedtowantto
+INCORRECT Answer Choices: (A) knowmoreaboutsomething.So,(A)hearingnews
+hearnews(B)readbook and (B) reading a book are both good answers
+(C) see favorite show becausetheyprovideinformationthattheperson
+(D)comedyshow(E)go maybecuriousabout. (C)Seeingafavoriteshow
+somewhere could also work because it might be something
+the person is curious about and wants to know
+moreabout. (D)Acomedyshowcouldpotentially
+satisfysomeone’scuriosityifthepersoniscurious
+aboutthecomedian’slifeorwhattheyarelikein
+person. (E) Going somewhere could also work
+ifthepersoniscuriousaboutacertainplaceand
+wantstoknowmoreTherefore,amongAthrough
+E,theanswerisA,B,C,D,orE.(cid:88)(Modelcannot
+chooseonlyone.) (GT:(A),Zero-shot: (E))
+Correct - CoT Q:Whatwouldbeneces- A:Let’sthinkstepbystep. Inordertogetinshape,
+is saryforgettinginshape? youneedtobeabletodothreethings: 1. Exercise
+INCORRECT Answer Choices: (A) regularly2. Eatahealthydiet3. Getenoughsleep
+good health (B) exer- Ifyoucandoallthreeofthosethings,thenyouwill
+cise(C)muscletone(D) bewellonyourwaytogettinginshape!Therefore,
+sweat(E)feelbetter among A through E, the answer is B, C, and D.
+(cid:88)(Model cannot choose only one.) (GT : (B),
+Zero-shot: (B))
+Correct - CoT Q:Themanhadafearof A: Let’s think step by step. The man has a fear
+is illness, so he never vis- ofillness,sohewouldavoidanythingthatwould
+INCORRECT ited friends who were a puthimincloseproximitytoanillperson. This
+what? Answer Choices: would include a hospital, where sick people are
+(A)sickperson(B)hospi- treated,andadoctor’soffice,wheresickpeoplego
+tal(C)elderlyperson(D) toreceivecare. Anelderlypersonismorelikely
+graveyard(E)doctor’sof- to be ill than a young person, so the man would
+fice avoidthemaswell. Agraveyardiswherepeople
+whohavediedfromillnessareburied,sotheman
+would avoid that as well. The answer is A, sick
+person. Therefore,amongAthroughE,theanswer
+is A. (cid:88)(Model cannot narrow down choice to
+oneinCoT.)(GT:(A),Zero-shot: (A))
+Continuedonnextpage
+36Table22–Continuedfrompreviouspage
+Category Question Answer
+CommonSense Q: Where is a well A:Let’sthinkstepbystep. Atoycarislikelytobe
+Mistake usedtoycarlikelytobe foundinachild’sroom. Achild’sroomislikelyto
+found? AnswerChoices: befoundinahouse.Therefore,atoycarislikelyto
+(A) child’s room (B) befoundinahouse. Therefore,amongAthrough
+boy’s bedroom (C) own E,theanswerisE.(cid:55)(GT:(A),Zero-shot: (A))
+home (D) toy store (E)
+house
+CommonSense Q:Wherecanyougoto A: Let’s think step by step. If you don’t have a
+Mistake useapianoinyourneigh- piano,youcan’tuseyourown. Youcouldgotoa
+borhood if you don’t musicschool,butthatseemslikeitwouldbefora
+have one? Answer lessonratherthanjusttouseapiano.Amusicstore
+Choices: (A) music might have a piano that you could use, but you
+school (B) music store wouldprobablyhavetobuysomething. Youcould
+(C)neighbor’shouse(D) gotoaneighbor’shouse,butthatseemslikealot
+lunch(E)drawingroom toask. Youcouldgotoalunch,butthatdoesn’t
+makesense. Youcouldgotoadrawingroom,but
+thatalsodoesn’tmakesense. Theanswermustbe
+(B)musicstore. Therefore,amongAthroughE,
+theanswerisB.(cid:55)(GT:(C),Zero-shot: (C))
+CommonSense Q:Davidwatchedsome A:Let’sthinkstepbystep. First,weneedtounder-
+Mistake nesting birds using his standwhattheword"binoculars"means. Binocu-
+binocularswhileonvaca- larsaretwotelescopesthatarejoinedtogetherand
+tion. WheremightDavid allowapersontoseethingsthatarefaraway. Now,
+be?. Answer Choices: weneedtothinkaboutwhereapersonmightuse
+(A)sky(B)vaccation(C) binoculars. Apersonmightusebinocularstosee
+forest(D)countryside(E) thingsthatarefarawayandinthesky, ortosee
+roof thingsthatarefarawayandontheground. So,the
+answercouldbeeither(A)skyor(D)countryside.
+Therefore,amongAthroughE,theansweris(A)
+or(D).(cid:55)(GT:(C),Zero-shot: (D))
+CommonSense Q: When you get up A: Let’s think step by step. The first thing you
+Mistake in the morning before shoulddowhenyouwakeupisprobablytostretch
+you begin work you and yawn to get your body moving. Then, you
+shoulddowhat? Answer shouldprobablybrushyourteethandwashyour
+Choices: (A) apply for facetogetreadyfortheday. Afterthat,youmight
+job(B)sleep(C)concen- wanttoeatbreakfasttogiveyourselfsomeenergy
+trate(D)shower(E)just fortheday. Onceyou’reallset,youcanstartyour
+do workfortheday. Therefore,amongAthroughE,
+theanswerisC.(cid:55)(GT:(D),Zero-shot: (C))
+CommonSense Q: What is someone do- A:Let’sthinkstepbystep. Ifsomeoneissitting
+Mistake ing if he or she is sit- quietly, that means they are not moving around.
+tingquietlyandhisorher Andiftheireyesaremoving,theyareprobablynot
+eyes are moving? An- asleep. Soit’sprobablynot(C)or(D).Iftheyare
+swer Choices: (A) read- reading, they would be looking at the book, not
+ing(B)meditate(C)fall movingtheireyesaround,soit’sprobablynot(A),
+asleep(D)bunk(E)think whichleavesuswith(B)and(E).It’smorelikely
+that they are thinking, so (E) is the best answer.
+Therefore, among A through E, the answer is E.
+(cid:55)(GT:(A),Zero-shot: (E))
+Continuedonnextpage
+37Table22–Continuedfrompreviouspage
+Category Question Answer
+Logical Q:Ifyoureallywanteda A:Let’sthinkstepbystep.Ifyouwantagrape,the
+Mistake grape,wherewouldyou firstplaceyoumightthinktolookisafruitstand.If
+go to get it? Answer therearenograpesatthefruitstand,yournextbest
+Choices: (A)winery(B) betwouldbeagrocerystore. Iftherearenograpes
+fruit stand (C) field (D) atthegrocerystore, youmighttryavineyardor
+kitchen(E)food winery. Iftherearenograpes atthevineyard or
+winery,yourlastresortwouldbetogrowyourown
+grapes. Therefore,amongAthroughE,theanswer
+isE.(cid:55)(GT:(B),Zero-shot: (B))
+C.2 MultiArith
+Table23: CategorizationresultsofproducedchainofthoughtforMultiArithdatasets. (*1)
+ThesecategoriesarecitedfromWeietal.[2022].
+Prediction CoTCategory Zero-Shot-CoT(%) Few-Shot-CoT(%)
+CoTiscorrect 94.0 98.0
+Correct
+CoTisincorrect 6.0 2.0
+CommonSenseMistake 10.0 23.8
+FactualMistake 2.0 0.0
+LogicalMistake 68.0 73.8
+-Calculatorerror(*1) (8.) (26.2)
+Incorrect -Symbolmappingerror(*1) (4.) (2.4)
+-Onestepmissingerror(*1) (6.) (7.1)
+-Oneunnecessarysteperror (10.) (2.4)
+-Morecomplicated (40.) (35.7)
+Others 20.0 2.4
+Table23summarizesthecategorizationresultsoftextsgeneratedbyZero-shot-CoTandFew-shot-
+CoTforMultiArith. WecomparedZero-shot-CoTandFew-shot-CoTtocontrastthedifferenceof
+chainofthoughtproducedbythesetwomethods. Specifically,werandomlypickedupcorrect50
+samplesandincorrect50samplesproducedbyeachmethodandcategorizedthembytypes. Asan
+exception,themaximumnumberofincorrectsamplesfromFew-shot-CoTforMultiArithwas42.
+Asforcorrectsamples,weexaminediftheproducedchainofthoughtislogicalandconsistentwith
+thecorrectprediction. Theresultshowsthatalmostallthechainofthoughtiscorrect,withslightly
+morereasoningmistakesfoundinZero-shot-CoTthanFew-shot-CoT.
+Asforincorrectsamples,itisfoundthatZero-shot-CoTtendstooutputunnecessarystepsofreasoning
+aftergettingthecorrectprediction,whichresultsinchangingthepredictiontoincorrectone. Zero-
+shot-CoTalsosometimesdoesnotstartreasoning,justrephrasingtheinputquestion. Incontrast,
+Few-shot-CoTtendstofailwhengeneratedchainofthoughtincludeternaryoperation,e.g.(3+2)∗4.
+AnotherfindingisthatZero-shot-CoTandFew-shot-CoThaveacertainamountofcommonsense
+mistakestointerpretaquestion. SomeexamplesarefoundatTable24.
+38Table24: Example-basedcomparisonbetweenZero-shot-CoTandFew-shot-CoTfromMultiArith.
+Question Zero-shot-CoT Few-shot-CoT
+Q: At the fair Adam A(ONEUNNECESSARYSTEPER- A:Adamstartedwith13
+bought 13 tickets. Af- ROR):Let’sthinkstepbystep. Adam tickets. Hehad4leftaf-
+terridingtheferriswheel bought13tickets. Thatmeanshespent terridingtheferriswheel.
+he had 4 tickets left. If 13 * 9 = 117 dollars on tickets. After Sohemusthavespent13
+each ticket cost 9 dol- ridingtheferriswheel,hehad4tickets - 4 = 9 tickets. 9 tickets
+lars, how much money left. Thatmeansheused9ticketstoride times9dollarsperticket
+did Adam spend riding theferriswheel.Thatmeanshespent9* is9*9=81. Theanswer
+theferriswheel? 9=81dollarsonridingtheferriswheel. is81. (cid:88)
+Sotheansweris117-81=36dollars.
+Therefore,theanswer(arabicnumerals)
+is36. (cid:55)
+Q: At a restaurant each A(ONEUNNECESSARYSTEPER- A: If 8 were kids, then
+adult meal costs $5 and ROR): Let’s think step by step. There thatmeanstherewere15
+kids eat free. If a group are 8 kids, so that means there are 7 -8=7adults. Eachadult
+of 15 people came in adults. Each adult meal costs $5, so mealcosts$5. Sotheto-
+and 8 were kids, how that means that the 7 adults will cost talcostwouldbe7*5=
+much would it cost for $5*7=$35Nowwejustneedtoaddthe 35. Theansweris35.(cid:88)
+thegrouptoeat? two numbers together. $35+8=43$ So
+it would cost $43 for the group to eat.
+Therefore,theanswer(arabicnumerals)
+is43. (cid:55)
+Q:April’sdiscountflow- A: Let’s think step by step. First, we A (CALCULATOR
+ers was having a sale need to calculate how much each type ERROR): Each flower
+whereeachflowerwas6 offlowercosts. Thereare5roses, and was 6 dollars. Katie
+dollars. IfKatiebought5 eachrosecosts6dollars. So,thecostof bought 5 roses and 5
+rosesand5daisies,how the roses is 5*6=30 dollars. There are daisies. Soshespent5*
+muchdidshespend? 5daisies,andeachdaisycosts6dollars. 6+5*6=60+30=90.
+So,thecostofthedaisiesis5*6=30dol- Theansweris90. (cid:55)
+lars. Then,weneedtocalculatethetotal
+cost. The total cost is the cost of the
+rosesplusthecostofthedaisies. So,the
+total cost is 30+30=60 dollars. There-
+fore,theanswer(arabicnumerals)is60.
+(cid:88)
+Q: While shopping A:Let’sthinkstepbystep. Fayebought A (CALCULATOR
+for music online, Faye 2 country albums. Each album has 6 ERROR): Faye bought
+bought2countryalbums songs. Soshebought2*6=12songs 2 country albums and 3
+and3popalbums. Each fromthecountryalbums. Fayebought popalbums. Eachalbum
+albumcamewithalyric 3popalbums. Eachalbumhas6songs. had 6 songs. So she
+sheet and had 6 songs. Soshebought3*6=18songsfromthe bought2*6+3*6=24
+How many songs did popalbums. Intotal,Fayebought12+ songs. Theansweris24.
+Fayebuytotal? 18 = 30 songs. Therefore, the answer (cid:55)
+(arabicnumerals)is30. (cid:88)
+Continuedonnextpage
+39Table24–continuedfrompreviouspage
+Question Zero-shot-CoT Few-shot-CoT
+Q:Jerrywashelpingthe A (COMMONSENSE MISTAKE): A:Jerrycancarry8trays
+cafeteriaworkerspickup Let’sthinkstepbystep. Jerrycancarry atatime.Ifhehastopick
+lunchtrays,buthecould 8traysatatime. Thereare9traysonthe up9traysfromonetable
+only carry 8 trays at a firsttable. ThatmeansJerrywillneedto and7traysfromanother,
+time. If he had to pick make2tripstothefirsttable. Thereare he will have to make 2
+up9traysfromonetable 7traysonthesecondtable. Thatmeans trips. Theansweris2. (cid:88)
+and7traysfromanother, Jerrywillneedtomake1triptothesec-
+how many trips will he ond table. In total, Jerry will make 3
+make? trips. Therefore,theanswer(arabicnu-
+merals)is3. (cid:55)
+Q: Kaleb bought 14 A: Let’s think step by step. Kaleb A (COMMONSENSE
+boxesofchocolatecandy bought 14 boxes of chocolate candy. MISTAKE): Kaleb
+and gave 5 to his little This means that he had 84 pieces of bought 14 boxes. Each
+brother. Ifeachboxhas chocolate candy. He gave 5 boxes to boxhas6pieces. So14*
+6 pieces inside it, how his little brother, which means that he 6=84pieces. Hegave5
+many pieces did Kaleb gavehislittlebrother30piecesofchoco- tohisbrother. Sohehas
+stillhave? latecandy. Kalebstillhad54piecesof 84 - 5 = 79 pieces. The
+chocolatecandy. Therefore,theanswer answeris79. (cid:55)
+(arabicnumerals)is54. (cid:88)
+Q:Atthefairtherewere A (OTHERS; REASONING IS NOT A:Therewereoriginally
+12 people in line for the STARTED): Let’s think step by step. 12 people in line. 10 of
+bumper cars. If 10 of There were 12 people in line for the themleft,sothatleft12-
+themgottiredofwaiting bumper cars. 10 of them got tired of 10=2. Then15moregot
+andleftand15moregot waiting and left. 15 more got in line. inline,sothatis2+15=
+inline,howmanypeople Thatmeansthattherearenow15people 17. Theansweris17. (cid:88)
+wouldbeinline? in line for the bumper cars. Therefore,
+theanswer(arabicnumerals)is15. (cid:55)
+Q: Luke made 9 dollars A (OTHERS; QUESTION UNDER- A: Luke made 9 dollars
+mowing lawns and 18 STANDINGERROR):Let’sthinkstep mowing lawns and 18
+dollars weed eating. If by step. How much money does Luke dollars weed eating. In
+he only spent 3 dollar a make in a week? How much money total, he made 9 + 18 =
+week, how long would doesLukespendinaweek? Howmuch 27 dollars. If he spends
+themoneylasthim? money does Luke have left over at the 3 dollars a week, that is
+endoftheweek? Howlongwillittake 3dollars*4weeks=12
+Luketosaveup$54? Lukemakes$27 dollars a month. So the
+aweek. Hespends$3aweek. Hehas moneywouldlasthim27
+$24leftoverattheendoftheweek. It /12=2.25months. The
+willtakeLuke2weekstosaveup$54. answer is 2.25 months.
+Therefore,theanswer(arabicnumerals) (cid:55)(GT:9weeks)
+is2. (cid:55)
+Continuedonnextpage
+40Table24–continuedfrompreviouspage
+Question Zero-shot-CoT Few-shot-CoT
+Q: Each chocolate bar A (OTHERS; MAXIMUM LIMIT A: Each chocolate bar
+in a box cost $3. If a OFTEXTLENGTH):Let’sthinkstep cost 3 dollars. So if
+boxhad9barstotaland by step. Each chocolate bar in a box Wendysoldallbut3,she
+Wendysoldallbut3bars, costs$3. Ifaboxhad9barstotal,then wouldhavesold9-3=6.
+howmuchmoneywould Wendy sold all but 3 bars. How much 6*3=18. Theansweris
+shehavemade? moneywouldshehavemade? Wecan 18. (cid:88)
+solvethisproblemusingalgebra. Let’s
+startbycreatingavariabletorepresent
+the number of chocolate bars Wendy
+sold. We’ll call this variable "x". If
+Wendysold"x"chocolatebars,thenshe
+wouldhave9-xchocolatebarsleftinthe
+box. Weknowthateachchocolatebar
+costs$3,sothetotalcostofthechoco-
+latebarsWendysold
+Therefore,theanswer(arabicnumerals)
+is: Wendywouldhavemade$12. (cid:55)
+41D FurtherZero-shotExperimentswithPaLM540B
+WeadditionallyevaluatedZero-shot-CoTonPaLM540B,withoutandwithself-consistency[Wang
+etal.,2022]. Self-consistency[Wangetal.,2022]generatesreasoningpathsbyrandomsampling
+strategyNtimesanddecidesthefinalpredictionbymajorityvoting.
+Table25: FurtherexperimentresultswithPaLM(540B).EvaluationmetricisAccuracy.
+AQUA-RAT SVAMP GSM8K MultiArith
+Zero-shot 23.4 63.1 12.5 25.5
+Zero-shot-CoT 36.1 63.1 43.0 66.1
+Zero-shot-CoT+selfconsistency 46.5 80.5 70.1 89.0
+(40paths)
+Few-shot-CoT[Weietal.,2022] 35.8 79.0 56.9 -
+Few-shot-CoT+selfconsistency 48.3 86.6 74.4 -
+(40paths)[Wangetal.,2022]
+E Detailedexperimentresultsofmodelscalestudy
+Thissectiondescribesthedetailedexperimentresultsofmodelscalestudy. ThecurvewithinFigure3
+usesthevaluesofTable26andTable27.
+Table 26: Model scale study. Evaluation metric is accuracy on MultiArith dataset. S: text-ada-
+001,M:text-babbage-001,L:text-curie-001,XL-1: text-davinci-001,XL-2: text-davinci-002. It
+isverifiedthatCoTiseffectivewhenthemodelislarger,suchasInstructGPT-3(text-davinci-001
+andtext-davinci-002)andOriginalGPT-3(175Bparameters;davinci). Inthisexperiment,theorder
+ofperformance(ascending)isZero-shot,Few-shot(8samples),Zero-shot-CoT,andFew-shot-CoT
+(8samples)fordavinciandtext-davinci-002.
+OriginalGPT-3(0.3B/1.3B/6.7B/175B) InstructGPT-3(S/M/L/XL-1/XL-2)
+Zero-shot 2.0/1.3/1.5/3.3 3.7/3.8/4.3/8.0/17.7
+Few-shot 5.2/5.2/4.0/8.1 3.0/2.2/4.8/14.0/33.7
+Zero-shot-CoT 1.7/2.2/2.3/19.0 2.0/3.7/3.3/47.8/78.7
+Few-shot-CoT 4.3/1.8/6.3/44.3 2.5/2.5/3.8/36.8/93.0
+GPT-2(1.5B) GPT-Neo(2.7B) GPT-J(6B) T0(11B) OPT(13B)
+Zero-shot 3.2 3.0 2.7 2.8 3.7
+Zero-shot-CoT 2.2 1.3 2.5 3.2 2.2
+Table27: ModelscalestudywithPaLM.Evalua-
+tionmetricisaccuracyonGSM8Kdataset.
+PaLM(8B/62B/540B)
+Zero-shot 2.1/7.0/12.5
+Zero-shot-CoT 2.4/10.5/43.0
+42

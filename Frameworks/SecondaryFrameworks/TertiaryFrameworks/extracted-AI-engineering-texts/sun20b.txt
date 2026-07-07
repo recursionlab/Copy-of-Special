@@ -1,0 +1,1404 @@
+Test-Time Training with Self-Supervision
+for Generalization under Distribution Shifts
+YuSun1 XiaolongWang12 ZhuangLiu1 JohnMiller1 AlexeiA.Efros1 MoritzHardt13
+Abstract thatweonlybegintoaddresshere.
+Inthispaper,weproposeTest-TimeTraining,a Our proposed test-time training method creates a self-
+generalapproachforimprovingtheperformance supervisedlearningproblembasedonthissingletestsample
+ofpredictivemodelswhentrainingandtestdata x,updatingθattesttimebeforemakingaprediction. Self-
+comefromdifferentdistributions. Weturnasin- supervisedlearningusesanauxiliarytaskthatautomatically
+gleunlabeledtestsampleintoaself-supervised createslabelsfromunlabeledinputs. Inour experiments,
+learningproblem,onwhichweupdatethemodel weusethetaskofrotatingeachinputimagebyamultiple
+parametersbeforemakingaprediction. Thisalso of90degreesandpredictingitsangle(Gidarisetal.,2018).
+extendsnaturallytodatainanonlinestream. Our
+Thisapproachcanalsobeeasilymodifiedtoworkoutside
+simple approach leads to improvements on di-
+the standard supervised learning setting. If several test
+verseimageclassificationbenchmarksaimedat
+samplesarriveinabatch, wecanusetheentirebatchfor
+evaluatingrobustnesstodistributionshifts.
+test-time training. If samples arrive in an online stream,
+weobtainfurtherimprovementsbykeepingthestateofthe
+1.Introduction parameters.Afterall,predictionisrarelyasingleevent.The
+onlineversioncanbethenaturalmodeofdeploymentunder
+Supervisedlearningremainsnotoriouslyweakatgeneraliza- theadditionalassumptionthattestsamplesareproducedby
+tionunderdistributionshifts. Unlesstrainingandtestdata thesameorsmoothlychangingdistributionshifts.
+aredrawnfromthesamedistribution,evenseeminglyminor
+We experimentally validate our method in the context of
+differencesturnouttodefeatstate-of-the-artmodels(Recht
+objectrecognitiononseveralstandardbenchmarks. These
+et al., 2018). Adversarial robustness and domain adapta-
+includeimageswithdiversetypesofcorruptionatvarious
+tionarebutafewexistingparadigmsthattrytoanticipate
+levels (Hendrycks & Dietterich, 2019), video frames of
+differencesbetweenthetrainingandtestdistributionwith
+moving objects (Shankar et al., 2019), and a new test set
+eithertopologicalstructureordatafromthetestdistribution
+of unknown shifts collected by (Recht et al., 2018). Our
+availableduringtraining. Weexploreanewtakeongener-
+algorithmmakessubstantialimprovementsunderdistribu-
+alizationthatdoesnotanticipatethedistributionshifts,but
+tionshifts,whilemaintainingthesameperformanceonthe
+insteadlearnsfromthemattesttime.
+originaldistribution.
+We start from a simple observation. The unlabeled test
+In our experiments, we compare with a strong baseline
+sample x presented at test time gives us a hint about the
+(labeledjointtraining)thatusesbothsupervisedandself-
+distributionfromwhichitwasdrawn. Weproposetotake
+supervisedlearningattraining-time, butkeepsthemodel
+advantageofthishintonthetestdistributionbyallowing
+fixedattesttime. Recentworkshowsthattraining-timeself-
+themodelparametersθtodependonthetestsamplex,but
+supervisionimprovesrobustness(Hendrycksetal.,2019a);
+notitsunknownlabely. Theconceptofavariabledecision
+ourjointtrainingbaselinecorrespondstoanimprovedimple-
+boundaryθ(x)ispowerfulintheorysinceitbreaksaway
+mentationofthiswork. Acomprehensivereviewofrelated
+fromthelimitationoffixedmodelcapacity(seeadditional
+workfollowsinSection5.
+discussion in Section A1), but the design of a feedback
+mechanismfromxtoθ(x)raisesnewchallengesinpractice Wecomplementtheempiricalresultswiththeoreticalinves-
+tigationsinSection4,andestablishanintuitivesufficient
+1UniversityofCalifornia,Berkeley2UniversityofCalifornia,
+conditiononaconvexmodelofwhenTest-TimeTraining
+SanDiego3MHisapaidconsultantforTwitter.Correspondence
+helps;thiscondition,roughlyspeaking,istohavecorrelated
+to:YuSun<yusun@berkeley.edu>.
+gradientsbetweenthelossfunctionsofthetwotasks.
+Proceedings of the 37th International Conference on Machine
+Learning,Online,PMLR119,2020. Copyright2020bytheau-
+thor(s). Projectwebsite:https://test-time-training.github.io/.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+2.Method Denoteθ∗the(approximate)minimizerofEquation3. The
+e
+modelthenmakesapredictionusingtheupdatedparameters
+Thissectiondescribesthealgorithmicdetailsofourmethod.
+θ(x)=(θ∗,θ ). Empirically,thedifferenceisnegligible
+Tosetupnotation,considerastandardK-layerneuralnet- e m
+betweenminimizingEquation3overθ versusoverboth
+e
+workwithparametersθ forlayerk. Thestackedparameter
+k θ andθ . Theoretically,thedifferenceexistsonlywhen
+e s
+vector θ = (θ ,...,θ ) specifies the entire model for a
+1 K optimizationisdonewithmorethanonegradientstep.
+classificationtaskwithlossfunctionl (x,y;θ)onthetest
+m
+sample(x,y). Wecallthisthemaintask,asindicatedby Test-Time Training naturally benefits from standard data
+thesubscriptofthelossfunction. augmentationtechniques. Oneachtestsamplex,weper-
+formtheexactsamesetofrandomtransformationsasfor
+We assume to have training data (x ,y ),...,(x ,y )
+1 1 n n dataaugmentationduringtraining,toformabatchonlycon-
+drawni.i.d.fromadistributionP. Standardempiricalrisk
+tainingtheseaugmentedcopiesofxforTest-TimeTraining.
+minimizationsolvestheoptimizationproblem:
+n Online Test-Time Training. In the standard version of
+1 (cid:88)
+min l (x ,y ;θ). (1) ourmethod,theoptimizationprobleminEquation3isal-
+θ n i=1 m i i waysinitializedwithparametersθ =(θ e,θ s)obtainedby
+minimizingEquation2. Aftermakingapredictiononx,θ∗
+e
+Ourmethodrequiresaself-supervisedauxiliarytaskwith
+isdiscarded. Outsideofthestandardsupervisedlearning
+loss function l (x). In this paper, we choose the rotation
+s setting,whenthetestsamplesarriveonlinesequentially,the
+predictiontask(Gidarisetal.,2018),whichhasbeendemon-
+onlineversionsolvesthesameoptimizationproblemasin
+strated to be simple and effective at feature learning for
+Equation3toupdatethesharedfeatureextractorθ . How-
+e
+convolutionalneuralnetworks. Thetasksimplyrotatesx
+ever,ontestsamplex ,θisinsteadinitializedwithθ(x )
+t t−1
+in the image plane by one of 0, 90, 180 and 270 degrees
+updatedontheprevioussamplex . Thisallowsθ(x )to
+t−1 t
+andhavethemodelpredicttheangleofrotationasafour-
+takeadvantageofthedistributionalinformationavailablein
+wayclassificationproblem. Otherself-supervisedtasksin
+x ,...,x aswellasx .
+1 t−1 t
+Section5mightalsobeusedforourmethod.
+The auxiliary task shares some of the model parameters 3.EmpiricalResults
+θ = (θ ,...,θ ) up to a certain κ ∈ {1,...,K}. We
+e 1 κ
+designatethoseκlayersasasharedfeatureextractor. The Weexperimentwithbothversionsofourmethod(standard
+auxiliarytaskusesitsowntask-specificparametersθ = andonline)onthreekindsofbenchmarksfordistribution
+s
+(θ(cid:48) ,...,θ(cid:48) ). We call the unshared parameters θ the shifts,presentedhereintheorderofvisuallylowtohigh-
+κ+1 K s
+self-supervisedtaskbranch,andθ =(θ ,...,θ )the level. Ourcodeisavailableattheprojectwebsite.
+m κ+1 K
+main task branch. Pictorially, the joint architecture is a
+Y-structure with a shared bottom and two branches. For Networkdetails. Ourarchitectureandhyper-parameters
+our experiments, the self-supervised task branch has the are consistent across all experiments. We use ResNets
+samearchitectureasthemainbranch,exceptfortheoutput (He et al., 2016b), which are constructed differently for
+dimensionalityofthelastlayerduetothedifferentnumber CIFAR-10(Krizhevsky&Hinton,2009)(26-layer)andIma-
+ofclassesinthetwotasks. geNet(Russakovskyetal.,2015)(18-layer). TheCIFAR-10
+datasetcontains50Kimagesfortraining,and10Kimages
+Trainingisdoneinthefashionofmulti-tasklearning(Caru-
+fortesting. TheImageNetcontains1.2Mimagesfortrain-
+ana,1997);themodelistrainedonbothtasksonthesame
+ingandthe50Kvalidationimagesareusedasthetestset.
+datadrawnfromP.Lossesforbothtasksareaddedtogether,
+ResNetsonCIFAR-10havethreegroups,eachcontaining
+andgradientsaretakenforthecollectionofallparameters.
+convolutionallayerswiththesamenumberofchannelsand
+Thejointtrainingproblemistherefore
+size of feature maps; our splitting point is the end of the
+n secondgroup. ResNetsonImageNethavefourgroups;our
+1 (cid:88)
+min l (x ,y ;θ ,θ )+l (x ;θ ,θ ). (2) splittingpointistheendofthethirdgroup.
+θe,θm,θs n
+i=1
+m i i m e s i s e
+WeuseGroupNormalization(GN)insteadofBatchNor-
+malization (BN) in our architecture, since BN has been
+NowwedescribethestandardversionofTest-TimeTraining showntobeineffectivewhentrainingwithsmallbatches,
+onasingletestsamplex. Simplyput,Test-TimeTraining for which the estimated batch statistics are not accurate
+fine-tunesthesharedfeatureextractorθ ebyminimizingthe (Ioffe&Szegedy,2015). ThistechnicalityhurtsTest-Time
+auxiliarytasklossonx. Thiscanbeformulatedas Trainingsinceeachbatchonlycontains(augmented)copies
+ofasingleimage. DifferentfromBN,GNisnotdependent
+minl (x;θ ,θ ). (3)
+s s e onbatchsizeandachievessimilarresultsonourbaselines.
+θeTest-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+50
+40
+30
+20
+10
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+Figure1.Testerror(%)onCIFAR-10-Cwithlevel5corruptions. Wecompareourapproaches,Test-TimeTraining(TTT)andits
+onlineversion(TTT-Online),withtwobaselines:objectrecognitionwithoutself-supervision,andjointtrainingwithself-supervisionbut
+keepingthemodelfixedattesttime.TTTimprovesoverthebaselinesandTTT-Onlineimprovesevenfurther.
+WereportresultswithBNinSectionA4oftheappendixfor level5themostsevere(detailsandsampleimagesintheap-
+completeness. Wedirectlycompareourarchitecturetothat pendix). Thecorruptionsaresimulatedtomimicreal-world
+ofHendrycksetal.(2018)insubsectionA4.5. corruptionsasmuchaspossibleoncopiesofthetestsetfor
+bothCIFAR-10andImageNet. Thenewtestsetsarenamed
+Optimization details. For joint training (Equation 2), asCIFAR-10-CandImageNet-C,respectively. Inthepro-
+we use stochastic gradient descent with standard hyper- posedbenchmark,trainingshouldbedoneontheoriginal
+parametersas(Huangetal.,2016;Heetal.,2016a). For training set, and the diversity of corruption types should
+Test-TimeTraining(Equation3),weusestochasticgradient makeitdifficultforanymethodstoworkwellacrossthe
+descentwiththelearningratesettothatofthelastepoch boardifitreliestoomuchoncorruptionspecificknowledge.
+duringtraining,whichis0.001inallourexperiments. We ForonlineTest-TimeTraining,wetaketheentiretestsetas
+setweightdecayandmomentumtozeroduringTest-Time astreamofincomingimages,andupdateandtestoneach
+Training,inspiredbypracticein(Heetal.,2018;Liuetal., imageinanonlinemannerasitarrives.
+2018). ForthestandardversionofTest-TimeTraining,we
+taketengradientsteps,usingbatchesindependentlygener- CIFAR-10-C. Ourresultsonthelevel5corruptions(most
+atedbythesameimage. ForonlineversionofTest-Time severe)areshowninFigure1. Theresultsonlevels1-4are
+Training,wetakeonlyonegradientstepgiveneachnewim- shown in Section A4 in appendix. Across all five levels
+age.Weuserandomcropandrandomhorizontalflipfordata and15corruptiontypes,bothstandardandonlineversions
+augmentation. SeeSectionA2oftheappendixforcomputa- ofTest-TimeTrainingimproveovertheobjectrecognition
+tionalaspectsofourmethod. Inallthetablesandfigures, taskonlybaselinebyalargemargin. Thestandardversion
+objectrecognitiontaskonlyreferstotheplainResNetmodel alwaysimprovesoverjointtraining,andtheonlineversion
+(usingGN,unlessotherwisespecified);jointtrainingrefers oftenimprovessignificantly(>10%)overjointtrainingand
+tothemodeljointlytrainedonboththemaintaskandthe neverhurtsbymorethan0.2%. Specifically,TTT-Online
+self-supervised task, fixed at test time; this has been pro- contributes>24%onthethreenoisetypesand38%onpix-
+posedasthemethodinHendrycksetal.(2019a);Test-Time elation. Foralearningproblemwiththeseeminglyunstable
+Training(TTT)referstothestandardversiondescribedsec- setupthatabusesasingleimage,thiskindofconsistencyis
+tion2;andonlineTest-TimeTraining(TTT-Online)refersto rathersurprising.
+theonlineversionthatdoesnotdiscardθ(x )forx arriving
+t t
+ThebaselineResNet-26withobjectrecognitiontaskonly
+sequentiallyfromthesamedistribution. Performancefor
+haserror8.9%ontheoriginaltestsetofCIFAR-10. The
+TTT-Onlineiscalculatedastheaverageovertheentiretest
+joint training baseline actually improves performance on
+set; we always shuffle the test set before TTT-Online to
+theoriginalto8.1%. Moresurprisingly,unlikemanyother
+avoidorderingartifacts.
+methodsthattradeofforiginalperformanceforrobustness,
+Test-Time Training further improves on the original test
+3.1.ObjectRecognitiononCorruptedImages
+setby0.2%consistentlyovermultipleindependenttrials.
+Hendrycks&Dietterich(2019)proposetobenchmarkro- This suggests that our method does not choose between
+bustnessofobjectrecognitionwith15typesofcorruptions specificityandgenerality.
+fromfourbroadcategories: noise,blur,weatheranddigital.
+Eachcorruptiontypecomesinfivelevelsofseverity,withTest-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+60
+40
+20
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+ycaruccA
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+76
+74
+72
+70
+68
+66
+64 62
+60
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Original
+33
+Sliding window average 30
+27
+24
+21
+18
+15
+12
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Gaussian Noise
+32
+30
+28
+26 24
+22
+20
+18 Sliding window average 16
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Defocus Blur
+Sliding window average
+38
+36
+34
+32
+30
+28
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Zoom Blur
+54
+51
+48
+45
+42
+39
+36
+Sliding window average 33
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Fog
+51
+48
+45
+42
+39
+36
+Sliding window average 33
+30
+0 20000 40000
+Number of samples
+)%(
+ycaruccA
+Elastic Transform
+Sliding window average
+Figure2.Testaccuracy(%)onImageNet-Cwithlevel5corruptions. Upperpanel: Ourapproaches,TTTandTTT-Online,show
+significantimprovementsinallcorruptiontypesoverthetwobaselines.Lowerpanel:WeshowtheaccuracyofTTT-Onlineastheaverage
+overaslidingwindowof100samples;TTT-Onlinegeneralizesbetterasmoresamplesareevaluated(x-axis),withouthurtingonthe
+originaldistribution.Weuseaccuracyinsteadoferrorherebecausethebaselineperformanceisverylowformostcorruptions.
+Separatefromourmethod,itisinterestingtonotethatjoint verylowformostcorruptions. Thegeneraltrendisroughly
+trainingconsistentlyimprovesoverthesingle-taskbaseline, thesameasonCIFAR-10-C.ThestandardversionofTTT
+asdiscoveredbyHendrycksetal.(2019a). Hendrycks& alwaysimprovesoverthebaselineandjointtraining,while
+Dietterich(2019)havealsoexperimentedwithvariousother theonlineversiononlyhurtsontheoriginalby0.1%over
+trainingmethodsonthisbenchmark,andpointtoAdversar- thebaseline,butsignificantlyimproves(byafactorofmore
+ialLogitPairing(ALP)(Kannanetal.,2018)asthemost thanthree)onmanyofthecorruptiontypes.
+effectiveapproach. Resultsofthisadditionalbaselineonall
+InthelowerpanelofFigure2,wevisualizehowtheaccu-
+levelsofCIFAR-10-Careshownintheappendix,alongwith
+racy(averagedoveraslidingwindow)oftheonlineversion
+itsimplementationdetails. Whilesurprisinglyrobustunder
+changesasmoreimagesaretested.Duetospaceconstraints,
+someofthemostseverecorruptions(especiallythethree
+weshowthisplotontheoriginaltestset,aswellasevery
+noisetypes), ALPincursamuchlargererror(byafactor
+third corruption type, following the same order as in the
+oftwo)ontheoriginaldistributionandsomecorruptions
+originalpaper. Ontheoriginaltestset,thereisnovisible
+(e.g. alllevelsofcontrastandfog),andhurtsperformance
+trendinperformancechangeafterupdatingonthe50,000
+significantlywhenthecorruptionsarenotassevere(espe-
+samples. Withcorruptions,accuracyhasalreadyrisensig-
+ciallyonlevels1-3);thiskindoftradeoffistobeexpected
+nificantlyafter10,000samples,butisstillrisingtowardsthe
+formethodsbasedonadversarialtraining.
+endofthe50,000samples,indicatingroomforadditional
+improvements if more samples were available. Without
+ImageNet-C. Ourresultsonthelevel5corruptions(most
+seeing a single label, TTT-Online behaves as if we were
+severe)areshowninFigure2. Weuseaccuracyinsteadof
+trainingonthetestsetfromtheappearanceoftheplots.
+errorforthisdatasetbecausethebaselineperformanceisTest-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+TTT-Online 8.2 25.8 22.6 30.6 14.6 34.4 18.3 17.1 20.0 18.0 16.9 11.2 15.6 21.6 18.1 21.2
+UDA-SS 9.0 28.2 26.5 20.8 15.6 43.7 24.5 23.8 25.0 24.9 17.2 12.7 11.6 22.1 20.3 22.6
+Table1.Testerror(%)onCIFAR-10-Cwithlevel5corruption.ComparisonbetweenonlineTest-TimeTraining(TTT-Online)and
+unsuperviseddomainadaptationbyself-supervision(UDA-SS)(Sunetal.,2019)withaccesstotheentire(unlabeled)testsetduring
+training.Wehighlightthelowererrorinbold.Wehaveabbreviatedthenamesofthecorruptions,inorder:originaltestset,Gaussiannoise,
+shotnoise,impulsenoise,defocusblur,glassblue,motionblur,zoomblur,snow,frost,fog,brightness,contrast,elastictransformation,
+pixelation,andJPEGcompression.ThereportednumbersforTTT-OnlinearethesameasinFigure1.SeecompletetableinTableA2.
+48
+44
+40
+36
+32
+28
+24
+20
+16
+12
+0 2000 4000 6000 8000
+Number of samples
+)%(
+rorrE
+Gaussian Noise
+Joint training 36
+TTT 33
+TTT-Online 30
+27
+UDA-SS
+24
+21
+18
+15
+12
+9
+0 2000 4000 6000 8000
+Number of samples
+)%(
+rorrE
+Shot Noise
+Joint training 50
+TTT 45
+TTT-Online 40
+UDA-SS 35
+30
+25
+20
+15
+0 2000 4000 6000 8000
+Number of samples
+)%(
+rorrE
+Impulse Noise
+Joint training
+TTT
+TTT-Online
+UDA-SS
+Figure3.Testerror(%)onCIFAR-10-C,forthethreenoisetypes,withgraduallychangingdistribution.Thedistributionshiftsare
+createdbyincreasingthestandarddeviationofeachnoisetypefromsmalltolarge,thefurtherwegoonthex-axis.Asthesamplesget
+noisier,allmethodssuffergreatererrorsthemoreweevaluateintothetestset,butonlineTest-TimeTraining(TTT-Online)achievesgentler
+slopesthanjointtraining.Forthefirsttwonoisetypes,TTT-Onlinealsoachievesbetterresultsoverunsuperviseddomainadaptationby
+self-supervision(UDA-SS)(Sunetal.,2019).
+Comparison with unsupervised domain adaptation. adapts the representation to be good for the current test
+Table 1 empirically compares online Test-Time Training distribution. Thatis,TTT-Onlinehastheflexibilitytoforget
+(TTT-Online)withunsuperviseddomainadaptationthrough thetrainingdistributionrepresentation,whichisnolonger
+self-supervision(UDA-SS)(Sunetal.,2019),whichissim- relevant. Thissuggeststhatinoursetting,forgettingisnot
+ilartoourmethodinspiritbutisdesignedforthesettingof harmfulandperhapsshouldevenbetakenadvantageof.
+unsuperviseddomainadaptation(Section5providesasur-
+veyofotherrelatedworkinthissetting). Givenlabeleddata
+Graduallychangingdistributionshifts. Inourprevious
+fromthetrainingdistributionandunlabeleddatafromthe
+experiments, we have been evaluating the online version
+testdistribution,UDA-SShopestofindaninvariantrepre-
+undertheassumptionthatthetestinputsx fort=1...nare
+t
+sentationthatextractsusefulfeaturesforbothdistributions
+allsampledfromthesametestdistributionQ,whichcanbe
+bylearningtoperformaself-supervisedtask,specifically
+differentfromthetrainingdistributionP. Thisassumption
+rotation prediction, simultaneously on data from both. It
+is indeed satisfied for i.i.d. samples from a shuffled test
+thenlearnsalabelingfunctionontopoftheinvariantrep-
+set. But here we show that this assumption can in fact
+resentationusingthelabeleddata. Inourexperiments,the
+be relaxed to allow x ∼ Q , where Q is close to Q
+t t t t+1
+unlabeleddatagiventoUDA-SSistheentiretestsetitself
+(in the sense of distributional distance). We call this the
+withoutthelabels.
+assumptionofgraduallychangingdistributionshifts. We
+BecauseTTT-Onlinecanonlylearnfromtheunlabeledtest performexperimentsbysimulatingsuchdistributionshifts
+samplesthathavealreadybeenevaluatedon,itisgivenless onthethreenoisetypesofCIFAR-10-C.Foreachnoisetype,
+informationthanUDA-SSatalltimes. Inthissense,UDA- x t is corruptedwith standarddeviation σ t, and σ 1,...,σ n
+SSshouldberegardedasanoracleratherthanabaseline. interpolate between the standard deviation of level 1 and
+Surprisingly,TTT-OnlineoutperformsUDA-SSon13out level 5. So x t is more severely corrupted as we evaluate
+of the 15 corruptions as well as the original distribution. further into the test set and t grows larger. As shown in
+Our explanation is that UDA-SS has to find an invariant Figure3,TTT-Onlinestillimprovesuponjointtraining(and
+representationforbothdistributions,whileTTT-Onlineonly ourstandardversion)withthisrelaxedassumption,andeven
+uponUDA-SSforthefirsttwonoisetypes.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Accuracy(%) Airplane Bird Car Dog Cat Horse Ship Average
+Objectrecognitiontaskonly 67.9 35.8 42.6 14.7 52.0 42.0 66.7 41.4
+Jointtraining(Hendrycksetal.,2019a) 70.2 36.7 42.6 15.5 52.0 44.0 66.7 42.4
+TTT(standardversion) 70.2 39.2 42.6 21.6 54.7 46.0 77.8 45.2
+TTT-Online 70.2 39.2 42.6 22.4 54.7 46.0 77.8 45.4
+Table2.Class-wiseandaverageclassificationaccuracy(%)onCIFARclassesinVID-Robust, adaptedfrom(Shankaretal.,2019).
+Test-TimeTraining(TTT)andonlineTest-TimeTraining(TTT-Online)improveoverthetwobaselinesonaverage,andbyalargemargin
+on“ship”and“dog”classeswheretherotationtaskismoremeaningfulthaninclasseslike“airplane”(sampleimagesinFigureA7).
+3.2.ObjectRecognitiononVideoFrames Method Accuracy(%)
+Objectrecognitiontaskonly 62.7
+TheRobustImageNetVideoClassification(VID-Robust)
+datasetwasdevelopedbyShankaretal.(2019)fromtheIma- Jointtraining(Hendrycksetal.,2019a) 63.5
+geNetVideodetectiondataset(Russakovskyetal.,2015),to
+TTT(standardversion) 63.8
+demonstratehowdeepmodelsforobjectrecognitiontrained
+onImageNet(stillimages)failtoadaptwelltovideoframes. TTT-Online 64.3
+TheVID-Robustdatasetcontains1109setsofvideoframes
+in30classes;eachsetisashortvideoclipofframesthatare Table3.Testaccuracy(%)onVID-Robustdataset(Shankaretal.,
+similartoananchorframe. Ourresultsarereportedonthe 2019).TTTandTTT-Onlineimproveoverthebaselines.
+anchorframes. Tomapthe1000ImageNetclassestothe30
+VID-Robustclasses,weusethemax-conversionfunction
+Method Error(%)
+in Shankar et al. (2019). Without any modifications for
+videos,weapplyourmethodtoVID-Robustontopofthe Objectrecognitiontaskonly 17.4
+sameImageNetmodelasintheprevioussubsection. Our
+Jointtraining(Hendrycksetal.,2019a) 16.7
+classificationaccuracyisreportedinTable3.
+TTT(standardversion) 15.9
+Inaddition,wetakethesevenclassesinVID-Robustthat
+overlapwithCIFAR-10,andre-scalethosevideoframesto
+Table4.Testerror(%)onCIFAR-10.1(Rechtetal.,2018).TTTis
+thesizeofCIFAR-10images,asanewtestsetforthemodel thefirstmethodtoimprovetheperformanceofanexistingmodel
+trainedonCIFAR-10intheprevioussubsection. Again,we onthisnewtestset.
+applyourmethodtothisdatasetwithoutanymodifications.
+OurresultsareshowninTable2,withabreakdownforeach bothhavethesamehumanaccuracy.Thisdemonstrateshow
+class. NoticingthatTest-TimeTrainingdoesnotimprove insidiousandubiquitousdistributionshiftsare,evenwhen
+on the airplane class, we inspect some airplane samples researchersstrivetominimizethem.
+(FigureA7),andobserveblackmarginsontwosidesofmost
+ThedistributionshiftsfromCIFAR-10toCIFAR-10.1pose
+images,whichprovideatrivialhintforrotationprediction.
+anextremelydifficultproblem,andnopriorworkhasbeen
+In addition, given an image of airplanes in the sky, it is
+abletoimprovetheperformanceofanexistingmodelon
+oftenimpossibleevenforhumanstotellifitisrotated. This
+thisnewtestset,probablybecause: 1)researcherscannot
+showsthatourmethodrequirestheself-supervisedtaskto
+evenidentifythedistributionshifts,letalonedescribethem
+bebothwelldefinedandnon-trivial.
+mathematically; 2) the samples in CIFAR-10.1 are only
+revealedattesttime;andeveniftheywererevealedduring
+3.3.CIFAR-10.1: UnknownDistributionShifts
+training,thedistributionshiftsaretoosubtle,andthesample
+CIFAR-10.1(Rechtetal.,2018)isanewtestsetofsize2000 sizeistoosmall,fordomainadaptation(Rechtetal.,2018).
+modeledafterCIFAR-10,withtheexactsameclassesand
+OntheoriginalCIFAR-10testset,thebaselinewithonly
+imagedimensionality,followingthedatasetcreationprocess
+objectrecognitionhaserror8.9%,andwithjointtraining
+documentedbytheoriginalCIFAR-10paperascloselyas
+has8.1%;comparingtothefirsttworowsofTable4,both
+possible. Thepurposeistoinvestigatethedistributionshifts
+suffer the typical performance drop (by a factor of two).
+presentbetweenthetwotestsets,andtheeffectonobject
+TTTyieldsanimprovementof0.8%(relativeimprovement
+recognition. Allmodelstestedbytheauthorssufferalarge
+of4.8%)overjointtraining. Werecognizethatthisimprove-
+performancedroponCIFAR-10.1comparingtoCIFAR-10,
+mentissmallrelativetotheperformancedrop,butseeitas
+eventhoughthereisnohumannoticeabledifference,and
+anencouragingfirststepforthisverydifficultproblem.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+5
+4
+3
+2
+1
+0
+0 10 20 30 40 50 60
+Gradient inner product
+)%(
+tnemevorpmI
+35
+Level 5
+Level 4
+30
+Level 3
+Level 2 25
+Level 1
+20
+15
+10
+5
+0
+0 10 20 30 40 50 60
+Gradient inner product
+)%(
+tnemevorpmI
+Level 5
+Level 4
+Level 3
+Level 2
+Level 1
+Figure4.Scatterplotoftheinnerproductbetweenthegradients(onthesharedfeatureextractorθ )ofthemaintaskl andtheself-
+e m
+supervisedtaskl ,andtheimprovementintesterror(%)fromTest-TimeTraining,forthestandard(left)andonline(right)version.Each
+e
+pointistheaverageoveratestset,andeachscatterplothas75testsets,fromall15typesofcorruptionsoverfivelevelsasdescribedin
+subsection3.1.Thebluelinesandbandsarethebestlinearfitsandthe99%confidenceintervals.Thelinearcorrelationcoefficientsare
+0.93and0.89respectively,indicatingstrongpositivecorrelationbetweenthetwoquantities,assuggestedbyTheorem1.
+4.TheoreticalResults whereA(cid:48)istheupdatedmatrixandηisthelearningrate. If
+wesetη =η∗where
+Thissectioncontainsourpreliminarystudyofwhenandwhy
+Test-TimeTrainingisexpectedtowork. Forconvexmodels, y −v(cid:62)Ax
+η∗ = 1 , (7)
+weprovethatpositivegradientcorrelationbetweentheloss (y −w(cid:62)Ax)v(cid:62)wx(cid:62)x
+2
+functionsleadstobetterperformanceonthemaintaskafter
+Test-Time Training. Equipped with this insight, we then then with some simple algebra, it is easy to see that the
+empiricallydemonstratethatgradientcorrelationgoverns maintasklossl (x,y ;A(cid:48),v)=0. Concretely,Test-Time
+m 1
+the success of Test-Time Training on the deep learning Trainingdrivesthemaintasklossdowntozerowithasingle
+modeldiscussedinSection3. gradientstepforacarefullychosenlearningrate. Inprac-
+tice,thislearningrateisunknownsinceitdependsonthe
+Beforestatingourmaintheoreticalresult,wefirstillustrate
+unknowny . However,sinceourmodelisconvex,aslong
+thegeneralintuitionwithatoymodel.Consideraregression 1
+asη∗ ispositive,itsufficestosetη tobeasmallpositive
+problemwherex∈Rd denotestheinput,y ∈Rdenotes
+1 constant(seedetailsintheappendix). Ifx (cid:54)= 0,onesuffi-
+thelabel,andtheobjectiveisthesquareloss(yˆ−y )2/2
+1 cientconditionforη∗ tobepositive(whenneitherlossis
+for a prediction yˆ. Consider a two layer linear network
+zero)istohave
+parametrizedbyA ∈ Rh×d andv ∈ Rh (wherehstands
+forthehiddendimension). Thepredictionaccordingtothis sign(cid:0)
+y
+−v(cid:62)Ax(cid:1) =sign(cid:0)
+y
+−w(cid:62)Ax(cid:1)
+(8)
+modelisyˆ=v(cid:62)Ax,andthemaintasklossis 1 2
+and v(cid:62)w >0. (9)
+l (x,y ;A,v)=
+1(cid:0)
+y
+−v(cid:62)Ax(cid:1)2
+. (4)
+m 1 2 1 Forourtoymodel,bothpartsoftheconditionabovehavean
+intuitioninterpretation. Thefirstpartsaysthatthemistakes
+Inaddition,consideraself-supervisedregressiontaskthat
+shouldbecorrelated,inthesensethatpredictionsfromboth
+alsousesthesquarelossandautomaticallygeneratesalabel
+tasksaremistakeninthesamedirection. Thesecondpart,
+y forx. Lettheself-supervisedheadbeparametrizedby
+s
+w ∈Rh. Thentheself-supervisedtasklossis v(cid:62)w >0,saysthatthedecisionboundariesonthefeature
+spaceshouldbecorrelated. Infact,thesetwopartsholdiff.
+l (x,y ;A,w)=
+1(cid:0)
+y
+−w(cid:62)Ax(cid:1)2
+. (5)
+(cid:104)∇l m(A),∇l s(A)(cid:105)>0(seeasimpleproofofthisfactin
+s 2 2 2 theappendix). Tosummarize,ifthegradientshavepositive
+Now we apply Test-Time Training to update the shared correlation,Test-TimeTrainingisguaranteedtoreducethe
+featureextractorAbyonestepofgradientdescentonl , maintaskloss. Ourmaintheoreticalresultextendsthisto
+s
+whichwecancomputewithy known. Thisgivesus generalsmoothandconvexlossfunctions.
+2
+A(cid:48) ←A−η(cid:0) y −w(cid:62)Ax(cid:1)(cid:0) −wx(cid:62)(cid:1) , (6)
+2Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Theorem1. Letl (x,y;θ)denotethemaintasklosson learnsemanticinformationwithouthumanannotations,such
+m
+testinstancex,y withparametersθ,andl (x;θ)theself- as context prediction (Doersch et al., 2015), solving jig-
+s
+supervisedtasklossthatonlydependsonx.Assumethatfor sawpuzzles(Noroozi&Favaro,2016),colorization(Lars-
+allx,y,l (x,y;θ)isdifferentiable,convexandβ-smooth sonetal.,2017;Zhangetal.,2016),noiseprediction(Bo-
+m
+inθ,andboth(cid:107)∇l (x,y;θ)(cid:107),(cid:107)∇l (x,θ)(cid:107)≤Gforallθ. janowski&Joulin,2017),featureclustering(Caronetal.,
+m s
+Withafixedlearningrateη = (cid:15) ,foreveryx,ysuchthat 2018). Our paper uses rotation prediction (Gidaris et al.,
+βG2
+2018). Asanoetal.(2019)showthatself-supervisedlearn-
+(cid:104)∇l (x,y;θ),∇l (x;θ)(cid:105)>(cid:15), (10) ingononlyasingleimage,surprisingly,canproducelow-
+m s
+levelfeaturesthatgeneralizewell. Closelyrelatedtoour
+wehave work,Hendrycksetal.(2019a)proposethatjointlytraining
+a main task and a self-supervised task (our joint training
+l m(x,y;θ)>l m(x,y;θ(x)), (11) baselineinSection3)canimproverobustnessonthemain
+task. Thesameideaisusedinfew-shotlearning(Suetal.,
+whereθ(x)=θ−η∇l (x;θ)i.e. Test-TimeTrainingwith
+s 2019), domaingeneralization(Carluccietal.,2019), and
+onestepofgradientdescent.
+unsuperviseddomainadaptation(Sunetal.,2019).
+Theproofusesstandardtechniquesinoptimization,andis
+leftfortheappendix.Theorem1revealsgradientcorrelation Adversarial robustness studies the robust risk
+asadeterminingfactorofthesuccessofTest-TimeTraining R (θ) = E max l(x + δ,y; θ), where l
+P,∆ x,y∼P δ∈∆
+inthesmoothandconvexcase. InFigure4,weempirically issomelossfunction,and∆isthesetofperturbations;∆
+showthatourinsightalsoholdsfornon-convexlossfunc- is often chosen as the L ball, for p ∈ {1,2,∞}. Many
+p
+tions,onthedeeplearningmodelandacrossthediverseset popular algorithms formulate and solve this as a robust
+ofcorruptionsconsideredinSection3;strongergradientcor- optimizationproblem(Goodfellowetal.,2014;Madryetal.,
+relationclearlyindicatesmoreperformanceimprovement 2017;Sinhaetal.,2017;Raghunathanetal.,2018;Wong&
+overthebaseline. Kolter,2017;Croceetal.,2018),andthemostwellknown
+technique is adversarial training. Another line of work
+is based on randomized smoothing (Cohen et al., 2019;
+5.RelatedWork
+Salmanetal.,2019),whilesomeotherapproaches,suchas
+Learning on test instances. Shocher et al. (2018) pro- inputtransformations(Guoetal.,2017;Songetal.,2017),
+videakeyinspirationforourworkbyshowingthatimage areshowntobelesseffective(Athalyeetal.,2018). There
+super-resolutioncouldbelearnedattesttimesimplybytry- aretwomainproblemswiththeapproachesabove. First,all
+ingtoupsampleadownsampledversionoftheinputimage. of them can be seen as smoothing the decision boundary.
+Morerecently,Bauetal.(2019)improvephotomanipula- Thisestablishesatheoreticaltradeoffbetweenaccuracyand
+tionbyadaptingapre-trainedGANtothestatisticsofthe robustness(Tsiprasetal.,2018;Zhangetal.,2019),which
+inputimage. Oneoftheearlierexamplesofthisideacomes wealsoobserveempiricallywithouradversarialtraining
+from Jain & Learned-Miller (2011), who improve Viola- baselineinSection3. Intuitively,themorediverse∆is,the
+Jonesfacedetection(Violaetal.,2001)bybootstrapping lesseffectivethisone-boundary-fits-allapproachcanbefor
+themoredifficultfacesinanimagefromthemoreeasily a particular element of ∆. Second, adversarial methods
+detectedfacesinthatsameimage. Theonlineversionof rely heavily on the mathematical structure of ∆, which
+our algorithm is inspired by the work of Mullapudi et al. mightnotaccuratelymodelperturbationsintherealworld.
+(2018),whichmakesvideosegmentationmoreefficientby Therefore,generalizationremainshardoutsideofthe∆we
+using a student model that learns online from a teacher knowinadvanceorcanmathematicallymodel,especially
+model. The idea of online updates has also been used in fornon-adversarialdistributionshifts. Empirically,Kang
+Kalaletal.(2011)fortrackinganddetection. Arecentwork et al. (2019) shows that robustness for one ∆ might not
+inechocardiography(Zhuetal.,2019)improvesthedeep transfer to another, and training on the L ∞ ball actually
+learningmodelthattracksmyocardialmotionandcardiac hurtsrobustnessontheL 1ball.
+blood flow with sequential updates. Lastly, we share the
+philosophy of transductive learning (Vapnik, 2013; Gam- Non-adversarialrobustness studiestheeffectofcorrup-
+mermanetal.,1998),buthavelittleincommonwiththeir tions,perturbations,out-of-distributionexamples,andreal-
+classicalalgorithms;recentworkbyTripuraneni&Mackey worlddistributionshifts(Hendrycksetal.,2019b;a;2018;
+(2019)theoreticallyexploresthisforlinearprediction, in Hendrycks&Gimpel,2016). Geirhosetal.(2018)show
+thecontextofdebiasingtheLASSOestimator. thattrainingonimagescorruptedbyGaussiannoisemakes
+deep learning models robust to this particular noise type,
+Self-supervised learning studies how to create labels butdoesnotimproveperformanceonimagescorruptedby
+fromthedata,bydesigningvariouspretexttasksthatcan anothernoisetypee.g. salt-and-peppernoise.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Unsuperviseddomainadaptation (a.k.a. transferlearn- 2017; Kirkpatrick et al., 2017; Santoro et al., 2016). In
+ing) studies the problem of distribution shifts, when an contrast, with Test-Time Training, we are not concerned
+unlabeleddatasetfromthetestdistribution(targetdomain) aboutforgettingthepasttestsamplessincetheyhavealready
+isavailableattrainingtime,inadditiontoalabeleddataset beenevaluatedon; andifapastsamplecomesupbyany
+fromthetrainingdistribution(sourcedomain)(Chenetal., chance,itwouldgothroughTest-TimeTrainingagain. In
+2011; Gong et al., 2012; Long et al., 2015; Ganin et al., addition,theimpactofforgettingthetrainingsetisminimal,
+2016;Longetal.,2016;Tzengetal.,2017;Hoffmanetal., becausebothtaskshavealreadybeenjointlytrained.
+2017;Csurka,2017;Chenetal.,2018). Thelimitationof
+theproblemsetting,however,isthatgeneralizationmight
+Online learning (a.k.a. online optimization) is a well-
+onlybeimprovedforthisspecifictestdistribution,which
+studiedareaoflearningtheory(Shalev-Shwartzetal.,2012;
+canbedifficulttoanticipateinadvance. Priorworktryto
+Hazanetal.,2016). Thebasicsettingrepeatsthefollowing:
+anticipatebroaderdistributionsbyusingmultipleandevolv-
+receivex ,predictyˆ,receivey fromaworst-caseoracle,
+t t t
+ingdomains(Hoffmanetal.,2018;2012;2014). Test-Time
+andlearn. Finalperformanceisevaluatedusingtheregret,
+Trainingdoesnotanticipateanytestdistribution,bychang-
+whichcolloquiallytranslatestohowmuchworsetheonline
+ing the setting of unsupervised domain adaptation, while
+learningalgorithmperformsincomparisontothebestfixed
+takinginspirationfromitsalgorithms. Ourpaperisafollow-
+model in hindsight. In contrast, our setting never reveals
+uptoSunetal.(2019),whichweexplainandempirically
+anyy duringtestingevenfortheonlineversion,sowedo
+t
+comparewithinSection3. Ourupdaterulecanbeviewed
+notneedtoinvoketheconceptoftheworst-caseoracleor
+asperformingone-sampleunsuperviseddomainadaptation
+theregret. Also,duetothelackoffeedbackfromtheenvi-
+onthefly,withthecaveatthatstandarddomainadaptation
+ronmentafterpredicting,ouralgorithmismotivatedtolearn
+techniquesmightbecomeill-definedwhenthereisonlyone
+(withself-supervision)beforepredictingyˆ insteadofafter.
+t
+samplefromthetargetdomain.
+Notethatsomeofthepreviouslycoveredpapers(Hoffman
+etal.,2014;Jain&Learned-Miller,2011;Mullapudietal.,
+Domaingeneralization studiesthesettingwhereameta
+2018)usetheterm“onlinelearning”outsideofthelearning
+distribution generates multiple environment distributions,
+theorysetting,sothetermcanbeoverloaded.
+someofwhichareavailableduringtraining(source),while
+othersareusedfortesting(target)(Lietal.,2018;Shankar
+6.Discussion
+etal.,2018;Muandetetal.,2013;Balajietal.,2018;Ghifary
+etal.,2015;Motiianetal.,2017;Lietal.,2017a;Ganetal.,
+The idea of test-time training also makes sense for other
+2016). Withonlyafewenvironments,informationonthe
+tasks,suchassegmentationanddetection,andinotherfields,
+metadistributionisoftentooscarcetobehelpful,andwith
+such as speech recognition and natural language process-
+manyenvironments,wearebacktothei.i.d. settingwhere
+ing. Formachinelearningpractitionerswithpriordomain
+each environment can be seen as a sample, and a strong
+knowledgeintheirrespectivefields,theirexpertisecanbe
+baselineistosimplytrainonalltheenvironments(Lietal.,
+leveragedtodesignbetterspecial-purposeself-supervised
+2019). Thesettingofdomaingeneralizationislimitedby
+tasksfortest-timetraining. Researchersforgeneral-purpose
+theinherenttradeoffbetweenspecificityandgeneralityofa
+self-supervisedtaskscanalsousetest-timetrainingasan
+fixeddecisionboundary,andthefactthatgeneralizationis
+evaluationbenchmark,inadditiontothecurrentlyprevalent
+againelusiveoutsideofthemetadistributioni.e. theactual
+benchmarkofpre-trainingandfine-tuning.
+P learnedbythealgorithm.
+More generally, we hope this paper can encourage re-
+searcherstoabandontheself-imposedconstraintofafixed
+One(few)-shotlearning studieshowtolearnanewtask
+decisionboundaryfortesting,oreventheartificialdivision
+oranewclassificationcategoryusingonlyone(orafew)
+between training and testing altogether. Our work is but
+sample(s),ontopofageneralrepresentationthathasbeen
+a small step toward a new paradigm where much of the
+learnedondiversesamples(Snelletal.,2017;Vinyalsetal.,
+learninghappensafteramodelisdeployed.
+2016; Fei-Fei et al., 2006; Ravi & Larochelle, 2016; Li
+etal.,2017b;Finnetal.,2017;Gidaris&Komodakis,2018).
+Ourupdaterulecanbeviewedasperformingone-shotself- Acknowledgements. This work is supported by NSF
+supervised learning and can potentially be improved by grant 1764033, DARPA and Berkeley DeepDrive. This
+progressinone-shotlearning. papertookalongtimetodevelop,andbenefitedfromcon-
+versationswithmanyofourcolleagues,includingBenRecht
+Continual learning (a.k.a. learning without forgetting) and his students Ludwig Schmidt, Vaishaal Shanker and
+studiesthesettingwhereamodelismadetolearnasequence BeccaRoelofs;RaviTejaMullapudi,AchalDaveandDeva
+oftasks,andnotforgetabouttheearlieroneswhiletraining Ramanan;andArminAskari,AllanJabri,AshishKumar,
+for the later (Li & Hoiem, 2017; Lopez-Paz & Ranzato, AngjooKanazawaandJitendraMalik.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+References Ding,G.W.,Wang,L.,andJin,X. AdverTorchv0.1: An
+adversarialrobustnesstoolboxbasedonpytorch. arXiv
+Asano,Y.M.,Rupprecht,C.,andVedaldi,A. Surprising
+preprintarXiv:1902.07623,2019.
+effectivenessoffew-imageunsupervisedfeaturelearning.
+arXivpreprintarXiv:1904.13132,2019. Doersch, C., Gupta, A., and Efros, A. A. Unsupervised
+visualrepresentationlearningbycontextprediction. In
+Athalye, A., Carlini, N., and Wagner, D. Obfuscated
+Proceedings of the IEEE International Conference on
+gradients give a false sense of security: Circumvent-
+ComputerVision,pp.1422–1430,2015.
+ing defenses to adversarial examples. arXiv preprint
+arXiv:1802.00420,2018.
+Fei-Fei,L.,Fergus,R.,andPerona,P. One-shotlearningof
+objectcategories. IEEEtransactionsonpatternanalysis
+Balaji,Y.,Sankaranarayanan,S.,andChellappa,R.Metareg:
+andmachineintelligence,28(4):594–611,2006.
+Towardsdomaingeneralizationusingmeta-regularization.
+InAdvancesinNeuralInformationProcessingSystems,
+Finn,C.,Abbeel,P.,andLevine,S. Model-agnosticmeta-
+pp.998–1008,2018.
+learningforfastadaptationofdeepnetworks. InProceed-
+Bau,D.,Strobelt,H.,Peebles,W.,Wulff,J.,Zhou,B.,Zhu, ings of the 34th International Conference on Machine
+J.-Y.,andTorralba,A. Semanticphotomanipulationwith Learning-Volume70,pp.1126–1135.JMLR.org,2017.
+agenerativeimageprior. ACMTransactionsonGraphics
+Gammerman, A., Vovk, V., and Vapnik, V. Learning by
+(TOG),38(4):59,2019.
+transduction.InProceedingsoftheFourteenthconference
+Bojanowski, P. and Joulin, A. Unsupervised learning by on Uncertainty in artificial intelligence, pp. 148–155.
+predictingnoise. InProceedingsofthe34thInternational MorganKaufmannPublishersInc.,1998.
+ConferenceonMachineLearning-Volume70,pp.517–
+Gan,C.,Yang,T.,andGong,B. Learningattributesequals
+526.JMLR.org,2017.
+multi-sourcedomaingeneralization. InProceedingsof
+Carlucci,F.M.,D’Innocente,A.,Bucci,S.,Caputo,B.,and the IEEE Conference on Computer Vision and Pattern
+Tommasi, T. Domaingeneralizationbysolvingjigsaw Recognition,pp.87–97,2016.
+puzzles. InProceedingsoftheIEEEConferenceonCom-
+Ganin,Y.,Ustinova,E.,Ajakan,H.,Germain,P.,Larochelle,
+puter Vision and Pattern Recognition, pp. 2229–2238,
+H., Laviolette, F., Marchand, M., and Lempitsky, V.
+2019.
+Domain-adversarial training of neural networks. The
+Caron,M.,Bojanowski,P.,Joulin,A.,andDouze,M. Deep JournalofMachineLearningResearch,17(1):2096–2030,
+clusteringforunsupervisedlearningofvisualfeatures. In 2016.
+ProceedingsoftheEuropeanConferenceonComputer
+Vision(ECCV),pp.132–149,2018. Geirhos,R.,Temme,C.R.,Rauber,J.,Schu¨tt,H.H.,Bethge,
+M.,andWichmann,F.A. Generalisationinhumansand
+Caruana,R. Multitasklearning. Machinelearning,28(1): deepneuralnetworks.InAdvancesinNeuralInformation
+41–75,1997. ProcessingSystems,pp.7538–7550,2018.
+Chen,M.,Weinberger,K.Q.,andBlitzer,J. Co-trainingfor
+Ghifary,M.,BastiaanKleijn,W.,Zhang,M.,andBalduzzi,
+domainadaptation. InAdvancesinneuralinformation
+D. Domain generalization for object recognition with
+processingsystems,pp.2456–2464,2011.
+multi-task autoencoders. In Proceedings of the IEEE
+internationalconferenceoncomputervision,pp.2551–
+Chen,X.,Sun,Y.,Athiwaratkun,B.,Cardie,C.,andWein-
+2559,2015.
+berger,K. Adversarialdeepaveragingnetworksforcross-
+lingualsentimentclassification. TransactionsoftheAsso-
+Gidaris, S.andKomodakis, N. Dynamicfew-shotvisual
+ciationforComputationalLinguistics,6:557–570,2018.
+learningwithoutforgetting. InProceedingsoftheIEEE
+Cohen, J. M., Rosenfeld, E., and Kolter, J. Z. Certified ConferenceonComputerVisionandPatternRecognition,
+adversarialrobustnessviarandomizedsmoothing. arXiv pp.4367–4375,2018.
+preprintarXiv:1902.02918,2019.
+Gidaris,S.,Singh,P.,andKomodakis,N. Unsupervisedrep-
+Croce, F., Andriushchenko, M., and Hein, M. Provable resentationlearningbypredictingimagerotations. arXiv
+robustnessofrelunetworksviamaximizationoflinear preprintarXiv:1803.07728,2018.
+regions. arXivpreprintarXiv:1810.07481,2018.
+Gong,B.,Shi,Y.,Sha,F.,andGrauman,K. Geodesicflow
+Csurka,G. Domainadaptationforvisualapplications: A kernelforunsuperviseddomainadaptation.In2012IEEE
+comprehensivesurvey. arXivpreprintarXiv:1702.05374, ConferenceonComputerVisionandPatternRecognition,
+2017. pp.2066–2073.IEEE,2012.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Goodfellow, I. J., Shlens, J., and Szegedy, C. Explain- Hoffman, J., Mohri, M., and Zhang, N. Algorithms and
+ingandharnessingadversarialexamples. arXivpreprint theory for multiple-source adaptation. In Advances in
+arXiv:1412.6572,2014. NeuralInformationProcessingSystems,pp.8246–8256,
+2018.
+Guo,C.,Rana,M.,Cisse,M.,andvanderMaaten,L. Coun-
+tering adversarial images using input transformations. Huang, G., Sun, Y., Liu, Z., Sedra, D., and Weinberger,
+arXivpreprintarXiv:1711.00117,2017. K.Q. Deepnetworkswithstochasticdepth. InEuropean
+conferenceoncomputervision, pp.646–661.Springer,
+Hazan,E.etal. Introductiontoonlineconvexoptimization.
+2016.
+FoundationsandTrends®inOptimization,2(3-4):157–
+325,2016.
+Ioffe,S.andSzegedy,C. Batchnormalization:Accelerating
+He,K.,Zhang,X.,Ren,S.,andSun,J. Deepresiduallearn- deepnetworktrainingbyreducinginternalcovariateshift.
+ingforimagerecognition. InProceedingsoftheIEEE arXivpreprintarXiv:1502.03167,2015.
+conferenceoncomputervisionandpatternrecognition,
+Jain,V.andLearned-Miller,E. Onlinedomainadaptation
+pp.770–778,2016a.
+ofapre-trainedcascadeofclassifiers. InCVPR2011,pp.
+He,K.,Zhang,X.,Ren,S.,andSun,J. Identitymappings 577–584.IEEE,2011.
+indeepresidualnetworks. InEuropeanconferenceon
+computervision,pp.630–645.Springer,2016b. Kalal,Z.,Mikolajczyk,K.,andMatas,J. Tracking-learning-
+detection. IEEE transactions on pattern analysis and
+He,K.,Girshick,R.,andDolla´r,P. Rethinkingimagenet machineintelligence,34(7):1409–1422,2011.
+pre-training. arXivpreprintarXiv:1811.08883,2018.
+Kang,D.,Sun,Y.,Brown,T.,Hendrycks,D.,andSteinhardt,
+Hendrycks, D. and Dietterich, T. Benchmarking neural
+J.Transferofadversarialrobustnessbetweenperturbation
+networkrobustnesstocommoncorruptionsandperturba-
+types. arXivpreprintarXiv:1905.01034,2019.
+tions. arXivpreprintarXiv:1903.12261,2019.
+Kannan,H.,Kurakin,A.,andGoodfellow,I. Adversarial
+Hendrycks, D. and Gimpel, K. A baseline for detecting
+logitpairing. arXivpreprintarXiv:1803.06373,2018.
+misclassifiedandout-of-distributionexamplesinneural
+networks. arXivpreprintarXiv:1610.02136,2016.
+Kirkpatrick,J.,Pascanu,R.,Rabinowitz,N.,Veness,J.,Des-
+Hendrycks,D.,Mazeika,M.,Wilson,D.,andGimpel,K. jardins,G.,Rusu,A.A.,Milan,K.,Quan,J.,Ramalho,T.,
+Usingtrusteddatatotraindeepnetworksonlabelscor- Grabska-Barwinska,A.,etal. Overcomingcatastrophic
+ruptedbyseverenoise.InAdvancesinneuralinformation forgettinginneuralnetworks.Proceedingsofthenational
+processingsystems,pp.10456–10465,2018. academyofsciences,114(13):3521–3526,2017.
+Hendrycks,D.,Lee,K.,andMazeika,M.Usingpre-training Krizhevsky, A. and Hinton, G. Learning multiple layers
+can improve model robustness and uncertainty. arXiv offeaturesfromtinyimages. Technicalreport,Citeseer,
+preprintarXiv:1901.09960,2019a. 2009.
+Hendrycks, D., Mazeika, M., Kadavath, S., and Song, D.
+Larsson,G.,Maire,M.,andShakhnarovich,G.Colorization
+Improvingmodelrobustnessanduncertaintyestimates
+asaproxytaskforvisualunderstanding. InCVPR,2017.
+withself-supervisedlearning. arXivpreprint,2019b.
+Li,D.,Yang,Y.,Song,Y.-Z.,andHospedales,T.M. Deeper,
+Hoffman,J.,Kulis,B.,Darrell,T.,andSaenko,K. Discover-
+broader and artier domain generalization. In Proceed-
+inglatentdomainsformultisourcedomainadaptation. In
+ingsoftheIEEEInternationalConferenceonComputer
+EuropeanConferenceonComputerVision,pp.702–715.
+Vision,pp.5542–5550,2017a.
+Springer,2012.
+Hoffman,J.,Darrell,T.,andSaenko,K. Continuousman- Li, D., Zhang, J., Yang, Y., Liu, C., Song, Y.-Z., and
+ifoldbasedadaptationforevolvingvisualdomains. In Hospedales, T. M. Episodic training for domain gen-
+ProceedingsoftheIEEEConferenceonComputerVision eralization. arXivpreprintarXiv:1902.00113,2019.
+andPatternRecognition,pp.867–874,2014.
+Li, Y., Tian, X., Gong, M., Liu, Y., Liu, T., Zhang, K.,
+Hoffman, J., Tzeng, E., Park, T., Zhu, J.-Y., Isola, P., andTao,D. Deepdomaingeneralizationviaconditional
+Saenko,K.,Efros,A.A.,andDarrell,T. Cycada: Cycle- invariant adversarial networks. In Proceedings of the
+consistentadversarialdomainadaptation. arXivpreprint EuropeanConferenceonComputerVision(ECCV),pp.
+arXiv:1711.03213,2017. 624–639,2018.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Li,Z.andHoiem,D. Learningwithoutforgetting. IEEE Recht, B., Roelofs, R., Schmidt, L., and Shankar, V. Do
+transactionsonpatternanalysisandmachineintelligence, cifar-10classifiersgeneralizetocifar-10? arXivpreprint
+40(12):2935–2947,2017. arXiv:1806.00451,2018.
+Li,Z.,Zhou,F.,Chen,F.,andLi,H. Meta-sgd: Learning Russakovsky,O.,Deng,J.,Su,H.,Krause,J.,Satheesh,S.,
+to learn quickly for few-shot learning. arXiv preprint Ma,S.,Huang,Z.,Karpathy,A.,Khosla,A.,Bernstein,
+arXiv:1707.09835,2017b. M.,Berg,A.C.,andFei-Fei,L. ImageNetLargeScale
+VisualRecognitionChallenge. InternationalJournalof
+Liu,Z.,Sun,M.,Zhou,T.,Huang,G.,andDarrell,T. Re- Computer Vision (IJCV), 115(3):211–252, 2015. doi:
+thinking the value of network pruning. arXiv preprint 10.1007/s11263-015-0816-y.
+arXiv:1810.05270,2018.
+Salman,H.,Yang,G.,Li,J.,Zhang,P.,Zhang,H.,Razen-
+shteyn, I., and Bubeck, S. Provably robust deep learn-
+Long, M., Cao, Y., Wang, J., and Jordan, M. I. Learn-
+ingviaadversariallytrainedsmoothedclassifiers. arXiv
+ingtransferablefeatureswithdeepadaptationnetworks.
+preprintarXiv:1906.04584,2019.
+arXivpreprintarXiv:1502.02791,2015.
+Santoro,A.,Bartunov,S.,Botvinick,M.,Wierstra,D.,and
+Long,M.,Zhu,H.,Wang,J.,andJordan,M.I.Unsupervised
+Lillicrap,T. Meta-learningwithmemory-augmentedneu-
+domain adaptation with residual transfer networks. In
+ral networks. In International conference on machine
+AdvancesinNeuralInformationProcessingSystems,pp.
+learning,pp.1842–1850,2016.
+136–144,2016.
+Shalev-Shwartz,S.etal. Onlinelearningandonlinecon-
+Lopez-Paz,D.andRanzato,M. Gradientepisodicmemory vexoptimization. FoundationsandTrends®inMachine
+forcontinuallearning.InAdvancesinNeuralInformation Learning,4(2):107–194,2012.
+ProcessingSystems,pp.6467–6476,2017.
+Shankar, S., Piratla, V., Chakrabarti, S., Chaudhuri, S.,
+Madry, A., Makelov, A., Schmidt, L., Tsipras, D., and Jyothi, P., and Sarawagi, S. Generalizing across
+Vladu, A. Towards deep learning models resistant to domains via cross-gradient training. arXiv preprint
+adversarial attacks. arXiv preprint arXiv:1706.06083, arXiv:1804.10745,2018.
+2017.
+Shankar,V.,Dave,A.,Roelofs,R.,Ramanan,D.,Recht,B.,
+andSchmidt,L. Doimageclassifiersgeneralizeacross
+Motiian, S., Piccirilli, M., Adjeroh, D. A., and Doretto,
+time? arXiv,2019.
+G. Unifieddeepsuperviseddomainadaptationandgen-
+eralization. In Proceedings of the IEEE International Shocher, A., Cohen, N., and Irani, M. zero-shot super-
+ConferenceonComputerVision,pp.5715–5725,2017. resolutionusingdeepinternallearning. InProceedings
+oftheIEEEConferenceonComputerVisionandPattern
+Muandet, K., Balduzzi, D., and Scho¨lkopf, B. Domain
+Recognition,pp.3118–3126,2018.
+generalization via invariant feature representation. In
+InternationalConferenceonMachineLearning,pp.10– Sinha,A.,Namkoong,H.,andDuchi,J.Certifyingsomedis-
+18,2013. tributionalrobustnesswithprincipledadversarialtraining.
+arXivpreprintarXiv:1710.10571,2017.
+Mullapudi,R.T.,Chen,S.,Zhang,K.,Ramanan,D.,and
+Fatahalian, K. Online model distillation for efficient Snell,J.,Swersky,K.,andZemel,R. Prototypicalnetworks
+videoinference. arXivpreprintarXiv:1812.02699,2018. forfew-shotlearning. InAdvancesinNeuralInformation
+ProcessingSystems,pp.4077–4087,2017.
+Noroozi,M.andFavaro,P. Unsupervisedlearningofvisual
+Song,Y.,Kim,T.,Nowozin,S.,Ermon,S.,andKushman,N.
+representationsbysolvingjigsawpuzzles. InEuropean
+Pixeldefend:Leveraginggenerativemodelstounderstand
+Conference on Computer Vision, pp. 69–84. Springer,
+anddefendagainstadversarialexamples. arXivpreprint
+2016.
+arXiv:1710.10766,2017.
+Raghunathan, A., Steinhardt, J., and Liang, P. Certified Su, J.-C., Maji, S., and Hariharan, B. Boosting supervi-
+defenses against adversarial examples. arXiv preprint sionwithself-supervisionforfew-shotlearning. arXiv
+arXiv:1801.09344,2018. preprintarXiv:1906.07079,2019.
+Ravi, S. and Larochelle, H. Optimization as a model for Sun,Y.,Tzeng,E.,Darrell,T.,andEfros,A.A. Unsuper-
+few-shotlearning. IEEEtransactionsonpatternanalysis viseddomainadaptationthroughself-supervision. arXiv
+andmachineintelligence,2016. preprint,2019.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Tripuraneni,N.andMackey,L. Debiasinglinearprediction.
+arXivpreprintarXiv:1908.02341,2019.
+Tsipras, D., Santurkar, S., Engstrom, L., Turner, A., and
+Madry, A. Robustness may be at odds with accuracy.
+arXivpreprintarXiv:1805.12152,2018.
+Tzeng,E.,Hoffman,J.,Saenko,K.,andDarrell,T. Adver-
+sarialdiscriminativedomainadaptation. InProceedings
+oftheIEEEConferenceonComputerVisionandPattern
+Recognition,pp.7167–7176,2017.
+Vapnik,V.Thenatureofstatisticallearningtheory.Springer
+science&businessmedia,2013.
+Vinyals,O.,Blundell,C.,Lillicrap,T.,Wierstra,D.,etal.
+Matchingnetworksforoneshotlearning. InAdvancesin
+neuralinformationprocessingsystems,pp.3630–3638,
+2016.
+Viola,P.,Jones,M.,etal. Rapidobjectdetectionusinga
+boosted cascade of simple features. CVPR (1), 1(511-
+518):3,2001.
+Wong,E.andKolter,J.Z. Provabledefensesagainstadver-
+sarialexamplesviatheconvexouteradversarialpolytope.
+arXivpreprintarXiv:1711.00851,2017.
+Zhang,H.,Yu,Y.,Jiao,J.,Xing,E.P.,Ghaoui,L.E.,andJor-
+dan,M.I. Theoreticallyprincipledtrade-offbetweenro-
+bustnessandaccuracy. arXivpreprintarXiv:1901.08573,
+2019.
+Zhang,R.,Isola,P.,andEfros,A.A. Colorfulimagecol-
+orization. InEuropeanconferenceoncomputervision,
+pp.649–666.Springer,2016.
+Zhu,W.,Huang,Y.,Vannan,M.A.,Liu,S.,Xu,D.,Fan,W.,
+Qian,Z.,andXie,X. Neuralmulti-scaleself-supervised
+registration for echocardiogram dense tracking. arXiv
+preprintarXiv:1906.07357,2019.Appendix: Test-Time Training with Self-Supervision
+for Generalization under Distribution Shifts
+A1.InformalDiscussiononOurVariable A2.ComputationalAspectsofOurMethod
+DecisionBoundary
+At test time, our method is 2 × batch size ×
+Intheintroduction,weclaimthatintraditionalsupervised number of iterationstimesslowerthanregulartest-
+learningθgivesafixeddecisionboundary,whileourθgives ing, which only performs a single forward pass for each
+avariabledecisionboundary. Hereweinformallydiscuss sample. As the first work on Test-Time Training, this
+thisclaim. paper is not as concerned about computational efficiency
+as improving robustness, but here we provide two poten-
+DenotetheinputspaceX andoutputspaceY. Adecision
+tialsolutionsthatmightbeuseful,buthavenotbeenthor-
+boundary is simply a mapping f : X → Y. Let Θ be a
+oughly verified. The first is to use the thresholding trick
+modelclasse.gRd. Nowconsiderafamilyofparametrized
+onl ,introducedasasolutionforthesmallbatchesprob-
+s
+functionsg :X →Y,whereθ ∈Θ.Inthecontextofdeep
+θ lem in the method section. For the models considered in
+learning,gistheneuralnetworkarchitectureandθcontains
+our experiments, roughly 80% of the test instances fall
+theparameters. Wesaythatf isafixeddecisionboundary
+below the threshold, so Test-Time Training can only be
+w.r.t. g and Θ if there exists θ ∈ Θ s.t. f(x) = g (x)
+θ performed on the other 20% without much effect on per-
+for every x ∈ X, and a variable decision boundary if for
+formance, because those 20% contain most of the sam-
+everyx ∈ X,thereexistsθ ∈ Θs.t. f(x) = g (x). Note
+θ ples with wrong predictions. The second is to reduce
+howselectionofθcandependonxforavariabledecision
+thenumber of iterationsoftest-timeupdates. For
+boundary, and cannot for a fixed one. It is then trivial to
+the online version, the number of iterations is al-
+verifythatourclaimistrueunderthosedefinitions.
+ready 1, so there is nothing to do. For the standard ver-
+A critical reader might say that with an arbitrarily large sion,wehavedonesomepreliminaryexperimentssetting
+modelclass,can’teverydecisionboundarybefixed? Yes, number of iterationsto1(insteadof10)andlearn-
+but this is not the end of the story. Let d = dim(X)× ing rate to 0.01 (instead of 0.001), and observing results
+dim(Y),andconsidertheenormousmodelclassΘ(cid:48) =Rd almostasgoodasthestandardhyper-parametersetting. A
+whichiscapableofrepresentingallpossiblemappingsbe- more in depth discussion on efficiency is left for future
+tweenX andY. Letg(cid:48) simplybethemappingrepresented works, which might, during training, explicitly make the
+θ(cid:48)
+byθ(cid:48) ∈ Θ(cid:48). Avariabledecisionboundaryw.r.t. g andΘ modelamenabletofastupdates.
+thenindeedmustbeafixeddecisionboundaryw.r.t. g(cid:48)and
+Θ(cid:48),butwewouldliketonotetwothings. First,withoutany A3.Proofs
+prior knowledge, generalization in Θ(cid:48) is impossible with
+anyfiniteamountoftrainingdata;reasoningaboutg(cid:48) and Hereweprovethetheoreticalresultsinthemainpaper.
+Θ(cid:48)ismostlikelynotproductivefromanalgorithmicpoint
+ofview,andtheconceptofavariabledecisionboundaryis A3.1.TheToyProblem
+toavoidsuchreasoning. Second,selectingθbasedonxfor
+The following setting applies to the two lemmas; this is
+avariabledecisionboundarycanbethoughtofas“training”
+simplythesettingofourtoyproblem,reproducedherefor
+on all points x ∈ Rd; however, “training” only happens
+easeofreference.
+whennecessary,forthexthatitactuallyencounters.
+Altogether,theconceptofavariabledecisionboundaryis
+differentfromwhatcanbedescribedbytraditionallearning
+theory. A formal discussion is beyond the scope of this
+paperandmightbeofinteresttofuturework.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+ConsideratwolayerlinearnetworkparametrizedbyA∈ A3.2.ProofofTheorem1
+Rh×d (shared) and v,w ∈ Rh (fixed) for the two heads,
+Foranyη,bysmoothnessandconvexity,
+respectively. Denotex ∈ Rd theinputandy ,y ∈ Rthe
+1 2
+labelsforthetwotasks,respectively. Forthemaintaskloss
+l (x,y;θ(x))=l (x,y;θ−η∇l (x;θ))
+m m s
+l (A;v)=
+1(cid:0)
+y
+−v(cid:62)Ax(cid:1)2
+, (12) ≤l (x,y;θ)+η(cid:104)∇l (x,y;θ),∇l (x,θ)(cid:105)
+m 2 1 m m s
+η2β
+andtheself-supervisedtaskloss + (cid:107)∇l (x;θ)(cid:107)2.
+2 s
+l (A;w)=
+1(cid:0)
+y
+−w(cid:62)Ax(cid:1)2
+, (13)
+s 2 2 Denote
+Test-TimeTrainingyieldsanupdatedmatrix η∗ = (cid:104)∇l m(x,y;θ),∇l s(x,θ)(cid:105) .
+A(cid:48) ←A−η(cid:0) y −w(cid:62)Ax(cid:1)(cid:0) −wx(cid:62)(cid:1) , (14) β(cid:107)∇l s(x;θ)(cid:107)2
+2
+ThenEquation22becomes
+whereηisthelearningrate.
+Lemma1. Followingtheexpositionofthemainpaper,let
+l (x,y;θ−η∗∇l (x;θ)) (22)
+m s
+(y −v(cid:62)Ax)
+η∗ = (y 2−w1 (cid:62)Ax)v(cid:62)wx(cid:62)x. (15) ≤l m(x,y;θ)− (cid:104)∇l m 2( βx, (cid:107)y ∇;θ l) (, x∇ ;θl s )( (cid:107)x 2,θ)(cid:105)2 . (23)
+s
+Assumeη∗ ∈[(cid:15),∞)forsome(cid:15)>0.Thenforanyη ∈(0,(cid:15)],
+we are guaranteed an improvement on the main loss i.e. Andbyourassumptionsonthegradientnormandgradient
+l (A(cid:48))<l (A). innerproduct,
+m m
+Proof. Fromtheexpositionofthemainpaper,weknowthat (cid:15)2
+l (x,y;θ)−l (x,y;θ−η∗∇l (x;θ))≥ . (24)
+m m s 2βG2
+l (A−η∗∇l A))=0,
+m s
+which can also be derived from simple algebra. Then by Becausewecannotobserveη∗ inpractice,weinsteaduse
+convexity,wehave a fixed learning rate η = (cid:15) , as stated in Theorem 1.
+βG2
+Now we argue that this fixed learning rate still improves
+l (A−η∇l (A)) (16)
+m s performanceonthemaintask.
+(cid:18)(cid:18) (cid:19) (cid:19)
+η η
+=l 1− A+ (A−η∗∇l (A)) (17) By our assumptions, η∗ ≥ (cid:15) , so η ∈ (0,η∗]. Denote
+m η∗ η∗ s βG2
+g =∇l (x;θ),thenbyconvexityofl ,
+(cid:18) (cid:19) s m
+η
+≤ 1− l (A)+0 (18)
+η∗ m
+l (x,y;θ(x))=l (x,y;θ−ηg) (25)
+m m
+(cid:16) η(cid:17)
+≤ 1− l (A) (19) (cid:18) (cid:18) η (cid:19) η (cid:19)
+(cid:15) m =l x,y; 1− θ+ (θ−η∗g) (26)
+m η∗ η∗
+<l (A), (20)
+m (cid:18) (cid:19)
+η η
+wherethelastinequalityusestheassumptionthatl m(A)> ≤ 1−
+η∗
+l m(x,y;θ)+ η∗l m(x,y;θ−η∗g) (27)
+0,whichholdsbecauseη∗ >0.
+Lemma 2. Define (cid:104)U,V(cid:105) = vec(U)(cid:62)vec(V) i.e. the CombiningwithEquation24,wehave
+Frobeniousinnerproduct,then
+(cid:18) (cid:19)
+η
+sign(η∗)=sign((cid:104)∇l m(A),∇l s(A)(cid:105)). (21) l m(x,y;θ(x))≤ 1−
+η∗
+l m(x,y;θ)
+η (cid:18) (cid:15)2 (cid:19)
++ l (x,y;θ)−
+η∗ m 2βG2
+Proof. Bysimplealgebra,
+η (cid:15)2
+=l (x,y;θ)−
+(cid:104)∇l m(A),∇l s(A)(cid:105) m η∗2βG2
+=(cid:104)(cid:0)
+y
+−v(cid:62)Ax(cid:1)(cid:0) −vx(cid:62)(cid:1) ,(cid:0)
+y
+−w(cid:62)Ax(cid:1)(cid:0) −wx(cid:62)(cid:1)
+(cid:105)
+1 2
+=(cid:0)
+y
+−v(cid:62)Ax(cid:1)(cid:0)
+y
+−w(cid:62)Ax(cid:1) Tr(cid:0) xv(cid:62)wx(cid:62)(cid:1) Sinceη/η∗ >0,wehaveshownthat
+1 2
+=(cid:0) y 1−v(cid:62)Ax(cid:1)(cid:0) y 2−w(cid:62)Ax(cid:1) v(cid:62)wx(cid:62)x, l m(x,y;θ)−l m(x,y;θ(x))>0. (28)
+whichhasthesamesignasη∗.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+A4.AdditionalResultsontheCommon A4.2.AdditionalBaseline: AdversarialLogitPairing
+CorruptionsDataset
+Asdiscussedintheresultssection,Hendrycks&Dietterich
+Fortableaethetics,weusethefollowingabbreviations: B (2019)pointtoAdversarialLogitPairing(ALP)(Kannan
+forbaseline,JTforjointtraining,TTTforTest-TimeTrain- et al., 2018) as an effective method for improving model
+ingstandardversion,andTTT-OnlineforonlineTest-Time robustness to corruptions and perturbations, even though
+Trainingi.e. theonlineversion. itwasdesignedtodefendagainstadversarialattacks. We
+takeALPasanadditionalbaselineonallbenchmarksbased
+Wehaveabbreviatedthenamesofthecorruptions,inorder:
+on CIFAR-10 (using GN), following the training proce-
+originaltestset,Gaussiannoise,shotnoise,impulsenoise,
+dureinKannanetal.(2018)andtheirrecommendedhyper-
+defocusblur,glassblue,motionblur,zoomblur,snow,frost,
+parameters. Theimplementationoftheadversarialattack
+fog,brightness,contrast,elastictransformation,pixelation,
+comesfromthecodebaseofDingetal.(2019). Wedidnot
+andJPEGcompression.
+runALPonImageNetbecausethetwopaperswereference
+forthismethod,Kannanetal.(2018)andHendrycks&Di-
+A4.1.ResultsUsingBatchNormalization etterich(2019),didnotrunonImageNetormakeanyclaim
+orrecommendation.
+As discussed in the results section, Batch Normalization
+(BN)isineffectiveforsmallbatches,whicharetheinputs
+A4.3.ResultsonCIFAR-10-CandImageNet-C,Level5
+forTest-TimeTraining(bothstandardandonlineversion)
+sincethereisonlyonesampleavailablewhenformingeach
+TableA2andTableA3correspondtothebarplotsinthe
+batch; therefore, our main results are based on a ResNet
+resultssection. TworowsofTableA2havebeenpresented
+usingGroupNormalization(GN).FigureA2andTableA1
+asTable1inthemaintext.
+showresultsofourmethodonCIFAR-10-Clevel5,witha
+ResNetusingBatchNormalization(BN).Theseresultsare
+A4.4.ResultsonCIFAR-10-C,Levels1-4
+onlymeanttobeapointofreferenceforthecuriousreaders.
+The following bar plots and tables are on levels 1-4 of
+In the early stage of this project, we have experimented
+CIFAR-10-C.Theoriginaldistributionisthesameforall
+withtwopotentialsolutionstothesmallbatchesproblem
+levels,soareourresultsontheoriginaldistribution.
+withBN.ThenaivesolutionistofixtheBNlayersduring
+Test-Time Training. but this diminishes the performance
+A4.5.DirectComparisonwithHendrycksetal.(2019a)
+gainssincetherearefewersharedparameters. Thebetter
+solution, adopted for the results below, is hard example Thefollowingcomparisonhasbeenrequestedbyananony-
+mining: insteadofupdatingonallinputs,weonlyupdate mous reviewer for our final version. Our joint training
+oninputsthatincurlargeself-supervisedtasklossl s,where baselineisbasedonHendrycksetal.(2019a),butalsoincor-
+thelargeimprovementsmightcounterthenegativeeffects poratessomearchitecturalchanges(seebelow). Wefound
+ofinaccuratestatistics. thesechangesimprovedtherobustnessofourmethod,and
+feltthatitwasimportanttogivethebaselinethesameben-
+Test-TimeTraining(standardversion)isstillveryeffective
+efit. Notethatourjointtrainingbaselineoverallperforms
+withBN.Infact,someoftheimprovementsarequitedra-
+better than Hendrycks: Compare Table S2 to Figure 3 of
+matic,suchasoncontrast(34%),defocusblue(18%)and
+Hendrycks et al. (2019a) (provided by the authors), our
+Gaussiannoise(22%comparingtojoint-training,and16%
+baselinehasaverageerrorof22.8%acrossallcorruptions
+comparing to the baseline). Performance on the original
+andlevels,whiletheiraverageerroris28.6%.
+distributionisstillalmostthesame,andtheoriginalerror
+withBNisinfactslightlylowerthanwithGN,andtakes Summaryofarchitecturalchanges: 1)GroupNormalization
+halfasmanyepochstoconverge. (GN)insteadofBatchNormalization(BN).Forcomplete-
+ness,theresultswithBNareprovidedinTableS1;c.f. GN
+WedidnotfurtherexperimentwithBNbecauseoftworea-
+resultsinTableS2whichsignificantlyimprovesrobustness,
+sons:1)TheonlineversiondoesnotworkwithBN,because
+withorwithoutself-supervision. 2)Wesplitafterthesec-
+theproblemwithinaccuratebatchstatisticsisexacerbated
+ondresidualgroup,whiletheysplitafterthethirdresidual
+whentrainingonlineformany(e.g. 10000)steps. 2)The
+grouprightbeforethelinearlayer. Thisconsistentlygives
+baseline error for almost every corruption type is signifi-
+about 0.5% - 1% improvement. 3) We use a ResNet-26,
+cantlyhigherwithBNthanwithGN.Althoughunrelated
+whiletheyusea40-2WideResNet. Butourbaselinestill
+tothemainideaofourpaper,wemaketheinterestingnote
+performsbetterthantheirmethodeventhoughournetwork
+thatGNsignificantlyimprovesmodelrobustness.
+is4xsmaller,duetothetwotricksabove.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+Gaussian Noise Shot Noise Impulse Noise Defocus Blur Frosted Glass Blur
+Motion Blur Zoom Blur Snow Frost Fog
+Brightness Contrast Elastic Pixelate JPEG
+FigureA1.SampleimagesfromtheCommonCorruptionsBenchmark,takenfromtheoriginalpaperbyHendrycks&Dietterich(2019).
+60
+40
+20
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+FigureA2. Testerror(%)onCIFAR-10-C,level5,ResNet-26withBatchNormalization.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 7.9 63.9 58.8 64.3 46.3 54.6 41.6 45.9 31.9 44.0 37.5 13.0 69.2 33.8 61.4 31.7
+JT 7.5 70.7 65.6 67.2 43.1 55.4 40.9 42.7 30.3 44.5 42.5 12.7 58.6 30.7 62.6 31.9
+TTT 7.9 47.9 45.2 54.8 27.6 50.4 31.5 30.9 28.7 34.3 26.9 12.6 35.2 30.6 51.2 31.3
+TableA1. Testerror(%)onCIFAR-10-C,level5,ResNet-26withBatchNormalization.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 8.9 50.5 47.2 56.1 23.7 51.7 24.3 26.3 25.6 34.4 28.1 13.5 25.0 27.4 55.8 29.8
+JT 8.1 49.4 45.3 53.4 24.2 48.5 24.8 26.4 25.0 32.5 27.5 12.6 25.3 24.0 51.6 28.7
+TTT 7.9 45.6 41.8 50.0 21.8 46.1 23.0 23.9 23.9 30.0 25.1 12.2 23.9 22.6 47.2 27.2
+TTT-Online 8.2 25.8 22.6 30.6 14.6 34.4 18.3 17.1 20.0 18.0 16.9 11.2 15.6 21.6 18.1 21.2
+UDA-SS 9.0 28.2 26.5 20.8 15.6 43.7 24.5 23.8 25.0 24.9 17.2 12.7 11.6 22.1 20.3 22.6
+ALP 16.5 22.7 22.9 28.3 25.0 25.6 27.4 23.1 25.2 27.2 64.8 21.7 73.6 23.0 20.2 18.9
+TableA2. Testerror(%)onCIFAR-10-C,level5,ResNet-26.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 68.9 1.3 2.0 1.3 7.5 6.6 11.8 16.2 15.7 14.9 15.3 43.9 9.7 16.5 15.3 23.4
+JT 69.1 2.1 3.1 2.1 8.7 6.7 12.3 16.0 15.3 15.8 17.0 45.3 11.0 18.4 19.7 22.9
+TTT 69.0 3.1 4.5 3.5 10.1 6.8 13.5 18.5 17.1 17.9 20.0 47.0 14.4 20.9 22.8 25.3
+TTT-Online 68.8 26.3 28.6 26.9 23.7 6.6 28.7 33.4 35.6 18.7 47.6 58.3 35.3 44.3 47.8 44.3
+TableA3. Testaccuracy(%)onImageNet-C,level5,ResNet-18.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+50
+40
+30
+20
+10
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+FigureA3. Testerror(%)onCIFAR-10-C,level4.Seetheresultssectionfordetails.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 8.9 46.4 39.2 44.8 15.3 52.5 19.1 20.5 21.3 26.9 13.3 10.5 13.7 20.8 35.3 26.9
+JT 8.1 45.0 38.3 42.2 16.4 50.2 20.7 20.5 21.1 25.4 14.1 10.0 14.7 19.0 33.2 25.1
+TTT 7.9 41.5 35.4 39.8 15.0 47.8 19.1 18.4 20.1 24.0 13.5 10.0 14.1 17.7 29.4 24.5
+TTT-Online 8.2 22.9 20.0 23.9 11.2 35.1 15.6 13.8 18.6 15.9 12.3 9.7 11.9 16.7 13.6 19.8
+ALP 16.5 21.3 20.5 24.5 20.7 25.9 23.7 21.4 24.2 23.9 42.2 17.5 53.7 22.1 19.1 18.5
+TableA4. Testerror(%)onCIFAR-10-C,level4,ResNet-26.
+40
+30
+20
+10
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+FigureA4. Testerror(%)onCIFAR-10-C,level3.Seetheresultssectionfordetails.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 8.9 42.2 35.1 30.7 12.2 41.7 18.6 17.5 19.0 25.3 10.8 9.7 11.6 15.3 21.7 24.6
+JT 8.1 40.2 34.4 29.9 12.2 37.9 20.8 17.3 18.4 25.0 11.4 9.2 12.0 15.2 20.8 22.8
+TTT 7.9 37.2 31.6 28.6 11.5 35.8 19.1 15.8 17.8 23.3 11.0 9.1 11.6 14.3 18.9 22.3
+TTT-Online 8.2 21.3 17.7 17.9 9.0 23.4 15.3 12.5 16.4 15.8 10.9 9.0 10.7 12.8 12.2 18.7
+ALP 16.5 20.0 19.3 20.5 19.2 21.2 24.0 20.5 20.9 24.2 30.1 16.6 39.6 20.9 17.8 18.0
+TableA5. Testerror(%)onCIFAR-10-C,level3,ResNet-26.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+40
+30
+20
+10
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+FigureA5. Testerror(%)onCIFAR-10-C,level2.Seetheresultssectionfordetails.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 8.9 31.7 22.6 24.3 9.9 42.6 14.9 14.7 21.7 18.4 9.8 9.1 10.0 13.1 17.1 22.4
+JT 8.1 31.0 22.6 23.4 9.1 39.2 16.4 14.2 21.2 17.5 9.4 8.3 10.6 12.8 15.9 20.5
+TTT 7.9 28.8 20.7 23.0 9.0 36.6 15.4 13.1 20.2 16.9 9.2 8.3 10.2 12.5 14.8 19.7
+TTT-Online 8.2 16.8 13.8 15.5 8.5 23.4 13.3 11.5 16.8 12.7 9.4 8.4 9.7 12.4 11.5 17.0
+ALP 16.5 18.0 17.2 19.0 17.8 20.7 21.2 19.3 19.0 20.1 22.4 16.3 29.2 20.3 17.4 17.8
+TableA6. Testerror(%)onCIFAR-10-C,level2,ResNet-26.
+40
+30
+20
+10
+0
+original gauss shot
+im
+pulse defocus glass
+m
+otion
+zoo
+m snow frost fog bright contrast elastic pixelate jpeg
+)%(
+rorrE
+Object recognition task only
+Joint training (Hendrycks et al. 2019)
+TTT
+TTT-Online
+FigureA6. Testerror(%)onCIFAR-10-C,level1.Seetheresultssectionfordetails.
+orig gauss shot impul defoc glass motn zoom snow frost fog brit contr elast pixel jpeg
+B 8.9 21.7 17.1 17.0 9.0 44.0 12.1 13.9 14.3 13.4 9.2 8.9 9.0 13.2 12.0 17.3
+JT 8.1 20.4 16.6 16.9 8.2 40.5 12.2 13.0 13.1 12.3 8.4 8.1 8.5 12.9 11.3 15.9
+TTT 7.9 19.1 15.8 16.5 8.0 37.9 11.7 12.2 12.8 11.9 8.2 8.0 8.3 12.6 11.1 15.5
+TTT-Online 8.2 13.8 11.9 12.2 8.5 24.4 10.5 11.5 12.4 10.7 8.5 8.3 8.6 12.4 10.7 14.4
+ALP 17.0 16.8 17.6 16.8 20.9 18.7 19.0 17.3 17.5 17.4 16.1 18.4 20.4 17.0 17.2 17.5
+TableA7. Testerror(%)onCIFAR-10-C,level1,ResNet-26.Test-TimeTrainingwithSelf-SupervisionforGeneralizationunderDistributionShifts
+FigureA7.SampleImagesfromtheVID-Robustdataset(Shankaretal.,2019)intheresultssectionadaptedtoCIFAR-10. Eachrow
+showseightsampleimagesfromoneclass.Thesevenclassesshownare,inorder:airplane,bird,car,dog,cat,horse,ship.

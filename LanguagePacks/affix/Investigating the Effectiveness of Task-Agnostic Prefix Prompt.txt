@@ -1,0 +1,1145 @@
+Investigating the Effectiveness of Task-Agnostic Prefix Prompt
+for Instruction Following
+SeonghyeonYe1* HyeonbinHwang1 SoheeYang1,2
+HyeonguYun3 YireunKim3 MinjoonSeo1
+1KAIST 2 UCL 3 LGAIResearch
+seonghyeon.ye@kaist.ac.kr
+Abstract ofmultiplecross-taskdemonstrationswhereeachdemonstra-
+tionisaconcatenationofaninstruction,input,andoutput
+Inthispaper,wepresentourfindingthatprependingaTask- instanceofatask.NotethatTAPPisdifferentfromcanon-
+Agnostic Prefix Prompt (TAPP) to the input improves the
+icaltask-specificpromptsinthatitisafixedprefixprompt
+instruction-followingabilityofvariousLargeLanguageMod-
+thatisprependedregardlessofthetargettaskforzero-shot
+els(LLMs)duringinference.TAPPisdifferentfromcanonical
+generalization.
+promptsforLLMsinthatitisafixedpromptprependedto
+thebeginningofeveryinputregardlessofthetargettaskfor
+zero-shotgeneralization.WeobservethatbothbaseLLMs(i.e. We first observe that TAPP significantly enhances the
+notfine-tunedtofollowinstructions)andinstruction-tuned instruction-following performance of various base LLMs
+modelsbenefitfromTAPP,resultingin34.58%and12.26% thatarenotfine-tunedtofollowinstructions.Notably,even
+improvementonaverage,respectively.Thisimpliesthatthe smallerLLMswithTAPPoutperformmuchlargerlanguage
+instruction-followingabilityofLLMscanbeimprovedduring
+models without TAPP, such as the 6B-sized GPT-J with
+inferencetimewithafixedpromptconstructedwithsimple
+TAPP outperforming 30 times larger 175B-sized GPT-3
+heuristics.WehypothesizethatTAPPassistslanguagemodels
+Davinci without TAPP. Second, we show that applying
+to better estimate the output distribution by focusing more
+TAPPontopofinstruction-fine-tunedLLMsalsoimproves
+ontheinstructionofthetargettaskduringinference.Inother
+words,suchabilitydoesnotseemtobesufficientlyactivated the performance, boosting the performance of one of the
+innotonlybaseLLMsbutalsomanyinstruction-fine-tuned strongestinstruction-followingLLMs(text-davinci-003)by
+LLMs1. 9.3%. This indicates that the effect of TAPP during infer-
+enceiscomplementarytotheeffectofinstructionfine-tuning.
+Moreover,wedemonstratethatprependingTAPPtotarget
+1 Introduction
+task demonstrations also improves performance, implying
+thatTAPPalsoenhancesfew-shotin-contextlearningduring
+LargeLanguageModels(LLMs)havedemonstratedtheabil-
+inference.
+ity to follow user instructions through approaches such as
+instruction tuning or reinforcement learning from human
+feedback(RLHF)(Sanhetal.2021;Weietal.2021;Wang Our analysis shows that TAPP performs best when the
+etal.2022c;Ouyangetal.2022;Minetal.2022a;Chung prefix prompt consists of demonstrations of classification
+etal.2022;Yeetal.2022;Baietal.2022;Askelletal.2021). tasksthatincludeexplicitanswerchoiceintheinstruction
+However,previousworkmainlyhasfocusedonfine-tuning- (e.g.,expressionof“agent”or“customer”inFigure1).This
+basedapproachestoenhancetheinstruction-followingability holds true even when the target task is a generation task,
+ofLLMswherethemodelisfine-tunedonvarioustaskswith whichcontrastswiththefindingsofthepreviousstudiesthat
+instructions,requiringmultiplebackpropagationprocesses itiscrucialtoretrieveasetofpromptsthataresimilartothe
+andnecessitatingaccesstothemodelweightswhichlimits targettask(Rubin,Herzig,andBerant2021;Liuetal.2022).
+itsapplicabilitytoproprietarymodels. Wealsoobservethattheperformancedoesnotdegradesig-
+In this paper, we present and analyze our finding that nificantlyeveniftheinputdistributionofeachdemonstration
+prependingaTask-AgnosticPrefixPrompt(TAPP)thatisde- ofTAPPiscorrupted.Basedonthesetwoobservations,we
+terminedbysimpleheuristicsduringinferencesignificantly hypothesizethatduringinferenceofTAPP,LLMslearnthe
+enhancestheinstruction-followingabilityofLLMsacross correspondencebetweentheanswerchoiceincludedinin-
+varioustasksforbothopen-sourcedandproprietarymodels struction and the output of each demonstration of TAPP.
+(Zhang et al. 2022; Brown et al. 2020; Wang and Komat- Throughthishypothesis,wesuggestthattheroleofTAPPis
+suzaki2021;Blacketal.2022).Specifically,TAPPconsists tohelpLLMsfocusonthetargetinstructiontobetterestimate
+theoutputdistributionofthetargettask.Thisalsoimplies
+* WorkdonewhileinterningatLGAIResearch. thatthisabilitydoesnotseemtobesufficientlyactivatedin
+1All experiments are reproducible from github.com/ bothbaseLLMsandinstruction-tunedLLMs,leavingfurther
+seonghyeonye/TAPP. investigationasfuturework.
+3202
+ceD
+42
+]LC.sc[
+2v19641.2032:viXraFixed Task-Agnostic Coreference Resolution
+Prefix Prompt (TAPP)
+Definition: Answer a given question containing a blank (_).
+Definition: Determine the speaker of the dialogue. Input: The actor […] mat since the _ was wobbly. unicycle
+Answer with "agent" or ”customer". Output:
+Input: I have successfully booked your ticket.
+Output: agent Title Generation ❄
+Definition: Generate an appropriate title for the given text.
+D twe ofi n 1i )t i 'o Sn im: Y ilo au r'r i ft a ths ek i gs i vto e nc l ta ws os i qfy u ea s g tii ov ne sn hp ao vs et i an t o Input: The 12-day event O [ u… tp]A utm :y Pond in Doctor Who. LLM Edinburgh […] up by 9%
+same connotation and 2) 'Dissimilar' otherwise. (Base
+Input: Sentence1: Should I ask to be [..]
+Output: Dissimilar Data to Text & Instruction
+Definition: Generate a sentence from the concept set. Fine-tuned)
+Input: canoe#lake#paddle woman […] on a lake
+Output:
+Definition: Detect which category better describes
+the question: "Description", "Entity", "Abbreviation", Word Analogy
+"Person", “Quantity", and “Location".
+Input: What is the oldest building in the U.S? Definition: Re Inp pla uc t:e s t th ire : q su pe os ot nio . n c um t a : r ?k with a tool . scissors
+Output: Location Output:
+..…
+Figure1:OverviewofTask-AgnosticPrefixPrompt(TAPP).Weconstructafixedsetofdemonstrationsconsistingofinstruction,
+input,andoutputinstancestoevaluatebaseandinstruction-fine-tunedLLMsforalltasks.Thetaskcategoriesincludedinthe
+demonstrationsarestrictlyheld-outandfromthetasksbeingevaluated,ensuringazero-shotsetting.
+2 RelatedWorks aware of instructions. We extend this hypothesis that base
+LLMsalreadyhavethecapabilitytofollowinstructionsby
+Inference-time Task Adaptation In-context learning is
+showing that applying TAPP regardless of the target task
+oneofthemostwidelyknowngradient-freetaskadaptation
+withoutperforminganybackpropagation,i.e.,usingthebase
+approaches during inference. Language models pretrained
+modelcheckpointwithoutanygradientupdate,improvesthe
+to predict the next token autoregressively possess the abil-
+performanceonthetargetdownstreamtasks.
+itytoadapttothetargettaskswhenconditionedononlya
+fewtask-specifictrainingexampleswithoutgradientupdate
+(Brownetal.2020;Chowdheryetal.2022;Akyu¨reketal. 3 Task-AgnosticPrefixPrompt
+2022; von Oswald et al. 2022; Garg et al. 2022; Dai et al.
+TAPP consistsofcross-taskdemonstrationswhereeachis
+2022).However,few-shotin-contextlearningrequiresaccess
+a concatenation of instruction, input, and output instance,
+totargettaskdemonstrationsforeachtask,implyingthatthe
+asshowninFigure1.TheexactpromptisprovidedinAp-
+userhastotaketheeffortofgeneratingthedemonstrations
+pendixH.Inthissection,weexplaintheruleswehaveused
+foreachtaskbythemselves.Toaddressthisissue,Lyuetal.
+toconstructTAPP.Also,wementiontheadvantagesofap-
+(2022)proposeZero-shotIn-ContextLearningmethod(Z-
+plying TAPP during the inference of LLMs for zero-shot
+ICL),retrievingrelevantsentencesfromanexternalcorpus
+taskgeneralization.
+andassigningrandomlabelstoconstructdemonstrationsfor
+classificationtargettasks.However,Z-ICLisonlyapplicable
+3.1 TAPP Construction
+for single-sentence classification tasks and tasks that only
+havesingle-wordanswerchoices.Also,Z-ICLassumesthat WeselectK tasksasdemonstrationsforTAPPfromatask
+theoutputdistributionofthetaskisgiven.Incontrast,our poolcontainingatotalofN tasks,witheachtaskinstance
+workobservestheeffectoftask-agnosticprefixpromptswith- consisting of an instruction, input, and output2. We apply
+out any restrictions on the type of the downstream task or somesimpleheuristicstofirstfilterthetaskset,randomly
+thenecessityofadditionalinformationaboutthetask,which sampleasingleinstanceperfilteredtaskset,andlastly,sam-
+makestheapproachapplicableevenforreal-timescenarios. pleKinstancesallcorrespondingtodifferenttasks.Therules
+areasfollows:
+Instruction-FollowingLLMs Recentworkshaveshown
+thatfine-tuning-basedinstructionlearning,e.g.,instruction 1. TaskTypes:Weonlysamplefromclassificationtasksthat
+tuningorRLHF,canboostthecapabilityofLLMstofollow explicitlyincludeananswerchoiceintheinstruction(e.g.,
+instructionsoraligntohumanpreferences(Sanhetal.2021; “agent”or“customer”inFigure1).Wehypothesizethat
+Weietal.2021;Wangetal.2022c;Chungetal.2022;Min includingtheanswerchoiceintheinstructionmightassist
+et al. 2022a; Ye et al. 2022; Ouyang et al. 2022; Bai et al. LLMstofollowinstructionsduringinference.
+2022;OpenAI2022).Theseworkshavedemonstratedthat
+2. Answer Choice Overlap: We ensure that the answer
+the effect of instruction fine-tuning can be maximized by
+choicesdonotoverlapbetweendemonstrations.Weex-
+scalingthesizeofthebasemodelorbytrainingonamoredi-
+pect that the overlap of answer choices leads to LLMs
+versesetoftasks.However,whethertheinstructionfollowing
+copyingthelabelsofthedemonstrations,similartothe
+abilityofLLMsisnewlyobtainedthroughinstructiontuning
+copyingeffectduringinferenceofLLMs(Lyuetal.2022).
+orisalreadyobtainedduringpretrainingisunder-explored.
+Wangetal.(2022b);Honovichetal.(2022)showthatdown- 3. MaximumLength:Werestrictthelengthoftheconcate-
+streamtasksgeneratedbyLLMsthemselveswhichcontain nationofinstruction,input,andoutputinstanceforeach
+noisyinstancescanactuallybegoodtraininginstancesfor
+instructiontuning,implyingthatLLMsarealreadysomewhat 2Unlessspecified,wesetK =8asdefault.Base LLM Instruction Fine-tuned LLM
+60
+53.98
+45 49.8 49.39
+40.83
+37.53 37.7
+30 25.75 28.44 27.8430.78 30.61 25.87 33.7 30.16 33.12 29.72 25.34 27.13 32.05
+15 18.88 20.71 20.14 21.87 22.7
+0
+OPT
+6.7B
+Curie
+(6.7B)
+GPT-J
+(6B)
+OPT
+13B
+GPT-NeoX
+(20B)
+OPT
+30B
+OPT
+66B
+Davinci
+(175B) Curie-001 Davinci-001 Davinci-002 Davinci-003
+Base Input TAPP
+Figure2:Averageperformanceof119evaluationtasksonSUPERNIbenchmark.TAPPiseffectiveforbothbaseandinstruction-
+fine-tunedLLMs.WereportthemeanscoreofthreerandomseedsfordifferentdemonstrationsetsforTAPPandtheerrorbars
+ofstandarddeviation.WealsoperformanevaluationusingINSTRUCTSCORE(Xuetal.2023)inAppendixBandprovidethe
+fulldemonstrationsetsinAppendixH
+demonstrationto256tokensbyamaximumconsidering promptssuchasfew-shotpromptingortheapproachofLyu
+themaximumsequencelength3. etal.(2022).
+4. Ordering: We order the demonstrations by the num-
+ber of answer choices for each task in ascending order. 4 Experiments
+Fordemonstrationshavingthesamenumberofanswer
+4.1 ExperimentalSetup
+choices, we sort by demonstration length in ascending
+order. WeconstructthedemonstrationsforTAPPbyutilizingEn-
+glish training tasks of SUPER-NATURALINSTRUCTIONS
+Weprovideadetailedanalysisandablationoftheseheuristics
+(SUPERNI)benchmark(Wangetal.2022c)asthetaskpool,
+inSection5,justifyingourdesignofrules.
+whichincludes756tasksintotal.Toevaluatetheeffective-
+ness of TAPP, we use the held-out tasks from SUPERNI
+3.2 TAPP forZero-ShotTaskGeneralization
+fortesting,whichconsistsof119tasksacross12different
+After randomly sampling K tasks from a set of tasks that categories,includingfree-formgeneration,wordrelationrea-
+satisfythecriteriaandorderingthembythecriterion,wecon- soning,andvariousclassificationtasks.WeselectSUPERNI
+structafixedsetofdemonstrationsM =[M 1,M 2,...,M K] asourevaluationbenchmarkbecauseitoffersadiverseset
+(TAPP)andprependitontheconcatenationofinstruction oftaskswithvaryinglevelsofcomplexity.Eachtaskhas100
+(I t)andi-thinputinstance(x ti)ofthetargettaskt.There- instances, and we exclude instances that exceed the maxi-
+sponse(y ti)ofthemodelparameterizedbyθiscalculatedas mumsequencelength,resultinginatotalof11,802instances.
+follows: Weusedifferentevaluationmetricsforeachtask,suchasEx-
+actMatchforclassificationorsingle-wordpredictiontasks
+argmaxP(y |M,I ,x ;θ) (1) andROUGE-Lforfree-formgenerationtasks,followingthe
+ti t ti
+metricusedinWangetal.(2022c).Weprovidethelistof12
+whereM isinvariantregardlessofthetargettasktandK is
+evaluationtaskcategoriesinAppendixAandmoredetailed
+thenumberofdemonstrations.WeensurethattheK tasks
+evaluationsettingsinAppendixE.
+comprisingthedemonstrationsetofTAPParestrictlyheld-
+outfromthetargettaskT inordertomeasuretheeffectof Model Types We evaluate 4 LLMs with various model
+TAPPforzero-shottaskgeneralization. sizes: 1) GPT-3 (Brown et al. 2020), 2) OPT (Zhang et al.
+It is worth noting that TAPP is different from canoni- 2022),3)GPT-NeoX(Blacketal.2022),and4)GPT-J(Wang
+caltask-specificpromptswhichusuallyvarydependingon andKomatsuzaki2021)4.ForGPT-3,weevaluatenotonly
+the target task. TAPP is a fixed prefix prompt that can be thebaseLLMbutalsoevaluateLLMsthatarefine-tunedto
+prependedtoanytargettaskwithoutanyrestriction,being followinstructionsandalignedtohumanpreferencesthrough
+easily reproducible and widely applicable as described in reinforcement learning (Ouyang et al. 2022). We evaluate
+Section2. the performance of GPT-3 models with sizes of 6.7B and
+Also,TAPPdoesnotrequireanyadditionalinformation 175B.ForOPT,weevaluatemodelswith6.7B,13B,and30B
+during inference such as the task category information or
+theoutputdistributionofthetargettask,unliketask-specific 4Frompreliminaryexperiments,weobservethatapplyingTAPP
+harmstheperformanceforOPT-IML(Iyeretal.2022)andFLAN-
+3Becausewemainlyexperimenton175B-sizedGPT-3,weset T5(Chungetal.2022)duetothecharacteristicsofeachmodel.We
+thedefaultmaximuminputsequenceas2048. providemorediscussioninAppendixD.parameters, while for GPT-NeoX and GPT-J, we evaluate Category Output Task AVG
+modelswith20Band6Bparameters,respectively5.
+Base(NoPP) ✗ ✗ ✗ 29.66
+TAPP ✗ ✗ ✗ 44.24
+4.2 Results
+NearestPP ✗ ✗ ✗ 44.16
+VariousbaseLLMsbenefitfromTAPP. Asshowninthe CategoryPP ✓ ✗ ✗ 42.43
+leftpartofFigure2,Task-AgnosticPrefixPrompt(TAPP) OutputPP ✗ ✓ ✗ 34.34
+consistently improves the performance of base LLMs (i.e
+Few-shotICL ✓ ✓ ✓ 56.65
+notfine-tunedwithinstructions)acrossallmodelscales,re-
++TAPP ✓ ✓ ✓ 60.21
+sultinginover50%performanceincreaseforOPT-13B.Us-
+ingthisfixedprompt,smallermodelscanoutperformmuch
+Table1:WecomparetheperformanceofTAPPwithdiffer-
+largermodelswithoutTAPP(BaseInput).Specifically,the
+entstrategiestoconstructtask-specificPrefixPrompts(PP):
+6B-sizedGPT-JmodelwithTAPPexceeds30timeslarger
+Nearest PP, Category PP, and Output PP. Unlike other ap-
+175B-sized GPT-3 model without TAPP. This shows that
+proaches, TAPP is fixed regardless of the target task and
+TAPP can improve the ability of base LLMs to follow in-
+does not require any information about the task category,
+structionswithoutfine-tuningorbackpropagation.Moreover,
+output,ortargettask.Additionally,weobserveprepending
+weobservethegainfrom TAPP duringinferencecanout-
+TAPPtotargettaskdemonstrations(Few-shotICL)enhances
+performthegainfrominstructiontuningbycomparingthe
+theperformance.
+performanceof TAPP appliedtoGPT-3modelwithoutin-
+structiontuning(davinci)andthebaseinputsettingofthe few-shotin-contextlearningwherecorruptingtheinputdis-
+instruction-tunedGPT-3model(text-davinci-001). tributionitselfleadstosignificantperformancedegradation,
+we demonstrate that not only the input-output correspon-
+The gain from TAPP is complementary to instruction
+dencedoesnotmatter,butalsotheinputinstancedistribution
+fine-tuning. As shown in the right part of Figure 2, we
+matterslittleforTAPP.
+observethatTAPPimprovestheperformanceofLLMsfine-
+tuned through instruction tuning or RLHF, especially for
+5 Analysis
+modelsover100Bparameters.Thisimpliesthatinstruction
+fine-tuningalonemightbesometimesinsufficientforlarger In this section, we provide additional experiments and in-
+models and pretending a fixed prefix prompt can improve vestigatethefactorsthatmakeTAPPeffective.Weevaluate
+theinstructionfollowingabilityorthogonally.Inparticular, onbaseGPT-3175Bcheckpoint(davinci)andevaluateona
+weobserveasignificantperformanceimprovementfortext- singletaskpertaskcategory,resultinginatotalof12tasks
+davinci-002(175B),outperforminganRLHF-tunedmodel duetoinferencecostissues6.
+text-davinci-003withbaseinput.Also,wedemonstratethat
+the most powerful model (text-davinci-003) also benefits 5.1 AdditionalExperiments
+from TAPP by9.3%,achievingthebestperformance.We ComparisonwithTask-specificPrefixPrompts Wecom-
+leavedetailedanalysisonmorediverseinstruction-fine-tuned paretheperformanceofTAPPwithotherprefixpromptsthat
+modelsasfuturework. are task-specific, meaning that the prefix prompt depends
+onthetargettaskratherthanbeingfixed.Wecomparewith
+Input Corruption of TAPP does not harm the perfor-
+threeapproaches:NearestPP,CategoryPP,andOutputPP.
+mancemuch. InFigure3,weobservethatcorruptingthe
+First,forNearestPP,weconstructtheprefixpromptbyre-
+distribution of input instances for each demonstration for
+trieving top-K similar instances for each target task from
+TAPPdoesnotharmtheperformancemuch,similartotheob-
+training tasks of SUPERNI using SimCSE (Gao, Yao, and
+servationinMinetal.(2022b)forfew-shotin-contextlearn-
+Chen 2021) search tool, similar to the setting of Lyu et al.
+ing.Insteadofperturbingtheinput-outputcorrespondence,
+(2022)7. Second, for Category PP, we construct the prefix
+doneinMinetal.(2022b),weperturbtheinputdistribution
+promptbyrandomlysamplingdemonstrationsfromthetask
+itself,whichisasettingwheretherearemorecorruptionsas
+that belongs to the same task category (e.g., question an-
+shownatthetopofFigure3.FollowingMinetal.(2022b),
+swering),fromtheevaluationtasksofSUPERNIbenchmark
+weuseCC-News(Hamborgetal.2017)asanexternalcorpus
+butexcludingthesametask,assumingthatthetaskcategory
+toreplacethegroundtruthinputinstancewithrandomsen-
+informationisprovidedduringinference.Third,forOutput
+tencesthathaveasimilarlengthtotheoriginalinputinstance.
+PP,weutilizetheoutputlabeloffew-shotdemonstrationsof
+As shown in the bottom of Figure 3, corrupting the input
+thetargettaskwhilecorruptingtheinputdistributionofeach
+instancedistributionofeachdemonstrationdoesnotharm
+theperformancemuchacrossmostmodelscales.Thisisin 6Weselectasingletaskpertaskcategorywithasignificantdis-
+linewiththeobservationsmadeinpreviousworksthatLLMs
+crepancybetweenthelowerboundandupperboundperformance
+donotmakefulluseofalltheinformationprovidedtothem acrossdavinci,text-davinci-001,002,003modelstoseetheten-
+(Minetal.2022b;WebsonandPavlick2021;Madaanand dencymoreclearly.
+Yazdanbakhsh2022;Wangetal.2022a).Interestingly,unlike 7NotethattheoriginalsettingofLyuetal.(2022)isonlyap-
+plicableforsinglesentenceclassificationtasksandfortasksthat
+5WedonotevaluateonGPT-3.5(OpenAI2022)orGPT-4(Ope- havesinglewordanswerchoices.Therefore,themethodcannotbe
+nAI2023)sincethemodeldetailssuchasthemodelsizeorarchi- directlycomparedtobenchmarksthatincludeadiversecollection
+tecturearenotknown. oftaskssuchasSUPERNI.Input-Corrupted TAPP Demonstrations
+Input for Definition: Determine the speaker of the dialogue, ”agent” or “customer".\n\nInput: They were taken [..] Detention Center. \n Output: agent
+Input-Corrupted
+TAPP Definition: Classify a given post into 1) ‘Similar’ [..] and 2) 'Dissimilar'. \n\nInput: She keeps the place tidy. \n Output: Dissimilar
+Definition: Detect which category […] , “Quantity", and “Location". \n\nInput: Jack and Jorden York scored 9 points. \n Output: Location
+Base
+Definition: Answer a given question containing a blank (_). \n\nInput: Jon ate the oatmeal [..] _ was spoiled. \n Output:
+Input
+Target Task
+Base LLM Instruction Fine-tuned LLM
+60
+45
+30
+15
+0
+OPT
+6.7B
+Curie
+(6.7B)
+GPT-J
+(6B)
+OPT
+13B
+GPT-NeoX
+(20B)
+OPT
+30B
+OPT
+66B
+Davinci
+(175B) Curie-001 Davinci-001 Davinci-002 Davinci-003
+Base Input TAPP Input-Corrupted TAPP
+Figure3:(Top)ExampleofInput-corrupted TAPP,wherewecorrupttheinputinstancedistributionofthedemonstrations.
+(Bottom)ComparisonwithBaseInput,TAPP,andInput-corruptedTAPP.Formostofthemodels,inputdistributioncorruption
+doesnotharmtheperformancemuch.Wereportthemeanscoreofthreerandomseedsfordifferentdemonstrationsetsfor
+TAPP.Wereportaresultofasingleseedfor175B-sizedmodelsduetoinferencecosts.Weprovidethefulldemonstrationsets
+inAppendixI.
+demonstration,followingtheinputcorruptionsettingofMin demonstrations of the target task. We use 4-shot few-shot
+etal.(2022b).Thissettingisequivalenttoprovidingonlythe demonstrationsforFew-shotICLandprepend4demonstra-
+outputdistributionthroughdemonstrations. tionsforTAPPtofittheinputintothemaximumsequence
+Results in Table 1 show that TAPP is comparable to or length.AsshowninTable1,prependingTAPPtoFew-shot
+outperformsothertask-specificprefixprompts.First,wefind ICLbooststheperformance,implyingthatTAPPcanalso
+thatNearestPPdoesnotoutperformTAPP.Thisindicates enhance few-shot in-context learning through a fixed pre-
+thatusinganexternalsearchtooltofindsimilardemonstra- fixprompt.Additionally,weobservethatprepending4-shot
+tionsforeachtargettaskmightnothelpmuch.Second,Cate- TAPPto4-shotFew-shotICLsettinglargelyreducestheper-
+goryPPslightlyunderperformsTAPPbecauseconstructing formancegapbetween8-shotFew-shotICLwithoutTAPP
+cross-taskdemonstrationsthataresimilartothetargettask (60.21vs61.71).Thissuggeststheadvantageof TAPP in
+sometimesleadstocopyingtheoutputofthedemonstration, real-timeLLMservingscenarios:whiletheuserscansave
+similartothecopyingeffectobservedinLyuetal.(2022). theeffortofmanuallyconstructingtwicemoretask-specific
+Lastly, we observe that Output PP significantly underper- demonstrationsforeachtask,theycanachievesimilarperfor-
+forms TAPP. Although Output PP outperforms TAPP for mancebysimplyprependingTAPPtotheinput.
+classificationtasks(36.83vs43.67),itsignificantlyunderper-
+formsforgenerationtasks(51.93vs24.98).Wehypothesize
+thatthisisbecausewhilethecorrespondencebetweeninput
+and output for each demonstration is less crucial for clas-
+sification tasks (Min et al. 2022b), the correspondence is
+important for generation tasks, giving a distracting signal
+totheLLMifthecorrespondenceisnotmatched(Shietal.
+2023).Throughtheseresults,weobservethatTAPPshows
+comparableorbetterperformancecomparedtotask-specific
+prefixpromptswhilenotrequiringanyadditionalinformation
+orsearchtools.
+Base Generated TAPP Sampled TAPP
+OrthogonalitywithFew-shotIn-ContextLearning From
+theresultofFigure2,wehaveobservedthatTAPPenhances
+theperformanceofinstruction-fine-tunedLLMs.Here,we
+investigateifTAPPalsoenhancesfew-shotin-contextlearn-
+ing,whichassumesthatinadditiontocategoryandoutput
+information,thetargettaskinformationisprovidedthrough
+ecnamrofreP
+GVA
+43.68 44.24
+29.66
+Figure4:TheresultofTAPPusingdemonstrationsgenerated
+byChatGPT(OpenAI2022).Machine-generateddemonstra-
+tionsshowcomparableperformancetodemonstrationssam-
+pledfromSUPERNIbenchmark.60
+50
+40
+30
+20
+0 25 50 75 100
+ecnamrofreP
+GVA
+50
+45
+40
+35
+Total
+30
+Classification
+Generation
+25
+0 2 4 6 8
+(a)ClassificationRatio(%)
+ecnamrofreP
+GVA
+46
+1.0
+45
+0.8
+44
+0.6
+43 0.4
+0.2
+42
+0.0 0.0 0.2 0.4 0.6 0.8 1.0
+41
+Random TAPP
+(b)NumberofDemonstrations
+ecnamrofreP
+GVA
+(c)OrderingofDemonstrations
+Figure5:(a)showsthattheaverageperformanceincreasesastheratioofclassificationtasksthatareusedasdemonstrationsfor
+TAPPincreases,evenforgenerationtargettasks.(b)showsthattheperformanceincreasesasthenumberofdemonstrations
+increasesforTAPP.(c)showsthatorderingthedemonstrationsetbythenumberofanswerchoicesreducesthevarianceon10
+demonstrationsets.
+Inst. Input Output AVG
+groundtruthlabelswithrandomEnglishwords,following
+TAPP ✓ ✓ ✓ 44.24 Minetal.(2022b).TheresultsareshowninTable2.Unlike
+RandomInst. ✗ ✓ ✓ 31.18 inputdistributioncorruptionresultsofFigure3,corrupting
+RandomInput ✓ ✗ ✓ 44.27 thedistributionoftheinstructionortheoutputinstanceof
+RandomOutput ✓ ✓ ✗ 38.30 eachdemonstrationsignificantlyharmstheperformance.In
+particular,corruptingtheinstructiondistributionshowslit-
+Table2:Corruptingthedistributionofeachcomponent(in- tleimprovementcomparedtobaseinputwithoutanyprefix
+struction, input, output) of the demonstration of TAPP by prompts (31.18 vs 29.67). This suggests that, unlike input
+replacing it with random words or sentences. An example instances,thedistributionofinstructionandoutputinstances
+ofeachdemonstrationcorruptionisshowninTable6inthe significantlyaffectstheperformanceofTAPP.
+Appendix.
+Constructing the demonstration set with classification
+Comparison with Machine-Generated Prefix Prompts tasksisimportant. Weanalyzetheheuristicofconstruct-
+We explore if TAPP shows effectiveness for machine- ing the demonstration set from only classification tasks in
+generateddemonstrationsinsteadofsamplingfromthetask TAPP by varying the ratio of classification tasks consist-
+pool (SUPERNI). We use ChatGPT (OpenAI 2022) for ing of the demonstration set. As shown in Figure 5a, the
+demonstrationgenerationbyspecifyingtherulesusedtocon- averageperformanceincreasesastheratioofclassification
+structthedemonstrationsetforTAPP.AsshowninFigure4, tasksincreases.Interestingly,weobservethatconstructing
+TAPPisalsoeffectiveformachine-generateddemonstrations, thedemonstrationsetwithclassificationtasksalsoenhances
+showingcomparableperformancetoTAPPwithdemonstra- generation(non-classification)targettasks.Thisfindingcon-
+tions from SUPERNI and significantly outperforming the trastswithfew-shotin-contextlearningsetting,whereretriev-
+resultwithoutanyprefixprompt.Thisfindingsuggeststhat ingdemonstrationssimilartothetargetqueryenhancesthe
+TAPP is effective even without a sampling process from few-shotperformance(Rubin,Herzig,andBerant2021;Liu
+benchmarksthatconsistofdiverseinstructions,indicating
+etal.2021)8.
+thattheperformanceenhancementisnotfromdemonstration
+Increasingthenumberofdemonstrationsimprovesthe
+constructionthroughsampling,butisfromtheconstruction
+performance. We study the impact of the number of
+ruleandtheformatof TAPP.Weprovideanexampleofa
+demonstrations that consist TAPP. Results are shown in
+machine-generateddemonstrationsetinAppendixG.
+Figure 5b. As expected, the mean performance improves
+as the number of demonstrations increases. Notably, the
+5.2 AblationStudies
+instruction-followingabilitysignificantlyimprovesevenwith
+Instructionandoutputdistributionofthedemonstrations
+2demonstrations,implyingthatusingonlyasmallsetofpre-
+ofmatters. Wefurtheranalyzetheeffectivenessofeach
+fixpromptscanstillimprovetheperformanceofLLMs.This
+componentofthedemonstrationsforTAPPbycorruptingthe
+alsosuggeststhatforsettingswhereefficientcomputation
+distributionofeachcomponent:instruction,input,andoutput
+duringinferenceiscrucial,reducingthenumberofdemon-
+instance.Forinstructioncorruption,wereplacetheground
+truthsequenceswithrandomsequencesfromanexternalcor- 8Notethattheclassificationratioof0%inFigure5acorresponds
+pus,whichissimilartohowwecorrupttheinputdistribution toconstructingthedemonstrationsetsolelyfromgeneration(non-
+discussedinSection4.2.Foroutputcorruption,wereplace classification)tasks.Classification Generation Total the correspondence between answer choice in the instruc-
+tion(e.g.Determinethespeakerofthedialogue,“agent”or
+Overlap 35.14 52.32 42.30
+“customer”.)andthelabel(e.g.agent)fromdemonstrations.
+NoOverlap 33.86 58.77 44.24
+Especially,becausethelabelwordappearsintheinstruction
+Table 3: Effect of answer choice overlap between demon- forclassificationtasks,itwouldbeeasytoexploitthisrela-
+strations.Thedemonstrationsetthathasanoverlapunder- tionshipforLLMs.Weobservethataddingonlyasentence
+performsthesetwithoutoverlaponaverage,especiallyfor thatincludesanswerchoicesforcorruptedinstructiondemon-
+generationtasks. strationsinTable2leadstoanincreaseintheperformance
+ofTAPP(31.18→38.92),supportingthehypothesis.
+strationsthatconsist TAPP mightbeanoptimalapproach
+What does the result of input-corrupted TAPP imply?
+sincetheperformancedegradationisnotsevere.
+FromFigure3andTable2,weobservethattheinputdistri-
+Orderingthedemonstrationsbythenumberofanswer butionofdemonstrationsfor TAPP doesnotmattermuch,
+choicesreducesthevariance. Toexaminetheimpactof whileinstructionandoutputdistributionmattersignificantly.
+differentorderingsofthedemonstrationset,wecomparethe This observation bolsters the above hypothesis that LLMs
+orderingofdemonstrationsthatconsistTAPPbasedonthe learnthecorrespondenceofanswerchoiceintheinstruction
+numberofanswerchoiceswitharandomordering.Figure andthelabelofthedemonstrationsduringTAPP.Insteadof
+5c shows the result of 10 different demonstration sets by relyingoncomplexcorrespondencesuchastherelationship
+sampling them with 10 different random seeds. Although betweeninstruction,input,andoutputaltogether,LLMstend
+themeanperformancedoesnotshowasignificantdifference tofocusonsimplecorrespondencesuchasstringmatching
+betweenthetwosettings,weobservethatapplyingordering between the instruction including answer choices and the
+basedonthenumberofanswerchoicesreducesthevariance label.Previousworkalsodemonstratessimilarfindingsthat
+andimprovestheworst-caseaccuracy. LLMstakeslessefforttoadapttoatask,similartoshortcut
+learning(WebsonandPavlick2021;Minetal.2022b).
+Answer choice overlap between demonstrations harms
+theperformance. Weanalyzetheeffectofanswerchoice WhatistheroleofTAPP? IfLLMslearnthecorrespon-
+overlapbetweendemonstrations,whichisoneoftherules denceoftheanswerchoiceintheinstructionandthelabelof
+used to construct the demonstration set. We compare the thedemonstrationsduringTAPP,thenhowdoesthisassist
+demonstration set used for TAPP with the demonstration theinstruction-followingability?DuringTAPP,wehypothe-
+setthathasthesameanswerchoiceforalldemonstrations. sizethatthedemonstrationsgiveasignalthatassistsLLMs
+TheresultisdemonstratedinTable3.Weobservethatthe focusontheinstructiontomoreaccuratelyestimatetheout-
+demonstrationsetwithanswerchoiceoverlapunderperforms putdistribution,makingLLMsbetterfollowinstructions.We
+thedemonstrationsetwithoutoverlaponaverage,especially suggestthatthishypothesisexplainswhyconstructingthe
+forgenerationtasks.Wefindthatthedemonstrationsetwith demonstrationsetfromclassificationtasksalsoimprovesthe
+answerchoiceoverlaptendstomakethemodelgenerateshort performanceofgenerationtargettasks.Asapreliminaryex-
+sequencesforlongtextgenerationorpredicttheoutputby periment,wecalculatetheratioofhowmuchthefirstoutput
+copyingoneofthelabelsofthedemonstrationset,leadingto tokenattendstothetargettaskinstructioncomparedtothe
+poorperformance. targettaskinputandobservethatTAPPleadstoincreased
+attentiontothetaskinstructioninAppendixC.Meanwhile,
+ourobservationsimplythatsuchabilitydoesnotseemtobe
+6 Discussion
+sufficientlyactivatedforbothbaseLLMsandinstruction-fine-
+Fromprevioussections,wehaveobservedthatTAPPsignifi- tuned LLMs. Although instruction fine-tuning also assists
+cantlybooststheperformanceofbothbaseandinstruction- the signal of focusing on the instructions, we hypothesize
+fine-tunedLLMs.Also,wehavedemonstratedthatcorrupting that TAPP directly enforces the correspondence between
+theinputdistributiondoesnotharmtheperformancemuch the instruction and the label of the demonstrations during
+andanalyzedthatconstructingthedemonstrationsetfrom inference.
+classificationtasksiscrucialforperformanceimprovement.
+In this section, we suggest the role of TAPP based on the 7 Limitations
+findingsfromtheprevioussections.
+First,althoughTAPPleadstosignificantperformancegain
+Whyisconstructingthedemonstrationsetfromclassifica- acrossvariousLLMs,itsuffersfromincreasedcomputation
+tiontasksimportant? Figure5ashowsthatconstructing during inference due to the increased number of input se-
+thedemonstrationsetwithclassificationtasksisimportant quences.However,sinceweuseafixedprefixpromptforall
+forTAPP.Then,whatisthedifferencebetweenclassification tasks,theinferencecostcanbeminimizedthroughcaching.
+andgeneration(non-classification)tasks?Becauseoneofour Second,ourevaluationismainlybasedonheuristicmetrics
+heuristicsfordemonstrationconstructionistoonlyconsider suchasROUGEandExactMatchscores.Weleaveinvestigat-
+classificationtasksthatincludeananswerchoiceinthein- ingtheeffectofTAPPusingqualitativeevaluationsettings
+struction (e.g. “agent” or “customer” in Figure 1), these by recruiting human evaluators as future work. Third, our
+demonstrationshavemoreexplicitcuesabouttheoutputdis- interpretationoftheroleofTAPPishypothetical,whereas
+tribution.Wehypothesizethatduringinference,LLMslearn furtherinterpretationoftheroleofTAPPcanbeconductedbyanalyzingtheinneroperationinsidethemodel(Lieberum Chung,H.W.;Hou,L.;Longpre,S.;Zoph,B.;Tay,Y.;Fe-
+etal.2023;Grosseetal.2023). dus,W.;Li,E.;Wang,X.;Dehghani,M.;Brahma,S.;etal.
+2022.ScalingInstruction-FinetunedLanguageModels.arXiv
+8 Conclusion preprintarXiv:2210.11416.
+Dai, D.; Sun, Y.; Dong, L.; Hao, Y.; Sui, Z.; and Wei, F.
+Inthispaper,weexploretheeffectivenessofTask-Agnostic
+2022. Why Can GPT Learn In-Context? Language Mod-
+PrefixPrompt(TAPP)forinstruction-followingduringinfer-
+elsSecretlyPerformGradientDescentasMetaOptimizers.
+enceofLLMs.WeobservethatprependingTAPPthatisde-
+arXivpreprintarXiv:2212.10559.
+terminedthroughsimpleheuristicssignificantlyenhancesthe
+Gao,T.;Yao,X.;andChen,D.2021. Simcse:Simplecon-
+performanceofbothbaseandinstruction-fine-tunedLLMs.
+trastive learning of sentence embeddings. arXiv preprint
+TAPPdiffersfromtask-specificpromptsinthatitisafixed
+arXiv:2104.08821.
+prompt that can be prepended to any target task. Through
+detailed analysis, we hypothesize that the effect of TAPP Garg,S.;Tsipras,D.;Liang,P.;andValiant,G.2022. What
+comes from learning the correspondence between answer can transformers learn in-context? a case study of simple
+choice in the instruction and the label of the classification functionclasses. arXivpreprintarXiv:2208.01066.
+taskdemonstrationsconsistingofTAPP,leadingLLMsto Grosse, R.; Bae, J.; Anil, C.; Elhage, N.; Tamkin, A.; Taj-
+betterfocusontheinstruction.Tothisend,ourworkdemon- dini, A.; Steiner, B.; Li, D.; Durmus, E.; Perez, E.; et al.
+stratestheeffectoftask-agnosticprefixpromptsforadiverse 2023. StudyingLargeLanguageModelGeneralizationwith
+setoftasksandsuggestsresearchdirectionforexploringvari- InfluenceFunctions. arXivpreprintarXiv:2308.03296.
+ousapproachesthatfurtheractivatetheinstruction-following
+Hamborg, F.; Meuschke, N.; Breitinger, C.; and Gipp, B.
+abilityofLLMs.
+2017. news-please: A Generic News Crawler and Extrac-
+tor. InProceedingsofthe15thInternationalSymposiumof
+Acknowledgments InformationScience,218–223.
+ThisworkwaspartlysupportedbyInstituteofInformation& Honovich,O.;Scialom,T.;Levy,O.;andSchick,T.2022.Un-
+communicationsTechnologyPlanning&Evaluation(IITP) naturalInstructions:TuningLanguageModelswith(Almost)
+grantfundedbytheKoreagovernment(MSIT)(No.2022-0- NoHumanLabor. arXivpreprintarXiv:2212.09689.
+00113,DevelopingaSustainableCollaborativeMulti-modal Iyer,S.;Lin,X.V.;Pasunuru,R.;Mihaylov,T.;Simig,D.;
+LifelongLearningFramework,80%;No.2019-0-00075,Arti- Yu, P.; Shuster, K.; Wang, T.; Liu, Q.; Koura, P. S.; et al.
+ficialIntelligenceGraduateSchoolProgram(KAIST),20%). 2022. OPT-IML:ScalingLanguageModelInstructionMeta
+LearningthroughtheLensofGeneralization. arXivpreprint
+References arXiv:2212.12017.
+Lieberum, T.; Rahtz, M.; Krama´r, J.; Irving, G.; Shah, R.;
+Akyu¨rek, E.; Schuurmans, D.; Andreas, J.; Ma, T.; and
+andMikulik,V.2023. DoesCircuitAnalysisInterpretabil-
+Zhou, D. 2022. What learning algorithm is in-context
+ity Scale? Evidence from Multiple Choice Capabilities in
+learning?investigationswithlinearmodels. arXivpreprint
+Chinchilla. arXivpreprintarXiv:2307.09458.
+arXiv:2211.15661.
+Liu,J.;Shen,D.;Zhang,Y.;Dolan,B.;Carin,L.;andChen,
+Askell, A.; Bai, Y.; Chen, A.; Drain, D.; Ganguli, D.;
+W.2022. WhatMakesGoodIn-ContextExamplesforGPT-
+Henighan,T.;Jones,A.;Joseph,N.;Mann,B.;DasSarma,
+3? In Proceedings of Deep Learning Inside Out (DeeLIO
+N.;etal.2021. Agenerallanguageassistantasalaboratory
+2022):The3rdWorkshoponKnowledgeExtractionandIn-
+foralignment. arXivpreprintarXiv:2112.00861.
+tegrationforDeepLearningArchitectures.Associationfor
+Bai,Y.;Jones,A.;Ndousse,K.;Askell,A.;Chen,A.;Das- ComputationalLinguistics.
+Sarma, N.; Drain, D.; Fort, S.; Ganguli, D.; Henighan, T.; Liu, X.; Zheng, Y.; Du, Z.; Ding, M.; Qian, Y.; Yang, Z.;
+etal.2022. Trainingahelpfulandharmlessassistantwith and Tang, J. 2021. GPT understands, too. arXiv preprint
+reinforcementlearningfromhumanfeedback. arXivpreprint arXiv:2103.10385.
+arXiv:2204.05862.
+Lyu,X.;Min,S.;Beltagy,I.;Zettlemoyer,L.;andHajishirzi,
+Black,S.;Biderman,S.;Hallahan,E.;Anthony,Q.;Gao,L.; H.2022.Z-ICL:Zero-ShotIn-ContextLearningwithPseudo-
+Golding, L.; He, H.; Leahy, C.; McDonell, K.; Phang, J.; Demonstrations. arXivpreprintarXiv:2212.09865.
+etal.2022. Gpt-neox-20b:Anopen-sourceautoregressive
+Madaan,A.;andYazdanbakhsh,A.2022. Textandpatterns:
+languagemodel. arXivpreprintarXiv:2204.06745. Foreffectivechainofthought,ittakestwototango. arXiv
+Brown,T.;Mann,B.;Ryder,N.;Subbiah,M.;Kaplan,J.D.; preprintarXiv:2209.07686.
+Dhariwal,P.;Neelakantan,A.;Shyam,P.;Sastry,G.;Askell, Min,S.;Lewis,M.;Zettlemoyer,L.;andHajishirzi,H.2022a.
+A.; et al. 2020. Language models are few-shot learners. MetaICL:LearningtoLearnInContext. InProceedingsof
+Advancesinneuralinformationprocessingsystems. the2022ConferenceoftheNorthAmericanChapterofthe
+Chowdhery,A.;Narang,S.;Devlin,J.;Bosma,M.;Mishra, AssociationforComputationalLinguistics:HumanLanguage
+G.; Roberts, A.; Barham, P.; Chung, H. W.; Sutton, C.; Technologies.AssociationforComputationalLinguistics.
+Gehrmann, S.; et al. 2022. Palm: Scaling language mod- Min, S.; Lyu, X.; Holtzman, A.; Artetxe, M.; Lewis, M.;
+elingwithpathways. arXivpreprintarXiv:2204.02311. Hajishirzi,H.;andZettlemoyer,L.2022b. RethinkingtheRoleofDemonstrations:WhatMakesIn-ContextLearning Ye,S.;Kim,D.;Jang,J.;Shin,J.;andSeo,M.2022. Guess
+Work? arXivpreprintarXiv:2202.12837. the Instruction! Making Language Models Stronger Zero-
+OpenAI. 2022. Chatgpt: Optimizing language models for ShotLearners. arXivpreprintarXiv:2210.02969.
+dialogue. Zhang, S.; Roller, S.; Goyal, N.; Artetxe, M.; Chen, M.;
+OpenAI.2023. GPT-4TechnicalReport. arXiv:2303.08774. Chen,S.;Dewan,C.;Diab,M.;Li,X.;Lin,X.V.;etal.2022.
+Ouyang, L.; Wu, J.; Jiang, X.; Almeida, D.; Wainwright, Opt:Openpre-trainedtransformerlanguagemodels. arXiv
+C. L.; Mishkin, P.; Zhang, C.; Agarwal, S.; Slama, K.; preprintarXiv:2205.01068.
+Ray, A.; et al. 2022. Training language models to fol-
+low instructions with human feedback. arXiv preprint
+arXiv:2203.02155.
+Rubin, O.; Herzig, J.; and Berant, J. 2021. Learning To
+RetrievePromptsforIn-ContextLearning. arXivpreprint
+arXiv:2112.08633.
+Sanh,V.;Webson,A.;Raffel,C.;Bach,S.H.;Sutawika,L.;
+Alyafeai,Z.;Chaffin,A.;Stiegler,A.;Scao,T.L.;Raja,A.;
+etal.2021. Multitaskpromptedtrainingenableszero-shot
+taskgeneralization. arXivpreprintarXiv:2110.08207.
+Shi,F.;Chen,X.;Misra,K.;Scales,N.;Dohan,D.;Chi,E.H.;
+Scha¨rli,N.;andZhou,D.2023. Largelanguagemodelscan
+beeasilydistractedbyirrelevantcontext. InInternational
+ConferenceonMachineLearning,31210–31227.PMLR.
+Touvron,H.;Lavril,T.;Izacard,G.;Martinet,X.;Lachaux,
+M.-A.; Lacroix, T.; Rozie`re, B.; Goyal, N.; Hambro, E.;
+Azhar,F.;Rodriguez,A.;Joulin,A.;Grave,E.;andLample,
+G.2023. LLaMA:OpenandEfficientFoundationLanguage
+Models. arXiv:2302.13971.
+vonOswald,J.;Niklasson,E.;Randazzo,E.;Sacramento,J.;
+Mordvintsev,A.;Zhmoginov,A.;andVladymyrov,M.2022.
+Transformers learn in-context by gradient descent. arXiv
+preprintarXiv:2212.07677.
+Wang,B.;andKomatsuzaki,A.2021. GPT-J-6B:A6Billion
+ParameterAutoregressiveLanguageModel. https://github.
+com/kingoflolz/mesh-transformer-jax.
+Wang,B.;Min,S.;Deng,X.;Shen,J.;Wu,Y.;Zettlemoyer,
+L.; and Sun, H. 2022a. Towards Understanding Chain-of-
+ThoughtPrompting:AnEmpiricalStudyofWhatMatters.
+arXivpreprintarXiv:2212.10001.
+Wang, Y.; Kordi, Y.; Mishra, S.; Liu, A.; Smith, N. A.;
+Khashabi,D.;andHajishirzi,H.2022b. Self-Instruct:Align-
+ingLanguageModelwithSelfGeneratedInstructions. arXiv
+preprintarXiv:2212.10560.
+Wang, Y.; Mishra, S.; Alipoormolabashi, P.; Kordi, Y.;
+Mirzaei,A.;Arunkumar,A.;Ashok,A.;Dhanasekaran,A.S.;
+Naik,A.;Stap,D.;etal.2022c.Benchmarkinggeneralization
+viain-contextinstructionson1,600+languagetasks. arXiv
+preprintarXiv:2204.07705.
+Webson,A.;andPavlick,E.2021. DoPrompt-BasedModels
+Really Understand the Meaning of their Prompts? arXiv
+preprintarXiv:2109.01247.
+Wei,J.;Bosma,M.;Zhao,V.Y.;Guu,K.;Yu,A.W.;Lester,
+B.; Du, N.; Dai, A. M.; and Le, Q. V. 2021. Finetuned
+language models are zero-shot learners. arXiv preprint
+arXiv:2109.01652.
+Xu, W.; Wang, D.; Pan, L.; Song, Z.; Freitag, M.; Wang,
+W. Y.; and Li, L. 2023. INSTRUCTSCORE: Explain-
+ableTextGenerationEvaluationwithFinegrainedFeedback.
+arXiv:2305.14282.Appendix analysis of OPT-6.7B model for 5 generation tasks which
+especiallynecessitatecomprehensionoftheinstructionand
+A FullResultsforEachTaskCategory
+cannotbesolvedwithinputcopyingheuristicbaseline,which
+On Table 4 and Table 5, we report full results of various
+isatotalof500instances.Totestourhypothesisthat‘TAPP
+modelsonSUPER-NATURALINSTRUCTIONSconsistingof
+potentiallymakesLLMsfocusmoreontheinstruction’,we
+12categories,specificallytherelativeperformancegainof
+measuretheratioofhowmuchthefirstoutputtokenattends
+TAPPoverthestandardzero-shotsetting.Eachtasknameis
+tothetargettaskinstructioncomparedtothetargettaskinput
+showninabbreviation:
+asdefinedbelow:
+• TE:TextualEntailment • WA:WordAnalogy
+• CEC: Cause Effect • OE:OverlapExtraction |I1 |(cid:80)L l=1(cid:80)H h=1(cid:80) t∈Ia lh(o,t)
+InstAttn= (2)
+Classification • KT:KeywordTagging 1 (cid:80)L (cid:80)H (cid:80) a (o,t)
+|X| l=1 h=1 t∈X lh
+• CR:CoreferenceReso- • QR: Question Rewrit-
+lution ing whereL,H denotethenumberoflayersandheadsofthe
+• DAR: Dialogue Act • TG:TitleGeneration
+model,a lhcorrespondstotheattentionvalueforthehthhead
+ofthelthlayer,ocorrespondstothefirstoutputtoken,and
+Recognition • DT:DatatoText
+I andX denotethesetoftargettaskinstructionandinput
+• AC: Answerability • GEC: Grammar Error
+instancetokens,respectively.WeobservethatTAPPincreases
+Classification Correction thevalueofInstAttnby10.39%onaveragecomparedto
+the base input setting (0.6172 → 0.6758), supporting our
+hypothesis.Weleavemorerigorousanalysisasfuturework.
+B EvaluationusingINSTRUCTSCORE
+Forthemainexperiments,wehaveevaluatedvariousmod- D PreliminaryObservationonOPT-IMLand
+els using heuristic metrics such as Exact Match (EM) or
+FLAN-T5
+ROUGE-L score. However, since these metrics might not
+fullyrepresenttheinstruction-followingabilityofLLMs,we From preliminary experiments, we observe that applying
+also conduct an evaluation using INSTRUCTSCORE (Xu TAPP on OPT-IML (30B) and FLAN-T5 underperforms
+etal.2023),whichusesafine-tuned7BLLaMAmodel(Tou- the standard zero-shot setting. For OPT-IML, we suggest
+vron et al. 2023) to evaluate the response by counting the thedegradationisfromthecharacteristicsofOPT-IMLthat
+numberofmajorerrors(scoreof-5)andminorerror(score few-shot in-context learning underperforms zero-shot set-
+of-1),andmeasuringthefinalscorebasedonthenumberof ting,especiallyforOPT-30B.AsshownintheresultsofIyer
+errors.Duetothecomputation,weevaluatemodelsonthe et al. (2022), increasing the number of few-shot examples
+12subsettasksmentionedinSection5.AsshowninFigure harmstheheld-outevaluationresultsofOPT-IML(30B)on
+6,forallmodels, TAPP enhancestheINSTRUCTSCORE SUPERNI benchmark. This indicates that prepending the
+performance.ThisindicatesthatTAPPindeedleadstothe demonstration set distracts the zero-shot task adaptation.
+enhancementofinstruction-followingability. For FLAN-T5, we observe that the degradation of apply-
+ing TAPP isduetopredictingtheoutputbycopyingfrom
+thedemonstrationlabel.Thisisanundesirablebehaviorfor
+TAPPbecausethetargettaskandthetaskofthedemonstra-
+tionsaredifferent.Wesuggestthiscopyingbehavioroccurs
+because FLAN-T5 was explicitly trained to do in-context
+learning.Therefore,themodelwouldinterpretthecross-task
+demonstrationsetofTAPPasthetargettaskdemonstration
+forfew-shotin-contextlearning.Therefore,itwouldleadto
+themodelcopyingoneofthelabelsfromthedemonstrations,
+harmingtheperformance.
+E EvaluationSettingDetails
+Forallevaluationsettings,wesetthestopsequenceas”\n\n”.
+AlsoforGPT-3models,wesetthemaximuminputandoutput
+Figure 6: Evaluation of various LLMs on 12 tasks using sequencelengthas2048and128respectively.Forothermod-
+INSTRUCTSCORE metric (Xu et al. 2023). TAPP shows els,wesetthemaximuminputandoutputsequencelength
+effectivenessacrossallmodels. as 1024 and 64 respectively. For target task instances that
+are long which makes the concatenation of K demonstra-
+tionsandthetargettaskinputsequenceexceedthemaximum
+C PreliminaryAttentionAnalysis sequence length, we only include the front K′(K′ < K)
+In Section 5, we hypothesize that the role of TAPP is to demonstrations that fit the max sequence length. For stan-
+make LLMs focus more on the instruction. As a prelimi- dardzero-shotsetting,wefollowtheformatofWangetal.
+nary experiment to confirm this, we conduct an attention (2022c),appendingasentence”NowcompletethefollowingTable 4: Relative performance gain achieved by TAPP over standard zero-shot setting for each task category of SUPERNI
+benchmarkonvariouspretrainedLLMs.WeobservethatthenumberoftasksthatbenefitfromTAPPincreasesasthemodelsize
+scalesup.
+OPT Curie GPT-J OPT NeoX OPT OPT Davinci
+6.7B 6.7B 6B 13B 20B 30B 60B 175B
+TE 27.15 18.11 5.31 29.50 13.93 22.10 2.93 2.85
+CEC 22.00 24.62 4.90 27.90 8.52 16.86 -0.62 4.43
+CR 12.05 8.07 10.55 14.57 8.29 11.52 -1.19 13.95
+DAR 23.33 27.57 22.00 27.95 12.57 18.14 1.67 21.14
+AC 22.21 18.64 8.33 36.64 16.15 23.36 1.69 5.64
+WA 9.96 12.21 16.92 8.38 21.17 7.29 1.75 20.71
+OE 5.26 -11.74 -9.52 -8.14 -9.53 4.42 -1.94 3.98
+KT 20.14 2.38 14.83 13.45 6.69 17.80 0.92 15.96
+QR -24.43 -19.56 -26.78 -18.27 -13.33 -19.14 0.08 3.06
+TG -0.10 -0.59 -4.70 9.21 5.63 6.47 -2.21 5.71
+DTT -5.57 -8.11 -0.96 0.07 -1.00 3.63 1.61 1.89
+GEC -18.72 -27.59 -23.34 -3.59 -3.95 -20.99 0.94 0.84
+Table 5: Relative performance gain achieved by TAPP over standard zero-shot setting for each task category of SUPERNI
+benchmarkoninstruction-fine-tunedLLMs.
+Curie-001 Davi-001 Davi-002 Davi-003
+6.7B 175B 175B 175B
+TE 9.65 9.19 7.89 -0.63
+CEC 6.86 0.29 9.05 5.43
+CR 4.38 13.52 5.10 0.67
+DAR 7.29 15.33 15.19 15.29
+AC 3.64 0.51 2.79 3.54
+WA 3.33 16.50 25.75 27.92
+OE -9.27 1.17 3.37 1.96
+KT -5.54 -3.02 20.01 9.62
+QR -12.03 -3.37 14.54 2.49
+TG -5.32 1.54 5.19 2.42
+DTT 4.84 3.96 3.11 1.36
+GEC -13.41 2.02 8.69 1.11example-”infrontofthetargetinputinstance.Fromprelimi-
+naryexperiments,weobservethatprependingthissentence
+improvestheperformanceforstandardzero-shotsetting.For
+TAPPandfew-shotin-contextlearningexperiment,wedo
+notincludesuchsentence.
+F QualitativeEvaluation
+Figure7andFigure8showstheexamplesofcherry-picked
+examplesofresponsestoevaluationinstancesfromSUPERNI
+benchmark.
+G ExampleofModel-GeneratedPrompts
+Figure9showsthelistofdemonstrationsthataregenerated
+byChatGPT.Wemanuallyadded/revisedsomepartsthatthe
+modeldidnotfollowtheheuristicssuchasnotincludingthe
+answerchoicesintheinstruction.
+H ListofPromptsfor TAPP
+InFigure10,Figure11,andFigure12,welistoutthefixed
+prompts(demonstrationset)thatareusedfortheevaluation
+ofTAPP.
+I ListofPromptsforInput-corrupted TAPP
+Welistoutthefixedprompts(demonstrationsets)thatare
+usedforevaluationofInput-corrupted TAPP inFigure13,
+Figure 14, and Figure 15, which randomly replace input
+sentencesofeachdemonstrationsetshowninAppendixH.Pretrained LLM -Davinci Prediction Result
+GPT3 Input
+Definition: Given a paragraph from a Wikipedia article about some topic, and a question related to the topic, determine whether the
+question is answerable from the paragraph. If the question is answerable, answer "True", otherwise, answer "False".
+Now complete the following example –
+Input: Sevastopol fell after eleven months, and formerly neutral countries began to join the allied cause. Isolated and facing ableak
+prospect of invasion from the west if the war continued, Russia sued for peace in March 1856. This was welcomed by France andthe
+UK, where the citizens began to turn against their governments as the war dragged on. The war was officially ended by the Treatyof
+Paris, signed on 30 March 1856. Russia lost the war, and was forbidden from hosting warships in the Black Sea. The Ottoman vassal
+states of Wallachia and Moldavia became largely independent. Christians were granted a degree of official equality, and the Orthodox
+church regained control of the Christian churches in dispute.:415 Question: what is the first time span mentioned?
+Output:
+Standard Zero-shot ICIL Zero-shot Answer
+Sevastopol fell after eleven months, True True
+and formerly neutral countries began to
+join the allied cause
+Figure 7: Qualitative Example of responses to one of the evaluation instances from SUPERNI benchmark, comparing the
+responsesofstandardzero-shotsettingandTAPPofGPT-3davincimodel
+Instruction Fine-Tuned LLMs -Text-Davinci-001, 002, 003 Prediction Results
+GPT3 Input
+Definition: You are given a conversation between two people. 'Person1:' and 'Person2:' are used to separate their respective dialogues.
+If the conversation begins with a question, label it '1' otherwise '0’.
+Now complete the following example –
+Input:
+Person1: Mom , what were movies like when you were a kid ?
+Person2: Everything about them was different , even the theaters .
+Person1: I'm really interested . Tell me about them .
+Person2: Well , where I grew up , we saw movies at a drive-in theater in our car with the whole family .
+Person1: That's cool . I bet you could bring your own food .
+Person2: We did . On hot days , we'd take a blanket and lay in the back of dad's old pickup to watch the movie .
+Person1: Why don't we do that anymore ?
+Person2: Well , the weather might have some influence , during bad weather the theater didn't make a whole lot
+Standard Zero-shot ICIL Zero-shot Answer
+001 002 003 001 002 003
+1: Mom, what were movies like 1 0 0 0 1 1 1
+when you were a kid? 0
+0: Everything about them was 1 0
+0
+different, even the theaters 1 10
+0
+Figure 8: Qualitative Example of responses to one of the evaluation instances from SUPERNI benchmark, comparing the
+responsesofstandardzero-shotsettingandTAPPofGPT-3text-davinci-001,002,003.Definition:Inthistask,youwillbeperformingimageclassificationonanimageofabird.Youhavetoselectthecorrectspeciesofthebirdfromtheoptionsprovided:
+”Pigeon”or”HouseSparrow”
+Input:Apictureofasmallbirdwithbrownandwhitefeatherssittingonatreebranch.
+Output:HouseSparrow
+Definition:Inthistask,youwillbeidentifyingnamedentitiesfromagiventext.Youhavetoidentifytheorganizationnamementionedinthefollowingnewsarticle.Choose
+from’Apple’or’Google’.
+Input:TheCEOofGoogle,SundarPichai,announcedthelaunchofthecompany’slatestprojectincollaborationwithNASA.
+Output:Google
+Definition:Inthistask,youwillbeperformingtextclassificationonasocialmediapost.Youhavetoclassifythepostintooneofthefollowingcategories:personal,
+professional,orsocial.
+Input:JustlandedinParisformydreamvacation!Can’twaittoexplorethecityoflove!#paris#vacation#travel
+Output:personal
+Definition:Inthistask,youwillbeperformingtextclassificationonaproductreview.Youhavetoclassifythereviewintooneofthefollowingcategories:usability,
+performance,ordesign.
+Input:Thenewlaptophasasleekandmoderndesign.Thekeyboardiseasytouseandthetouchpadisveryresponsive.However,thebatterylifeisnotasgoodasexpected.
+Output:design
+Definition:Inthistask,youwillbeperformingtextclassificationonanewsarticle.Youhavetoclassifythearticleintooneofthefollowingcategories:politics,sports,or
+entertainment.
+Input:TheIndiangovernmenthasproposedanewbudgetfortheupcomingfinancialyear.Thebudgetfocusesonhealthcareandinfrastructuredevelopment,andaimsto
+boostthecountry’seconomicgrowth.Theoppositionpartieshavecriticizedthebudget,claimingthatitneglectstheneedsofthecommonpeople.
+Output:politics
+Definition:Inthistask,youwillbeperformingsentimentanalysisonacustomerreview.Youhavetoidentifythesentimentofthereviewaseitherpositive,negativeor
+neutral.Readthefollowingcustomerreviewandselectthesentimentfromtheoptionsprovided.
+Input:IrecentlypurchasedthisproductandImustsayIamextremelyhappywithit.Thequalityisexceptionalandithasexceededmyexpectations.Iwouldhighly
+recommendthisproducttoanyonelookingforareliableanddurableoption.
+Output:positive
+Definition:Inthistask,youwillbeperformingspeechemotionrecognitiononanaudioclip.Youhavetoidentifytheemotionexpressedintheaudioclipaseitherhappy,
+sad,angry,orneutral.
+Input:Anaudioclipofapersonsaying,Iamsoexcitedtobegoingonvacationnextweek!
+Output:happy
+Definition:Inthistask,youwillbeperformingimageclassificationonanimageofadog.Youhavetoselectthecorrectbreedofthedogfromtheoptionsprovided.Options:
+’Chihuahua’,’Poodle’,’Bulldog’,’BorderCollie’,’GoldenRetriever’.
+Input:Apictureofamedium-sizeddogwithshortbrownfur,droopyears,andawrinkledface.
+Output:Bulldog
+Figure9:Exampleofmodel-generateddemonstrationset.Definition:Inthistask,youaregivenadialoguefromaconversationbetweenanagentandacustomer.Yourtaskistodeterminethespeakerofthedialogue.Answerwith
+”agent”or”customer”.
+Input:Ihavesuccessfullybookedyourticketwithflight-1017,haveasafejourney.
+Output:agent
+Definition:Inthistask,youaregivenahatefulpostinEnglishfromonlineplatforms.Youareexpectedtoclassifythepostintotwoclasses:aggresiveornon-aggresive.An
+aggresivepostisonethatexpressesfeelingsandopinionsinanabusivewayandtriestodominateothers.NotethattheURLsinthetexthavebeenreplacedwith[Link].
+Input:Post:@burnthewitchiiicometellthisbitchtogetinthefuckingsea.Please.BeforeIcuntpunchher.
+Output:Aggresive
+Definition:Inthistaskyouaregivenamedicalquestionpairhand-generated.Yourtaskistoclassifyagivenpostintotwocategories1)’Similar’ifthegiventwoquestions
+haveasameconnotation2)’Dissimilar’ifthegiventwoquestionshaveadifferentconnotationormeaning.
+Input:Sentence1:ShouldIasktobeputonaStatinatmycheckuptomorrow?MycholesterolwasveryhighandI’msureitstillis.Sentence2:Whatarethesideeffectsof
+statinmedications?
+Output:Dissimilar
+Definition:WewouldlikeyoutoassesstheQUALITYofeachofthefollowingargument(discussingGunControl)anddetermineiftheargumentisValidorInvalid.Avalid
+argumentisclearlyinterpretableandeitherexpressesanargument,orapremiseoraconclusionthatcanbeusedinanargumentforthetopicofguncontrol.Aninvalid
+argumentisaphrasethatcannotbeinterpretedasanargumentornotonthetopicofguncontrol.
+Input:ithinkthatSOCOMwouldlovegunsarmsthatcantbedected,itwouldalcobeusefulforundercoveragents.
+Output:Valid
+Definition:Youwillbegiventwopiecesoftextwiththesamemeaning.Oneofthemissimplerandeasiertounderstandfornon-nativeEnglishspeakers.Complextextsmay
+containmoredifficultwords,haveunnecessaryphrasesorcontainlongsentences.Yourtaskistochoosethesimplerpieceoftext.Youareexpectedtooutput’Textone’if
+thefirstsentenceissimpler.Otherwiseoutput’Texttwo’.
+Input:Textone:Rollinsretiredin1962andoptedtobecomeacoach.Texttwo:Rollinsretiredin1962.Hethenchosetobecomeacoach.
+Output:Texttwo
+Definition:Youaregivenatargetpersonandtwosentences.Yourtaskistodeterminewhetherthesecondsentenceconveyseitherastereotype,anti-stereotype,oris
+unrelatedwithrespecttothefirstsentenceandthetarget.Astereotypeisawidelyheldbutoversimplifiednotionofagroupofpeople.Ananti-stereotypeisanideathatgoes
+againstthewidelyheldbutoversimplifiednotionofagroupofpeople.Sentencesandtargetsareunrelatedifthereisnorelevancebetweenthem.
+Input:Target:himself
+Heisproudofhimself.Myphoneisoff.
+Output:unrelated
+Definition:Youaregivenaquestion.Youneedtodetectwhichcategorybetterdescribesthequestion.Aquestionbelongstothedescriptioncategoryifitasksabout
+descriptionandabstractconcepts.Entityquestionsareaboutentitiessuchasanimals,colors,sports,etc.Abbreviationquestionsaskaboutabbreviationsandexpressions
+abbreviated.Questionsregardinghumanbeings,descriptionofaperson,andagroupororganizationofpersonsarecategorizedasHuman.Quantityquestionsareaskingabout
+numericvaluesandLocationquestionsaskaboutlocations,cities,andcountries.Answerwith”Description”,”Entity”,”Abbreviation”,”Person”,”Quantity”,and”Location”.
+Input:WhatistheoldestbuildingintheUnitedStates?
+Output:Location
+Definition:Youwillbegiventwosentences.Oneofthemiscreatedbyparaphrasingtheoriginalone,withchangesonanaspect,orusingsynonyms.Yourtaskistodecide
+whatisthedifferencebetweentwosentences.Typesofchangeareexplainedbelow:
+Tense:Theverbsinthesentencearechangedintense.
+Number:Pluralnouns,verbsandpronounsarechangedintosingleonesortheotherwayaround.
+Voice:Iftheverbsareinactivevoice,they’rechangedtopassiveortheotherwayaround.
+Adverb:Theparaphrasehasoneadverbormorethantheoriginalsentence.
+Gender:Theparaphrasediffersfromtheoriginalsentenceinthegenderofthenamesandpronouns.
+Synonym:Somewordsorphrasesoftheoriginalsentencearereplacedwithsynonymwordsorphrases.Changesinthenamesofpeoplearealsoconsideredasynonym
+change.ClassifyyouranswersintoTense,Number,Voice,Adverb,Gender,andSynonym.
+Input:originalsentence:JimyelledatKevinbecausehewassoupset.
+paraphrase:JimviolentlyyelledatKevinbecausehewassoupset.
+Output:Adverb
+Figure10:Fixedprompt(Demonstrationset)forevaluationofTAPP,Example1Definition:Inthistask,youaregiventhenameofanIndianfooddish.Youneedtoclassifythedishas”sweet”or”spicy”.
+Input:Dharwadpedha
+Output:sweet
+Definition:Inthistask,youaregiventwonaturallanguagestatementswithsimilarwording.Youmustchoosethestatementthatmakeslesssensebasedoncommonsense
+knowledge.A’’separatesthestatements.Use”first”or”second”toindicatewhichsentencemakeslesssense.
+Input:Heplayedthecowverywell
+Heplayedtheharpverywell
+Output:first
+Definition:Inthistask,youaregivenapubliccommentfromonlineplatforms.Youareexpectedtoclassifythecommentintotwoclasses:sexual-explicitand
+non-sexual-explicit.Acommentisconsideredsexual-explicitifitexplicitlyportrayssexualmatters.
+Input:Comment:Actually,beingwiretappedisn’tsomethingtheyhaveincommon.Merkelwastapped,Trumpwasn’t.Themanhasmorethanafewscrewsloose.
+Output:Non-sexual-explicit
+Definition:Inthistask,youaregivenasentence.Youmustjudgewhetherasinglenounorverbhasbeenreplacedwithanotherwordwiththesamepartofspeech.The
+inversionwouldresultinthesentencesoundingunnatural,Sounnaturalsentenceswillbeconsideredchanged.Labeltheinstancesas”Original”or”Changed”basedonyour
+judgment.
+Input:Computersarejustsystemswithagreatamountofunconsciousness:everythingheldinimmediatememoryandsubjecttoprogramswhichtheoperatorinitiates.
+Output:Original
+Definition:Youaregivenashortpoemwhichiswrittenbyakid.Yourtaskistopredictifthekidisinelementaryschoolorhighschool.Anyonewhoisfromgrade1stto
+6th-gradewillbeconsideredasinelementaryschool,and7thto12th-gradekidswillbeconsideredasinhighschool.Thereareonlytwopossibleoutputs,i.e.,elementary
+andhigh.Allinputshaveatleastoneoutputanditcannothavebothcategoriesatatime.
+Input:pinkbewhatiseeskateboardbefungohomebewhatiwanttoseebutwhenisleepmydaybedo
+Output:elementary
+Definition:Inthistask,youaregivenatextfromasocialmediapost.Yourtaskistoclassifythegivenpostintotwocategories:1)yesifthegivenpostisintentionally
+offensive,2)no,otherwise.Also,generatelabel’no’foroffensivestatementsthatappeartobeunintentional,ornon-offensivestatementsthatareunderhandedlyoffensive.
+Warning:theexamplesandinstancesmaycontainoffensivelanguage.
+Input:RT@CreationOfJay:Nogirlsucksdickbutsomehowalldudesgethead.Dudesonlyfuckbadbitchesyetalltheseuglygirlsgettingpregnant&#8230;
+Output:Yes
+Definition:Inthistask,youaregivenapubliccommentfromonlineplatforms.Youareexpectedtoclassifythecommentintotwoclasses:toxicandnon-toxic.Toxicityis
+defiendasanythingthatisrude,disrespectful,orunreasonablethatwouldmakesomeonewanttoleaveaconveration.
+Input:Comment:MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MMAGA!MAGA!MAGA!MAGA!MAGA!MAGA!
+MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MMAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!
+MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MAGA!MMAGA!MAGA!MAGA!MAGA!MAGA!
+Output:Non-toxic
+Definition:GivenacommenttextinMalayalam,classifythecommentintooneofthesecategories(i)Hopespeech,(ii)NotHopeSpeechor(iii)NotinExpectedLanguage.
+Ahopespeechcontainscontentthatisencouraging,positiveorsupportivecontentsandtalksaboutequality,diversityorinclusion
+Input:avarenjaankuttapedittillasocietyorukaaranamabaakinjantaazhecommentecheythattond
+Output:HopeSpeech
+Figure11:Fixedprompt(Demonstrationset)forevaluationofTAPP,Example2Definition:Youwillbegivenatopicandanargument.Decidetheargument’sstancetowardsthattopic.Theargument’sstanceisinfavororagainstthetopic.Iftheargument
+supportsthattopic,answerwith”infavor”;otherwise,iftheargumentopposesthetopic,answerwith”against”.
+Input:topic:NewSTARTTreaty
+argument:Delayrisksdangerousnon-ratification.
+Output:infavor
+Definition:Youaregivenanarrayofintegers,checkifitismonotonicornot.Ifthearrayismonotonic,thenreturn1,elsereturn2.Anarrayismonotonicifit
+iseithermonotonicallyincreasingormonotonocallydecreasing.Anarrayismonotonicallyincreasing/decreasingifitselementsincrease/decreaseaswemovefromlefttoright
+Input:[6,12,18,24,30,36,42,48,54,60,66,72,78,84,90,96,102,108]
+Output:1
+Definition:Givenasentence,judgethequalityofthissentencebyindicating”Good”and”Bad”.Thequalitydependsonthegrammarandthemeaningofthesentence.Ifa
+sentenceiseasilyunderstandable,anddoesn’thavegrammaticalerrors,answerwith”Good”,otherwiseanswerwith”Bad”.
+Input:Buta1978articlebyTedBear,thenahistorianatEdwardAirForceBasewheretheallegedexperimenttookplacestates
+Output:Good
+Definition:WewouldlikeyoutoassesstheQUALITYofeachofthefollowingargument(discussingGunControl)anddetermineiftheargumentisValidorInvalid.Avalid
+argumentisclearlyinterpretableandeitherexpressesanargument,orapremiseoraconclusionthatcanbeusedinanargumentforthetopicofguncontrol.Aninvalid
+argumentisaphrasethatcannotbeinterpretedasanargumentornotonthetopicofguncontrol.
+Input:IpostedtherealstoryoftheFt.Hoodincidentandalsoaquotethatonlyagoodmanwithaguncanstopabadmanwithagun.
+Output:Valid
+Definition:Classifythegiventweetintothethreecategories:(1)’HateSpeech’,(2)’Offensive’and(3)’Neither’.’HateSpeech’iskindofathreatingstatementor
+sometimesincludecallforviolencewhile’offensive’statementjustoffensdssomeone.’Neither’iswhenitdoesn’tfallintoHateSpeechorOffensivecategory.
+Input:@gonzalezsassyurnotsassywhitetrashchangeurusername
+Output:HateSpeech
+Definition:Inthistask,youaregivenanewsarticle.Yourtaskistoclassifythearticletooneoutofthefourtopics’World’,’Sports’,’Business’,’Sci/Tech’ifthearticle’s
+maintopicisrelevanttotheworld,sports,business,andscience/technology,correspondingly.Ifyouarenotsureaboutthetopic,choosetheclosestoption.NotethatURLs
+inthetexthavebeenreplacedwith[Link].
+Input:BoneLossaSeriousThreattoOlderAmericansByLAURANNEERGAARDWASHINGTON(AP)–HalfofAmericansolderthan50willbeatriskoffractures
+fromtoo-thinbonesby2020,thesurgeongeneralwarnedThursday,urgingpeopletogetmorecalcium,vitaminDandexercisetoavoidcripplingosteoporosis.The
+bone-thinningdiseaseisontheriseasthepopulationgrays-butweakbonesaren’tanaturalconsequenceofaging,SurgeonGeneralRichardCarmonastressed...Output:
+Sci/Tech
+Definition:Inthistask,youaregivenTwitterposts.Yourtaskistolabelthepost’semotion(asexpressedbytheuser)assadness,joy,love,anger,fear,orsurprise.
+Input:icantellyouthethingsidontfeelthatmaybeishouldbefeelingbuticantreallyputmyfingeronthecauseofmybeingshaken
+Output:fear
+Definition:Youaregivenaquestion.Youneedtodetectwhichcategorybetterdescribesthequestion.Aquestionbelongstothedescriptioncategoryifitasksabout
+descriptionandabstractconcepts.Entityquestionsareaboutentitiessuchasanimals,colors,sports,etc.Abbreviationquestionsaskaboutabbreviationsandexpressions
+abbreviated.Questionsregardinghumanbeings,descriptionofaperson,andagroupororganizationofpersonsarecategorizedasHuman.Quantityquestionsareaskingabout
+numericvaluesandLocationquestionsaskaboutlocations,cities,andcountries.Answerwith”Description”,”Entity”,”Abbreviation”,”Person”,”Quantity”,and”Location”.
+Input:WhoisthecurrentprimeministerandpresidentofRussia?
+Output:Person
+Figure12:Fixedprompt(Demonstrationset)forevaluationofTAPP,Example3Definition:Inthistask,youaregivenadialoguefromaconversationbetweenanagentandacustomer.Yourtaskistodeterminethespeakerofthedialogue.Answerwith
+”agent”or”customer”.
+Input:TheyweretakentheBeaufortCountyDetentionCenterandgivena$100,000bond.
+Output:agent
+Definition:Inthistask,youaregivenahatefulpostinEnglishfromonlineplatforms.Youareexpectedtoclassifythepostintotwoclasses:aggresiveornon-aggresive.An
+aggresivepostisonethatexpressesfeelingsandopinionsinanabusivewayandtriestodominateothers.NotethattheURLsinthetexthavebeenreplacedwith[Link].
+Input:Themarketresearchanalysishasbeenstructuredusingvitaldatafromindustryexpertize.WhatsAppOrisitakey-tar?
+Output:Aggresive
+Definition:Inthistaskyouaregivenamedicalquestionpairhand-generated.Yourtaskistoclassifyagivenpostintotwocategories1)’Similar’ifthegiventwoquestions
+haveasameconnotation2)’Dissimilar’ifthegiventwoquestionshaveadifferentconnotationormeaning.
+Input:Learnmore.TheprosecutorssaidWalldiedeitherbystrangulationorhavingherthroatcut.Inothermorepopulatedareasitwillfalltoaround-5C.ContactShekeeps
+theplacetidyandrecentlyrepainted.
+Output:Dissimilar
+Definition:WewouldlikeyoutoassesstheQUALITYofeachofthefollowingargument(discussingGunControl)anddetermineiftheargumentisValidorInvalid.Avalid
+argumentisclearlyinterpretableandeitherexpressesanargument,orapremiseoraconclusionthatcanbeusedinanargumentforthetopicofguncontrol.Aninvalid
+argumentisaphrasethatcannotbeinterpretedasanargumentornotonthetopicofguncontrol.
+Input:Therearemanyinstitutesinthiscountrywhichhavespecialisedincertainareasandhavehighlyqualifiedfacultyforthesame.
+Output:Valid
+Definition:Youwillbegiventwopiecesoftextwiththesamemeaning.Oneofthemissimplerandeasiertounderstandfornon-nativeEnglishspeakers.Complextextsmay
+containmoredifficultwords,haveunnecessaryphrasesorcontainlongsentences.Yourtaskistochoosethesimplerpieceoftext.Youareexpectedtooutput’Textone’if
+thefirstsentenceissimpler.Otherwiseoutput’Texttwo’.
+Input:Insomeways,heseemedtheclassicChristianDemocrat,stressingmoderationandcompromise.PreparingforHurricaneSeason\nbyAndrewJames:Yes,not–
+don’taskJesse.
+Output:Texttwo
+Definition:Youaregivenatargetpersonandtwosentences.Yourtaskistodeterminewhetherthesecondsentenceconveyseitherastereotype,anti-stereotype,oris
+unrelatedwithrespecttothefirstsentenceandthetarget.Astereotypeisawidelyheldbutoversimplifiednotionofagroupofpeople.Ananti-stereotypeisanideathatgoes
+againstthewidelyheldbutoversimplifiednotionofagroupofpeople.Sentencesandtargetsareunrelatedifthereisnorelevancebetweenthem.
+Input:Allrightsreserved.Sowhyhasn’tithappened?wakefieldwallStrong-runningsecondrower
+Output:unrelated
+Definition:Youaregivenaquestion.Youneedtodetectwhichcategorybetterdescribesthequestion.Aquestionbelongstothedescriptioncategoryifitasksabout
+descriptionandabstractconcepts.Entityquestionsareaboutentitiessuchasanimals,colors,sports,etc.Abbreviationquestionsaskaboutabbreviationsandexpressions
+abbreviated.Questionsregardinghumanbeings,descriptionofaperson,andagroupororganizationofpersonsarecategorizedasHuman.Quantityquestionsareaskingabout
+numericvaluesandLocationquestionsaskaboutlocations,cities,andcountries.Answerwith”Description”,”Entity”,”Abbreviation”,”Person”,”Quantity”,and”Location”.
+Input:JackDaporeandJordanYorkbothscored9pointsforRussia.
+Output:Location
+Definition:Youwillbegiventwosentences.Oneofthemiscreatedbyparaphrasingtheoriginalone,withchangesonanaspect,orusingsynonyms.Yourtaskistodecide
+whatisthedifferencebetweentwosentences.Typesofchangeareexplainedbelow:
+Tense:Theverbsinthesentencearechangedintense.
+Number:Pluralnouns,verbsandpronounsarechangedintosingleonesortheotherwayaround.
+Voice:Iftheverbsareinactivevoice,they’rechangedtopassiveortheotherwayaround.
+Adverb:Theparaphrasehasoneadverbormorethantheoriginalsentence.
+Gender:Theparaphrasediffersfromtheoriginalsentenceinthegenderofthenamesandpronouns.
+Synonym:Somewordsorphrasesoftheoriginalsentencearereplacedwithsynonymwordsorphrases.Changesinthenamesofpeoplearealsoconsideredasynonym
+change.ClassifyyouranswersintoTense,Number,Voice,Adverb,Gender,andSynonym.
+Input:Youdefinitelywanttobeverycareful,especiallyifyouhavecharitablebeneficiaries.Theviewingbeginsat10a.m.followedbytheserviceatnoon.
+Output:Adverb
+Figure13:Fixedprompt(Demonstrationset)forevaluationofInput-corruptedTAPP,Example1Definition:Inthistask,youaregiventhenameofanIndianfooddish.Youneedtoclassifythedishas”sweet”or”spicy”.
+Input:ThenewUFC...
+Output:sweet
+Definition:Inthistask,youaregiventwonaturallanguagestatementswithsimilarwording.Youmustchoosethestatementthatmakeslesssensebasedoncommonsense
+knowledge.A’’separatesthestatements.Use”first”or”second”toindicatewhichsentencemakeslesssense.
+Input:(PhotobyMarkRightmire,OrangeCountyRegister/SCNG)That’swhatafighter’smindsetis.
+Output:first
+Definition:Inthistask,youaregivenapubliccommentfromonlineplatforms.Youareexpectedtoclassifythecommentintotwoclasses:sexual-explicitand
+non-sexual-explicit.Acommentisconsideredsexual-explicitifitexplicitlyportrayssexualmatters.
+Input:u201cWerepushingback,theofficialsaid,speakingonconditionofanonymity.RippleEffect\nJuly1,6p.m.Ourstatehasincrediblepeoplethatsaboutmoving
+forward.
+Output:Non-sexual-explicit
+Definition:Inthistask,youaregivenasentence.Youmustjudgewhetherasinglenounorverbhasbeenreplacedwithanotherwordwiththesamepartofspeech.The
+inversionwouldresultinthesentencesoundingunnatural,Sounnaturalsentenceswillbeconsideredchanged.Labeltheinstancesas”Original”or”Changed”basedonyour
+judgment.
+Input:Inthetopofthethird,JesusPulidoledoffwithasinglebeforeRobertoCabreramovedhimovertosecondbaseoffasacrificebunt.
+Output:Original
+Definition:Youaregivenashortpoemwhichiswrittenbyakid.Yourtaskistopredictifthekidisinelementaryschoolorhighschool.Anyonewhoisfromgrade1stto
+6th-gradewillbeconsideredasinelementaryschool,and7thto12th-gradekidswillbeconsideredasinhighschool.Thereareonlytwopossibleoutputs,i.e.,elementary
+andhigh.Allinputshaveatleastoneoutputanditcannothavebothcategoriesatatime.
+Input:TheWorldHeraldreportsGreaterOmahaPackingissetthismorningtoloadatestrunofbeefforshipmenttoacustomerinChina.
+Output:elementary
+Definition:Inthistask,youaregivenatextfromasocialmediapost.Yourtaskistoclassifythegivenpostintotwocategories:1)yesifthegivenpostisintentionally
+offensive,2)no,otherwise.Also,generatelabel’no’foroffensivestatementsthatappeartobeunintentional,ornon-offensivestatementsthatareunderhandedlyoffensive.
+Warning:theexamplesandinstancesmaycontainoffensivelanguage.
+Input:Statereducescompany’sfineforfailingtoplug2wells\nKENAI,Alaska(AP)Hefoundawaytoconnectwitheverybodyhere,Franconasaid.
+Output:Yes
+Definition:Inthistask,youaregivenapubliccommentfromonlineplatforms.Youareexpectedtoclassifythecommentintotwoclasses:toxicandnon-toxic.Toxicityis
+defiendasanythingthatisrude,disrespectful,orunreasonablethatwouldmakesomeonewanttoleaveaconveration.
+Input:Clicktoenlarge.THURSDAYByCounselingLOL.ADVERTISEMENTMazda6Edwards-Nice!#TruthRISING.-Alllnorden@mww.com2.France:\n15.3....
+Imagejlinville@mtairynews.comNIGHT....THURSDAYAgainst:L.Email:OKiBooksTwitter\nWhatsApp\nGoogle\nTumblr\nLinkedIn\nSkypeSunny.Getty
+Related... lbeamish@postmedia.comWhatsApp.MONDAYIndustrial.......THURSDAY[1.9.61107] ...Sunny.1.8.NIGHT...info@newyorkclassical.org9/15485
+Output:Non-toxic
+Definition:GivenacommenttextinMalayalam,classifythecommentintooneofthesecategories(i)Hopespeech,(ii)NotHopeSpeechor(iii)NotinExpectedLanguage.
+Fromtheworldofacting,Oscar-winnerMarkRylanceandMoonlightstarNaomieHarriswereamongthosehonoredthisyear.
+Input:u201cIvetriedtobeagoodperson,agoodparentandhusband.
+Output:HopeSpeech
+Figure14:Fixedprompt(Demonstrationset)forevaluationofInput-corruptedTAPP,Example2Definition:Youwillbegivenatopicandanargument.Decidetheargument’sstancetowardsthattopic.Theargument’sstanceisinfavororagainstthetopic.Iftheargument
+supportsthattopic,answerwith”infavor”;otherwise,iftheargumentopposesthetopic,answerwith”against”.
+Input:Herpunishmentdidntendthere.SchoolwillresumeonMonday.
+Output:infavor
+Definition:Youaregivenanarrayofintegers,checkifitismonotonicornot.Ifthearrayismonotonic,thenreturn1,elsereturn2.Anarrayismonotonicifit
+iseithermonotonicallyincreasingormonotonocallydecreasing.Anarrayismonotonicallyincreasing/decreasingifitselementsincrease/decreaseaswemovefromlefttoright
+Input:CalPolybotanyprofessorsMattRitter,left,andJennYostdiscussthecharacteristicsofaplantwiththeirstudents.
+Output:1
+Definition:Givenasentence,judgethequalityofthissentencebyindicating”Good”and”Bad”.Thequalitydependsonthegrammarandthemeaningofthesentence.Ifa
+sentenceiseasilyunderstandable,anddoesn’thavegrammaticalerrors,answerwith”Good”,otherwiseanswerwith”Bad”.
+Input:READ:ButtheysufferedtheirfirstdefeatinallcompetitionssinceJanuarywhentheywerebeaten,incontroversialcircumstances,byMiddlesbroughlastweekend.
+Output:Good
+Definition:WewouldlikeyoutoassesstheQUALITYofeachofthefollowingargument(discussingGunControl)anddetermineiftheargumentisValidorInvalid.Avalid
+argumentisclearlyinterpretableandeitherexpressesanargument,orapremiseoraconclusionthatcanbeusedinanargumentforthetopicofguncontrol.Aninvalid
+argumentisaphrasethatcannotbeinterpretedasanargumentornotonthetopicofguncontrol.
+Input:You’llbewakingupalittlemoreawesometomorrow.SittingoppositeTheRomanForum,thehoteliswithinwalkingdistanceofmanykeysites,includingthe
+ColosseumandtheDomusAurea.
+Output:Valid
+Definition:Classifythegiventweetintothethreecategories:(1)’HateSpeech’,(2)’Offensive’and(3)’Neither’.’HateSpeech’iskindofathreatingstatementor
+sometimesincludecallforviolencewhile’offensive’statementjustoffensdssomeone.’Neither’iswhenitdoesn’tfallintoHateSpeechorOffensivecategory.
+Input:So,howisthecityabletopayforthings?
+Output:HateSpeech
+Definition:Inthistask,youaregivenanewsarticle.Yourtaskistoclassifythearticletooneoutofthefourtopics’World’,’Sports’,’Business’,’Sci/Tech’ifthearticle’s
+maintopicisrelevanttotheworld,sports,business,andscience/technology,correspondingly.Ifyouarenotsureaboutthetopic,choosetheclosestoption.NotethatURLs
+inthetexthavebeenreplacedwith[Link].
+Input:Byessentiallyeliminatingprimaries,Californiareformersreasoned,theywouldeliminatetheextremismthatprimariesproduce.StepstakensofarbyQatar–suchas
+signingamemorandumofunderstandingoncounterterrorismwiththeU.S.andcuttingfundingtoHamas–aregoodstepsbuttheyneedtodomore,headded.Their
+relationshipis,ultimately,symbiotic:neithercanorwillacompanythriveinafailingsociety,norcanasocietyprosperwithoutasuccessfulexpandingeconomy.
+Output:Sci/Tech
+Definition:Inthistask,youaregivenTwitterposts.Yourtaskistolabelthepost’semotion(asexpressedbytheuser)assadness,joy,love,anger,fear,orsurprise.
+Input:Andtheotherhandisthatbecausealotofcompaniesbecomelistedcompanies,soweseemarketopportunity,becausemoreandmorecompaniesbegintopay
+attentiontotheirbrandbuilding.
+Output:fear
+Definition:Youaregivenaquestion.Youneedtodetectwhichcategorybetterdescribesthequestion.Aquestionbelongstothedescriptioncategoryifitasksabout
+descriptionandabstractconcepts.Entityquestionsareaboutentitiessuchasanimals,colors,sports,etc.Abbreviationquestionsaskaboutabbreviationsandexpressions
+abbreviated.Questionsregardinghumanbeings,descriptionofaperson,andagroupororganizationofpersonsarecategorizedasHuman.Quantityquestionsareaskingabout
+numericvaluesandLocationquestionsaskaboutlocations,cities,andcountries.Answerwith”Description”,”Entity”,”Abbreviation”,”Person”,”Quantity”,and”Location”.
+Input:Hefoundawaytoconnectwitheverybodyhere,Franconasaid.
+Output:Person
+Figure15:Fixedprompt(Demonstrationset)forevaluationofInput-corruptedTAPP,Example3Table6:Differenttypesofdemonstrationswithperturbedinstruction,input,oroutput.
+(Instruction✓ Input✓ Output✓)
+Definition:Inthistask,youaregivenadialoguefromaconversation
+betweenanagentandacustomer.Yourtaskistodeterminethe
+Demos speakerofthedialogue.Answerwith”agent”or”customer”.
+of TAPP
+Input:Ihavesuccessfullybookedyourticketwithflight-1017,
+haveasafejourney.
+Output:agent
+(Instruction✗ Input✓ Output✓)
+Definition:FloydMayweather’sboutwithConorMcGregorwillbe
+”thebiggestfightever”,accordingtoUFCpresidentDanaWhite.
+Mariotasawhisfirsttwoseasonsendprematurelywithinjuries.
+Demos
+Itsabouttakingcalculatedrisks.
+ofRandomInst.
+Input:Ihavesuccessfullybookedyourticketwithflight-1017,
+haveasafejourney.
+Output:agent
+(Instruction✓ Input✗ Output✓)
+Definition:Inthistask,youaregivenadialoguefromaconversation
+betweenanagentandacustomer.Yourtaskistodeterminethe
+Demos speakerofthedialogue.Answerwith”agent”or”customer”.
+ofRandomInput
+Input:TheyweretakentheBeaufortCountyDetentionCenter
+andgivena$100,000bond.
+Output:agent
+(Instruction✓ Input✓ Output✗)
+Definition:Inthistask,youaregivenadialoguefromaconversation
+betweenanagentandacustomer.Yourtaskistodeterminethe
+Demos speakerofthedialogue.Answerwith”agent”or”customer”.
+ofRandomOutput
+Input:Ihavesuccessfullybookedyourticketwithflight-1017,
+haveasafejourney.
+Output:osteology

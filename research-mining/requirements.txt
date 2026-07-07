@@ -1,0 +1,17 @@
+python-dateutil==2.8.2
+PyPDF2==3.0.1
+pydantic==1.10.12
+jsonschema==4.19.0
+# loosen numpy pin to allow compatible wheels across platforms and Python versions
+# prefer a broadly compatible range; CI can pin explicitly if needed
+numpy>=1.24,<2
+scikit-learn==1.4.2
+sentence-transformers==2.2.2  # optional, used for semantic clustering if available
+networkx==3.1  # for graph analysis and visualization
+matplotlib==3.7.2  # for graph plotting
+plotly==5.15.0  # for interactive visualizations
+spacy==3.7.0  # for advanced NLP analysis
+pytest==7.4.0
+pytest-cov==4.1.0
+neo4j==5.15.0  # for graph database backend
+pyyaml==6.0.1  # for configuration management

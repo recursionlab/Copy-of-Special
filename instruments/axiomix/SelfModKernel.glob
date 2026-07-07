@@ -1,0 +1,88 @@
+DIGEST ea4fcf5e8ad2091e1ef843d3a154b152
+FSelfModKernel
+R118:128 ProofSystem <> <> lib
+R146:159 MetaAxiomMonad <> <> lib
+rec 372:384 <> SelfModKernel
+proj 411:416 <> modify
+proj 445:466 <> consistency_preserving
+proj 541:547 <> guarded
+R391:401 ProofSystem <> ProofSystem rec
+binder 387:387 <> A:1
+R428:431 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R420:425 ProofSystem <> axioms proj
+R427:427 SelfModKernel <> A:1 var
+R432:437 ProofSystem <> axioms proj
+R439:439 SelfModKernel <> A:1 var
+binder 477:477 <> p:4
+R499:502 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R484:492 ProofSystem <> derivable proj
+R494:494 SelfModKernel <> A:1 var
+R496:496 SelfModKernel <> p:4 var
+R498:498 SelfModKernel <> p:4 var
+R503:511 ProofSystem <> derivable proj
+R513:513 SelfModKernel <> A:1 var
+R516:521 SelfModKernel <> modify:3 meth
+R523:523 SelfModKernel <> p:4 var
+R527:532 SelfModKernel <> modify:3 meth
+R534:534 SelfModKernel <> p:4 var
+binder 558:558 <> p:6
+R580:583 Coq.Init.Logic <> ::type_scope:x_'->'_x not
+R565:573 ProofSystem <> derivable proj
+R575:575 SelfModKernel <> A:1 var
+R577:577 SelfModKernel <> p:6 var
+R579:579 SelfModKernel <> p:6 var
+R584:592 ProofSystem <> derivable proj
+R594:594 SelfModKernel <> A:1 var
+R596:596 SelfModKernel <> p:6 var
+R599:604 SelfModKernel <> modify:3 meth
+R606:606 SelfModKernel <> p:6 var
+ax 889:904 <> distributive_law
+R922:932 ProofSystem <> ProofSystem rec
+binder 918:918 <> A:8
+R940:952 SelfModKernel <> SelfModKernel rec
+R954:954 SelfModKernel <> A:8 var
+binder 936:936 <> R:9
+R968:973 ProofSystem <> axioms proj
+R975:975 SelfModKernel <> A:8 var
+binder 962:962 <> p:10
+binder 964:964 <> q:11
+R983:987 ProofSystem <> rules proj
+R989:989 SelfModKernel <> A:8 var
+R991:991 SelfModKernel <> p:10 var
+R993:993 SelfModKernel <> q:11 var
+binder 979:979 <> H:12
+R999:1003 ProofSystem <> rules proj
+R1005:1005 SelfModKernel <> A:8 var
+R1009:1014 SelfModKernel <> modify proj
+R1016:1016 SelfModKernel <> A:8 var
+R1018:1018 SelfModKernel <> R:9 var
+R1020:1020 SelfModKernel <> p:10 var
+R1025:1030 SelfModKernel <> modify proj
+R1032:1032 SelfModKernel <> A:8 var
+R1034:1034 SelfModKernel <> R:9 var
+R1036:1036 SelfModKernel <> q:11 var
+ax 1047:1068 <> distributive_law_deriv
+R1086:1096 ProofSystem <> ProofSystem rec
+binder 1082:1082 <> A:14
+R1104:1116 SelfModKernel <> SelfModKernel rec
+R1118:1118 SelfModKernel <> A:14 var
+binder 1100:1100 <> R:15
+R1132:1137 ProofSystem <> axioms proj
+R1139:1139 SelfModKernel <> A:14 var
+binder 1126:1126 <> p:16
+binder 1128:1128 <> q:17
+R1147:1155 ProofSystem <> derivable proj
+R1157:1157 SelfModKernel <> A:14 var
+R1159:1159 SelfModKernel <> p:16 var
+R1161:1161 SelfModKernel <> q:17 var
+binder 1143:1143 <> H:18
+R1167:1175 ProofSystem <> derivable proj
+R1177:1177 SelfModKernel <> A:14 var
+R1181:1186 SelfModKernel <> modify proj
+R1188:1188 SelfModKernel <> A:14 var
+R1190:1190 SelfModKernel <> R:15 var
+R1192:1192 SelfModKernel <> p:16 var
+R1197:1202 SelfModKernel <> modify proj
+R1204:1204 SelfModKernel <> A:14 var
+R1206:1206 SelfModKernel <> R:15 var
+R1208:1208 SelfModKernel <> q:17 var

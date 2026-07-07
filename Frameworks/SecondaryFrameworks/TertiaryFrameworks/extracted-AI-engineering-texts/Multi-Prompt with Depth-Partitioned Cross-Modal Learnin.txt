@@ -1,0 +1,649 @@
+Multi-Prompt with Depth-Partitioned Cross-Modal Learning
+YingjieTian∗ YiqiWang
+tyj@ucas.ac.cn wangyiqi18@mails.ucas.edu.cn
+ResearchCenteronFictitiousEconomyandDataScience, SchoolofComputerScienceandTechnology,Universityof
+UniversityofChineseAcademyofSciences ChineseAcademyofSciences
+China Beijing,China
+XiandaGuo ZhengZhu
+xianda_guo@163.com zhengzhu@ieee.org
+Waytous PhiGentRobotics
+China China
+ABSTRACT Recentstudieshaveintroducedvarioussoftpromptlearningmeth-
+Inrecentyears,softpromptlearningmethodshavebeenproposed ods[43,44],whichconvertcontextualpromptwordsintolearn-
+tofine-tunelarge-scalevision-languagepretrained(VLP)models ablevectors,demonstratingimprovedeffectivenessandstability
+forvariousdownstreamtasks.Thesemethodstypicallycombine ondownstreamtaskscomparedtomanuallydesignedprompts.
+learnableprefixtokenswithclasstokensasinputsformodelswith
+frozenparameters.However,wearguethatthesemethodsoftenem- ImageNet
+ployuni-promptstodescribethediverseprefixesofclasses,which 73.65
+aresuboptimalinthattheyfailtopromptclasses’diverseattributes UCF101 81.2 97 Caltech101
+73.55
+orotherusefulenvironmentalinformation.Thisstudyintroduces 81.0
+96
+apartitionedmultimodalmulti-prompt(PMPO),atechniquethat 73.45
+extendsasoftpromptfromasingleprompttomultipleprompts.To Eurosat 88 86 80.8 95 96.62 OxfordPets
+avoidthetrivialsolution,wecreativelyproposetodividethedepths 84 82 80.6 73.35 94 96.58 96.6
+ofavisualencoderandconnectlearnablepromptstothepartitioned 96.56
+visualdepths,enablingdifferentpromptstocapturethehierarchical DTD 69.6 69.0 68.4 67 7.8 9.7 73.2 73.6 74 StanfordCars
+contextualinformationofvisualrepresentations.Furthermore,to 36.2 90.7583.4 74.4
+79.8
+maximizetheadvantagesofmulti-promptlearning,weincorporate 83.6
+priorinformationderivedfrommanuallydesignedtemplatesinto 79.9 36.6 91 83.8
+themulti-prompt,thusimprovingthegeneralizationabilityofour SUN397 80.0 37.0 91.25 84 Flowers102
+approach.Weevaluatetheeffectivenessofourapproachonthree
+Previous SOTA
+standardtasks:newclassgeneralization,cross-datasetevaluation, 37.4 91.5
+PMPO
+FGVCAircraft food101
+anddomaingeneralization.Forinstance,ourmethodachievesa
+79.28harmonicmeanaveragedover11diverseimagerecognition
+datasets(+7.62comparedtothatofCoOp),demonstratingsignifi-
+Figure1:PMPOoutperformspreviousstate-of-the-artmod-
+cantcompetitivenesscomparedtothestate-of-the-artprompting elson9outof11diverserecognitiondatasetsforthenew
+methods.ThecodeisavailableatPMPO. classesgeneralizationtask.
+Recently, some works have proven that ensembling multiple
+prefixtemplatescanimprovetheaccuracyofimageclassification.
+Forexample,thecombinationoftwoprefixtemplates,"[class]is
+1 INTRODUCTION
+ablackandwhitestripedanimal"and"[class]lookslikeahorse,"
+Inrecentyears,large-scalevision-languagepretrained(VLP)mod- caneffectivelyclassify"zebra,""donkey,"and"panda"betterthan
+elshaveexhibitedsignificantpotentialforvariousdownstream usingonlyoneofthem.However,lessworkhasexploredlearning
+tasksanddatasets[9,42–44].Utilizingcontrastivelearning,these withmultiplesoftprompts.Thisworkaddressesthelimitationsof
+modelsleveragemany text-imagepairs totrain textand image theexistingsoftpromptlearningtechniques.Standardprefix-based
+encoders[31];e.g.,400Mtext-imagepairsfromawebsitewere promptmethodslearnauni-promptprefix,whichisinsufficientfor
+usedtotrainthecontrastivelanguage-imagepretraining(CLIP) extractingimages’diversecharacteristics.Therefore,weexpand
+model.Aftercompletingpretraining,thetextencodertransforms theuni-prompttoamulti-prompttoobtainmorecomprehensive
+languageprompts(e.g.,"aphotoof[class]")intotextembeddings implicit vision representations. To learn a discriminative multi-
+andcalculatestheirsimilaritieswithvisualembeddingsforimage prompt,anaiveapproachentailsmatchingvisualembeddingswith
+classprediction. thecorrespondingmeanofmulti-promptclassembeddings(Figure
+Despitethebenefitsoflanguage-guidedsupervisionforexplor- 2:c).However,thisnaivemethodyieldstrivialsolutionsduetothe
+ingopen-setvisualconcepts,thesemodelsoftenexhibitsensitivity absenceofexplicitdifferentiatedtrainingstrategiesfordifferent
+tomanuallydesignedtemplatepromptsfordifferentdatasets[31]. promptsbecauseeachpromptismerelyalignedwithglobalvisual
+1
+4202
+rpA
+03
+]VC.sc[
+4v12260.5032:viXraarxiv,, YingjieTian,YiqiWang,XiandaGuo,andZhengZhu
+Image
+Prefix
+C
+（a) SinglePrompt (b) Multi-ModalPrompt (c) Multi-Prompt (d) PMPO
+C Class Names Prefix Learnable T Transformer Layers S Similarity P Prediction
++
+Image Image
+S P
+Text
+C
++
+Image
+Prefix
+S P
+Prefix
+Prefix
+Text
+C
++
+Image Image T T T
+Prefix
+S P
+Prefix
+Prefix Prefix
+Text
+C
++
+Various Prompt Learning PMPO
+Input: Benchmarks:
+Image
+Image ImageNet
+Prompt
+ClassNames Caltech101
+S P
+UCF101
+Text
+StanfordCars
+Hyperparameter:
+Number of Prompts Eurosat
+Length of Prompts
+Food101
+Depth of Tuning
+……
+Figure2:Graphicalillustrationofdifferentpromptlearningmethods.Theimageencoderandtextencoderarepre-trainedon
+large-scaleimage-textpairsandremainfrozenduringprompttuning.Thisfigureprovidesabriefcomparisonofsingle-prompt,
+multi-prompt,multi-modalprompt,andourproposedPMPOmethod.
+embeddings.Therefore,themulti-promptlearnsthesameinforma- intodifferentgroupsbasedontheirgoals,including(masked)lan-
+tionratherthandifferentinformationfromthegivenimages.To guagemodeling[23,39],image-textcontrastivelearning[14,15,31],
+overcomethisissue,weintroduceapartitionedmultimodalmulti- image-textmatching[1,23],andcombinedapproachesthatmerge
+prompt(PMPO),amultimodaltechniquethatpartitionsthedepths thepreviouslymentionedtechniques[21,22].MostVLPapproaches
+ofavisualencoderandconnectslearnablepromptstotheparti- employpretrainingstrategiesusinglarge-scaledatasetscontaining
+tionedvisualdepths.Thisenablesdifferentpromptstolearnthe image-textpairs.Forexample,theCLIPmodel[31]leverages400
+hierarchicalcontextualinformationoftheobservedvisualrepresen- millionimage-textpairsinitscontrastivelearningprocess.Conse-
+tations.InFigure3,wevisualizeScore-CAMresults[38]toelucidate quently,VLPmodelshavedemonstratedsignificantadvancements
+thekeymotivationofthePMPO.Thefigureclearlyshowsthatthe infew-shotvisualrecognitiontasks[9,31,42–44],highlighting
+PMPO’sdifferentpromptscanfocusondifferentinformationinthe theircapacitytoprovideimprovedopen-worldvisualcomprehen-
+images. sionthroughlanguagesupport.
+Weevaluateourmethodon11datasetscoveringdiversevisual PromptLearning:Promptlearningwasinitiallyexploredwithin
+recognitiontasks,includingbaseclass-to-newclassgeneralization, thefieldofnaturallanguageprocessing(NLP)[30].Recentstud-
+cross-datasetevaluation,anddomaingeneralizationsettings.The ieshavefoundthattheperformanceoflanguagemodelscanbe
+experimentalresultsinFigure1demonstratethatthePMPOsur- sensitive toinput prompts[24, 27], leadingto thedevelopment
+passestheexistingstate-of-the-artpromptlearningapproaches, of methods for improving prompt learning by using automatic
+achievingabsoluteaveragegainsintermsofboththebaseand promptsearches[24,33,34]andprompttuning[20].Insteadof
+newcategoriesandtheharmonicmean.Furthermore,thePMPO manuallycreatingprompts,Jiangetal.[17]usedtextminingand
+exhibitssuperiorgeneralizationcapabilitiesandrobustnessunder paraphrasingtogenerateagroupofpossibleprompts,choosing
+transferanddomaingeneralizationsettings.Insummary,thepri- thebestpromptsbasedontheirtrainingaccuracy.Shinetal.[35]
+marycontributionsofthisworkareasfollows. presentedAutoPrompt,anapproachthatusesgradientstofind
+Weproposeamulti-promptwithdepth-partitionedcross-modal themostinfluentialtokensinavocabulary.Concurrently,recent
+learningtoleveragelarge-scaleVLPmodelsandextractthediverse researchconcerningcontrastivelearning-basedvision-language
+characteristicsofeachinputimage. models(VLMs)[31]hassuggestedlearningvirtualtextaspartof
+Toavoidtrivialsolutions,suchaslearningthesameprompts thetextsutilizedduringtheinferenceprocess.
+inmulti-promptlearning,weintroducedepth-partitionedmulti- Recently,CoOp[44]anditsrelatedversionCoCoOp[43]have
+modaltechnology,whichbridgesthelearnablepromptsandvisual integratedpromptlearningintoopen-worldvisualunderstanding,
+contextualfeaturesatdifferentdepths. enablingknowledgetransferfromlarge-scaleVLPmodelsandsig-
+Weconductextensiveexperimentsonourproposedmethod,the nificantlyimprovingtheperformanceoffew-shotvisualrecognition
+PMPO,showcasingitsexceptionalperformanceacrossallfew-shot tasks.MapLe[18]employslearningacrossmultipletransformer
+recognitionsettings.Theseexperimentshighlightthecomprehen- blocksinboththevisionandlanguageareastoprogressivelyunder-
+sivecapabilitiesofthePMPO. standthecombinedbehaviorofbothmodalities.However,MapLeis
+auni-promptmethodandcannotprovideaninsightfulexplanation
+ofitsdesign.KgCoOp[41]booststhegeneralizationcapacityof
+2 RELATEDWORK
+learnablepromptsforunseenclasses,reducingthegapbetween
+VLPModels: VLPmodelsaimtoestablishcross-modalconnections
+learnableandhandcraftedprompts.ThePLOTmethod[3]isamulti-
+betweenthevisualandlanguagemodalitiesthroughcomprehen-
+promptlearningtechniquethatenhancespromptlearningbyusing
+sive pretraining [4, 21, 22]. Various pretraining objectives have
+theoptimaltransportdistance[26]tolearnmultiplelocalprompts,
+beenintroduced,whichallowthecategorizationofVLPmethods
+2Multi-PromptwithDepth-PartitionedCross-ModalLearning arxiv,,
+Partition
+goldfinch Prompt 1 Prompt 2 Prompt 3 Prompt 4
+Partition
+housefinch Prompt 1 Prompt 2 Prompt 3 Prompt 4
+Figure3:KeymotivationofPMPO.WevisualizetheScore-CAMresultsforeachpromptontwoImageNetsamples.Itisclear
+thatdifferentpromptsindeedfocusondistinctattributesoftheclasses.Thisobservationhighlightstheimportanceofcapturing
+diversecharacteristicsforeffectiverecognition,asitallowsthemodeltobetterunderstandvariousaspectsofeachclass,leading
+tomoreaccurateandrobustpredictions.
+achievingmoredetailedvision-languagematching.However,both lossfunctiontolearnajointembeddingspacebetweenimagesand
+oftheabovemethodsareuni-modal(onlythelanguageencoderof text.
+CLIPisused)approachesthatlackcross-modalconnections,which Givenaminibatchcontainingimage-textpairs,CLIPaimsto
+arecrucialforeffectivelyintegratingvisualandlanguageinforma- maximizethecosinesimilaritybetweeneachimageanditscorre-
+tion.Acomparisonbetweenthesetechniquesandourmethodis spondingtextwhileminimizingthecosinesimilaritiesbetween
+showninFigure2. theimageandallothernonmatchingtexts.Thisprocessissym-
+metricallyappliedtothetextaswell.Oncetrained,CLIPcanbe
+3 METHODS employedtocompletezero-shotimagerecognitiontasks.Forthe
+imageencoder,let𝑥 representtheimagefeatures.Regardingthe
+F coig du er se m4 us lth ipo lw es lea an rno av be lerv li ae nw guo af go eu pr rom me pth tso ud s. iT nh ge aP pM reP trO ainfi er dst tee xn t- textencoder,let{𝑤 𝑖} 𝑖𝐾 =1denoteasetofproducedweightvectors,
+eachofwhichrepresentsacategory.Specifically,each𝑤 𝑖originates
+encoder(withanoptionalmanuallydesignedprompt).Then,the
+fromaprompt,suchas"aphotoofa{class}",wherethe𝑖-thclass
+PMPOextractsvisualfeaturesusingapartitionedvisualencoder.
+namereplacesthe"{class}"token.Theprobabilitydistributionover
+Bydefault,thePMPOemploysViT-B[7]asitsvisualencoderand
+theclasslabelscanbeexpressedasfollows:
+partitionsitstransformerblocks.Foreachpartitionedtransformer
+block,thePMPOutilizesthedeepvisualprompttuning(D-VPT) 𝑃(𝑦|𝑥)=
+exp(𝑠𝑖𝑚(𝑥,𝑤 𝑖)/𝜏)
+(1)
+[16]approachwithvisualcontextpromptsprojectedfromthecor- (cid:205) 𝑖𝐾 =1exp(𝑠𝑖𝑚(𝑥,𝑤 𝑖)/𝜏)
+respondinglearnablelanguagepromptvialinearlayers.Thefinal
+Inthisequation,𝑠𝑖𝑚()indicatescosinesimilarity,and𝜏 referstoa
+predictioniscalculatedbycosinesimilarityusingthemeanofthe
+learnedtemperatureparameter.
+multi-promptembeddingsandvisualembeddings.Tobetterintro-
+PromptLearning:Tobetteradapttodownstreamtasks,CoOp
+ducetheproposedmethod,wefirstbrieflyreviewtheCLIPmodel
+[44]wasintroducedasanovelapproachthatreplacestheprevious
+[31],whichhasdemonstratedremarkableperformanceinvarious
+"aphotoofa"templatewith𝑀learnablecontextvectorsdenotedas
+tasks.Wethenintroducetheconceptsofmulti-promptlearningand
+partitionedmultimodalpromptlearningtoextendtheapplicability
+𝑝 = [𝑝 1,𝑝 2,...,𝑝 𝑀],whichhavethesamedimensionsasthecorre-
+spondingwordembeddings.Forthe𝑖-thclass,whichisrepresented
+ofCLIP-likemodels.
+as𝑐 𝑖,thepromptchangesto𝑡 𝑖 = {𝑝,𝑐 𝑖}.Here,𝑐 𝑖 representsthe
+wordembedding(s)fortherelevantclassname,and𝑝representsthe
+3.1 Preliminaries
+contextvectorssharedacrossallclasses(Figure2:a).Thetexten-
+RevisitingCLIP:CLIPconsistsoftwoprimarycomponents:an coder,denotedas𝑇(·),isusedtopredicttheprobabilityofaninput
+imageencoder(eitheraResNet[10]oraViT[7])andatexten- image𝑥 belongingtoaspecificclass𝑦.Thepredictionprobability
+coder(basedonthetransformerarchitecture).Theimageencoder’s isgivenby
+purposeistotransformtheinputimagesintofeatureembeddings,
+while the text encoder generates vectorized representations for 𝑃(𝑦|𝑥)=
+exp(𝑠𝑖𝑚(𝑥,𝑇(𝑡 𝑖))/𝜏)
+(2)
+wordtokensequences.Duringtraining,CLIPutilizesacontrastive (cid:205) 𝑖𝐾 =1exp(𝑠𝑖𝑚(𝑥,𝑇(𝑡 𝑖))/𝜏)
+3arxiv,, YingjieTian,YiqiWang,XiandaGuo,andZhengZhu
+“a photo of a ”
+[𝑃!#] [𝑃##] …[𝑃$#]
+[𝑃!"] [𝑃#"] … [𝑃$"]
+Text Encoder
+Multi Prompts: N
+PatchEmbed
+Transformer layer
+... Linear
+Transformer layer
+...
+[𝑃!!] [𝑃#!] …[𝑃$!]
++
+cat, dog, pig,
+fish, car…
+Linear
+Transformer layer
+... Linear
+ImageEncoder Partitioned Transformer Block
+PTB PTB PTB Bridge
+Connection
+Patch
+Embedding
+(Optional)
+S Learnable
+Prompt Token
+Frozen
+… S Similarity
+N-attribute feature
+embedding space Prompt N Patch Embedding
+Figure4:OverviewofthePMPOtrainingpipeline:PMPOisbasedonthefrozenCLIP.𝑁 learnableprefixpromptsestablish
+bridgeconnectionswithPartitionedTransformerBlocks(PTB)enablingmulti-promptstolearnhierarchicalcontextualvisual
+representations.WithinthePTB,DeepVisualPromptTuningisutilizedforextractingvisualembeddings.Furthermore,the
+ensembleofmulti-promptsiscomputedwithinthefeatureembeddingspace,enhancingtheoveralleffectivenessofthemodel.
+CoOpemploysacross-entropylossfunctionforimagerecogni- Depth-PartitionedCross-ModalLearning:Directlyusing
+tiontasksandupdatesitscontextvectorsduringtraining.Thebase multi-promptscanleadtotrivialsolutions,asthereisnoexplicit
+CLIPmodelremainsfrozenthroughoutthisprocess. guidetomaintainthediversityofmulti-prompts.Toaddressthis
+issue,weproposedepth-partitionedcross-modallearning.Weuse
+3.2 PMPO alinearprojection𝑓(·)foreachprompttomapittodifferentlevels
+oftheimageencoderblockstomakedifferentpromptsadaptto
+Multi-PromptLearning:Althoughtraditionalsoftpromptlearn-
+thedifferentlevelsofvisualrepresentationsproducedforanimage.
+inghasachievedimpressiveperformanceinclassificationtasks,
+Thisisaneffectivewaytomaintainpromptdiversity.
+itreliesonauni-prompttocharacterizethecontextsofclasses.
+InthecaseofCLIP,weassignthe𝑁 learnablepromptstovari-
+ToeffectivelycapitalizeonthefullextentoftheCLIP-pretrained
+knowledge,weintroduceasetofNtextprompts,denotedas𝑃′
+=
+oustransformerblocks.Wesetthedepthofthetransformerto𝐷,
+{𝑝𝑛|𝑛=1,...,𝑁}.Eachprompt,𝑃𝑛 = [𝑝𝑛,𝑝𝑛,...,𝑝𝑛 ],comprises andeachtextpromptisassignedto𝐷/𝑁 transformerlayers.We
+exclusivelytrainablecontexttokensderiv1 ed2 fromth𝑀
+etextencoder
+computeasequenceofvectors{𝑉 1,𝑉 2,...,𝑉 𝐷}usinglinearlayers
+module,with𝑀representingthelengthofthesetokens,whichex-
+𝑔withtextprompts{𝑝1,𝑝2,...,𝑝𝑁}asinputs:
+tendstheuni-promptfrom(𝑀,𝐶)to(𝑁,𝑀,𝐶),asshowninFigure 𝑉 1,𝑉 2,...,𝑉 𝐷 =𝑔(𝑝1,...,𝑝𝑁 ) (5)
+2:c.
+{𝑝𝑛T ,h
+𝑐
+𝑖e }m ,au rl eti- gp er no em rap tt es d,d be yno pt re ed peb ny d𝑡 i′ ng= t{ h𝑡 e𝑛| t𝑛 ex= t1 p, r. o. m., p𝑁 ts} 𝑃an ′d to𝑡 𝑖𝑛 th=
+e
+W use inth ge an su es te ot fh te rs ae nv se foct ro mrs erto lac yo em rspu
+𝐿
+𝑖te ,:aseriesofembeddings[𝑥 𝑖,𝐸 𝑖]
+𝑖-thtokenizedclassnames.Notably,allclassnamesconsistently [𝑥 𝑖,𝐸 𝑖] =𝐿 𝑖([𝑥 𝑖−1,𝑉 𝑖−1,𝐸 𝑖−1]), 𝑖 =1,2,...,𝐷 (6)
+sharetextprompts𝑃𝑛 .Here,𝑐 𝑖correspondstothewordembedding Here,𝑥 𝑖 istheembeddingforthe[𝐶𝐿𝑆]and𝐸 𝑖 denotesthevisual
+associatedwitheachclassname. embeddingtokens.[·,·]indicatesstackingandconcatenation,and
+Wecomputethemeanofthetextfeaturesintheembedding theresultingembedding[𝑥 𝑖,𝑉 𝑖,𝐸 𝑖]hasdimensionsof𝑅(1+𝑀+𝑚)×𝑑 .
+spacetoprocessthesemulti-prompts.Subsequently,theprediction Eachlayer𝐿 𝑖 inthenetworkcomprisesmultiheadedself-attention
+probabilityisdenotedbythefollowingequation: (MSA),feed-forwardnetworks(FFNs),layernormalization,and
+𝑃(𝑦|𝑥)=
+exp(cid:0)𝑠𝑖𝑚(𝑥,𝑇 𝑖∗/𝜏(cid:1)
+(3)
+r toes aid pu ra el dc ico tn en de cc lt ai so sn ps r. oW bae bm ilia tp yt dh ise trfi in bual til oa nye ur s’ is n[ g𝐶 E𝐿 q𝑆 u] ae tim onbe 3d ,d win hg ic𝑥
+h
+(cid:205) 𝑖𝐾 =1exp(cid:16) 𝑠𝑖𝑚(𝑥,𝑇 𝑖∗/𝜏(cid:17) canbereplacedbytheconditioned𝑥(𝑝1,𝑝2,...,𝑝𝑁):
+Utilizingmulti-prompts𝑇 o𝑖∗ ff= ern sm = a1e d.a . v.n N a( n𝑇 ta( g𝑡 𝑖𝑛 es)) overtheuni-prompta(4 p)
+-
+𝑃(𝑦|𝑥)= (cid:205) 𝑖𝐾e =x 1p ex(cid:16) p𝑠𝑖𝑚 (cid:16) 𝑠𝑖( 𝑚𝑥( (𝑝 𝑥1 (, 𝑝𝑝 12 ,𝑝.. 2. .𝑝 .𝑁 .𝑝) 𝑁,𝑇 )𝑖∗ ,𝑇/𝜏 𝑖∗(cid:17) /𝜏(cid:17) (7)
+proach,particularlyregardingtheirabilitytocapturediversevisual 𝑇 𝑖∗isthemeanoftheencodedtextembeddings. EnsemblingMan-
+representationsofanimage.Thisprovidesmorecomprehensive ualPrompts:Anotheradvantageofmulti-promptlearningliesin
+representationsandyieldsimprovedmodelperformance. itsabilitytoutilizemanuallycreatedpromptsaspriorinformation,
+4Multi-PromptwithDepth-PartitionedCross-ModalLearning arxiv,,
+Table1:Comparisonofourapproachwithstate-of-the-artmethodsinthebase-to-newgeneralizationsetting,utilizing𝑁 =4
+learnablepromptswithamanualprompt.Allresultsaretrainedon16-shotsamplesfromthebaseclasses,withtheVit-B/16
+backbonearchitecture.H:Harimonicmean
+(a)Averageover11datasets (b)ImageNet (c)Caltech101
+Base New H Base New H Base New H
+CLIP 69.34 74.22 71.70 CLIP 72.43 68.14 70.22 CLIP 96.84 94.00 95.40
+CoOp 82.69 63.22 71.66 CoOp 76.47 67.88 71.92 CoOp 98.00 89.81 93.73
+CoCoOp 80.47 71.69 75.83 CoCoOp 75.98 70.43 73.10 CoCoOp 97.96 93.81 95.84
+MaPLe 82.27 75.14 78.55 MaPLe 76.66 70.54 73.47 MaPLe 97.74 94.36 96.02
+KgCoOp 80.73 73.60 77.00 KgCoOp 75.83 69.96 72.78 KgCoOp 97.72 94.39 96.03
+PMPO 82.9175.95 79.27 PMPO 76.9470.55 73.60 PMPO 98.0493.34 95.63
+(d)OxfordPets (e)StanfordCars (f)Flowers102
+Base New H Base New H Base New H
+CLIP 91.17 97.26 94.12 CLIP 63.37 74.89 68.65 CLIP 72.08 77.80 74.83
+CoOp 94.24 96.66 95.43 CoOp 78.1260.40 68.13 CoOp 97.6059.67 74.06
+CoCoOp 95.20 97.69 96.43 CoCoOp 70.49 73.59 72.01 CoCoOp 94.87 71.75 81.71
+MaPLe 95.43 97.76 96.58 MaPLe 72.94 74.00 73.47 MaPLe 95.92 72.46 82.56
+KgCoOp 94.65 97.76 96.18 KgCoOp 71.76 75.04 73.36 KgCoOp 95.00 74.73 83.65
+PMPO 95.8497.37 96.60 PMPO 74.16 74.15 74.16 PMPO 97.12 73.85 83.89
+(g)Food101 (h)FGVCAircraft (i)SUN397
+Base New H Base New H Base New H
+CLIP 90.10 91.22 90.67 CLIP 27.19 36.29 31.09 CLIP 69.36 75.35 72.23
+CoOp 88.33 82.26 85.19 CoOp 40.4422.30 28.75 CoOp 80.60 65.89 72.51
+CoCoOp 90.70 91.29 90.99 CoCoOp 33.41 23.71 27.74 CoCoOp 79.74 76.86 78.27
+MaPLe 90.7192.05 91.38 MaPLe 37.44 35.61 36.50 MaPLe 80.82 78.70 79.75
+KgCoOp 90.05 91.70 91.09 KgCoOp 36.21 33.55 34.83 KgCoOp 80.29 76.53 78.36
+PMPO 90.58 91.86 91.22 PMPO 38.46 35.99 37.18 PMPO 81.5478.22 79.85
+(j)DTD (k)Eurosat (l)UCF101
+Base New H Base New H Base New H
+CLIP 53.24 59.90 56.37 CLIP 56.48 64.05 60.03 CLIP 7530. 77.50 73.85
+CoOp 79.44 41.18 54.24 CoOp 92.19 54.74 68.69 CoOp 84.69 56.05 67.46
+CoCoOp 77.01 56.00 64.16 CoCoOp 87.49 60.04 71.21 CoCoOp 82.33 73.45 77.64
+MaPLe 80.3659.18 68.16 MaPLe 94.07 73.23 82.35 MaPLe 83.00 78.66 80.77
+KgCoOp 77.55 54.99 64.35 KgCoOp 85.64 64.34 73.48 KgCoOp 82.89 76.67 79.65
+PMPO 80.21 60.95 69.27 PMPO 94.2481.85 87.41 PMPO 84.8577.64 81.09
+whichcanbecombinedwithmultiplelearnablepromptstogener- 4 EXPERIMENTS
+atethefinaltextfeatures.AsdetailedinCoCoOp[43],learnable Datasets:Inourstudy,wefocusontwoprimarysettings:base
+promptscanyieldimprovedclassificationperformanceforbase class-to-newclassgeneralizationandcross-datasettransfer.We
+classesbutmayoftenresultinoverfitting.Conversely,thevanilla utilize11imagerecognitiondatasetsfromZhouetal.[44],encom-
+CLIPmethod[31]typicallydemonstratessuperiorgeneralization passingawidearrayofrecognitiontasks.Thebenchmarksinclude
+capabilitieswhenemployingmanualprompts.Thus,ourframework ImageNet[6]andCaltech101[8]forgenericobjectclassification;
+canbenefitfrombothmanualandlearnablepromptsbyemploying OxfordPets[29],StanfordCars[19],Flowers102[28],Food101[2],
+thefollowingformulation: andFGVCAircraft[25]forfine-grainedclassification;SUN397[40]
+forscenerecognition;UCF101[36]foractionrecognition;DTD[5]
+fortextureclassification;andEuroSAT[11]forsatelliteimagery
+recognition.
+𝑇 𝑖∗=𝑚𝑒𝑎𝑛([𝑇(𝑡 𝑖1),𝑇(𝑡 𝑖2),...,𝑇(𝑡 𝑖𝑁 ),𝑇(𝑡 𝑖𝑝𝑟𝑖𝑜𝑟 )]) (8)
+5arxiv,, YingjieTian,YiqiWang,XiandaGuo,andZhengZhu
+Toconductdomaingeneralizationexperiments,weemployIma-
+84
+g de oN me at ia ns st hh ie fts so au src te hd ea tt aa rs ge et ta dn ad tf ao su er tsI :m Imag ae gN ee Nt ev ta Vri 2an [3ts 2]w ,i It mh ad gis et Nin ec tt
+- 82
+82.16 82.46 82.74 82.91 83 83.09 B Na es we
+H
+Sketch[37],ImageNet-A[13],andImageNet-R[12].Inlinewith 80
+79.07 79.27 79.13 79.01
+CoOp,werandomlysamplea16-shottrainingsetforeachdataset 78.14 78.11
+78
+andusetheoriginaltestsetforevaluationpurposes.Theresults
+areaveragedacrossthreerunsimplementedwithdifferentseeds. 76 75.69 75.95 75.6 75.48
+TrainingDetails:Inourexperiments,weemployViT-B/16[44] 74 74.49 74.21
+asthebackboneofCLIP.Weadoptafew-shottrainingstrategy
+72
+with16shotsrandomlysampledusingdifferentseeds.Forthebase 1 2 3 4 5 6
+class-to-newclassgeneralizationexperiment,wesetthenumberof Figure5:Ablationnumberofprompts
+promptsto4bydefault,thebridgedepthto12(consideringboth
+visiontransformerlayers),andthecontextualtokenlengthto10. abilitytogeneralizetonewclasses.Thisexceptionalperformance
+Regardingtheotherhyperparameters,wefollowCoOp’sconfig- demonstratesthePMPO’srobustcapabilitytoadapttodownstream
+urationandusethestochasticgradientdescent(SGD)optimizer tasksbasedonapretrainedCLIPmodel.Intheablationstudy(Sec-
+withaninitiallearningrateof0.002andabatchsizeof8with6 tion4.2),wewilldiscusstherelationshipbetweenincreasingthe
+epochsformostdatasets,exceptforImageNet,whichmaintains numberofpromptsandimprovingtheaccuracyachievedforthe
+alearningrateof0.01andabatchsizeof32.Thelearningrateis baseclasses.
+decayedusingcosineannealing,andtheoptimizerwarmsupwith GeneralizationtoNewClasses:Withimprovementsachieved
+a1e-5learningrate.Forthedomaintransferandcross-datasetex- forbaseclasses,thePMPOalsoexhibitsenhancedgeneralization
+periments,weadoptCoCoOp’ssettings,whichsuggestthatshorter tonewclassesintermsoftheaverageunseenaccuracyattained
+contextlengthsyieldbetterperformanceandstrongerrobustness acrossall11datasets.Specifically,CLIP,KgCoOp,MapLe,andthe
+todomainshift.Thus,wesetthetokenlengthto4,andthelearning PMPOachievethebestunseenaccuracyrateson2/11,3/11,3/11,
+rateissetto0.01with2epochs.Theotherparametersremainthe and3/11ofthedatasets,respectively.WhileCoOpoverfitsthebase
+sameasthoseusedinthebaseclass-to-newclassexperiments.All classes,CoCoOpimprovesitsgeneralizationabilitythroughcondi-
+experimentsareconductedon4NvidiaRTX3090GPUs.Forafair tionalimagecontextlearning,whileKgCoOpenhancesitsability
+comparison,alltheresultsareaveragedoverthreedifferentseeds. usingknowledge-guidedcontextoptimization.However,theyall
+underperformcomparedtoCLIPonthenewclasses.Incontrast,
+the PMPO surpasses CLIP on 7/11 datasets and demonstrates a
+4.1 GeneralizationFromBaseClassestoNew 1.73%averageimprovementacrossdatasetsforthenewclasses.
+Classes ThePMPOalsoperformsbetterintermsofgeneralizationthanthe
+WebuildupontheworkofCoOp[44]anddivideeachofthe11recog-
+previousbestmethod,MapLe(75.12%vs.75.95%),inthenewclass
+nitiondatasetsintotwoparts:baseclassesandnewclasses.Wetrain generalizationtask.Notably,thePMPOsignificantlyoutperforms
+thePMPOonthebaseclassesandevaluateitsperformanceonthe
+MapLeonEurosat[11],withanimpressive8.52%improvement.
+newclasses,comparingourmethodwithfivebaselines:CLIP[31], Whenconsideringthebaseandnewclasses,thePMPOachievesthe
+CoOp[44],CoCoOp[43],MapLe[18],andKgCoOp[41].Here,we bestharmonicmeanon9outof11datasetsandattainsthehighest
+provideabriefoverviewofthesefivebaselinemethods.CLIP[31] averageperformance,underliningitseffectivenessandrobustness
+utilizesamanuallydesignedtemplate,typicallyemploying"aphoto inadaptingtodiversetasks.
+of[cls]"asthetextencoderprompt.CoOp[44]replacestheman-
+4.2 AblationStudy
+uallydesignedpromptwithauni-learnableprompt.CoCoOp[43]
+incorporatesaconditioneduni-learnableprompt.MapLe[18]isa NumberofPrompts:Toanalyzetheimpactofthenumberof
+state-of-the-art approach that uses multimodal language-vision prompts,weconductexperimentson11datasets.Wecomparethe
+prompts.KgCoOp[41]leveragespriorinformationfromfixed,man- average base, new, and harmonic mean accuracy performances
+uallydesignedCLIPpromptstotrainlearnablepromptsviaknowl- ofdifferentmethods,asshowninFigure5.Allexperimentsare
+edgedistillation.Theresultsofourmethodandthebaselinesare conductedwithadepth𝐷 =12andalength𝐿=10whilevarying
+presentedinTable1. thenumberofpromptsfrom𝑁 =1to𝑁 =6.Afurtheranalysisof
+SignificantImprovementforBaseClasses:AsshowninTa- theresultsrevealsacontinuousimprovementinthebaseaccuracy
+ble1,ourproposedPMPOachievesthebestperformanceonthebase performance as the number of prompts increases (from 82.16%
+classesfor6outof11datasetsandthebestaverageperformance to83.09%),whichdemonstratestheenhancedfittingabilityofthe
+acrossthebaseclasseswhencomparedtothebaselinemethods. multi-promptstrategy.However,fornewclasses,thegeneralization
+Generally,achievinghigherperformanceonbaseclassescanresult performanceincreaseswhenthenumberofpromptsrangesfrom
+inoverfittingandreducedgeneralizabilitytonewclasses.Among 𝑁 =1to𝑁 =4.When𝑁 >4,thePMPObeginstooverfitthebase
+theexistingstate-of-the-artmethods,CoOpisthebest-performing classes,leadingtoadeclineintheperformanceachievedforunseen
+previouslydevelopedmethodonthebaseclasses,butittypicallyex- classes.Consideringbothbaseandnewclasses,𝑁 =4isclearlythe
+hibitsanoverfittingproblem,asarguedbyCoCoOp.However,the optimalsetting.
+PMPOsignificantlyoutperformsCoOpintermsoftheiraverages BridgeConnectionDepthsandContextLengths:InFigure.6,
+producedon11datasets(82.69%vs.82.91%)whileimprovingits weexaminetheimpactofvaryingthedepths,whichbridgethe
+6Multi-PromptwithDepth-PartitionedCross-ModalLearning arxiv,,
+Table2:ComparisonofPMPOwithothermethodsindomaingeneralizationsetting.
+Source Target
+Imagnet ImageNetV2 ImageNet-Sketch ImageNet-A ImageNet-R
+CLIP 66.73 60.83 46.15 47.77 73.96
+CoOp 71.51 64.20 47.99 49.71 75.21
+CoCoOp 71.02 64.07 48.75 50.63 76.18
+MaPLe 70.72 64.07 49.15 50.90 76.98
+KgCoOp 71.20 64.20 48.97 50.69 76.70
+PMPO 70.78 64.20 49.64 50.63 77.12
+84 84
+82.24 82.41 82.46 82.82 82.91 82.51 82.17 82.91 82.93 82.89 82.71
+82 82
+81.22
+80 78.33 78.77 78.63 78.83 79.28 80 78.57 78.48 79.07 78.61 78.88 78.78
+78 78
+77.27
+75.95
+76 74.77 75.44 75.15 75.22 76 74.99 75.32 75.57 74.72 75.24 75.29
+74 74
+73.23
+Base New H Base New H
+72 72
+4 6 8 10 12 6 8 10 12 14 16
+%ycaruccA %ycaruccA
+(a) Abaltionon Bridge Connection Encoder Depths (b) Abaltionon Context Length
+Figure6:Ablationthebridgeconnectiondepthsandcontextuallength,Theresultsaretheaverageof11datasets’accuracy
+Table3:Effectofensemblingthemanually-designedprompt Table 4: Ablation on alternative prompt learning design.
+onthebase-to-newgeneralizationon11datasets.𝑀means SS:Single-PromptwithSing-Modal,MS:Multi-Promptwith
+themanually-designedprompt.H:Harmonicmean. Sing-Modal,SM:Single-PromptwithMulti-Modal,H:Har-
+monicmean.
+Base New H
+Method Base New H
+datasets w/oM w/iM w/oM w/iM w/oM w/iM
+CoOp-SS 82.69 63.22 71.66
+Imagnet 77.11 76.94 70.45 70.55 73.62 73.60
+PMPO-MS 81.22 73.23 77.27
+Caltech101 98.34 98.04 93.27 93.24 95.74 95.63
+PMPO-SM 82.16 74.49 78.14
+OxfordPets 95.78 95.84 97.45 97.37 96.61 96.60
+StanfordCars 74.76 74.16 74.06 74.15 74.41 74.16 PMPO 82.91 75.95 79.27
+Flowers102 96.68 97.12 71.87 73.85 83.36 83.89
+Food101 90.52 90.58 91.50 91.80 91.00 91.22
+FGVCAircraft 38.14 38.46 34.95 35.99 36.47 37.18 andaharmonicmean(𝐻)of81.22%.Incontrast,thedefaultsetting
+SUN397 81.54 81.71 77.80 78.22 79.71 79.85 withdepthssetto12outperformsthevanillasettingby2.72%on
+DTD 81.33 80.21 59.54 60.95 68.75 69.27 thebaseclasses,2.01%onthenewclasses,and1.69%on𝐻.This
+EuroSAT 93.73 94.24 78.14 81.85 85.23 87.41
+improvementmightbeattributedtothevanillamodel’stendency
+UCF101 85.06 84.85 76.74 77.64 80.69 81.09
+to learn trivial solutions without comprehensive prompts. This
+Average 83.01 75.09 82.91 75.95 78.85 79.27 comparisondemonstratesthatourpartitionedcross-modaldesign
+significantlyenhancestheperformanceofmulti-promptlearning.
+EnsemblingManuallyDesignedPrompts:AsshowninFig-
+ure3,weevaluatethePMPOintwodifferentsettingsacross11
+textencoderpromptsandvisualencoderblocks.Forthisablation datasets:withoutensemblingthemanuallydesignedpromptand
+study,thenumberofprompts(𝑁)issetto4.Weobtainaunimodal withtheensemble(default).Intermsofresults,thesettingwith-
+multi-promptmodelwhenthedepthissetto0.Thisvanillamodel outmanuallydesignedpromptsachievesbetteraverageaccuracy
+directlymatchesthemulti-promptensemblewiththevisualfea- onthebaseclasses.However,thesettingwithmanuallydesigned
+tures,resultinginthelowestaverageperformanceacrossthe11 promptsdemonstratesstrongergeneralizationperformanceonthe
+datasets,withabaseaccuracyat73.23%,anewaccuracyat73.23%, newclasses(betteron10outof11datasetsthanthesettingwithout
+7arxiv,, YingjieTian,YiqiWang,XiandaGuo,andZhengZhu
+Table5:ComparisonofPMPOinthecross-datasettransfersettingwithotherstate-of-the-artmethods.Promptsaretrainedon
+ImageNetwith16-shotperclassesandappliedtothe10targetdatasets.Clearly,CoCoOpdemonstratesbettertransferability
+thanothermethods.
+Source Target
+tengamI
+101hcetlaC stePdrofxO
+sraCdrofnatS
+201srewolF
+101dooF tfarcriA 793NUS
+DTD
+TASoruE 101FCU egarevA
+CoOp 71.51 93.70 89.14 64.51 68.71 85.30 18.47 64.15 41.92 46.39 66.55 63.88
+CoCoOp 71.02 94.43 90.14 65.32 71.88 86.06 22.94 67.36 45.73 45.37 68.21 65.74
+MaPLe 70.72 93.53 90.49 65.57 72.23 86.20 24.74 67.01 46.49 48.06 68.69 66.30
+KgCoOp 70.66 93.92 89.83 65.41 70.01 86.36 22.51 66.16 46.35 46.04 68.60 65.51
+PMPO 70.78 93.67 90.09 65.64 72.82 86.55 25.10 67.54 46.38 49.28 68.46 66.94
+manualprompts).Therefore,wechoosethesettingwithmanually 4.3 Cross-DatasetTransferEvaluation
+designedpromptsasourdefaultconfiguration. InTable5,weassessthecross-datasettransfergeneralizationca-
+Number of Shots: We investigate the average performance pability of the PMPO by training the model on all 1000 classes
+achievedwithvariousK-shotsamplesacross11datasetsunderbase ofImageNet[6]andtestingitsperformanceon10otherdiverse
+class-to-new class settings, as shown in Figure 6. We sample K datasets.TheresultsindicatethatthePMPOoutperformstheother
+shotswithKsetto4,8,and16(default).Asthenumberofshots methodsin6outofthe10cross-datasetevaluationsettings,withthe
+increases,thePMPOconsistentlyperformsbetter,withthehar- highestaverageperformanceacrossall11datasets.Therangeofsu-
+monicmeanrisingfrom(75.59%to79.27%).ThePMPOachieves periorperformancevaries,froma0.18%improvement(onSUN397
+thebestresultsunderthe8-shotand16-shotsettings,withsuperior comparedwithCoCoOp)toa0.59%enhancement(onFlowers102
+scoresof76.93%vs.77.06%and78.55%vs.79.27%,respectively.For
+comparedwithMaPLe).Thesefindingsunderscorethecompeti-
+the16-shotsetting,thePMPOattainsstate-of-the-artperformance tivegeneralizationabilityofthePMPOapproach,highlightingits
+forboththebaseandnewclasses,aswellastheharmonicmean. adaptabilityacrossvariousdatasetsandsettings.
+However,thePMPO’sperformanceisslightlylowerinthe4-shot
+setting(75.59%vs.75.90%).ThiscanbeattributedtothePMPO’sre-
+quirementtolearnmoreprompts,andthelimitedlow-shotsamples 4.4 DomainGeneralization
+areinsufficientforeffectivelylearningdiscriminativeprompts. Domaingeneralizationaimstoassessthegeneralizationabilityof
+ComparisonwithAlternativeDesigns:InTable4,wepresent amodelbyevaluatingthetrainedmodelonatargetdataset.Given
+asimplecomparisonwithotherpromptingdesigns.SinceCoOp CLIP’srobustdomaingeneralizationperformance,wealsoevaluate
+isdefinedasauni-prompt,unimodalmethod,weintroducetwo thePMPO’sdomaingeneralizationabilitybyperformingprompt
+alternative methods: PMPO-MS, which uses multi-prompts (in- tuningonthefew-shotImageNetdatasetandtestingthePMPO
+cludingmanuallydesignedprompts)toreplacetheuni-learnable onImageNetV2,ImageNet-Sketch,ImageNet-A,andImageNet-R.
+promptandlacksabridgeconnectionbetweenthetextandimage Thesedatasetssharethesameclassesbuthavedifferentdatadistri-
+encoders,andPMPO-SM,whichfeaturesauni-promptwithvisual butionsthantheImageNetdomain.AsshowninTable2,although
+depth connections (one learnable prompt has connections with CoOpachievesthehighestperformanceontheImageNetsource
+12visualtransformerblocks).TheresultsshowthatbothPMPO- dataset,itsgeneralizabilitytoabroaderdomainisweakerthan
+MSandPMPO-SMunderperformcomparedtothemulti-prompt, thatofCoCoOp.MaPLeandKgCoOparealsocompetitivemethods,
+partitioned,cross-modalPMPOapproach. withMaPLeachievingthebestperformanceamongthecompetitors
+ModelComplexity:InTable7,wecomparethemodelcomplex- in3outof4domaingeneralizationsettings.However,thePMPO
+itiesofdifferentmethods.Weusethebestperformancesetting,with outperformsthesemethodson3targetdatasets.Thiscomparison
+4prompts,alengthof10,andadepthof12.BecausethePMPOisa confirmsthatthepartitionedmultimodalpromptsinthePMPO
+multi-promptframework,thetrainingparametersofthePMPOare exhibitbetterdomaingeneralizationcapabilities.
+significantlymorenumerousthanthoseoftheothermethods(4.72
+Mvs.2048forCoOp).Moreover,theinferencespeedisalsoslower
+5 LIMITATIONS
+thanthatofthebaselineCoOpmethod.Thissituationisatypi-
+calproblemfacedbymulti-promptlearningandwillbeexplored Although the PMPO demonstrates competitive performance, it
+infuturework.Notably,thetrainingeffectivenessissignificantly shouldbenotedthatpartitionedmulti-promptlearninghastwo
+improvedbecauseonly6epochsareneededcomparedtothe200 limitations.1)ThePMPOdemandsmoreGPUmemorythanuni-
+epochsrequiredbyCoOp. promptlearning.ThatisbecausethePMPOneedsmultipleforward
+passestothetextencoder.Thisbecomessignificantasthenumber
+8Multi-PromptwithDepth-PartitionedCross-ModalLearning arxiv,,
+Table6:Effectofnumberofshotsonthebase-to-newgeneralizationon11datasets.𝑀meansthemanually-designedprompt.
+H:Harmonicmean.
+Base New H
+datasets 4-shot 8-shot 16-shot 4-shot 8-shot 16-shot 4-shot 8-shot 16-shot
+CoOp 78.43 80.73 82.69 68.03 68.39 63.22 72.44 73.50 71.66
+CoCoOp 76.72 78.56 80.47 73.34 72.00 71.69 74.85 74.90 75.83
+MaPLe 76.71 79.12 82.27 72.86 74.74 75.14 74.70 76.93 78.55
+KgCoOp 79.92 78.36 80.73 73.11 73.89 73.60 75.90 76.60 77.00
+PMPO 78.34 80.25 82.91 73.05 74.11 75.95 75.59 77.06 79.27
+Table 7: Comparison of model complexity of different
+MojtabaSeyedhosseini,ChaoJia,BurcuKaragolAyan,CarlosRiquelme,Andreas
+promptlearningmethos.KgCoOpiscomparabletotheCoOp. Steiner,AneliaAngelova,XiaohuaZhai,NeilHoulsby,andRaduSoricut.Pali:A
+jointly-scaledmultilinguallanguage-imagemodel,2022.
+[5] MirceaCimpoi,SubhransuMaji,IasonasKokkinos,SammyMohamed,andAn-
+Method Params Params(%CLIP) FPS H dreaVedaldi.Describingtexturesinthewild.InProceedingsoftheIEEEconference
+oncomputervisionandpatternrecognition,pages3606–3613,2014.
+CoOp 2048 0.002 1353.0 71.66 [6] JiaDeng,WeiDong,RichardSocher,Li-JiaLi,KaiLi,andLiFei-Fei.Imagenet:
+Alarge-scalehierarchicalimagedatabase.In2009IEEEconferenceoncomputer
+CoCoOp 35360 0.03 15.1 75.83 visionandpatternrecognition,pages248–255.Ieee,2009.
+MaPLe 3.55M 2.85 1365.1 78.55 [7] AlexeyDosovitskiy,LucasBeyer,AlexanderKolesnikov,DirkWeissenborn,Xi-
+aohuaZhai,ThomasUnterthiner,MostafaDehghani,MatthiasMinderer,Georg
+PMPO 4.72M 3.79 1107.9 79.27 Heigold,SylvainGelly,etal.Animageisworth16x16words:Transformersfor
+imagerecognitionatscale.arXivpreprintarXiv:2010.11929,2020.
+[8] LiFei-Fei,RobFergus,andPietroPerona. Learninggenerativevisualmodels
+fromfewtrainingexamples:Anincrementalbayesianapproachtestedon101
+objectcategories.In2004conferenceoncomputervisionandpatternrecognition
+ofpromptsincreases.Thisresultsinlineargrowthinthecomputa- workshop,pages178–178.IEEE,2004.
+[9] PengGao,ShijieGeng,RenruiZhang,TeliMa,RongyaoFang,YongfengZhang,
+tionalcostforthetextencoderwithrespecttothenumberofclasses.
+HongshengLi,andYuQiao.Clip-adapter:Bettervision-languagemodelswith
+Futureresearchmayneedtoexploreclasssamplingstrategiesto featureadapters.arXivpreprintarXiv:2110.04544,2021.
+[10] KaimingHe,XiangyuZhang,ShaoqingRen,andJianSun.Deepresiduallearning
+mitigatethisissue.2)ThePMPOneedsmoreshotsfortrainingthan
+forimagerecognition.InProceedingsoftheIEEEconferenceoncomputervision
+theotherprompttuningmethods,asshowninTable6.Somedata andpatternrecognition,pages770–778,2016.
+argumentmethodsmayhelpmitigatethisissue. [11] PatrickHelber,BenjaminBischke,AndreasDengel,andDamianBorth.Eurosat:
+Anoveldatasetanddeeplearningbenchmarkforlanduseandlandcoverclassi-
+fication.IEEEJournalofSelectedTopicsinAppliedEarthObservationsandRemote
+6 CONCLUSION Sensing,12(7):2217–2226,2019.
+[12] DanHendrycks,StevenBasart,NormanMu,SauravKadavath,FrankWang,Evan
+Inthispaper,weintroducethePMPO,anovelapproachthatad- Dorundo,RahulDesai,TylerZhu,SamyakParajuli,MikeGuo,etal.Themany
+dressesthelimitationsofuni-promptlearninginlarge-scaleVLP facesofrobustness:Acriticalanalysisofout-of-distributiongeneralization.In
+ProceedingsoftheIEEE/CVFInternationalConferenceonComputerVision,pages
+models.Bypartitioningthedepthsofavisualencoderandconnect- 8340–8349,2021.
+inglearnablepromptswiththedividedvisualdepths,ourmethod [13] DanHendrycks,KevinZhao,StevenBasart,JacobSteinhardt,andDawnSong.
+Naturaladversarialexamples. InProceedingsoftheIEEE/CVFConferenceon
+enablesdifferentpromptstocapturethehierarchicalcontextual
+ComputerVisionandPatternRecognition,pages15262–15271,2021.
+depthsoftheobservedvisualrepresentations. [14] AashiJain,MandyGuo,KrishnaSrinivasan,TingChen,SnehaKudugunta,Chao
+Jia,YinfeiYang,andJasonBaldridge. Mural:multimodal,multitaskretrieval
+Throughextensiveexperimentsconductedon11diverseimage
+acrosslanguages.arXivpreprintarXiv:2109.05125,2021.
+recognitiondatasets,wedemonstratethatourproposedmethod, [15] ChaoJia,YinfeiYang,YeXia,Yi-TingChen,ZaranaParekh,HieuPham,Quoc
+the PMPO, achieves outstanding performance across new class Le,Yun-HsuanSung,ZhenLi,andTomDuerig. Scalingupvisualandvision-
+languagerepresentationlearningwithnoisytextsupervision.InInternational
+generalization,cross-datasetevaluation,anddomaingeneralization ConferenceonMachineLearning,pages4904–4916.PMLR,2021.
+tasks. [16] MenglinJia,LumingTang,Bor-ChunChen,ClaireCardie,SergeBelongie,
+BharathHariharan,andSer-NamLim. Visualprompttuning. InComputer
+Vision–ECCV2022:17thEuropeanConference,TelAviv,Israel,October23–27,2022,
+REFERENCES Proceedings,PartXXXIII,pages709–727.Springer,2022.
+[17] ZhengbaoJiang,FrankFXu,JunAraki,andGrahamNeubig.Howcanweknow
+[1] HangboBao,WenhuiWang,LiDong,QiangLiu,OwaisKhanMohammed,Kriti
+whatlanguagemodelsknow?TransactionsoftheAssociationforComputational
+Aggarwal,SubhojitSom,SonghaoPiao,andFuruWei. Vlmo:Unifiedvision-
+Linguistics,8:423–438,2020.
+languagepre-trainingwithmixture-of-modality-experts. AdvancesinNeural [18] MuhammadUzairKhattak,HanoonaRasheed,MuhammadMaaz,SalmanKhan,
+InformationProcessingSystems,35:32897–32912,2022. andFahadShahbazKhan.Maple:Multi-modalpromptlearning.arXivpreprint
+[2] LukasBossard,MatthieuGuillaumin,andLucVanGool. Food-101–mining
+arXiv:2210.03117,2022.
+discriminativecomponentswithrandomforests.InComputerVision–ECCV2014: [19] JonathanKrause,MichaelStark,JiaDeng,andLiFei-Fei.3dobjectrepresentations
+13thEuropeanConference,Zurich,Switzerland,September6-12,2014,Proceedings, forfine-grainedcategorization.InProceedingsoftheIEEEinternationalconference
+PartVI13,pages446–461.Springer,2014. oncomputervisionworkshops,pages554–561,2013.
+[3] GuangyiChen,WeiranYao,XiangchenSong,XinyueLi,YongmingRao,andKun [20] BrianLester,RamiAl-Rfou,andNoahConstant.Thepowerofscaleforparameter-
+Zhang.Plot:Promptlearningwithoptimaltransportforvision-languagemodels. efficientprompttuning. InProceedingsofthe2021ConferenceonEmpirical
+InTheEleventhInternationalConferenceonLearningRepresentations. MethodsinNaturalLanguageProcessing,pages3045–3059,OnlineandPunta
+[4] XiChen,XiaoWang,SoravitChangpinyo,AJPiergiovanni,PiotrPadlewski,
+Cana,DominicanRepublic,Nov.2021.AssociationforComputationalLinguistics.
+DanielSalz,SebastianGoodman,AdamGrycner,BasilMustafa,LucasBeyer, [21] JunnanLi,DongxuLi,SilvioSavarese,andStevenHoi. Blip-2:Bootstrapping
+AlexanderKolesnikov,JoanPuigcerver,NanDing,KeranRong,HassanAkbari, language-imagepre-trainingwithfrozenimageencodersandlargelanguage
+GauravMishra,LintingXue,AshishThapliyal,JamesBradbury,WeichengKuo,
+9arxiv,, YingjieTian,YiqiWang,XiandaGuo,andZhengZhu
+models,2023. GeneratedPrompts.InProceedingsofthe2020ConferenceonEmpiricalMethods
+[22] J.Li,D.Li,C.Xiong,andS.Hoi.Blip:Bootstrappinglanguage-imagepre-training inNaturalLanguageProcessing(EMNLP),pages4222–4235,Online,Nov.2020.
+forunifiedvision-languageunderstandingandgeneration.2022. AssociationforComputationalLinguistics.
+[23] JunnanLi,RamprasaathSelvaraju,AkhileshGotmare,ShafiqJoty,CaimingXiong, [35] TaylorShin,YasamanRazeghi,RobertLLoganIV,EricWallace,andSameerSingh.
+andStevenChuHongHoi.Alignbeforefuse:Visionandlanguagerepresentation Autoprompt:Elicitingknowledgefromlanguagemodelswithautomatically
+learningwithmomentumdistillation.Advancesinneuralinformationprocessing generatedprompts.arXivpreprintarXiv:2010.15980,2020.
+systems,34:9694–9705,2021. [36] KhurramSoomro,AmirRoshanZamir,andMubarakShah.Ucf101:Adatasetof
+[24] YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,andPontusStenetorp. 101humanactionsclassesfromvideosinthewild.arXivpreprintarXiv:1212.0402,
+Fantasticallyorderedpromptsandwheretofindthem:Overcomingfew-shot 2012.
+promptordersensitivity,2022. [37] HaohanWang,SongweiGe,ZacharyLipton,andEricPXing.Learningrobust
+[25] SubhransuMaji,EsaRahtu,JuhoKannala,MatthewBlaschko,andAndreaVedaldi. globalrepresentationsbypenalizinglocalpredictivepower.AdvancesinNeural
+Fine-grainedvisualclassificationofaircraft.arXivpreprintarXiv:1306.5151,2013. InformationProcessingSystems,32,2019.
+[26] GaspardMonge.Mémoiresurlathéoriedesdéblaisetdesremblais.Mem.Math. [38] HaofanWang,ZifanWang,MengnanDu,FanYang,ZijianZhang,SiruiDing,
+Phys.Acad.RoyaleSci.,pages666–704,1781. PiotrMardziel,andXiaHu.Score-cam:Score-weightedvisualexplanationsfor
+[27] FengNie,MeixiChen,ZhiruiZhang,andXuCheng.Improvingfew-shotper- convolutionalneuralnetworks. InProceedingsoftheIEEE/CVFconferenceon
+formanceoflanguagemodelsvianearestneighborcalibration.arXivpreprint computervisionandpatternrecognitionworkshops,pages24–25,2020.
+arXiv:2212.02216,2022. [39] WenhuiWang,HangboBao,LiDong,JohanBjorck,ZhiliangPeng,QiangLiu,
+[28] Maria-ElenaNilsbackandAndrewZisserman.Automatedflowerclassification KritiAggarwal,OwaisKhanMohammed,SakshamSinghal,SubhojitSom,etal.
+overalargenumberofclasses. In2008SixthIndianConferenceonComputer Imageasaforeignlanguage:Beitpretrainingforallvisionandvision-language
+Vision,Graphics&ImageProcessing,pages722–729.IEEE,2008. tasks.arXivpreprintarXiv:2208.10442,2022.
+[29] OmkarMParkhi,AndreaVedaldi,AndrewZisserman,andCVJawahar.Catsand [40] JianxiongXiao,JamesHays,KristaAEhinger,AudeOliva,andAntonioTorralba.
+dogs.In2012IEEEconferenceoncomputervisionandpatternrecognition,pages Sundatabase:Large-scalescenerecognitionfromabbeytozoo. In2010IEEE
+3498–3505.IEEE,2012. computersocietyconferenceoncomputervisionandpatternrecognition,pages
+[30] FabioPetroni,TimRocktäschel,PatrickLewis,AntonBakhtin,YuxiangWu, 3485–3492.IEEE,2010.
+AlexanderHMiller,andSebastianRiedel.Languagemodelsasknowledgebases? [41] HantaoYao,RuiZhang,andChangshengXu.Visual-languageprompttuning
+arXivpreprintarXiv:1909.01066,2019. withknowledge-guidedcontextoptimization.arXivpreprintarXiv:2303.13283,
+[31] AlecRadford,JongWookKim,ChrisHallacy,AdityaRamesh,GabrielGoh, 2023.
+SandhiniAgarwal,GirishSastry,AmandaAskell,PamelaMishkin,JackClark, [42] RenruiZhang,ZiyuGuo,WeiZhang,KunchangLi,XupengMiao,BinCui,Yu
+etal.Learningtransferablevisualmodelsfromnaturallanguagesupervision.In Qiao,PengGao,andHongshengLi. Pointclip:Pointcloudunderstandingby
+Internationalconferenceonmachinelearning,pages8748–8763.PMLR,2021. clip.InProceedingsoftheIEEE/CVFConferenceonComputerVisionandPattern
+[32] BenjaminRecht,RebeccaRoelofs,LudwigSchmidt,andVaishaalShankar.Doim- Recognition,pages8552–8562,2022.
+agenetclassifiersgeneralizetoimagenet?InInternationalconferenceonmachine [43] KaiyangZhou,JingkangYang,ChenChangeLoy,andZiweiLiu.Conditional
+learning,pages5389–5400.PMLR,2019. promptlearningforvision-languagemodels. InProceedingsoftheIEEE/CVF
+[33] OhadRubin,JonathanHerzig,andJonathanBerant.Learningtoretrieveprompts ConferenceonComputerVisionandPatternRecognition,pages16816–16825,2022.
+forin-contextlearning,2022. [44] KaiyangZhou,JingkangYang,ChenChangeLoy,andZiweiLiu. Learningto
+[34] TaylorShin,YasamanRazeghi,RobertL.LoganIV,EricWallace,andSameerSingh. promptforvision-languagemodels. InternationalJournalofComputerVision,
+AutoPrompt:ElicitingKnowledgefromLanguageModelswithAutomatically 130(9):2337–2348,2022.
+10

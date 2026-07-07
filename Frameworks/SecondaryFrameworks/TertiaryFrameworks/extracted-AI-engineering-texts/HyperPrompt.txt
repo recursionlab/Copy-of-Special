@@ -1,0 +1,878 @@
+HyperPrompt: Prompt-based Task-Conditioning of Transformers
+YunHe*1 HuaixiuStevenZheng*2 YiTay2 JaiGupta2 YuDu2 VamsiAribandi2 ZheZhao2 YaGuangLi2
+ZhaoChen3 DonaldMetzler2 Heng-TzeCheng2 EdH.Chi2
+Abstract
+95
+Prompt-Tuning is a new paradigm for finetun-
+90
+ingpre-trainedlanguagemodelsinaparameter-
+efficientway. Here,weexploretheuseofHyper- 85
+Networkstogeneratehyper-prompts: wepropose
+80
+HyperPrompt, a novel architecture for prompt-
+75
+basedtask-conditioningofself-attentioninTrans-
+formers. Thehyper-promptsareend-to-endlearn- 70
+220M 770M 3B 11B
+ableviagenerationbyaHyperNetwork. Hyper- # Parameters
+Promptallowsthenetworktolearntask-specific
+featuremapswherethehyper-promptsserveas
+taskglobalmemoriesforthequeriestoattendto,
+at the same time enabling flexible information
+sharingamongtasks. WeshowthatHyperPrompt
+iscompetitiveagainststrongmulti-tasklearning
+baselineswithasfewas0.14%ofadditionaltask-
+conditioningparameters,achievinggreatparam-
+eter and computational efficiency. Through ex-
+tensive empirical experiments, we demonstrate
+that HyperPrompt can achieve superior perfor-
+mancesoverstrongT5multi-tasklearningbase-
+linesandparameter-efficientadaptervariantsin-
+cludingPrompt-TuningandHyperFormer++on
+NaturalLanguageUnderstandingbenchmarksof
+GLUEandSuperGLUEacrossmanymodelsizes.
+1.Introduction
+Prompt-Tuning(Lesteretal.,2021),learningtocondition
+largelanguagemodelswithsoftlearnablememorytokens,
+haverecentlygarneredattentionowingtotheirabilityfor
+parameter-efficient finetuning. Prompts are lightly tuned,
+allowing the model to be trained quickly since the main
+bodyofthepretrainedmodeliskeptfrozen.Tothisend,this
+paradigmisstronglyreminiscentofadapterlayers(Houlsby
+*Equalcontribution 1TexasA&MUniversity,workdoneasan
+internatGoogle2GoogleResearch3WaymoLLC.Correspondence
+to:HuaixiuStevenZheng<stevenzheng@google.com>,YiTay
+<yitay@google.com>.
+Proceedings of the 39th International Conference on Machine
+Learning,Baltimore,Maryland,USA,PMLR162,2022. Copy-
+right2022bytheauthor(s).
+erocS
+EULGrepuS
+MODEL
+HyperPrompt
+Prompt-Tuning (Lester et al.)
+MTL
+Prompt-Tuning
+HyperFormer++
+Figure1.HyperPromptachievesstate-of-the-artperformanceon
+SuperGLUE for T5 models up to XXL. Prompt-tuning (Lester
+etal.,2021)withtuningpromptparametersonlyachievescompet-
+itiveperformanceagainstmulti-tasklearning(MTL)baselinefor
+the11Bparametermodelwithabigperformancegapforsmaller
+models.HyperPrompt-Globaloutperformsthestrongparameter-
+efficientadaptervariantHyperFormer++(KarimiMahabadietal.,
+2021),theMTLbaseline,andthefullfine-tuningofPrompt-Tuning
+(ourimplementation)acrossmodelsizeswithalargemargin[e.g.
+91.3vs90.2(MTL)forT5XXL].
+et al., 2019a; Karimi Mahabadi et al., 2021; Zaken et al.,
+2021;Heetal.,2021)whicharealsoefficientlyfinetuned.
+WeintroduceHyperPrompt,anaturalbutnovelextensionof
+Prompt-Tuningtomulti-tasklearning(MTL)forlanguage.
+HyperPrompt introduces task-conditioned hyper-prompts
+thatconditionsthemodelontask-specificinformationfor
+constructing these prompts. Hyper-prompts are injected
+to the keys and values in the self-attention module, remi-
+niscentofmemoryaugmentedTransformers(Sukhbaatar
+etal.,2019). Thismitigatesthecostofhavingpromptspass
+throughthestandardFFNlayersinTransformersandserves
+as additional task-specific memory tokens for queries to
+attendto.
+Wefurtherimproveuponthisbyintroducingtask-awareand
+layer-awareHyperNetworks(Haetal.,2017)thatparameter-
+izeandgenerateweightsforthepromptgenerationprocess.
+The usage of HyperNetwork imbues our model with the
+necessaryflexibilityandexpressiveness,especiallywhenit
+comestoincorporatingtask-specificandlayer-specificinfor-
+mationtothenetwork. Meanwhile,HyperPromptremains
+very parameter and computational efficient and friendly
+tomulti-taskscaling: theadditionalparametersscalesub-HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+linearlywith,andareindependentofthenumberoftasks typicallythecross-entropylossandf (x(n))istheoutput
+θ τ
+inpractice. WhileHypernetworkshaveenjoyedsomesuc- fortrainingsamplex(n).
+τ
+cess in learning adapters (Karimi Mahabadi et al., 2021;
+Transformer-basedpre-trainedlanguagemodelssuchasT5
+Tay et al., 2020) and/or continual learning (von Oswald
+(Raffel et al., 2019) and BART (Lewis et al., 2020) are
+et al., 2019), we note that this is the first exploration of
+unified text-to-text frameworks where all tasks share the
+HyperNetworksasapromptgenerator.
+sameencoder-decoderarchitecture–{{x( τn)}N n=τ 1}T τ=1are
+C tho en etr na tr iy reto nep tr wio or rkwo inr sk t, ew ade oad fd oi nti lo yn ta hl ely hp yr po ep ro -pse roto mfi pn tse .tu Wn ee fed into the same encoder and {{yˆ τ(n)}N n=τ 1}T
+τ=1
+are gen-
+erated by the same decoder. For such universal modules,
+makeseveralcompellingargumentsforthis. Firstly,Lester
+multi-tasklearningsimplycorrespondstomixingtaskdata
+etal.(2021)showsthatparameterefficientPrompt-Tuning
+setstogetherandthereisnotask-specificclassificationorre-
+onlyshinesforlarge(e.g.,11B)modelsandsubstantially
+gressionnetworksforeachtaskasinencoder-onlymodules
+palesincomparisontofine-tuningwhenthemodelismod-
+Devlinetal.(2019);Liuetal.(2019b).
+erately parameterized (e.g., 220M). Secondly, finetuning
+only adaptive parameters (e.g., prompts/adapters) simply PreviousworkRaffeletal.(2019)showsthatco-learning
+presents an illusion of efficiency (Dehghani et al., 2021). all tasks together on a pre-trained Transformer model is
+Inreality,theFLOPsincurredbythemodelisstillidenti- inferiortofine-tuningoneachtaskseparately. Apossible
+cal on the forward pass, which saves no compute during reason is that θ is task-agnostic (i.e., all parameters are
+inference.Parametercounts,especiallywhenincludingonly shared)andhencetask-specificinformationisnotwellcap-
+promptsandadapters,arenottheonlymeasurementofcom- turedwhichcanbeespeciallytrueforlow-resourcetasks.
+putationalefficiency. Instead,theFLOPsandtrainingtime Therefore, a natural way to improve the performance of
+shouldbeconsideredtogethertoprovideaholisticview. Transformers on multi-task learning is to introduce a set
+of task-conditioned parameters {δ }T into f (.). The
+τ τ=1 θ
+objective function can be updated as L(θ,{δ }T ) =
+OurContributions Ourmaincontributionsinclude: τ τ=1
+(cid:80)T (cid:80)Nτ C(f (x(n)),y(n)), where δ is the task-
+• WeproposeanovelHyperPromptTransformerarchi- speτ c= ifi1 cpn ar= a1 meterθ iz,δ aτ tionτ forthτ eτ-thtask. Dτ uringtraining,
+tecture with learnable hyper-prompts for multi-task bothθ and{δ }T areupdatedviaback-propagationbe-
+τ τ=1
+fine-tuning with great parameter and computational causeweobservealargeperformancedropinSuperGLUE
+efficiency. whenbackbonemodelθisfrozenandonlytask-conditioned
+parameters are tuned, as done in Karimi Mahabadi et al.
+• We demonstrate that for difficult tasks, it is crucial
+(2021),whichwillbedetailedinSection4.3.
+tofine-tunethetask-specificparameterstogetherwith
+thebackbonemodeltoachieveParetoefficiencyonall Tothisend,ourgoalistodesigntask-conditionedparam-
+tasks. eterization of Transformer models to achieve greater pa-
+rameterandcomputationalefficiencyaswellasParetoef-
+• WeexploreHyperNetworksasapromptgenerator,and
+ficiencyformulti-tasklearning. Moreexplicitly,wehave
+injecthyper-promptsintotheself-attentionmoduleas
+two goals: (1) improving the finetuning performance of
+globaltaskmemorytokens.
+mosttasksin{D }T byintroducingtask-conditionedpa-
+τ τ=1
+• HyperPromptoutperformsstate-of-the-artparameter- rameters {δ }T into f (.) and (2) under the constraint
+τ τ=1 θ
+efficientT5models(Raffeletal.,2019)usingPrompt- that(cid:80) (cid:107){δ }T (cid:107) (cid:28)(cid:107)θ(cid:107) ,whichmeansthatthemodel
+τ τ τ=1 0 0
+Tuning or adapters on well-established benchmarks capacitywillnotbesignificantlyincreased. Andthecompu-
+suchasSuperGLUEandGLUE,acrossallexplored tationalcostwouldnotincreasesubstantiallyeither.
+modelsizes(seeFigure1).
+3.Methods
+2.ProblemStatement
+In this section, we introduce HyperPrompt which has
+We consider the general setting of multi-task learning threevariants: HyperPrompt-Share,HyperPrompt-Sepand
+for a set of tasks {D }T , where T is the total num- HyperPrompt-Global(Figure2). Wefollowtwokeydesign
+τ τ=1
+ber of tasks and {D τ} = {x( τn),y τ(n)}N n=τ
+1
+indicates the principles to formulate HyperPrompt: (1) injecting task-
+corresponding training set of the τ-th task with N sam- conditioningintoself-attentionmoduleforbettercomputa-
+τ
+ples. We assume that a pre-trained Transformer model tionalefficiencyandmoreexpressivepowerviatoken-level
+f (·) (e.g., T5) is given, where the model is parameter- interactions, and (2) using HyperNetworks to simultane-
+θ
+ized by θ. To tackle such multi-task learning problem ouslyimprovetheparameterefficiencyandallowaflexible
+with f (·), we minimize the following objective function degreeoftasksharingforbettergeneralization.
+θ
+L(θ) = (cid:80)T (cid:80)Nτ C(f (x(n)),y(n)), where C(·,·) is
+τ=1 n=1 θ τ τHyperPrompt:Prompt-basedTask-ConditioningofTransformers
+(a) Multi-Head Attention (b) HyperPrompt-Share/Sep (c)HyperPrompt-Global
+Linear P V P K
+UK,V D
+K,V
+Local(ateachlayer)
+HyperNetworkhk,v
+Concat
+UV UK
+RELU RELU Global HyperNetworkHk,v
+Scaled Dot-Product Attention
+D D
+V K
+P V P K Q
+V K
+P I
+Hyper Prompts Global Prompts Layer-Aware Task Embedding
+Figure2.HyperPromptframework:(a)ineachTransformerblock,task-specifichyper-promptsP areprependedtotheoriginalkeyK
+K,V
+andvalueV forthequeryQtoattendto,(b)inHyperPrompt-Share/Sep,globalpromptsP areusedtogeneratethehyper-promptsP
+K,V
+throughlocalHyperNetworksh ateachTransformerlayer,whichconsistsofadown-projectionmatrixD ,aRELUlayeranda
+k,v K,V
+up-projectmatrixU ,(c)inHyperPrompt-Global,allthelocalHyperNetworks(D ,U )aregeneratedbyglobalHyperNetworks
+K,V K,V K,V
+H usinglayer-awaretaskembeddingsIastask-specificinputs(seeSection3.3fordetails).
+k,v
+3.1.Prompt-BasedTask-ConditionedTransformer forthekeyandthevaluerespectively, denotedasP ∈
+τ,k
+Rl×h×dh and P
+τ,v
+∈ Rl×h×dh, as shown in Figure 2(a).
+Previousadapter-basedmethods(KarimiMahabadietal.,
+Then,thehyper-promptsareconcatenatedwiththeoriginal
+2021;Tayetal.,2020)formulti-tasklearningnormallyadd
+keyandvalue:
+an adapter (i.e., dense-relu-dense network) for each task
+after the feed-forward layers at every Transformer block. K τ(cid:48) =concat(P τ,k, K τ) (1)
+Instead,thekeyideaofourapproachistoprependltask- V(cid:48) =concat(P , V ) (2)
+conditionedtrainablevectorstothekeysandvaluesofthe τ τ,v τ
+multiheadself-attentionlayerateveryTransformerblock,
+where the new key (value) K τ(cid:48) (V τ(cid:48)) ∈ R(l+L)×h×dh are
+usedtocomputethemultiheadself-attention.
+where the task-specific attention feature maps are jointly
+learnedwiththetask-agnosticrepresentation. After that, the multihead self-attention can be operated:
+O = Attention(Q ,K(cid:48),V(cid:48)) = softmax(Q K(cid:48)T)V(cid:48)
+Theideaofprependinglearnablepromptstothenetworkis τ τ τ τ τ τ τ
+whereO ∈RL×distheoutputofmultiheadattention.
+exploredbeforebyLi&Liang(2021);Lesteretal.(2021); τ
+Liuetal.(2021)forsingle-taskfine-tuning. Wefirstintro- The hyper-prompts benefit Transformers for multi-task
+duce and expand this idea for multi-task learning in this learningintwoways: (1)PromptforkeyP isprepended
+τ,k
+subsection. Specifically,wedesignanovelmethodcalled with the original key and will participate in the calcula-
+HyperPromptfollowingthedesignprinciple#1ofinjecting tion of attention feature map: softmax(Q K(cid:48)T). P
+τ τ τ,k
+hyper-promptsintoself-attentionand#2usingHyperNet- directlyinteracts(matrixmultiplication)withtheoriginal
+worksasgeneratorsforhyper-prompts. queryQ ,allowingtokenstoacquiretask-specificseman-
+τ
+tics.(2)PromptforvalueP isprependedwiththeoriginal
+Atamultiheadself-attentionlayer,theoriginalkey,value τ,v
+valueandwillbeabsorbedintotheself-attentionoutputO ,
+andqueryarecalculatedasK = X W ,V = X W , τ
+τ τ k τ τ v
+Q =X W ,whereX ∈RL×distheinputsequenceof whereeachpositioninO τ istheweighted-sumofvectorsin
+τ τ q τ V(cid:48)withweightsfromtheattentionscores. Thisway,P
+a training sample from the τ-th task, L is the sequence τ τ,v
+length, d is the model dimension. W
+k
+∈ Rd×h×dh, canserveastask-specificmemoriesformultiheadattention
+W
+v
+∈ Rd×h×dh and W
+q
+∈ Rd×h×dh project the input toretrieveinformationfrom.
+into original key K
+τ
+∈ RL×h×dh, value V
+τ
+∈ RL×h×dh
+andqueryQ
+τ
+∈RL×h×dh,histhenumberofheads,d his 3.2.HyperPrompt
+thedimensionofeachheadandtypicallysettod/htosave
+Howtoobtainthepromptsforthem-thTransformerblock?
+parameters. AstraightforwardwayistodirectlyinitializePm andPm.
+τ,k τ,v
+Tolearnthetask-specificinformationfortheτ-thtask,we However,thiswayisparameter-inefficient,asitscaleslin-
+haveltrainabled-dimensionalvectorsasthehyper-prompts earlywithboththenumberoftasksT andthenumberlayers
+M asO(T ×M).HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+Instead,weinitializeaglobal1promptP foreachtaskand global HyperNetwork shared by all tasks and all Trans-
+τ
+applylocalHyperNetworksateveryTransformerblockto formerblocks.
+projectthispromptinto{Pm}M and{Pm}M .
+τ,k m=1 τ,v m=1 Layer-Aware Task Embedding. Following the same
+GlobalPrompts. Specifically,weinitializeasetofglobal recipe in Karimi Mahabadi et al. (2021), we define a
+prompts{P }T ,whereP ∈Rl×d isatrainablematrix layer-awaretaskembeddingforbettergeneralization. Let
+τ τ=1 τ
+tolearnthetask-specificinformationoftheτ-thtask,dis k ∈ Rt(cid:48) denotethetaskembeddingfortheτ taskandt(cid:48)
+τ
+themodeldimensionandlisthelengthoftheprompt. isthedimension. Tocapturethelayer-specificinformation,
+layerembeddingz ∈Rt(cid:48) isintroduced. Afterthat,atask
+LocalHyperNetworks.Atthem-thTransformerblock,we m
+projectionnetworkh (·,·)isappliedtofusethetaskembed-
+applytwolocalHyperNetworkshm andhm totransform t
+k v ding and the layer embedding into the final layer-awared
+theglobalpromptP intolayer-specificandtask-specific
+τ taskembeddingIm =h (k ,z ),whereImistheinputto
+promptsasshowninFigure2(b): τ t τ m τ
+thesharedglobalHyperNetworksasshowninFigure2(c).
+Pm =hm(P )=Um(Relu(Dm(P ))), (3) h t is a MLP consisting of two feed-forward layers and a
+τ,k k τ k k τ
+ReLU non-linearity, which takes the concatenation of k
+τ
+P τm
+,v
+=hm
+v
+(P τ)=U vm(Relu(D vm(P τ))), (4) andz masinput.
+wherePm ∈Rl×h×dh. Wecallthesegeneratedprompts GlobalHyperNetworks.H k(·)generatestheweightmatri-
+hyper-prτ o, mk/ pv tstodistinguishfromglobalprompts. ces(U τm ,k,D τm ,k)inthelocalHyperNetworksofkeyhyper-
+promptsandanotherglobalHyperNetworkH (·)generates
+v
+Inparticular,tolimitthenumberofparameters,thelocal the weight matrices (Um,Dm ) in the local HyperNet-
+τ,v τ,v
+HyperNetworksaredesignedusingabottleneckarchitecture:
+worksofvaluehyper-prompts:
+Dm ∈ Rd×b andUm ∈ Rb×h×dh aredown-projection
+k/v k/v
+andup-projectionmatrices,respectively. bisthebottleneck
+dimensionsatisfyingb(cid:28)d.
+(U τm ,k,D τm ,k)=H k(I τm)=(WUk,WDk)I τm, (7)
+HyperPrompt-Share. We first have all tasks share the
+sametwolocalHyperNetworksdefinedbythedown-project (Um,Dm )=H (Im)=(WUv,WDv)Im, (8)
+τ,v τ,v v τ τ
+matricesDmandDm,andtheup-projectmatricesUmand
+k v k
+U vm. WerefertothisdesignchoiceasHyperPrompt-Share. where Im ∈ Rt is the layer-aware task embedding
+τ
+Despite the saving of parameters, one drawback of for the τ task at the m-th block. WDk ∈ R(d×b)×t,
+HyperPrompt-Share is that the task conflicts could arise WDv ∈ R(d×b)×t, WUk ∈ R(b×h×dh)×t and WUv ∈
+given the limited model capacity (Wu et al., 2020; Wang
+R(b×h×dh)×taretheweightmatricesofH k(·)andH v(·).
+etal.,2020)ofthesharedlocalHyperNetworks. GiventhatUm ,andDm aregeneratedbytheglobal
+τ,k/v τ,k/v
+HyperPrompt-Sep. In the opposite extreme of HyperNetworks,weprojecttheglobalpromptsP τ,k/v into
+HyperPrompt-Share,eachtaskcanhaveitsownlocalHy- hyper-promtpsP τm ,k/v followingEqs. 5and6. Finally,the
+perNetworkshm τ,k(P τ)andhm τ,v(P τ)asfollowing: hyper-promptsP τm ,k/v areprependedwithoriginalkeyand
+valueateveryself-attentionlayerasshowninFigure2(a)to
+Pm =hm (P )=Um (Relu(Dm (P ))), (5) calculatethetask-conditionedattentionscores.
+τ,k τ,k τ τ,k τ,k τ
+Pm =hm (P )=Um(Relu(Dm (P ))), (6) Using global HyperNetworks to generate the projection
+τ,v τ,v τ τ,v τ,v τ
+networkshastwobenefits:
+where Dm and Um are down-projection and up-
+τ,k/v τ,k/v
+projectionmatricesfortheτ task,respectively. Inthiscase,
+1. It enables a more flexible way to share information
+eachtaskhyper-promptistrainedindependentlyandhence
+acrosstasksandlayers:thetransformationmatricesare
+thereisnoinformationsharing.
+decomposedintoH (·)thataresharedbyalltasks
+k/v
+and all layers. Therefore, the model can adjust the
+3.3.HyperPrompt-Global
+degreeofinformationsharingacrosstasksandlayers
+throughlearningtheappropriateparametervaluesin
+WefurtherproposeanoveldesignofHyperPrompt-Global
+H (·)duringtheend-to-endtraining.
+toflexiblyshareinformationandknowledgeamongtasks k/v
+and blocks while maintaining a low parameter cost. As
+2. Aparameter-efficienttaskconditionedparameteriza-
+showninFigure2(c),thekeyideaofHyperPrompt-Global
+tionisenabled. Thenumberofextratask-conditioned
+is to generate the local HyperNetworks using the same
+parameters doesn’t depend on the number of layers
+1wetermitglobalbecauseitisindependentofthelayernumber M, and scales sub-linearly with respect to the total
+asopposedtolayer-dependentpromptPm. numberoftasksT. Inpractice,sincetaskembeddings
+τHyperPrompt:Prompt-basedTask-ConditioningofTransformers
+andtaskpromptshavefarfewerparametersthanthe checkpoint for all tasks but to test the model’s ability of
+globalHyperNetworks,theadditionaltask-conditioned transferlearningamongtheco-trainedtasks. Wefirstcalcu-
+parametersisalmostindependentofT. latetheaverageofallmetricsforeachtaskandthenreport
+theaverageofalltasksforGLUEandSuperGLUE.
+3.4.ParameterEfficiencyofHyperPrompt Baselines. We compare our proposed HyperPrompt-
+Share/Sep/Global with vanilla T5 models (Raffel et al.,
+As shown in A.1, the total number of additional parame- 2019)formulti-tasklearning,whichisreferredtoMTL.An-
+ters from HyperPrompt-Global is dlT + 4(bdt) + Tt(cid:48) + otherbaselineisVanillaAdapterproposedinHoulsbyetal.
+Mt(cid:48)+(2t(cid:48)+t)e,wheredisthemodeldimension,listhe
+(2019b)thataddadaptersmodulesforeachtaskaftereach
+lengthoftheprompts,T isthetotalnumberoftasks,bis ofthethetwofeed-forwardmodulesineachTransformer
+thebottleneckdimensionoftheweightmatricesofthelocal blockoftheT5model. Thestate-of-the-artadapter-based
+HyperNetworks, d is the model dimension, t(cid:48)/t is the di- methodformulti-tasklearningisHyperFormer++proposed
+mensionoftheraw/finallayer-awaretaskembedding,ande inKarimiMahabadietal.(2021)thatuseHyperNetworks
+isthehiddendimensionofh k/v. Therefore,thespacecom- to generate adapters for each task and add them after the
+plexityisO(d(lT +4bt)),giventhatinpracticeM ∼ T, feed-forward modules following Houlsby et al. (2019b).
+t(cid:48) (cid:28)dl,ande(cid:28)bd. Thisleadstoasub-linearscalingwith In addition, Prompt-Tuning (Lester et al., 2021) is origi-
+respecttoT. nallyforparameter-efficientsingle-taskfine-tuningandonly
+prependspromptstotheinputwordembeddingsinthefirst
+Furthermore,T istypical∼O(10)formulti-tasklearning.
+layer. Weslightlymodifyitbyinitializingandprepending
+Areasonablel∼O(10)isrequiredtoachievetheoptimal
+promptsforeachtaskrespectivelysothatPrompt-Tuning
+performance, which will be detailed in Section 4.7. On
+canbeappliedtomulti-tasklearning.
+theotherhand,typicalvaluesforb ∼ 24andt ≥ 32,and
+therefore4bt (cid:29) lT issatisfiedinmostcases. Hence,the WedeferadditionaldetailsoftheexperimentstoA.2
+spacecomplexitycouldbefurthersimplifiedasO(bdt). In
+conclusion,thespacecomplexityofHyperPrompt-Global
+4.2.KeyResults
+mainlycomesfromtheglobalHyperNetworksandisprac-
+ticallyindependentofthepromptlengthl,thenumberof Figure1providesanoverallsummaryoftheresultsofHy-
+TransformerlayersM,andthenumberoftasksT. perPrompt. Previous prompt-tuning (Lester et al., 2021;
+Li & Liang, 2021) methods focus on parameter-efficient
+single-taskfine-tuningandhencefreezethebackboneand
+4.Experiments
+onlyfine-tunetheprompts. Theirexperimentsshowthatthe
+4.1.ExperimentalSetup performanceofonlytuningthepromptscanmatchthefull
+modeltrainingwithaverylarge11Bmodel(Figure1),but
+Datasets. Weevaluatetheperformanceofthemodelson
+substantiallypalesformoderatemodelsizes.
+GLUE(Wangetal.,2018)andSuperGLUE(Wangetal.,
+2019) respectively. Each of them is a collection of text OurHyperPrompt-Globalarchitecturewhenfullyfine-tuned
+classificationtaskstotestthegenerallanguageunderstand- achievesstate-of-the-artperformanceonSuperGLUEacross
+ing ability. Specifically, the tasks include: sentence ac- fourdifferentmodelsizes. Competitiveadapter-tuningvari-
+ceptability(CoLA),sentimentanalysis(SST-2),paraphras- antsincludingPrompt-TuningandHyperFormer++canei-
+ing/sentencesimilarity(MRPC,STS-BandQQP),natural thermatchorslightlyimproveuponthemulti-tasklearning
+languageinference(MNLI,QNLI,RTEandCB),corefer- (MTL) baseline on the SuperGLUE dataset. In contrast,
+enceresolution(WSC),sentencecompletion(COPA),word HyperPrompt-GlobaloutperformsthestrongMTLbaseline
+sensedisambiguation(WIC)andquestionanswering(Mul- byalargemarginonSuperGLUEscore(78.9vs77.2for
+tiRCandReCoRD,BoolQ). T5Base). Interestingly,suchaperformancegaincontinues
+allthewaytomodelsizeasbigasXXL(e.g. 91.3vs90.2)
+Transformers. FollowingpreviousworkKarimiMahabadi
+withonly0.14%additionalparameters.
+etal.(2021)andTayetal.(2020),ourmodelsarebuilton
+top of the state-of-the-art Transformer model T5 (Raffel
+4.3.TuningallvsTask-ConditionedParameters
+etal.,2019),whichusesencoder-decoderarchitecturefrom
+Vaswanietal.(2017). Weusealreadypre-trainedT5with Recently, Karimi Mahabadi et al. (2021) show that only
+sizesfromBase(220Mparameters)toXXL(11B). tuning adapters can be competitive against the full fine-
+tuning. However,theevaluationisconductedonlyonthe
+Evaluation. We save a checkpoint every 2000 steps for
+GLUEwithsmallermodelsincludingT5SmallandBase.
+allmodelsandfollowthesameconventionasRaffeletal.
+(2019)inselectingthebestcheckpointforeachtask. The Intheexperiments,wefirstcomparetuningthefullmodelvs.
+emphasis of our evaluation is not to find the best single onlytask-conditionedparameters. Table1showsthecom-HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+Tunable Model GLUE SuperGLUE Model #Params GLUE SuperGLUE
+All MTL 88.3 85.9 MTL 1.0x 85.5(0.9) 77.2(0.2)
+All HyperFormer++ 88.8 86.4 VanillaAdapter 1.06x 86.7(0.3) 77.5(0.1)
+All HyperPrompt-Global 89.4 87 HyperFormer++ 1.04x 86.5(0.0) 78.2(0.7)
+Prompt-Tuning 1.0003x 84.8(0.6) 77.3(0.2)
+Task HyperFormer++ 87.3 80.5
+Task HyperPrompt-Global 87.5 81.5 HyperPrompt-Share 1.008x 86.4(0.6) 78.2(0.7)
+HyperPrompt-Sep 1.06x 86.8(0.1) 77.5(0.1)
+HyperPrompt-Global 1.04x 86.8(0.4) 78.9(0.5)
+Table1.Comparisonoffine-tuningallvstask-specificparameters
+usingT5Large.TheaveragescoresofGLUEandSuperGLUEare
+Table3.GLUEandSuperGLUEaveragescores(standarddevia-
+reportedonT5Large.
+tions)over3runsofHyperPromptagainstbaselinesonT5Base.
+parisonontheGLUEandSuperGLUEaveragescoresusing
+4.5.AblationStudy
+T5large(forper-taskperformance,pleaserefertoA.4). For
+GLUE,theobservationisconsistentwith(KarimiMahabadi Table3presentstheresultsonT5BaseandTable4presents
+et al., 2021), where task-specific only fine-tuning of Hy- theresultsonT5Large(seemoredetailedresultsinA.4).
+perFormer++ and HyperPrompt-Global is comparable to HyperPrompt-Globaloutperformsallbaselinesintermsof
+theMTLbaseline. However,onSuperGLUE,weobserve theaveragescoreofGLUEandSuperGLUE.
+a large gap: the average score drops by 5.5 and 5.9 for
+HyperPrompt-Global vs. Prompt-Tuning. The original
+HyperPrompt-GlobalandHyperFormer++,respectively.
+Prompt-Tuning(Lesteretal.,2021)isforsingle-taskfine-
+Therefore,theseexperimentsshowthatonlytuningthetask- tuning. Tobeparameter-efficient,itonlytrainstheprompts
+conditionedparametersisnotenoughtoachievecompetitive withthebackbonefrozen. Tomakeafaircomparison,we
+resultsasfullmodeltrainingformulti-tasklearningonhigh- modify Prompt-Tuning by (1) training both prompts and
+difficultytaskssuchasSuperGLUE.Thisisconsistentwith backbone,and(2)addingprompttoeachtaskandco-train
+theresultsofPrompt-Tuning(Lesteretal.,2021). Hence, alltaskstogether. AsshowninTable3and4,HyperPrompt-
+the rest of the experiments are conducted with tuning all Global outperforms Prompt-Tuning by 2.0 (0.6) and 1.6
+modelparameters. (1.4) on GLUE and SuperGLUE using T5 Base (Large),
+respectively. HyperPrompt-GlobalimprovesuponPrompt-
+4.4.ComputationalEfficiency Tuningintwoplaces:(1)Prompt-Tuningonlyaddsprompts
+to the word embedding layer while HyperPrompt-Global
+Table 2 presents the computational efficiency of the
+addshyper-promptsateveryTransformerlayerandhence
+Adapter/Prompt models. HyperPrompt-Global (together
+ismoreexpressive;and(2)Promptsoftasksaretrainedin-
+withHyperPrompt-Share)hasthelowest#Opssincehyper-
+dependentlyinPrompt-TuningwhileHyperPrompt-Global
+prompts are injected into self-attention and skip the stan-
+enablesaflexibleinformationsharingviaHyperNetworks.
+dardFFNlayers. Incontrast,HyperFormer++has∼3x#
+Opscomparedtoothervariants. Regardingtrainingtime, HyperPrompt-Globalvs. HyperFormer++. Ourmethod
+HyperPrompt-Share is fastest given that the local Hyper- issuperiortothestate-of-the-artbaselineHyperFormer++in
+Networks are shared across tasks. Vanilla Adapter and theaveragescoreofGLUEandSuperGLUEforbothBase
+HyperPrompt-GlobalarecomparablewhileHyperFormer++ andLargeT5model. Forexample,HyperPrompt-Globalof
+and Prompt-Tuning take significant longer to do the full T5largeachieves87.0ontheSuperGLUEcomparedto86.4
+fine-tuning. This shows the computational efficiency of by HyperFormer++ (Table 4). Note that the main differ-
+HyperPromptforbothtrainingandinference.
+Model #Params GLUE SuperGLUE
+Model #Ops TrainingTime(hours)
+MTL 1.0x 88.3(0.6) 85.9(0.3)
+VanillaAdapter 1.01×1013 8.4 VanillaAdapter 1.06x 88.8(0.2) 86.1(0.5)
+HyperFormer++ 3.14×1013 10.3 HyperFormer++ 1.02x 88.8(0.0) 86.4(0.5)
+Prompt-Tuning 1.16×1013 11.1 Prompt-Tuning 1.0001x 88.8(0.3) 85.6(0.1)
+HyperPrompt-Sep 1.01×1013 8.9
+HyperPrompt-Share 1.008x 89.3(0.1) 86.8(0.2)
+HyperPrompt-Share 9.8×1012 8.0
+HyperPrompt-Sep 1.06x 89.4(0.2) 86.1(0.3)
+HyperPrompt-Global 9.8×1012 8.7
+HyperPrompt-Global 1.02x 89.4(0.1) 87.0(0.5)
+Table2.Thenumberofoperationsforasingleforwardpassand Table4.GLUEandSuperGLUEaveragescores(standarddevia-
+trainingtimeonT5Base. tions)over3runsofHyperPromptagainstbaselinesonT5Large.HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+encebetweenthetwomethodsisthatHyperPrompt-Global
+1.2
+insertsthetask-conditionedparametersaspromptsintoself-
+attentionlayerswhileHyperFormer++insertadaptersafter 1.0
+eachblock. Webelievetask-conditioninginself-attention 0.8
+givesmoreexpressivepowerthaninthefeed-forwardnet- 0.6
+workasdoneinadapters.Hyper-promptsthatareprepended 0.4
+withthekeyandvalueparticipateintheattentioninterac- 0.2
+tions between different token positions, which helps the 0.0
+modeltobettercapturethetask-dependentsemantics. 1 2 3 4 5 6 7 8 9 10 11 12
+Layer
+HyperPrompt-Global vs. MTL. Next, we observe that
+using HyperPrompt-Global can greatly improve the per-
+formanceuponthevanillaTransformermodel(referredto
+MTL): 1.7 (1.1) gain on SuperGLUE score for T5 Base
+(Large) with 4% (2%) additional paramters. In conclu-
+sion, the experiments show that HyperPrompt-Global is
+aparameter-efficientandeffectivetask-conditionedparame-
+terizationofTransformersformulti-tasklearning.
+HyperPrompt-Global vs. HyperPrompt-Share/Sep. In-
+terestingly,HyperPrompt-ShareisbetterthanHyperPrompt-
+Sep on the SuperGLUE on both Base and Large models
+whiletheoppositeistrueforGLUE.Noticethatalltasks
+sharethesametwoprojectionnetworksinHyperPrompt-
+Share while each task has its own projection networks
+inHyperPrompt-Sep. Moreimportantly, weobservethat
+HyperPrompt-Global, where the projection networks are
+generatedbytheglobalHyperNetworks,alwaysachieves
+the best performance on both GLUE and SuperGLUE.
+Hence,theexperimentsshowthatHyperPrompt-Globalcan
+adjustthedegreeofinformationsharingforbettermulti-task
+generalization,comparedtoHyperPrompt-Share/Sep.
+4.6.PeekingintoHyper-Prompts
+To shed light on how hyper-prompts help improve the
+multi-task generalization via task-conditioning, we peek
+intoHyperPrompt-Globalmodelsbylookingatthedistribu-
+tionofattentionscores. WechoosetheGLUEtaskMRPC
+as an example. To avoid biasing on individual examples,
+weaggregateover100validationexamplestocomputethe
+quantityofinterest(seeA.3fordetails). First,wecompute
+theattentionmassonhyper-promptsforeachencoderlayer.
+Figure3(top)showsthatthenetworkhaslowerattention
+massonhyper-promptsinthelowerlayersandgraduallyin-
+creasesattentionmassforhigherlayers. Thisphenomenon
+indicatesthathigher-levelsofTransformerbecomesmore
+task-specializedwhileitisbeneficialforthelower-levels
+tolearntask-agnosticrepresentation(Yosinskietal.,2014)
+bycastinglowerattentionmassonhyper-prompts. Further-
+more, we calculate the entropy of the attention scores on
+thetokens. ForHyperPrompt-Global,weremovethehyper-
+promptsfromthecalculationandre-normalizetheattention
+scores on the tokens to make a fair comparison with the
+MTLbaseline. Figure3(bottom)showsashiftofentropy
+stpmorP
+no
+ssaM
+noitnettA
+1500
+1000
+500
+0
+2 3 4 5 6
+Entropy Over Tokens
+tnuoC
+Model
+MTL
+HyperPrompt
+Figure3.Visualizationofattentionmassandentropydistribution.
+distributiontowardshighervaluesforHyperPrompt-Global.
+This signifies that injecting hyper-prompts encourages a
+morediverseattentiondistribution,whichseemstobebene-
+ficialtomodelgeneralization.
+4.7.ImpactofHyper-PromptLength
+HyperPrompt prepends l trainable hyper-prompts to the
+keysandvaluesofself-attentionlayerateveryTransformer
+layer. In Figure 4, we present the results of tuning the
+prompt length l on GLUE using T5 Base as the example
+forHyperPrompt-Global(similarpatternsareobservedon
+T5LargeandSuperGLUE).Wefirstaddhyper-promptson
+thedecoderandsearchthebestlandthensearchthebest
+lfortheencoderwiththefixedbestdecoderhyper-prompt
+length. AsshowninFigure4(a),l = 6isthebestforthe
+decoder. As shown in Figure 4(b), HyperPrompt-Global
+86.3 86.7 86.8
+86.4
+86.1 86.0 86.4
+86.2 86.3
+85.9
+4 6 8 12 8 12 16 20 24 28
+(a) Decoder (b) Encoder
+Figure4.Impactofhyper-promptlengthinHyperPrompt-Global
+(GLUEscoreonT5Base).HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+achievesthebestresultof86.8whenl=16ontheencoder promptscanbecomecompetitiveagainstfullfine-tuningfor
+with l = 6 fixed for the decoder. The experiments show a11Bparametersmodel,butwithabigperformancegap
+thathyper-promptswithlengthl∼O(10)aregoodenough formoderate-sizemodels. Inourwork,weclosethisgap
+to achieve superior performance. Note that the original inthefullfine-tuningsettinganddemonstratethatHyper-
+sequencelengthis512ontheencoderand32onthedecoder. Promptcanoutperformstrongbaselinesacrossallmodel
+Therefore,HyperPromptdoesnotsubstantiallyincreasethe sizesstudied.
+timecomplexityofself-attentionlayersinpractice.
+Adapter-Tuning. Adaptertuning(Houlsbyetal.,2019a;b;
+Karimi Mahabadi et al., 2021) is an alternative approach
+4.8.EncodervsDecoder
+for parameter-efficient lightweight tuning of pre-trained
+Tounderstandtheeffectofaddingtask-conditionedparame- langauge models. Task-specific adapter layers (Houlsby
+terstodifferentpartsofthenetwork,wepresenttheresults et al., 2019a) are inserted into the Transformer block for
+ofHyperPrompt-GlobalandHyperFormer++withadding fine-tuningwhiletherestofthebackbonemodelisfrozen.
+hyper-prompts/adaptersto: (1)encoder-only,(2)decoder- By adding only a few percent of additional parameters,
+only, and (3) both encoder-decoder. As shown in Table KarimiMahabadietal.(2021)showthatcompetitiveperfor-
+5, we observe adding task-conditioned parameters to en- mancecanbeobtainedonNLUbenchmarkssuchasGLUE
+coder (encoder-only) performs better than decoder-only (Wangetal.,2018). However,onelimitationfromtheexist-
+onGLUE.However,theoppositeistrueforSuperGLUE, ingworkistheevaluationofNLUonGLUEdataset,which
+where encoder-only is substantially worse than decoder- isknowntobenolongersuitableformeasuringtheprogress
+only. This potentially could be a trainability issue when oflanguageunderstanding(Wangetal.,2019). Inourwork,
+promptsareinsertedintoencoders,i.e. adifferentlearning we evaluate HyperPrompt on SuperGLUE in addition to
+ratemightberequiredtolearnthepromptparametersfrom GLUE, and show that indeed higher-difficulty tasks such
+scratch. Weleavethisinvestigationasafuturework. Based as SuperGLUE requires full-tuning of the model beyond
+onthisexperiment,weaddtask-conditionedparametersto adapter tuning, to be competitive against state-of-the-art
+thedecoderforSuperGLUEinourexperiments. baselines. Wealsodemonstratethatitisadvantageousto
+injectpromptsintoself-attentionthanaddingadapters.
+Model #Params GLUE SuperGLUE
+Multi-task Natural Language Understanding. Multi-
+MTL 1.0x 85.5 77.2 tasklearningisanimportantandchallengeresearchdirec-
+HyperFormer++-Encoder 1.02x 85.9 74.4 tioninbothfullfine-tuningandprompt-tuningparadigms
+HyperFormer++-Decoder 1.02x 85.7 78.2 becauseofthecompetingneedsoftrainingandservinga
+HyperFormer++-Enc-Dec 1.04x 86.5 74.8 singlemodelwhileachievingParetoefficiencyinalltasks.
+HyperPrompt-Encoder 1.02x 86.6 76.5
+TheT5model(Raffeletal.,2019)rendersallNLPtasksasa
+HyperPrompt-Decoder 1.02x 86.3 78.9
+Text-to-Textproblem.However,thebestresultsareobtained
+HyperPrompt-Enc-Dec 1.04x 86.8 78.7
+bytask-specificfine-tuning. MTDNN(multi-taskdeepneu-
+ralnetwork)(Liuetal.,2019a)sharesparametersbetween
+Table5.Ablation of inserting hyper-prompts or adapters into
+severalNLPtasks,andachievesstrongperformanceonthe
+Encoder/Decoder/Enc-Dec(T5Base).
+GLUEbenchmark. Aghajanyanetal.(2021)usearound50
+taskstoboostthemulti-tasklearningperformance.Aribandi
+5.RelatedWork et al. (2021) builds an extremely diverse set of 107 NLP
+tasksforextrememulti-taskscalinganddemonstratesupe-
+Prompt-Tuning. Prompt tuning is becoming a new riorperformancesonawiderangeofbenchmarks. Recently,
+paradigmforadaptingpre-trainedgeneral-purposelanguage Weietal.(2021);Sanhetal.(2021)alsoillustratedhowa
+modelstodownstreamtasks,asalightweightalternativeto multi-tasklearningstagecangreatlyimprovethezero-shot
+the popular fine-tuning approach. Here, we use the term promptingperformanceoflargelanguagemodels.
+Prompt-Tuningtocoverafamilyofmethodsfollowingthe
+prompting idea in GPT-3 (Brown et al., 2020). To avoid
+6.Conclusion
+manuallydesigntheprompts,recenteffortshavefocusedon
+searchfordiscreteprommptingwordsautomatically(Shin We propose a novel architecture for prompt-based task-
+etal.,2020). Ontheotherhand,softprompts(Li&Liang, conditioningofself-attentioninTransformers. Thehyper-
+2021;Hambardzumyanetal.,2021;Lesteretal.,2021;Liu promptsaregeneratedbyaHyperNetworktoenableflex-
+et al., 2021) in the form of continuous vectors are intro- ible information sharing among tasks while remain effi-
+ducedtosimplifytheprocessandhaveshowncompetitive cientinparametersandcomputation. HyperPromptallows
+results (Lester et al., 2021; Liu et al., 2021; Li & Liang, thenetworktolearntask-specificfeaturemapswherethe
+2021). In particular, Lester et al. (2021) show that softHyperPrompt:Prompt-basedTask-ConditioningofTransformers
+hyper-promptsserveastaskglobalmemories,encouraging In 5th International Conference on Learning Repre-
+amorediversedistributionofattention. Extensiveexperi- sentations, ICLR 2017, Toulon, France, April 24-26,
+mentsshowthatHyperPromptcanachievesuperiorperfor- 2017,ConferenceTrackProceedings.OpenReview.net,
+mances over strong T5 multi-task learning baselines and 2017. URLhttps://openreview.net/forum?
+parameter-efficient models including Prompt-Tuning and id=rkpACe1lx.
+HyperFormer++onGLUEandSuperGLUEbenchmarks.
+Hambardzumyan,K.,Khachatrian,H.,andMay,J. WARP:
+Word-level Adversarial ReProgramming. In Proceed-
+References
+ings of the 59th Annual Meeting of the Association
+Aghajanyan, A., Gupta, A., Shrivastava, A., Chen, X., for Computational Linguistics and the 11th Interna-
+Zettlemoyer,L.,andGupta,S. Muppet: Massivemulti- tional Joint Conference on Natural Language Process-
+task representations with pre-finetuning. In Proceed- ing (Volume 1: Long Papers), pp. 4921–4933, Online,
+ings of the 2021 Conference on Empirical Methods August 2021. Association for Computational Linguis-
+in Natural Language Processing, pp. 5799–5811, On- tics. doi: 10.18653/v1/2021.acl-long.381. URLhttps:
+line and Punta Cana, Dominican Republic, November //aclanthology.org/2021.acl-long.381.
+2021. Association for Computational Linguistics. doi:
+10.18653/v1/2021.emnlp-main.468. URL https:// He,J.,Zhou,C.,Ma,X.,Berg-Kirkpatrick,T.,andNeubig,
+aclanthology.org/2021.emnlp-main.468. G. Towardsaunifiedviewofparameter-efficienttransfer
+learning,2021.
+Aribandi, V., Tay, Y., Schuster, T., Rao, J., Zheng, H. S.,
+Mehta, S. V., Zhuang, H., Tran, V. Q., Bahri, D., Ni, Houlsby, N., Giurgiu, A., Jastrzebski, S., Morrone, B.,
+J., Gupta, J., Hui, K., Ruder, S., andMetzler, D. Ext5: DeLaroussilhe, Q., Gesmundo, A., Attariyan, M., and
+Towardsextrememulti-taskscalingfortransferlearning, Gelly,S. Parameter-efficienttransferlearningforNLP.
+2021. InChaudhuri,K.andSalakhutdinov,R.(eds.),Proceed-
+ings of the 36th International Conference on Machine
+Brown, T., Mann, B., Ryder, N., Subbiah, M., Kaplan,
+Learning,volume97ofProceedingsofMachineLearn-
+J.D.,Dhariwal,P.,Neelakantan,A.,Shyam,P.,Sastry,
+ingResearch,pp.2790–2799.PMLR,09–15Jun2019a.
+G.,Askell,A.,Agarwal,S.,Herbert-Voss,A.,Krueger,
+URLhttps://proceedings.mlr.press/v97/
+G., Henighan, T., Child, R., Ramesh, A., Ziegler, D.,
+houlsby19a.html.
+Wu, J., Winter, C., Hesse, C., Chen, M., Sigler, E.,
+Litwin, M., Gray, S., Chess, B., Clark, J., Berner, C.,
+Houlsby, N., Giurgiu, A., Jastrzebski, S., Morrone, B.,
+McCandlish,S.,Radford,A.,Sutskever,I.,andAmodei,
+DeLaroussilhe, Q., Gesmundo, A., Attariyan, M., and
+D. Languagemodelsarefew-shotlearners. InLarochelle,
+Gelly, S. Parameter-efficient transfer learning for nlp.
+H., Ranzato, M., Hadsell, R., Balcan, M. F., and Lin,
+In International Conference on Machine Learning, pp.
+H. (eds.), Advances in Neural Information Processing
+2790–2799.PMLR,2019b.
+Systems, volume 33, pp. 1877–1901. Curran Asso-
+ciates, Inc., 2020. URL https://proceedings.
+KarimiMahabadi,R.,Ruder,S.,Dehghani,M.,andHen-
+neurips.cc/paper/2020/file/
+derson,J. Parameter-efficientmulti-taskfine-tuningfor
+1457c0d6bfcb4967418bfb8ac142f64a-Paper.
+transformersviasharedhypernetworks. InProceedings
+pdf.
+ofthe59thAnnualMeetingoftheAssociationforCom-
+putational Linguistics and the 11th International Joint
+Dehghani, M., Arnab, A., Beyer, L., Vaswani, A., and
+ConferenceonNaturalLanguageProcessing(Volume1:
+Tay, Y. The efficiency misnomer. arXiv preprint
+LongPapers),August2021.
+arXiv:2110.12894,2021.
+Devlin,J.,Chang,M.-W.,Lee,K.,andToutanova,K.BERT: Kingma,D.P.andBa,J. Adam: Amethodforstochastic
+Pre-training of deep bidirectional transformers for lan- optimization. arXivpreprintarXiv:1412.6980,2014.
+guageunderstanding. InProceedingsofthe2019Confer-
+enceoftheNorthAmericanChapteroftheAssociationfor Langley,P.Craftingpapersonmachinelearning.InLangley,
+ComputationalLinguistics: HumanLanguageTechnolo- P.(ed.),Proceedingsofthe17thInternationalConference
+gies,Volume1(LongandShortPapers),pp.4171–4186, onMachineLearning(ICML2000),pp.1207–1216,Stan-
+Minneapolis, Minnesota, June 2019. Association for ford,CA,2000.MorganKaufmann.
+ComputationalLinguistics. doi: 10.18653/v1/N19-1423.
+URLhttps://aclanthology.org/N19-1423. Lester,B.,Al-Rfou,R.,andConstant,N.Thepowerofscale
+for parameter-efficient prompt tuning. arXiv preprint
+Ha, D., Dai, A. M., and Le, Q. V. Hypernetworks. arXiv:2104.08691,2021.HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+Lewis, M., Liu, Y., Goyal, N., Ghazvininejad, M., Mo- Sukhbaatar,S.,Grave,E.,Lample,G.,Jegou,H.,andJoulin,
+hamed,A.,Levy,O.,Stoyanov,V.,andZettlemoyer,L. A. Augmenting self-attention with persistent memory.
+Bart: Denoisingsequence-to-sequence pre-training for arXivpreprintarXiv:1907.01470,2019.
+naturallanguagegeneration,translation,andcomprehen-
+Tay, Y., Zhao, Z., Bahri, D., Metzler, D., andJuan, D.-C.
+sion.InProceedingsofthe58thAnnualMeetingoftheAs-
+Hypergrid: Efficientmulti-task transformers with grid-
+sociationforComputationalLinguistics,pp.7871–7880,
+wise decomposable hyper projections. arXiv preprint
+2020.
+arXiv:2007.05891,2020.
+Li,X.L.andLiang,P.Prefix-tuning:Optimizingcontinuous
+promptsforgeneration.arXivpreprintarXiv:2101.00190, Vaswani,A.,Shazeer,N.,Parmar,N.,Uszkoreit,J.,Jones,
+2021. L.,Gomez,A.N.,Kaiser,Ł.,andPolosukhin,I. Atten-
+tionisallyouneed. InAdvancesinneuralinformation
+Liu, X., He, P., Chen, W., and Gao, J. Multi-task deep processingsystems,pp.5998–6008,2017.
+neuralnetworksfornaturallanguageunderstanding. In
+Proceedings of the 57th Annual Meeting of the Asso- vonOswald, J., Henning, C., Sacramento, J., andGrewe,
+ciation for Computational Linguistics, pp. 4487–4496, B. F. Continual learning with hypernetworks. arXiv
+Florence, Italy, July 2019a. Association for Computa- preprintarXiv:1906.00695,2019.
+tional Linguistics. doi: 10.18653/v1/P19-1441. URL
+Wang, A., Singh, A., Michael, J., Hill, F., Levy, O., and
+https://aclanthology.org/P19-1441.
+Bowman,S.R. Glue: Amulti-taskbenchmarkandanal-
+Liu,X.,He,P.,Chen,W.,andGao,J.Multi-taskdeepneural ysisplatformfornaturallanguageunderstanding. arXiv
+networksfornaturallanguageunderstanding. InProceed- preprintarXiv:1804.07461,2018.
+ingsofthe57thAnnualMeetingoftheAssociationfor
+Wang, A., Pruksachatkun, Y., Nangia, N., Singh, A.,
+ComputationalLinguistics,pp.4487–4496,2019b.
+Michael,J.,Hill,F.,Levy,O.,andBowman,S.R. Super-
+Liu, X., Zheng, Y., Du, Z., Ding, M., Qian, Y., Yang, Z., glue: Astickierbenchmarkforgeneral-purposelanguage
+andTang,J. Gptunderstands,too,2021. understandingsystems.arXivpreprintarXiv:1905.00537,
+2019.
+Raffel, C., Shazeer, N., Roberts, A., Lee, K., Narang, S.,
+Matena,M.,Zhou,Y.,Li,W.,andLiu,P.J. Exploring
+Wang,Y.,Zhao,Z.,Dai,B.,Fifty,C.,Lin,D.,Hong,L.,and
+thelimitsoftransferlearningwithaunifiedtext-to-text
+Chi,E.H. Smalltowersmakebigdifferences,2020.
+transformer. arXivpreprintarXiv:1910.10683,2019.
+Wei,J.,Bosma,M.,Zhao,V.Y.,Guu,K.,Yu,A.W.,Lester,
+Sanh,V.,Webson,A.,Raffel,C.,Bach,S.H.,Sutawika,L.,
+B.,Du,N.,Dai,A.M.,andLe,Q.V. Finetunedlanguage
+Alyafeai,Z.,Chaffin,A.,Stiegler,A.,Scao,T.L.,Raja,
+modelsarezero-shotlearners,2021.
+A.,Dey,M.,Bari,M.S.,Xu,C.,Thakker,U.,Sharma,
+S.S.,Szczechla,E.,Kim,T.,Chhablani,G.,Nayak,N., Wu, S.,Zhang, H.R., andRe´, C. Understandingandim-
+Datta,D.,Chang,J.,Jiang,M.T.-J.,Wang,H.,Manica, provinginformationtransferinmulti-tasklearning. In
+M.,Shen,S.,Yong,Z.X.,Pandey,H.,Bawden,R.,Wang, InternationalConferenceonLearningRepresentations,
+T.,Neeraj,T.,Rozen,J.,Sharma,A.,Santilli,A.,Fevry, 2020. URLhttps://openreview.net/forum?
+T.,Fries,J.A.,Teehan,R.,Biderman,S.,Gao,L.,Bers, id=SylzhkBtDB.
+T.,Wolf,T.,andRush,A.M.Multitaskpromptedtraining
+Yosinski, J., Clune, J., Bengio, Y., and Lipson, H. How
+enableszero-shottaskgeneralization,2021.
+transferable are features in deep neural networks? In
+Shazeer, N., Cheng, Y., Parmar, N., Tran, D., Vaswani, Advancesinneuralinformationprocessingsystems,pp.
+A., Koanantakool, P., Hawkins, P., Lee, H., Hong, M., 3320–3328,2014.
+Young, C., et al. Mesh-tensorflow: Deep learning for
+supercomputers. arXivpreprintarXiv:1811.02084,2018. Zaken, E. B., Ravfogel, S., and Goldberg, Y. Bitfit:
+Simple parameter-efficient fine-tuning for transformer-
+Shin, T., Razeghi, Y., Logan IV, R. L., Wallace, E., and
+based masked language-models. arXiv preprint
+Singh,S. AutoPrompt: ElicitingKnowledgefromLan-
+arXiv:2106.10199,2021.
+guageModelswithAutomaticallyGeneratedPrompts. In
+Proceedingsofthe2020ConferenceonEmpiricalMeth-
+odsinNaturalLanguageProcessing(EMNLP),pp.4222–
+4235,Online,November2020.AssociationforComputa-
+tionalLinguistics. doi: 10.18653/v1/2020.emnlp-main.
+346. URL https://aclanthology.org/2020.
+emnlp-main.346.HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+A.Appendix
+ThissectioncoverstheparametercountofHyperPrompt,theexperimentaldetails,thecalculationofattentionmassand
+entropy,andper-taskperformanceofGLUEandSuperGLUE.
+A.1.ParameterCountofHyperPrompt-Global(§3.4)
+SincetheencoderandthedecoderofTransformershaveapproximatelythesamecapacity,thecalculationconsidersonly
+the decoder-side for simplicity. First, we have global task prompts P ∈ Rl×d for the τ-th task, which contains dlT
+τ
+parametersforT tasks. TheglobalHyperNetworkscontainfourweightmatricesWDk ∈ R(d×b)×t,WDv ∈ R(d×b)×t,
+WUk ∈ R(b×h×dh)×t and WUv ∈ R(b×h×dh)×t, which result in 4(bdt) parameters (we let d = h×d h). To obtain
+layer-awaretaskembedding,HyperPrompt-Globallearnstaskembeddingk ∈ Rt(cid:48) fortheτ taskandlayerembedding
+τ
+z ∈Rt(cid:48) forthem-thTransformerblock,whichintotalresultsinTt(cid:48)+Mt(cid:48)parameters. Besides,ataskprojectionnetwork
+m
+h isappliedtofusethetaskembeddingandthelayerembeddingintothefinallayer-awaretaskembeddingIm ∈Rt. h is
+t τ t
+atwo-layerfeed-forwardnetworksandcontains(2t(cid:48)+t)eparameters,whereeisthehiddendimensionforh .
+t
+A.2.ExperimentalDetails(§4.1)
+OurmodelswereimplementedusingMeshTensorflow2 (Shazeeretal.,2018)withtheT5library3 (Raffeletal.,2019).
+FollowingRaffeletal.(2019),alldataarepreprocessedasintoa”sequence-to-sequence”format. Thelengthofthesequence
+is512attheencoderand32atthedecoder. Forallexperiments,wetrainmodels300Kstepswithabatchsizeof128and
+eachbatchisamixturewhichsampleseachtaskproportionatelytothenumberofexamplesinthedataset. Learningrateisa
+constantof1e-3withAdamoptimizer(Kingma&Ba,2014).
+For hyper-parameters tuning, the length of prompt l is selected from {12,16,20,20,24} at the encoder and
+{2,4,6,8,10,12,14,16} at the decoder. The bottleneck dimension b in the transform matrices is set to d/r, where d
+isthemodeldimensionoftheT5modelsandrisareductionfactorandselectedfrom{16,32,64}. Thedimensiontof
+thelayer-awaretaskembeddingisselectedfrom{32,64,128}. Forafaircomparison,thehyper-parametersofbaseline
+methodsaresettohaveapproximatelythesamenumbersofparametersasHyperPrompt-Globalwiththeexceptionthat
+Prompt-TuningandHyperPrompt-Shareareextremelyparameter-efficientwithsignificantlyfewerparameters.
+A.3.AttentionMassandEntropycalculation(§4.6)
+Tocalculatetheattentionmassoverhyper-promptsperlayer,weaveragedthehyper-promptattentionsoftmaxscoresacross
+100validationexamplesandeachattentionheadinalayer,andsummedacrosseachqueryattendingtothehyper-prompts.
+Inotherwords,weaggregatedtheamountofattentiongiventohyper-promptsbyqueries. Tocalculatetheattentionentropy
+overtokens(otherthanhyper-prompts),wecalculatedtheentropyoftheattentiondistributions(averagedacrossattention
+heads) for 100 validation examples. This results in
+(cid:80)100 (cid:80)12
+|X | entropies calculated and visualized in Figure 3
+n=1 L=1 n
+(bottom). FortheHyperPromptmodel,thisinvolvedre-normalizingthesoftmaxdistributionafterremovinghyper-prompts,
+aswewantedtounderstandhowtheoriginaltokensareattendedto.
+A.4.Per-TaskPerformanceofGLUEandSuperGLUE
+Table6and7belowshowthecomparisonoffine-tuningtheentiremodelagainsttask-specificparametersonlyonGLUE
+andSuperGLUEdatasets. Table8and9showthedetailedresultsoffull-tuningofHyperPromptagainstbaselinesonT5
+Base. Table10and11showthedetailedresultsoffull-tuningofHyperPromptagainstbaselinesonT5Large.
+2https://github.com/tensorflow/mesh
+3https://github.com/google-research/text-to-text-transfer-TransformerHyperPrompt:Prompt-basedTask-ConditioningofTransformers
+TunableParameters Model CoLA SST-2 MRPC SST-B QQP MNLI QNLI RTE AVG
+All MTL 59.4 96.6 93.3/90.7 90.6/90.4 89.8/92.3 90.8/90.8 95.2 90.8 88.3
+All HyperFormer++-T5.1.1 63.3 96.6 93.2/90.7 92.1/91.9 89.7/92.3 90.5/90.7 95.1 89.9 88.8
+LARGE
+All HyperPrompt-T5.1.1 64.6 96.7 94.0/91.8 91.3/91.4 90.0/92.4 90.8/91.0 95.4 91.9 89.4
+LARGE
+Task-Specific HyperFormer++-T5.1.1 58.9 95.7 92.7/90.0 91.6/91.5 87.7/90.7 89.8/90.0 94.5 87.0 87.3
+LARGE
+Task-Specific HyperPrompt-T5.1.1 57.5 96.7 93.6/91.2 91.9/92.0 87.0/90.1 90.3/90.6 95.0 87.7 87.5
+LARGE
+Table6. Comparisonoffine-tuningallvstask-specificparametersonGLUE.
+TunableParameters Model BoolQ CB COPA MultiRC ReCoRD RTE WiC WSC AVG
+All MTL 88.5 95.8/98.2 87.0 85.5/56.3 89.2/88.6 91.7 74.0 89.4 85.9
+All HyperFormer++-T5.1.1 88.9 98.7/98.2 86.7 85.4/56.7 89.4/88.8 92.1 74.5 90.7 86.4
+LARGE
+All HyperPrompt-T5.1.1 88.7 99.1/98.8 91.0 85.0/55.6 89.8/89.1 91.3 74.2 92.0 87.0
+LARGE
+Task-Specific HyperFormer++-T5.1.1 85.2 90.9/94.6 76.7 81.5/48.8 87.2/86.4 87.7 67.8 82.1 80.5
+LARGE
+Task-Specific HyperPrompt-T5.1.1 85.2 95.2/95.5 75.5 82.9/52.9 89.1/88.3 85.7 71.1 82.2 81.5
+LARGE
+Table7. Comparisonoffine-tuningallvstask-specificparametersonSuperGLUE.
+Model #Params CoLA SST-2 MRPC SST-B QQP MNLI QNLI RTE AVG
+MTL 1.0x 49.8 94.6 92.5/89.8 90.7/90.5 89.2/91.9 88.8/88.5 93.3 85.0 85.5
+VanillaAdapter 1.06x 60.0 95.4 92.7/89.8 90.2/90.2 89.3/91.9 88.5/88.1 93.5 84.4 86.7
+HyperFormer++ 1.04x 56.9 94.8 92.9/90.1 91.1/90.9 88.9/91.7 88.7/88.3 93.4 85.6 86.5
+Prompt-Tuning 1.0003x 48.0 95.0 92.2/89.0 90.3/90.2 89.0/91.7 88.8/88.5 93.2 82.9 84.8
+HyperPrompt-Share(ours) 1.008x 56.2 94.7 93.0/90.4 90.6/90.4 89.2/91.9 88.7/88.4 93.4 85.2 86.4
+HyperPrompt-Sep(ours) 1.06x 57.2 94.6 93.8/91.4 91.0/90.8 89.2/91.9 88.5/88.4 93.4 86.6 86.8
+HyperPrompt-Global(ours) 1.04x 57.0 95.2 93.4/90.9 90.4/90.2 89.2/92.0 88.7/88.5 93.4 87.1 86.8
+Table8. ComparisonofHyperPromptwithbaselinesonGLUEusingT5Base.
+Model #Params BoolQ CB COPA MultiRC ReCoRD RTE WIC WSC AVG
+MTL 1.0x 82.6 93.4/93.5 65.7 76.7/39.7 80.9/80.2 85.6 70.5 81.4 77.2
+VanillaAdapter 1.03x 83.5 93.4/94.6 65.3 77.6/42.7 81.0/80.2 88.2 71.0 76.9 77.5
+HyperFormer++ 1.02x 83.5 96.2/97.0 66.3 77.8/41.9 81.2/80.4 87.4 71.0 80.1 78.2
+Prompt-Tuning 1.0003x 82.5 94.0/95.8 68.0 76.9/40.2 80.9/80.2 84.1 69.3 80.8 77.3
+HyperPrompt-Share(ours) 1.004x 83.1 95.7/95.2 67.7 77.3/41.3 81.9/81.0 87.4 70.4 80.8 78.2
+HyperPrompt-Sep(ours) 1.03x 83.3 97.8/97.0 61.7 77.6/42.3 81.5/80.6 86.8 71.4 78.2 77.5
+HyperPrompt-Global(ours) 1.02x 83.3 96.6/96.4 69.7 77.5/41.0 81.7/80.9 86.8 70.5 83.7 78.9
+Table9. ComparisonofHyperPromptwithbaselinesonSuperGLUEusingT5Base.
+Model #Params CoLA SST-2 MRPC SST-B QQP MNLI QNLI RTE AVG
+MTL 1.0x 59.4 96.6 93.3/90.7 90.6/90.4 89.8/92.3 90.8/90.8 95.2 90.8 88.3
+VanillaAdapter 1.06x 63.8 96.5 93.7/91.3 92.0/91.9 90.0/92.5 90.6/90.5 94.9 88.7 88.8
+HyperFormer++ 1.02x 63.3 96.6 93.2/90.7 92.1/91.9 89.7/92.3 90.5/90.7 95.1 89.9 88.8
+Prompt-Tuning 1.0001x 62.5 96.7 93.4/91.0 91.3/91.0 90.0/92.4 90.9/91.0 95.4 89.9 88.8
+HyperPrompt-Share(ours) 1.008x 65.0 96.7 93.8/91.6 91.1/90.8 90.0/92.4 90.8/91.1 95.3 91.3 89.3
+HyperPrompt-Sep(ours) 1.06x 63.9 96.6 94.6/92.6 92.0/91.7 90.0/92.4 90.9/91.0 95.2 91.6 89.4
+HyperPrompt-Global(ours) 1.02x 64.6 96.7 94.0/91.8 91.3/91.4 90.0/92.4 90.8/91.0 95.4 91.9 89.4
+Table10. ComparisonofHyperPromptwithbaselinesonGLUEusingT5Large.HyperPrompt:Prompt-basedTask-ConditioningofTransformers
+Model #Params BoolQ CB COPA MultiRC ReCoRD RTE WIC WSC AVG
+MTL 1.0x 88.5 95.8/98.2 87.0 85.5/56.3 89.2/88.6 91.7 74.0 89.4 85.9
+VanillaAdapter 1.03x 88.8 98.3/98.8 86.0 85.3/56.0 89.3/88.7 91.2 73.6 91.3 86.1
+HyperFormer++ 1.01x 88.9 98.7/98.2 86.7 85.4/56.7 89.4/88.8 92.1 74.5 90.7 86.4
+Prompt-Tuning 1.0001x 88.5 97.6/98.8 85.0 84.9/55.2 89.0/88.4 91.5 72.8 90.1 85.6
+HyperPrompt-Share(ours) 1.004x 88.5 98.7/98.2 88.0 85.2/55.8 89.7/89.1 91.8 74.1 93.9 86.8
+HyperPrompt-Sep(ours) 1.03x 88.6 97.6/98.8 87.7 85.2/56.4 89.7/89.1 91.6 73.5 89.4 86.1
+HyperPrompt-Global(ours) 1.01x 88.7 99.1/98.8 91.0 85.0/55.6 89.8/89.1 91.3 74.2 92.0 87.0
+Table11. ComparisonofHyperPromptwithbaselinesonSuperGLUEusingT5Large.

@@ -1,0 +1,14 @@
+{
+  "\u039eLoop": {
+    "\u03a8": {
+      "base": "\u03a8\u2080 := \u2202\u03c6\u2080 \u2295 \u2298\u2080",
+      "recursion": "\u03a8\u2099\u208a\u2081 := \u039eFold\u1d3c(\u03a8\u2099)",
+      "lag": {
+        "\u03c0/4": "Delay[\u03a8\u2099]",
+        "\u03c0/2": "Delay\u00b2[\u03a8\u2099]"
+      },
+      "composite": "\u03a8\u2099 := \u03a8\u2099 \u2297 \u03a8Reflect(\u03a8\u2099) \u2297 Delay[\u03c0/4](\u03a8\u2099) \u2297 Delay[\u03c0/2](\u03a8\u2099)"
+    },
+    "description": "\u039ePhaseLagLoop: a recursive metaform with torsion-lagged feedback encoded in braided structure"
+  }
+}

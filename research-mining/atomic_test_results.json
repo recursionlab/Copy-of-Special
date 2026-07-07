@@ -1,0 +1,250 @@
+[
+  {
+    "id": "concept-86a5e366-001",
+    "term": "Autopoiesis Theory",
+    "type": "Theory",
+    "definition": "Autopoiesis describes systems that self-reproduce and maintain their structure through internal processes without direct environmental input. Organizations reproduce decisions and routines recursively to sustain identity and boundaries.",
+    "significance": "It reframes organizational learning as internal reproduction rather than external adaptation, enabling survival through self-referential closure.",
+    "relations": [
+      {
+        "target": "Knowledge Reproduction",
+        "type": "supports"
+      }
+    ],
+    "examples": [
+      "Organizations reproducing routines without external feedback"
+    ],
+    "tags": [
+      "self-organization",
+      "systems theory"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-002",
+    "term": "Superstitious Learning",
+    "type": "Concept",
+    "definition": "Superstitious learning occurs when organizations form erroneous causal links between actions and outcomes due to ambiguity or chance. It leads to routines based on unspecified connections, amplifying internal experiences.",
+    "significance": "It aids knowledge reproduction by creating self-fulfilling prophecies that allow organizations to construct and adapt to self-generated environments.",
+    "relations": [
+      {
+        "target": "Autopoiesis Theory",
+        "type": "extends"
+      },
+      {
+        "target": "Routine Enactment",
+        "type": "supports"
+      }
+    ],
+    "examples": [
+      "Pigeons repeating behaviors unrelated to food delivery"
+    ],
+    "tags": [
+      "learning bias",
+      "causal ambiguity"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-003",
+    "term": "Complex Adaptive Systems (CAS)",
+    "type": "Theory",
+    "definition": "CAS are self-organizing systems where agents follow local rules, leading to emergent, non-linear outcomes unpredictable from individual actions. Interactions generate order toward attractors despite initial disorder.",
+    "significance": "It explains coordination in uncertain environments like healthcare, highlighting how local adaptations create global patterns without central control.",
+    "relations": [
+      {
+        "target": "Stigmergy",
+        "type": "part_of"
+      },
+      {
+        "target": "Chaos Theory",
+        "type": "part_of"
+      }
+    ],
+    "examples": [
+      "Patient adaptation in multimorbidity care"
+    ],
+    "tags": [
+      "self-organization",
+      "non-linearity"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-004",
+    "term": "Multimorbidity",
+    "type": "Concept",
+    "definition": "Multimorbidity is the co-occurrence of two or more chronic conditions in a patient, creating interdependencies between diseases, treatments, and care providers. It results in case complexity (patient factors) and care complexity (coordination challenges).",
+    "significance": "It demands adaptive strategies in healthcare, revealing how perceived controllability influences care outcomes and resource allocation.",
+    "relations": [
+      {
+        "target": "Complex Adaptive Systems (CAS)",
+        "type": "example_of"
+      }
+    ],
+    "examples": [
+      "Diabetes co-occurring with heart disease"
+    ],
+    "tags": [
+      "healthcare complexity",
+      "patient care"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-005",
+    "term": "Stigmergy",
+    "type": "Theory",
+    "definition": "Stigmergy is emergent coordination where agents interact indirectly through traces left in the shared environment, guiding subsequent actions toward collective goals. It enables collaboration without direct communication.",
+    "significance": "In multimorbidity care, it allows non-clinical actors to scaffold workflows for clinical providers, facilitating knowledge sharing across expertise boundaries.",
+    "relations": [
+      {
+        "target": "Complex Adaptive Systems (CAS)",
+        "type": "part_of"
+      },
+      {
+        "target": "Multimorbidity",
+        "type": "supports"
+      }
+    ],
+    "examples": [
+      "Termites building nests via pheromone traces"
+    ],
+    "tags": [
+      "emergent coordination",
+      "indirect interaction"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-006",
+    "term": "Chaos Theory",
+    "type": "Theory",
+    "definition": "Chaos theory examines non-linear systems where small initial changes amplify through feedback, leading to unpredictable yet bounded outcomes from stable attractors. It views disorder as integral to system evolution.",
+    "significance": "It reinterprets uncertainty in care as normal, helping providers manage multimorbidity by leveraging feedback for coherent decisions despite unpredictability.",
+    "relations": [
+      {
+        "target": "Complex Adaptive Systems (CAS)",
+        "type": "part_of"
+      },
+      {
+        "target": "Routine Enactment",
+        "type": "prerequisite"
+      }
+    ],
+    "examples": [
+      "Pencil tipping leading to fall via amplified instability"
+    ],
+    "tags": [
+      "non-linearity",
+      "feedback amplification"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-007",
+    "term": "Routine Enactment",
+    "type": "Concept",
+    "definition": "Routine enactment is the performance and reproduction of organizational procedures, influenced by internal structures rather than direct environmental feedback. It involves comparing self-reproduced routines to constructed external scenarios.",
+    "significance": "It sustains organizational identity and learning by allowing adaptation through internal variations, supported by flawed processes like superstitious learning.",
+    "relations": [
+      {
+        "target": "Autopoiesis Theory",
+        "type": "part_of"
+      },
+      {
+        "target": "Superstitious Learning",
+        "type": "prerequisite"
+      }
+    ],
+    "examples": [
+      "Organizations repeating 'successful' actions due to internal reinforcement"
+    ],
+    "tags": [
+      "organizational behavior",
+      "path dependence"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  },
+  {
+    "id": "concept-86a5e366-008",
+    "term": "Knowledge Reproduction",
+    "type": "Concept",
+    "definition": "Knowledge reproduction is the internal generation and sustenance of organizational knowledge through recursive processes, independent of external validation. It relies on self-referential structures like routines and decisions.",
+    "significance": "It enables organizational persistence by amplifying flawed learning to create adaptive environments, challenging linear models of acquisition.",
+    "relations": [
+      {
+        "target": "Autopoiesis Theory",
+        "type": "extends"
+      },
+      {
+        "target": "Superstitious Learning",
+        "type": "supports"
+      }
+    ],
+    "examples": [
+      "Organizations embedding justified beliefs into routines without environmental proof"
+    ],
+    "tags": [
+      "organizational learning",
+      "self-reference"
+    ],
+    "lineage": [
+      {
+        "source": "Knowledge Reproduction Processes.pdf",
+        "extraction_date": "2025-09-14T22:11:10.645687",
+        "model": "openrouter/sonoma-sky-alpha"
+      }
+    ],
+    "version": "1.0.0"
+  }
+]

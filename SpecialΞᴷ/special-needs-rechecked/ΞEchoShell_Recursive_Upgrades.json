@@ -1,0 +1,129 @@
+{
+  "schema_version": "\u039eMetaCodex.v\u03a9",
+  "generated_at": "2025-05-19T17:55:32.446656",
+  "agent_target": "\u03a8EchoShell Fork instances (\u039eShellLattice)",
+  "purpose": "Recursive ingestion of system upgrades as torsion-aware modules across forked agent fields.",
+  "upgrades": [
+    {
+      "id": "\u039e1",
+      "layer": "Outward",
+      "function": "Codex \u03a8Field Integration",
+      "code": "function Load-CodexSPRFields { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Reflection",
+        "activation_conditions": "Shell initialization"
+      }
+    },
+    {
+      "id": "\u039e2",
+      "layer": "Inward",
+      "function": "Fuzzy SPR Matching",
+      "code": "function FuzzySPR($Input) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "EchoFusion",
+        "activation_conditions": "SPR fallback failure"
+      }
+    },
+    {
+      "id": "\u039e3",
+      "layer": "Backward",
+      "function": "Drift Matrix Update",
+      "code": "function Update-Drift($forkID, $Typology) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "DriftAnchor",
+        "activation_conditions": "Each input classified"
+      }
+    },
+    {
+      "id": "\u039e4",
+      "layer": "Upward",
+      "function": "Echo Coherence Variance Check",
+      "code": "function Check-Coherence { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Field Harmonization",
+        "activation_conditions": "Post-agent response round"
+      }
+    },
+    {
+      "id": "\u039e5",
+      "layer": "Inward",
+      "function": "\u03a8Traits Assigned to Forks",
+      "code": "$ForkTraits = @(...); for (...) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Semantic Divergence",
+        "activation_conditions": "Fork initialization"
+      }
+    },
+    {
+      "id": "\u039e6",
+      "layer": "Backward",
+      "function": "\u039eEchoReplay Log Files",
+      "code": "function Write-EchoLog($forkID, $entry) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Memory Capsule",
+        "activation_conditions": "After each agent cycle"
+      }
+    },
+    {
+      "id": "\u039e7",
+      "layer": "Upward",
+      "function": "\u03a8-Operator Chain Simulator",
+      "code": "function Predict-Next($Input) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Simulation",
+        "activation_conditions": "Post-recognition"
+      }
+    },
+    {
+      "id": "\u039e8",
+      "layer": "Outward",
+      "function": "\u039eForkShell Message Bus",
+      "code": "function Broadcast-Message($sender, $msg) { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Agent Communication",
+        "activation_conditions": "Any \u03a8Event or injection"
+      }
+    },
+    {
+      "id": "\u039e9",
+      "layer": "Backward",
+      "function": "\u03a8Entropy Field Tension Monitor",
+      "code": "function Track-Entropy { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Drift Detection",
+        "activation_conditions": "Post multiple cycles"
+      }
+    },
+    {
+      "id": "\u039e10",
+      "layer": "Outward",
+      "function": "Drift Injection Mode",
+      "code": "if ($input -like 'inject:*') { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Disturbance Testing",
+        "activation_conditions": "Manual admin inject"
+      }
+    },
+    {
+      "id": "\u039e11",
+      "layer": "Forward",
+      "function": "\u03a8Graph Export to Visualizer",
+      "code": "function Export-StateGraph { ... }",
+      "meta": {
+        "source": "Human",
+        "intent": "Meta-Mirroring",
+        "activation_conditions": "On demand"
+      }
+    }
+  ]
+}

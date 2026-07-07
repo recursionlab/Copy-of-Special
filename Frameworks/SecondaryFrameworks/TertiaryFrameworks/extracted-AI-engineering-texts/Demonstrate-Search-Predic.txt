@@ -1,0 +1,1059 @@
+DEMONSTRATE–SEARCH–PREDICT:
+Composing retrieval and language models for knowledge-intensive NLP
+OmarKhattab1 KeshavSanthanam1 XiangLisaLi1 DavidHall1
+PercyLiang1 ChristopherPotts1 MateiZaharia1
+Abstract
+How many storeys are in the castle David Gregory inherited?
+Retrieval-augmented in-context learning has Vanilla LM LM:Castle Gregoryhas threestoreys. ❌Hallucinates
+emergedasapowerfulapproachforaddressing a fictitious castle
+knowledge-intensivetasksusingfrozenlanguage Retrieve- RM:“St. Gregory Hotel is a nine-floor boutique hotel in D.C...”
+then-Read ❌Retrieves a
+models(LM)andretrievalmodels(RM).Exist- LM: St. Gregory Hotelhas ninestoreys.
+different building
+ingworkhascombinedtheseinsimple“retrieve-
+LM: “Which castle did David Gregory inherit?”
+then-read” pipelines in which the RM retrieves RM:“David Gregory inherited KinnairdyCastle in 1664...”
+Multi-Hop LM: “How many storyesdoes KinnairdyCastle have?”
+passages that are inserted into the LM prompt. DSP Program RM:“KinnairdyCastle is a tower house, having five storeys…”
+To begin to fully realize the potential of frozen LM: KinnairdyCastlehas fivestoreys.
+LMs and RMs, we propose DEMONSTRATE–
+Figure1.A comparison between three systems based on GPT-
+SEARCH–PREDICT(DSP),aframeworkthatre-
+3.5(text-davinci-002).Onitsown,theLMoftenmakesfalse
+liesonpassingnaturallanguagetextsinsophisti-
+assertions. An increasingly popular retrieve-then-read pipeline
+catedpipelinesbetweenanLMandanRM.DSP
+failswhensimplesearchcan’tfindananswer.Incontrast,atask-
+can express high-level programs that bootstrap
+awareDSPprogramsuccessfullydecomposestheproblemand
+pipeline-aware demonstrations, search for rele- producesacorrectresponse.Textseditedforpresentation.
+vantpassages,andgenerategroundedpredictions,
+withrelevantinformationfromalargecorpus(Lazaridou
+systematicallybreakingdownproblemsintosmall
+etal.,2022;Pressetal.,2022;Khotetal.,2022).
+transformationsthattheLMandRMcanhandle
+morereliably. Wehavewrittennovel DSP pro- Recentworkhasshownsuchretrieval-augmentedin-context
+gramsforansweringquestionsinopen-domain, learning to be effective in simple “retrieve-then-read”
+multi-hop,andconversationalsettings,establish- pipelines: aqueryisfedtotheRMandtheretrievedpas-
+ing in early evaluations new state-of-the-art in- sages become part of a prompt that provides context for
+contextlearningresultsanddelivering37–120%, theLMtouseinitsresponse. Inthiswork,wearguethat
+8–39%,and80–290%relativegainsagainstthe thefactthatbothLMsandRMsconsume(andgenerateor
+vanilla LM (GPT-3.5), a standard retrieve-then- retrieve)naturallanguagetextscreatesanopportunityfor
+read pipeline, and a contemporaneous self-ask muchmoresophisticatedinteractionsbetweenthem. Fully
+pipeline,respectively. WereleaseDSPathttps: realizing this would be transformative: frozen LMs and
+//github.com/stanfordnlp/dsp. RMs could serve as infrastructure across tasks, enabling
+ML- and domain-experts alike to rapidly build grounded
+AI systems at a high level of abstraction and with lower
+1.Introduction
+deploymentoverheadsandannotationcosts.
+In-contextlearningadaptsafrozenlanguagemodel(LM)to Figure 1 begins to illustrate the power of retrieval-
+tasksbyconditioningtheLMonatextualpromptincluding augmentedin-contextlearning,butalsothelimitationsof
+taskinstructionsand afewdemonstrating examples(Mc- “retrieve-then-read”(Lazaridouetal.,2022;Izacardetal.,
+Cannetal.,2018;Radfordetal.,2019;Brownetal.,2020). 2022). Ourqueryis“Howmanystoreysareinthecastle
+Forknowledge-intensivetaskssuchasquestionanswering, DavidGregoryinherited?” Whenpromptedtoanswerthis,
+factchecking,andinformation-seekingdialogue,retrieval GPT-3.5(text-davinci-002;Ouyangetal.2022)makes
+models (RM) are increasingly used to augment prompts upafictitiouscastlewithincorrectattributes,highlighting
+thecommonobservationthatknowledgestoredinLMpa-
+1StanfordUniversity.Correspondenceto:
+OmarKhattab<okhattab@cs.stanford.edu>. rametersisoftenunreliable(Shusteretal.,2021;Ishiietal.,
+2022). Introducing an RM component helps, as the LM
+Preprint. cangrounditsresponsesinretrievedpassages,butarigid
+3202
+naJ
+32
+]LC.sc[
+2v42041.2122:viXraDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+Q How many storeys are in...
+Q When was the discoverer of
+Palomar 4 born?
+A 1889
+Q In which city did Akeem
+Ellis play in 2017?
+A Ellesmere Port
+niarT
+Q How many storeys are in the castle...
+Q When was the discoverer of Palomar 4 born?
+A 1889
+Hop1 Who discovered Palomar 4?
+Psg1 Edwin Hubble discovered Palomar 4...
+Hop2 When was Edwin Powell born?
+Psg2 Edwin Powell Hubble (1889–1953) was...
+Pred 1889
+Q In which city did Akeem Ellis play...
+A Ellesmere Port
+... ...
+x : Example
+Pred Waterloo❌
+1 Demonstrate
+defdemonstrate(x:Example) -> Example:
+x.demos= annotate(x.train, attempt)
+returnx
+defattempt(d:Example):
+d= search(d)
+d= predict(d)
+ifd.pred==d.answer: returnd
+someD
+“How many storeys are in the Q How many storeys are in the...
+castle David Gregory inherited?” Demos . . .
+Hop1 Which castle did David Gregory inherit?
+Psg1 David Gregory inherited Kinnairdy Castle...
+Hop2 How many storeys are in Kinnairdy Castle?
+Psg2 Kinnairdy Castle […] having five storeys...
+3
+Predict
+defpredict(x:Example) -> Example:
+x.context= [x.psg1, x.psg2]
+x.pred=generate(qa_template)(x).pred
+returnx
+Q How many storeys does the...
+2 Search . . . . . .
+Pred Five storeys
+defsearch(x:Example) -> Example:
+x.hop1 =generate(hop_template)(x).pred
+x.psg1 =retrieve(x.hop1, k=1)[0]
+x.hop2 =generate(hop_template)(x).pred “Five storeys”
+x.psg2 =retrieve(x.hop2, k=1)[0]
+returnx
+Figure2.AtoyexampleofaDSPprogramformulti-hopquestionanswering. Givenaninputquestionanda2-shottrainingset,the
+DEMONSTRATEstageprogrammaticallyannotatesintermediatetransformationsonthetrainingexamplesusingaformofweaksupervision.
+Learningfromaresultingdemonstration,theSEARCHstagedecomposesthecomplexinputquestionandretrievessupportinginformation
+overtworetrievalhops.Finally,thePREDICTstageusesthedemonstrationandretrievedpassagestoanswerthequestion.
+retrieve-then-readstrategyfailsbecausetheRMcannotfind stage uses labeled question–answer pairs to implement a
+passagesthatdirectlyanswerthequestion. formofweaksupervisionthatprogrammaticallyannotates
+thetransformationsinvokedwithinSEARCHandPREDICT.
+We introduce the DEMONSTRATE–SEARCH–PREDICT
+(DSP)frameworkforin-contextlearning,whichreliesen- WeevaluateseveralDSPprogramsonansweringquestions
+tirely on passing natural language text (and scores) be- inopen-domain,multi-hop,andconversationalsettings. In
+tween a frozen RM and LM. DSP introduces a num- them, we implement novel and reusable transformations
+berofcomposablefunctionsthatbootstraptrainingexam- suchasbootstrappingannotationsforallofourpipelines
+ples(DEMONSTRATE),gatherinformationfromaknowl- withweaksupervision(§2.3),reliablyrewritingquestionsto
+edge corpus (SEARCH), and generate grounded outputs resolveconversationaldependenciesanditerativelydecom-
+(PREDICT),usingthemtosystematicallyunifytechniques posecomplexquerieswithsummarizationofintermediate
+fromtheretrieval-augmentedNLPandthein-contextlearn- hops(§2.4),andgeneratinggroundedresponsesfrommul-
+ingliteratures(Leeetal.,2019;Khattabetal.,2021a;Anan- tiplepassageswithself-consistency(§2.5). Wereportpre-
+thaetal.,2020;Gaoetal.,2022;Izacardetal.,2022;Dohan liminaryresultsonOpen-SQuAD,HotPotQA,andQReCC
+et al., 2022; Zelikman et al., 2022; Zhang et al., 2022). usingthefrozenLMGPT-3.5andRMColBERTv2(Khat-
+WeuseDSPtosuggestpowerfulstrategiesforknowledge- tab & Zaharia, 2020; Santhanam et al., 2022b) with no
+intensivetaskswithcompositionsofthesetechniques. This fine-tuning. OurDSPprogramsdeliver37–120%,8–39%,
+revealsnewconceptualpossibilitiesforin-contextlearning and80–290%relativegainsagainstcorrespondingvanilla
+ingeneral(§2), anditallowsustopresentrichprograms LMs,astandardretrieve-then-readpipeline,andacontem-
+thatsetnewstate-of-the-artresults(§3). poraneousself-askpipeline(Pressetal.,2022),respectively.
+Future versions of this report will include additional test
+Figure1showsthepaththataDSPprogrammighttaketo
+tasksandLMchoices.
+arriveatananswer,andFigure2illustrateshowadeliberate
+programachievesthis. InsteadofaskingtheLMtoanswer Insummary,thisworkmakesthefollowingcontributions.
+thiscomplexquestion,theprogram’sSEARCHstageusesthe First, we argue that simple task-agnostic pipelines for in-
+LMtogenerateaquery“WhichcastledidDavidGregory contextlearningshouldgivewaytodeliberate,task-aware
+inherit?” TheRMretrievesapassagesayingGregoryinher- strategies. Second, we show that this shift need not be a
+itedtheKinnairdyCastle. Afterasecondsearch“hop”finds burden: withDSP,suchstrategiescanbeeasilyexpressed
+thecastle’snumberofstoreys,thePREDICTstagequeries asshortprogramsusingcomposableoperators. Third,this
+theLMwiththesepassagestoanswertheoriginalquestion. composability spawns powerfulcapacities, like automati-
+Althoughthisprogramimplementsbehaviorssuchasquery callyannotatingdemonstrationsforcomplexpipelinesfrom
+generation,itrequiresnohand-labeledexamplesofthese end-tasklabels. Fourth,forthreeknowledge-intensivetasks,
+intermediatetransformations(i.e.,ofthequeriesandpas- weimplementrichprogramsthatestablishstate-of-the-art
+sagesofbothretrievalhops). Instead,theDEMONSTRATE resultsforin-contextlearning.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+2. DEMONSTRATE–SEARCH–PREDICT 2.2.DatatypesandControlFlow
+WenowintroducetheDSPframeworkandshowitsexpres- WehaveimplementedtheDSPframeworkinPython. The
+sivepowerbysuggestinganumberofstrategiesinwhich presentsectionintroducesthecoredatatypesandcompos-
+theLMandRMcancometogethertotacklecomplexprob- ablefunctionsprovidedbytheframework. Weuseillustra-
+lems effectively. We show in §3 that such strategies out- tivecodesnippetstogroundtheexamples,andtoconvey
+performexistingin-contextlearningmethods. Webeginby thepowerthatcomesfrombeingabletoexpresscomplex
+discussingtheLMandRMfoundationmodulesonwhich interactionsbetweentheLMandRMinsimpleprograms.
+DSPisbuilt(§2.1)andthenthedatatypesandcontrolflow
+The Example Datatype To conduct a task, a DSP pro-
+within DSP (§2.2). Subsequently,wediscusseachofthe
+gram manipulates one or more instances of the Example
+three inference stages: DEMONSTRATE (§2.3), SEARCH
+datatype. An Example behaves like a Python dictionary
+(§2.4),andPREDICT(§2.5).
+withmultiplefields. Theprogramistypicallyprovidedwith
+afewtrainingexamples. Thecodesnippetbelowillustrates
+2.1.PretrainedModules: LMandRM
+thisformulti-hopquestionanswering.
+A DSP program defines the communication between the
+languagemodelLMandtheretrievalmodelRM.
+1from dsp import Example
+2
+3train = [Example(question="When was the discoverer
+of Palomar 4 born?", answer="1889"),
+Language Model We invoke a frozen language model 4 Example(question="In which city did Akeem
+LM to conditionally generate (or score) text. For each Ellis play in 2017?", answer="Ellesmere Port")]
+invocation,theprogrampreparesapromptthatadaptsthe
+LM to a specific function (e.g., answering questions or
+This snippet contains two labeled examples, each with a
+generatingqueries). Apromptoftenincludesinstructions,
+multi-hop question (e.g., “In which city did Akeem Ellis
+afewdemonstrationsofthedesiredbehavior,andaninput
+play in 2017?”) and its short answer (“Ellesmere Port”).
+querytobeanswered. ArbitrarykeysandvaluesareallowedwithinanExample,
+As in Figure 2, the LM generates not only: (i) the final thoughtypicalvaluesarestringsorlistsofstrings.
+answertotheinputquestion(inthePREDICTstage),butalso
+Inthistask,weareunlikelytofindanindividualpassage
+(ii) intermediate “hop” queries to find useful information
+thatprovidestheanswertoanyquestion. Forexample,the
+fortheinputquestion(SEARCH)aswellas(iii)exemplar
+firsttrainingexamplecanprobablyberesolvedonlybyfirst
+queriesthatillustratehowtoproducequeriesforquestions
+answeringthequestionofwhodiscoveredPalomar(“Edwin
+inthetrainingset(DEMONSTRATE). Thissystematicuseof
+Hubble”)andthenaddressingthequestionofHubble’sbirth
+theLMisahallmarkofDSPprograms.
+dateusingdifferentevidencepassages. Wetypicallyassume
+thatthehuman-labeledtrainingdatadonotincludelabels
+RetrievalModel DSPprogramsalsoinvokeafrozenre- forintermediatetransformations(e.g.,queriesforindividual
+trieval model RM to retrieve the top-k most “relevant” hops)thatwouldbeusefulforfollowingthesesteps,andso
+text sequences for a given query. The RM can index a itisthejoboftheDSPprogramtodiscoverthesestrategies
+massivesetofpre-definedpassagesforscalablesearch,and viain-contextlearning.
+thosepassagescanbeupdatedwithoutchangingtheretrieval
+A DSP Program The following code snippet is a com-
+parameters. TheRMacceptsfree-formtextualinputsand
+pleteprogramforresolvingmulti-hopquestionslikethose
+specializesinestimatingtherelevance(orsimilarity)ofa
+inFigure1,withhelpfromtrainexampleslikethoseabove.
+textsequencetoaquery.
+As in Figure 2, the RM is responsible for retrieving (i) 1def multihop_program(question: str) -> str:
+passagesforeachquerygeneratedbytheLM(duringthe 2 x = Example(question=question, train=train)
+3 x = multihop_demonstrate(x)
+SEARCHstage),butalso(ii)passagesthatareusedwithin 4 x = multihop_search(x)
+demonstrations (DEMONSTRATE). In the latter case, the 5
+6
+x re= turm nul xt .ih ao np sw_ ep rredict(x)
+RM’s contributions are less about providing directly rel- 7
+evant information to the input question and more about
+8multihop_program("How many storeys does the castle
+David Gregory inherited have?")
+helpingtheLMadapttothedomainandtask. 9# => "five storeys"
+Thoughnotutilizedinthisexample,theRMisalsousedin
+DSPforfunctionslikeretrieving“nearest-neighbor”demon- Theprogramtakestheinput(here,aquestion)andoutputs
+strationsfromtasktrainingdata(DEMONSTRATE)andse- the system output (its short answer). It starts by creating
+lecting well-grounded generated sequences from the LM anExamplefortheinputquestionandassigningthetrain
+(PREDICT). fieldtothetrainingsetfromtheprevioussnippet. ProgramsDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+invokeandcomposeDSPprimitives(i.e.,built-infunctions) of training examples. Whenever fn returns an example
+tobuildtheDEMONSTRATE,SEARCH,andPREDICTtrans- (ratherthanNone),annotatecachestheintermediatepre-
+formationsthatdefinetheprogram. dictions(i.e.,thegeneratedqueriesandretrievedpassages).
+Thesepredictionsserveassuccessfuldemonstrationsforthe
+Transformations A transformation is a function that pipelinetransformations. Insimpleuses,fnmayattempt
+takes an Example as input and returns an Example, pop-
+toanswertheexample“zero-shot”oneormoretimes. This
+ulatingnewfields(ormodifyingexistingfields)init. This
+is typically done by invoking the SEARCH and PREDICT
+programinvokesthreedeveloper-definedtransformations,
+stages of the program. When an answer is produced, if
+namely,multihop_demonstrate,multihop_search,and
+fnassessesitascorrect,itreturnsapopulatedexamplein
+multihop_predict. Transformationsmaythemselvesin-
+whichtheintermediatepredictionsarepresent.
+voke other transformations, and they act analogously to
+layers in standard deep neural network (DNN) program- Case Study The snippet below defines the func-
+ming frameworks such as PyTorch, except that they pass tion multihop_demonstrate, called in Line 3 of
+textdatainsteadoftensorsbetweeneachotheranddonot multihop_program,andillustratestheusageofannotate.
+involvebackpropagation.
+1from dsp import sample, annotate
+Wecategorizetransformationsaccordingtotheirbehavior
+2
+(or purpose) under one of the DEMONSTRATE, SEARCH, 3def attempt_example(d: Example):
+4 d = d.copy(demos=[])
+andPREDICTstages. Thatsaid,DSPdoesnotimposethis 5 d = multihop_search(d)
+categorizationandallowsustodefinefunctionsthatmay 6 d = multihop_predict(d)
+7 return d if d.pred == d.answer else None
+blendthesestages. Wewilldiscusseachofthethreestages
+8
+next. 9def multihop_demonstrate(x: Example):
+10 demos = annotate(x.train, attempt_example)
+11 return Example(x, demos=demos)
+2.3.DEMONSTRATE
+Itisknownthatincludingexamplesofthedesiredbehavior In Line 10, multihop_demonstrate invokes annotate,
+fromtheLMinitsprompttypicallyleadstobetterperfor- which bootstraps missing fields in training examples by
+mance(Brownetal.,2020). InDSP,ademonstrationisa cachingannotationsfromattempt_example. Thetransfor-
+trainingexamplethathasbeenpreparedtoillustratespecific mationattempt_exampletakesatrainingexampledand
+desiredbehaviorsfromtheLM.ADEMONSTRATEtransfor- attemptstoansweritinazero-shotfashion:itcreatesacopy
+mationtakesasinputxoftypeExampleandpreparesalist of d with no demonstrations (Line 4; i.e., zero-shot) and
+ofdemonstrationsinx.demos,typicallybyselectingasub-
+invokesthemulti-hopsearchandpredictpipeline(Lines5
+setofthetrainingexamplesinx.trainandbootstrapping
+and6). Eachtransformationreturnsanupdatedversionof
+newfieldsinthem. dwithadditionalfieldspopulated. Ifthepipelineanswers
+correctly(Line7),theupdateddisreturned.
+Bootstrapping Demonstrations Examples in the train-
+ing set typically consist of the input text and the target Figure 2 illustrates this behavior. DEMONSTRATE trans-
+output of the task. The DEMONSTRATE stage can aug- formsatrainingquestion–answerpairtoafully-populated
+mentatrainingexamplebyprogrammaticallybootstrapping
+demonstration,includingfieldssuchashop1andhop2(i.e.,
+annotations for intermediate transformations. In our run- queries for multi-hop search) as well as psg1 and psg2.
+ning “multi-hop” example, the demonstrations illustrate WhentheLMislaterinvokedtoconductatransformation,
+threeLM-basedtransformations: (i)howtobreakdownthe say,generatinga“second-hop”queryduringSEARCH,the
+input question in order to gather information for answer-
+psg1fieldservesascontextandthehop2fieldservesasa
+ingit(i.e.,first-hopretrieval),(ii)howtouseinformation labelforthisparticulartrainingexample.
+gatheredinanearlier“hop”toaskfollow-upquestions,and
+(iii)howtousetheinformationgatheredtoanswercomplex Discussion Thissimplecasestudyillustratesthepowerof
+questions. compositionintheDSPabstraction. Becausethepipeline
+is a well-defined program in which transformations com-
+1Examples = list[Example] municate by passing text attached to Examples, a simple
+2Transformation = Callable[[Example], map-and-filter strategy can leverage the LM and RM to
+3 Optional[Example]]
+bootstrapannotationsforafullpipelinefromend-taskla-
+4
+5annotate(train: Examples, fn: Transformation) bels. Thisisanextensiblestrategy,buteveninitssimplest
+6 -> Examples
+formitgeneralizestheapproachesexploredrecentlybyZe-
+likmanetal.(2022),Weietal.(2022),Zhangetal.(2022),
+Akintoaspecializedmap,theannotateprimitiveaccepts and Huang et al. (2022) in which an LM self-generates
+auser-definedtransformationfnandappliesitoveralist chain-of-thoughtrationalesforanindividualprompt.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+Bybootstrappingpipelines,DEMONSTRATEmakesiteasy wouldselectnsubsetsofk =5exampleseach,andreturn
+to explore complex strategies in SEARCH and PREDICT thesetwithwhichatransformationevaluateperformsbest
+without writing examples for every transformation. This ontheremaining95examples.
+includesstrategiesthatarechallengingtoexplorewithout
+Compositions & Extensions By manipulating demon-
+customannotationsintraditionalretrieval-augmentedNLP.
+strations and higher-order transformations, these simple
+Forinstance, Khattabetal.(2021a)introducesapipeline
+selectionandbootstrappingprimitivescanbecombinedto
+formulti-hopreasoningthatistrainedwithweaksupervi-
+conduct larger novel strategies. If the training set is very
+sion,extendingworkbyLeeetal.(2019)andKhattabetal.
+large (e.g., |train| = 100,000), we can conduct knn to
+(2021b). In it, the target 3 or 4 passages that need to re-
+findthenearestk =16examplesandonlyannotatethese,
+trieved must be labeled but the system discovers the best
+arrivingatasystemthatlearnsincrementallyinreal-time. If
+orderof“hops”automatically.
+thetrainingsetismoderatelylarge(e.g.,|train|=1000),
+Incontrast,DSPallowsustobuildcomplexpipelineswith- wecanconductcrossvalandcachetheperformanceofall
+outlabelsforintermediatesteps,becausewecancompose promptsitevaluatesoneachtrainingexample. Attesttime,
+programsoutofsmalltransformations. IfLMandRMcan wecanuseknntofindk =50similarexamplestothetest
+accurately process such transformations “zero-shot” (i.e., inputandselectthepromptthatperformsbestonthesek
+withoutdemonstrations)onatleastoneortwoexamples, examples,producinganadaptivesystemthatisinformedby
+theseexamplescanbediscoveredwithend-tasklabelsand thequalityofitspipelineondifferenttypesofexamples.
+usedasdemonstrations.
+TodrawonourearlieranalogywithDNNframeworkslike
+2.4.SEARCH
+PyTorch, DEMONSTRATE aimstoreplacethefunctionof TheSEARCHstagegatherspassagestosupporttransforma-
+backpropagationinextensiblewaysbysimulatingthebe- tionsconductedbytheLM.Weassumealargeknowledge
+havioroftheprogram(correspondingtoa“forward”pass) corpus—e.g.,asnippetofWeb,Wikipedia,orarXiv—that
+andprogrammaticallylearningfromerrors. Indoingthis isdividedintotextpassages. ProvidingpassagestotheLM
+withfrozenmodelsandwithonlyend-tasklabels,DEMON- facilitates factual responses, enables updating the knowl-
+STRATEintroducesahighdegreeofmodularity. Inpartic- edgestorewithoutretraining,andpresentsatransparency
+ular, without hand-labeling intermediate transformations, contract:whenindoubt,userscancheckwhetherthesystem
+developersmayswapthetrainingdomain,updatethetrain- hasfaithfullyusedareliablesourceinmakingaprediction.
+ing examples, or modify the program’s strategy, and use
+annotatetoautomaticallypopulatealloftheintermediate Inthesimplestscenarios, SEARCHcandirectlyquerythe
+RM,requestingthetop-kpassages(fromapre-definedin-
+fieldsfordemonstrations.
+dex)thatmatchaninputquestion. Thisbaselineinstantia-
+SelectingDemonstrations Itisnotalwayspossibletofit tionof SEARCH simulatesretrievalinmostopen-domain
+allofthetrainingexamplesinthecontextwindowofthe questionansweringsystems,whichimplementa“retrieve-
+LM.DSPprovidesthreeprimitivesforselectingasubset then-read” pipeline, like Lee et al. (2019), Khattab et al.
+oftrainingexamples,namely,sample,knn,andcrossval. (2021b),Lazaridouetal.(2022),andmanyothers.
+1sample(train: Examples, k: int) 1from dsp import retrieve
+2 -> Examples 2
+3
+3def simple_search(x):
+4knn(train: Examples, cast: Callable[[Example], str]) 4 passages = retrieve(query=x.question, k=2)
+5 -> fn(example: Example, k: int) # currying 5 return passages
+6 -> Examples
+7
+8 9cross -v >al fn( (tr ea vi an lu: atE exa :mp Tl re as n, sfn or: main tt io, nk ): int) SEARCH Strategies In many scenarios, the complexity
+10 -> Examples ofthetaskdemandsmoresophisticatedSEARCHstrategies
+thatempowertheRMtofindrelevantpassages. Ourrun-
+ningexample(Figure2)isonesuchscenario,inwhichwe
+As a baseline choice, k demonstrations can be randomly
+suspectexamplesarelikelytorequiremulti-hopreasoning
+sampled from train using the sample primitive, an ap-
+in particular. Other settings, for instance, pose conversa-
+proachusedbyBrownetal.(2020)andmuchsubsequent
+tionalchallenges,inwhichtheinformationneedexpressed
+work.WecanalsoleveragetheRM’srepresentationsandse-
+byausercanonlyberesolvedbytakingintoaccountpre-
+lectfromthetrainingsettheknearestneighborstotheinput
+viousturnsintheconversation,ordemandmoreextensive
+text,astrategyexploredbyLiuetal.(2021). Anotherstrat-
+planning(Zhongetal.,2022).
+egyistoapplycross-validationtoselectamonganumberof
+sampledsetsofdemonstrations(Perezetal.,2021). Forex- In the retrieval-augmented NLP literature, multi-hop
+ample,given|train|=100trainingexamples,crossval search(Xiongetal.,2020;Khattabetal.,2021a)andcon-DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+versationalsearch(DelTredicietal.,2021;Raposoetal., As shown, the LM is instructed to read the context re-
+2022)pipelineshavereceivedmuchattention. Thesesys- trievedinearlier hopsanda complexquestion. Itisthen
+temsaretypicallyfine-tunedwithmanyhand-labeledquery prompted to write: (i) a summary of the supplied con-
+“rewrites”(Ananthaetal.,2020),“decompositions”(Geva text and (ii) a search query that gathers information for
+etal.,2021;Minetal.,2019),ortargethops(Yangetal., answering that question. The generated text will be ex-
+2018;Jiangetal.,2020). Supportedwithautomaticanno- tractedandassignedtothesummaryandqueryvariablesin
+tationsfromDEMONSTRATE,theSEARCHstageallowsus (multihop_search_v2;Line7). OnLine10,weterminate
+tosimulatemanysuchstrategiesandmanyothersinterms thehopsifthequeryis“N/A”.Otherwise,Line12retrieves
+ofpassingqueries,passages,anddemonstrationsbetween k = 5 passages using the query and Line 13 assigns the
+theRMandLM.Moreimportantly,SEARCHfacilitatesour contextforthesubsequenthop(orforPREDICT),setting
+visionofadvancedstrategiesinwhichtheLMandRMco- thattoincludethesummaryofallprevioushopsaswellas
+operatetoincrementallyplanaresearchpathforwhichthe thepassagesretrievedinthefinalhopsofar.
+RMgathersinformationandtheLMidentifiesnextsteps.
+Comparisonwithself-ask Itmaybeinstructivetocon-
+CaseStudy Letusbuildonourrunningmulti-hopexam- trast this multi-hop DSP program with the recent “self-
+pleasacasestudy. Wecandefinemultihop_search_v2 ask” (Press et al., 2022) prompting technique, which we
+(Line4inourcoreprogram),aslightlymoreadvancedver- compareagainstin§3. Self-askcanbethoughtofasasim-
+sion of the SEARCH transformation from Figure 2. This pleinstantiationofDSP’sSEARCHstage.Init,theLMasks
+transformationsimulatestheiterativeretrievalcomponent oneormore“follow-upquestions”,whichareintercepted
+of fine-tuned retrieval-augmented systems like IRRR (Qi andsenttoasearchengine. Thesearchengine’sanswers
+etal.,2020),whichreadsaretrievedpassageineveryhop are concatenated into the prompt and are used to answer
+andgeneratesasearchquery(oraterminationconditionto thequestion. Thisisessentiallyasimplifiedsimulationof
+stophopping), andBaleen(Khattabetal.,2021a), which IRRR(Qietal.,2020).
+summarizestheinformationfrommanypassagesineach
+Asageneralframework,DSPcanexpressideaslikeself-ask
+hopforinclusioninsubsequenthops.
+andmanyother,moresophisticatedpipelinesaswediscuss
+inthepresentsection. Moreimportantly,DSPoffersanum-
+1from dsp import generate
+berofintrinsicadvantagesthatleadtolargeempiricalgains:
+2
+3def multihop_search_v2(x, max_hops=3): 80%–290%overself-ask. Forinstance,DSPprogramsare
+4 x.hops = []
+deeplymodular,whichamongotherthingsmeansthatDSP
+5
+6 for hop in range(max_hops): programswillannotateandconstructtheirowndemonstra-
+7 summary, query = generate(hop_template)(x)
+8 x.hops.append((summary, query)) tions. Thus, they can be developed without labeling any
+9 oftheintermediatetransformations(e.g.,thequeriesgener-
+10 if query == 'N/A': break
+ated). Inaddition,theLMpromptsconstructedbyDSPget
+11
+12 passages = retrieve(query, k=5) automaticallyupdatedtoalignwiththetrainingdataandre-
+13 x.context = [summary] + passages
+trievalcorpusprovided.Incontrast,approacheslikeself-ask
+14
+15 return x relyonahand-writtenpromptwithhard-codedexamples.
+Moreover,DSPassignsthecontrolflowtoanexplicitpro-
+Inmultihop_search_v2,Line7callsthegenerateprim-
+gramandfacilitatesdesignpatternsthatinvoketheLM(or
+itive, which invokes the LM to produce a query for each RM)toconductsmalltransformations. Thisallowsusto
+retrievalhop. TheLMisconditionedonapromptthatis buildstepsthatarededicatedtogeneratingoneormorere-
+prepared using the hop_template template. (We discuss trievalqueries,summarizingmultiplepassagesperhop,and
+prompttemplatesandthegenerateprimitivein§2.5.)Here,
+answeringquestions. Thesestepsareindividuallysimpler
+thistemplatemaybedesignedtogenerateapromptthathas thantheself-askprompt,yetourmulti-hopDSPprogram
+thefollowingformat(e.g.,forthesecondhop). deliberatelycomposesthemtobuildricherpipelinesthatare
+thusmorereliable. Incontrast,self-askdelegatesthecon-
+1My task is to write a simple query that gathers
+trolflowtotheLMcompletions,maintainingstatewithin
+information for answering a complex question. I
+write N/A if the context contains all the prompt itself and intercepting follow-up questions to
+information required.
+conductsearch. Wefindthatthisparadigmleadstoa“self-
+2
+3{Task demonstrations from x.demos, if any} distraction”problem(§3.5)thatDSPprogramsavoid.
+4
+5Context: {x.context}
+6Question: {x.question} FusingRetrievalResults Forimprovedrecallandrobust-
+7Summary: Let's summarize the above context.
+__{summary}__ ness, we can also fuse the retrieval across multiple gen-
+8Search Query: __{query}__ erated queries. Fusion has a long history in informationDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+retrieval (Fox & Shaw, 1994; Xue & Croft, 2013; Kur-
+1Template # template: an object that can produce
+land&Culpepper,2018)andsequentiallyprocessingmulti- prompts and parse completions
+plequerieswasexploredrecentlybyGaoetal.(2022)for 2
+3generate(template: Template)
+retroactivelyattributingtextgeneratedbyLMstocitations. 4 -> fn(example: Example)
+Inspiredbythese,weincludeafused_retrievalprimitive 5 -> Completions # object with keys to access
+extracted preds and scores
+toDSPtoofferaversatilemechanismforinteractingwith
+6
+frozenretrievers. Itacceptsanoptionalfusionfunctionthat 7rank(query: str, passages: List[str])
+8 -> List[float] # object with keys to access
+mapsmultipleretrievallistsintoone. Bydefault,DSPuses passage texts and scores
+avariantofCombSUM(Fox&Shaw,1994),assigningeach
+passagethesumofitsprobabilitiesacrossretrievallists.
+ATemplateisanobjectthatcanproduceprompts,thatis,
+To illustrate, the modification below generates n = 10 mapanExampletoastring,andextractfieldsoutofcom-
+queriesforthetransformationmultihop_search_v2.
+pletions. Forinstance,wecanmapanexamplexthathasa
+questionandretrievedpassagestothefollowingprompt:
+c = generate(hop_template, n=10)(x)
+passages = fused_retrieval(c.queries, k=5)
+summary = c.summaries[0] # highest-scoring summary 1My task is to answer questions using Web documents.
+2
+3{Task demonstrations from x.demos, if any}
+4
+5Context: {x.passage}
+Compositions&Extensions Toillustrateasimplecom-
+6Question: {x.question}
+7Rationale: Let's think step by step. __{rationale}__
+position,wecanequipachatbotwiththecapacityforcon- 8Answer: __{answer}__
+versationalmulti-hopsearchbycombiningaqueryrewriting
+step, whichproducesaquerythatencompassesallofthe
+Asthisillustrates,theLMwillbeaskedtogenerateachain-
+relevantconversationalcontext,withthemulti-hoptransfor-
+of-thought rationale (CoT; Wei et al. 2022; Kojima et al.
+mation,asfollows.
+2022) and an answer, and the generated text will be ex-
+tractedbackintotherationaleandanswerkeysofeach
+1def conversational_multihop_search(x):
+2 x.question = generate(conv_rewriting_template)(x) completion.
+3 return multihop_search_v2(x)
+EachinvocationtotheLMcansamplemultiplecandidate
+predictions. Selectinga“best”predictionisthesubjectof
+Similarapproachescanbeusedforcorrectingspellingmis-
+muchworkondecoding(Wiheretal.,2022;Lietal.,2022),
+takes or implementing pseudo-relevance feedback (Cao
+butafrozenandgeneral-purposeLMmaynotsupportcus-
+etal.,2008;Wangetal.,2022a),inwhichretrievedpassages
+tommodificationstodecoding. Withintheseconstraints,we
+areusedtoinformabettersearchquery,thoughthishasnot
+presentseveralhigh-levelstrategiesforselectingpredictions
+beenattemptedwithpretrainedLMstoourknowledge.
+andaggregatinginformationinDSPviatheLMandRM.
+2.5.PREDICT
+Selecting Predictions Among multiple candidates, we
+The PREDICT stage generates the system output using
+cansimplyextractthemostpopularprediction.WhenaCoT
+demonstrations (e.g., in x.demos) and passages (e.g., in
+isusedtoarriveattheanswer,thisistheself-consistency
+x.context). PREDICT tackles the challenges of reliably
+method of Wang et al. (2022c), which seeks to identify
+solvingthedownstreamtask,whichintegratesmuchofthe
+predictionsatwhichmultipledistinctrationalesarrive.
+workonin-contextlearningingeneral. WithinDSP,italso
+hasthemorespecializedfunctionofsystematicallyaggre-
+1from dsp import generate, majority
+gatinginformationacrossalargenumberofdemonstrations, 2
+passages,andcandidatepredictions.
+3def multihop_predict(x):
+4 candidates = generate(template_qa)(x)
+5 return x.copy(answer=majority(candidates).answer)
+GeneratingCandidates Generally,PREDICThastopro-
+duce one or more candidate predictions for the end-task. DSP generalizes this in two ways. First, we can sample
+To this end, the basic primitive in PREDICT is generate, multiple“pipelinesoftransformations”(PoT)withinthepro-
+whichacceptsaTemplateand(viacurrying)anExample gram,ratherthanlocallywith“chainsofthought”(CoT)in
+andqueriestheLMtoproduceoneormorecompletions, onetransformation. Thesechainsmayeveninvokedifferent
+asexploredearlierin§2.4. Acorrespondingprimitivethat pathsintheprogram,asillustratedbelow.
+usestheRMinthisstageisrank, whichacceptsaquery
+andoneormorepassagesandreturnstheirrelevancescores.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+Todealwithalargernumberofdemonstrationsorpassages,
+1from dsp import branch
+we can branch in parallel to process individual subsets
+2
+3def pipeline(x): ofthepassagesordemonstrationsandthenaggregatethe
+4 return multihop_predict(multihop_search_v2(x))
+individualanswersusingoneofthescoringmethodspre-
+5
+6def PoT_program(question: str) -> str: sentedearlier. Indeed, Lewisetal.(2020)andLazaridou
+7 x = Example(question=question, train=train)
+8 x = multihop_demonstrate(x) etal.(2022)haveexploredmarginalizationasawaytocom-
+9 binescoresacrosspassagesandLeetal.(2022)ensemble
+10 candidates = branch(pipeline, n=5, t=0.7)(x)
+11 return x.copy(answer=majority(candidates).answer) promptsacrossdemonstrations,whichcanbeexpressedin
+thisway.
+Inthesnippetabove,Line10invokestheprimitivebranch Analternativeaggregationstrategyistoaccumulateinforma-
+tionacrosspassagessequentially,ratherthanindependently.
+which samples n different PoTs with a high temperature
+Thisiseffectivelyhowourmulti-hopapproachworks(§2.4).
+(e.g., t = 0.7) and accumulates their intermediate and
+Such a strategy has also been employed recently by Gao
+final predictions. In this example, our pipeline invokes
+multihop_search_v2(§2.4),whichappliesavariablenum- etal.(2022)forretroactivelyattributingtextgeneratedby
+LMstocitations. Theygeneratemanyqueriesbutinstead
+berofretrievalhopsdependingonthequestionsgenerated,
+beforedoing PREDICT. Thatis,PoT_programpotentially offusion(§2.4),theyruntheirpipelineoneachqueryand
+useitsoutputstoaltertheinputtosubsequentqueries.1
+invokesmultipledistinctpathsintheprogram(i.e.,withdif-
+ferentmulti-hopqueriesandnumberofhopsineach)across
+branches. Itthenselectsthemajorityansweroverall. 3.Evaluation
+DSPgeneralizesself-consistencyinasecondway. When WenowconsiderhowtoimplementDSPprogramsforthree
+samplingourCoTsorPoTsprovidesmultiplecandidates, diverseknowledge-intensiveNLPtasks: open-domainques-
+we can select the top-k (e.g., top-4) predictions and then tionanswering(QA),multi-hopQA,andconversationalQA.
+comparethemdirectly. Forinstance,wemaypromptthe Allofthesetasksare“open-domain”,inthesensethatsys-
+LMtocomparethesechoicesasMCQcandidates,atrans- temsaregivenashortquestionorparticipateinamulti-turn
+formationforwhichDEMONSTRATEcanautomaticallypre- conversationwithoutbeinggrantedaccesstocontextthat
+pareexemplars. ThiseffectivelysimulatestheLMrecursion answersthesequestions.
+ofLevineetal.(2022),thoughunliketheirapproachitdoes
+We build and evaluate intuitive compositions of the func-
+not require a large training set or updating any (prompt-
+tionsexploredin§2foreachtask. Weshowthat,despite
+tuning)weights. Onesuchimplementationisillustratedin
+openqa_predictbelow. lowdevelopmenteffort,theresultingDSPprogramsexhibit
+strongqualityanddeliverconsiderableempiricalgainsover
+1def openqa_predict(x): vanillain-contextlearningandastandardretrieve-then-read
+2 preds = generate(template_qa, n=20)(x).answers pipelinewithin-contextlearning.
+3 x.choices = most_common(preds, k=4)
+4
+5 queries = [f"{x.question} {c}" 3.1.EvaluationMethodology
+6 for c in x.choices]
+7
+8 x.passages = fused_retrieval(queries) Inthisreport,weconsideronedevelopmentdatasetforeach
+9 x.answer = generate(TemplateMCQ)(x).answer ofthetasksweconsider,namely,theopen-domainversion
+10 return x
+of SQuAD (Rajpurkar et al., 2016; Lee et al., 2019), the
+multi-hopHotPotQA(Yangetal.,2018)datasetintheopen-
+Asanalternativecomparisonapproach,wecaninvokethe domain“fullwiki”setting,andtheconversationalquestion
+RMviaranktofindthepredictionthatismostgroundedin answeringQReCC(Ananthaetal.,2020;Vakulenkoetal.,
+aretrievedcontexts(i.e.,mostsimilartotheconcatenation 2022)dataset,whichweusedfordevelopingtheDSPab-
+oftheretrievedpassages)or,givenanRMthatcanscore stractions. Wereportthevalidationsetaccuracyonallthree
+completions (Krishna et al., 2022), simply the prediction datasetsanddiscussthemindetail§3.5.
+thathasthehighestscoregiventheprompt.
+Unless otherwise stated, systems are given access to 16-
+AggregatingInformation Whenonlyafewdemonstra- shottrainingexamples,thatis,eachDSPprogramcanuse
+tions or passages are selected, we can simply concate- (upto)16questions—orconversations,whereapplicable—
+nate them all into the prompt. For instance, GPT-3.5 randomly sampled from the respective training set. We
+text-davinci-002hasacontextwindowof4097tokens,
+1Though most of the functionality in this section is imple-
+whichwefindtobereasonablylargeforaccommodating mented,theprimitivesbranch,knn,andcrossvalarecurrently
+several (e.g., 3–5) demonstrations, which individually in- work-in-progress.
+cludetheirownpassagesandrationales.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+subsample the validation and test sets to 1000 questions Retrieve-then-Read The “retrieve-then-read” baselines
+(or400conversations,whereapplicable)andreportaverage usetheRMtosupporteachexamplewithapotentiallyrele-
+qualityacrossfiveseedswhereeachseedfixesasinglek- vantpassagebeforesubmittingtheprompttotheLM.This
+shottrainingsetofexamples.Tocontrolthelanguagemodel emulatesthepipelinesusedbystate-of-the-artopen-domain
+APIspendingbudget,eachseedprocessesonefifthofthe questionansweringsystems(Khattabetal.,2021b;Izacard
+evaluationexamples(e.g.,200questionsperseed,foratotal &Grave,2020;Hofstätteretal.,2022). Inconversational
+of1000uniquequestions). QA,weconcatenatethefirstturnandthefinalquestion,an
+approachthatwefoundtoperformmuchbetterthansimply
+We also dedicate held-out test datasets (e.g., Open-
+using the final turn. For multi-hop QA, we retrieve and
+NaturalQuestions;Kwiatkowskietal.2019)andtesttasks
+concatenatetwopassagesperquestion.
+(e.g.,claimverification,asinFEVER;Thorneetal.2018)
+thatweonlyuseforevaluatingpre-definedDSPprograms
+1def retrieve_then_read_QA(question: str) -> str:
+ratherthandevelopment. Wewillincludetheseresultsina 2 demos = sample(train, k=16)
+futureversionofthisreport. 3 passages = retrieve(question, k=1)
+4 x = Example(question=question,
+5 passages=passages,
+3.2.PretrainedModules 6 demos=demos)
+7 return generate(qa_template)(x).pred
+RM We use ColBERTv2 (Santhanam et al., 2022b), a
+state-of-the-artretrieverbasedonlateinteraction(Khattab
+& Zaharia, 2020). We choose ColBERTv2 for its highly Self-ask We also compare against self-ask (Press et al.,
+effectivezero-shotsearchqualityandefficientsearch(San- 2022),acontemporaneouspipelinethatcanbethoughtof
+thanam et al., 2022a). However, our DSP programs are asaspecificinstantiationofDSP’sSEARCHstagefollowed
+agnostictohowtheretrieverrepresentsexamplesorscores by a simple PREDICT step. For direct comparison with
+passages,soessentiallyanyretrievercanbeused. ourmethods,wemodifytheself-askcontrolflowtoquery
+thesameColBERTv2indexusedinourDSPexperiments
+Inaddition,bymakingretrievalafirst-classconstruct,DSP
+insteadofGoogleSearch.Weevaluatetwoconfigurationsof
+allowsustochangeorupdatethesearchindexovertime.
+self-ask.Thefirstusestheoriginalself-askprompttemplate,
+Wesimulatethisinourexperimentsbyaligningeachofour
+which contains four hand-written demonstrations. In the
+datasetswiththenearestWikipediacorpusamongtheDec
+second configuration, we modify the prompt template to
+2016WikipediadumpfromChenetal.2017,theNov2017
+apply a number of changes that we find are empirically
+Wikipedia“abstracts”dumpfrom Yangetal.2018,andthe
+usefulforHotPotQA.2
+Dec2018WikipediadumpfromKarpukhinetal.2020.
+3.4.ProposedDSPPrograms
+LM We use the GPT-3.5 (text-davinci-002; Brown
+Webuildontransformationspresentedin§2. Ourprograms
+etal.2020; Ouyangetal.2022)languagemodel. Unless
+forallthreetaskshavethefollowingstructure,illustrated
+otherwisestated,weusegreedydecodingwhengenerating
+foropen-domainQA.
+n = 1 prediction. We sample with temperature t = 0.7
+whenn>1,likerelatedwork(Wangetal.,2022c).
+1def openqa_program(question: str) -> str:
+3.3.Baselines 2 x = Example(question=question, train=train)
+3 x = openqa_demonstrate(x)
+4 x = openqa_search(x)
+VanillaLM ThevanillaLMbaselinesrepresentthefew- 5 x = openqa_predict(x)
+shot in-context learning paradigm used by Brown et al. 6 return x.answer
+(2020). The open-domain QA and multi-hop QA base-
+lines randomly sample 16 demonstrations (i.e., all of the
+The exception is that the conversational QA program,
+examplesavailabletoeachprograminourevaluation)from
+thetrainingsetanddonotaugmentthesedemonstrations 2Inparticular:(i)useColBERTv2-stylepassagesinthehand-
+withevidence. Similarly, theconversationalQAbaseline crafted demonstrations of self-ask (i.e., instead of the original
+Google-stylesnippets),(ii)concatenate16-shottrainingexamples
+samples four conversations. The vanilla baselines do not
+fromthetask(i.e.,question–answerpairs)asaprefixoftheprompt,
+searchforpassagesrelevanttotheinputquery.
+(iii) ask the model to generate a short intermediate answer per
+retrievalstep,and(iv)explicitlyaskthemodeltogenerateafollow-
+1def vanilla_LM_QA(question: str) -> str: up “search query” at each step. We found the final item to be
+2 demos = sample(train, k=16) importantbecauseself-ask’sdefaultpromptoftenproducesfollow-
+3
+4
+x re= turE nxam gp el ne er( aq tu ee (st qi ao _n t= emq pu les at ti eo )n (, x).de pm ro es d=demos) upquestionsthatarenotself-contained(e.g.,“whatisthenameof
+thenationalpark?”,whichisnotaninformativesearchquery).We
+alsofixthecasingintheprompttobeconsistent.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+Table1.Developmentresultscomparingatask-awareDSPprogramagainstbaselinevanillaLMandretrieve-then-readLMaswellas
+recentandcontemporaneousin-contextlearningapproacheswithandwithoutretrieval.AllofourrunsuseGPT-3.5andourretrieval-based
+rowsuseColBERTv2. Theresultsmarkedwith¶ arecollectedfromrelatedworkasofmid-December2022,andattributedtotheir
+individualsourcesinthemaintext.Aswediscussinthemaintext,themarkedresultsarenotgenerallyapples-to-applescomparisons,
+sincetheyspanavarietyofevaluationsettings.Nonetheless,wereportthemhereasqualitativereferencepoints.
+Open-SQuAD HotPotQA QReCC
+EM F1 EM F1 F1 nF1
+VanillaLM 16.2 25.6 28.3 36.4 29.8 18.4
+No-retrievalLMSoTA 20.2¶ – 33.8¶ 44.6¶ – –
+Retrieve-then-Read 33.8 46.1 36.9 46.1 31.6 22.2
+Self-askw/ColBERTv2Search 9.3 17.2 25.2 33.2 – –
++RefinedPrompt 9.0 15.7 28.6 37.3 – –
+Retrieval-augmentedLMSoTA 34.0¶ – 35.1¶ – – –
+Task-awareDSPProgram 36.6 49.0 51.4 62.9 35.0 25.3
+convqa_program,acceptsturns(i.e.,alistofstrings,rep- each hop and QA), it concatenates the summaries of all
+resenting the conversational history) instead of a single previous hops (i.e., hop 1 onwards) and a total of k = 5
+question. Unlessotherwisestated,ourprogramsdefaultto passagesdividedbetweenthehops(i.e.,fivepassagesfrom
+greedydecodingduringtheDEMONSTRATEstage. thefirsthoportwopassagesfromthefirstandthreefrom
+thesecond).
+ForSEARCH,ouropen-domainQAprogramusestheques-
+tion directly for retrieving k = 7 passages and concate- ForconversationalQA,weuseasimple PREDICT which
+nates these passages into our QA prompt with CoT. For generates a response with greedy decoding, conditioned
+PREDICT, itgeneratesn = 20reasoningchainsanduses on all of the previous turns of the conversation and five
+self-consistency(SC;Wangetal.2022c)toselectitsfinal retrieved passages. For SEARCH, our conversational QA
+prediction. ForDEMONSTRATE,ouropen-domainQApro- pipelinegeneratesn=10re-writtenqueries(andalsouses
+gram uses the following approach, slightly simplified for thesimplequeryastheretrieve-and-readbaseline;§3.3)and
+presentation. Init,theparameterk =3passedtoannotate fusesthemasin§2.4. WeimplementDEMONSTRATEsimi-
+requestsannotatingonlythreedemonstrations,whichwill lartoopenqa_demonstrate,butsampleonlyfourexamples
+thenbeusedintheprompts. (i.e.,fourconversationalturns;insteadof16questionsasin
+open-domainQA)fordemonstratingthetaskforthehigher-
+1def openqa_demonstrate(x: Example) -> Example: ordertransformationconvqa_attempt,whichispassedto
+2 demos = sample(x.train, k=16) annotate(notshownforbrevity).
+3
+4 def openqa_attempt(d: Example) -> Example:
+5 examd p. ld ee smo ds if= fea rl el n_ tbu ft r( od mem dos, d) # all (raw) 1def convqa_attempt(d: Example) -> Example:
+2 d.demos = all_but(demos, d) # all (raw)
+6 examples that don't intersect with the
+7 d = openqa_search(d, k=2) conversation of d
+8 if not passage_match(d): return None # skip
+examples where search fails 3
+4 d = convqa_search(d, k=2)
+109 d = openqa_predict(d, sc=False) 5 i df .pm aa sx s( ap gr ee sc )is <io .n 8( :d. ra en ts uw re nr, Nop n) efo #r sp kii pn
+examples
+11 if not answer_match(d): return None # skip where search fails
+examples where predict fails
+6
+1 12 3 return d 7 8 d if= mac xo (n Fv 1q (a c_p .r pe red dic ,t( dd ., ann sw= e2 r0) ) for c in
+14 d.candidates) < .75: return None # skip
+15 x.demos = annotate(demos, openqa_attempt, k=3) examples where predict fails out of n=20
+16 return x attempts
+9
+10 return d
+Ourmulti-hopprogramadoptsaverysimilarapproachfor
+DEMONSTRATE and PREDICT. For SEARCH, it uses the
+approachdescribedin§2.4,withthefollowingadjustments.
+3.5.DevelopmentDatasets&Results
+It uses result fusion across n = 10 queries per hop and,
+amongthenpredictions,usesthesummarycorresponding Open-SQuAD Weconducttheopen-domainversionof
+tothelargestaveragelog-probability. Itusesafixednumber SQuADovertheWikipedia2016corpusfromChenetal.
+ofhopsforHotPotQA,i.e.,twohops. Ineachprompt(i.e., (2017),asprocessedbyKhattabetal.(2021b). WeusetheDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+sametrain/validation/testsplitsasinKarpukhinetal.(2020) thetrainingsetinto90%/10%train/validationsplits. Inthe
+andKhattabetal.(2021b). training(andthusvalidation)split,wekeeponlyexamples
+markedas“hard”intheoriginaldataset,whichmatchesthe
+Table1reportstheanswerEMandF1. Thetask-awareDSP
+designationoftheofficialvalidationandtestsets.
+programachieves36.6%EM,outperformingthevanillaLM
+baselineby126%EMrelativegains. Thisindicatestheim- We report the final answer EM and F1 in Table 1. On
+portanceofgroundingtheLM’spredictionsinretrieval,and HotPotQA,thetask-awareDSPprogramoutperformsthe
+itshowsthatstate-of-the-artretrieverslikeColBERTv2have baselinesandexistingworkbyverywidemargins,exceed-
+thecapacitytodosooff-the-shelf. TheproposedDSPpro- ingthevanillaLM,theretrieve-then-readbaseline,andthe
+gramalsoachievesrelativegainsof8%inEMand6%inF1 self-askpipelineby82%,39%,and80%,respectively,in
+overtheretrieve-then-readpipeline,highlightingthatnon- EM.Thishighlightstheeffectivenessofbuildingupmore
+trivialgainsarepossiblebyaggregatinginformationacross sophisticatedprogramsthatcoordinatetheLMandRMfor
+severalretrievedpassagesaswedowithself-consistency. theSEARCHstep.
+These in-context learning results are competitive with a TheseresultsmaybepeggedagainsttheevaluationonHot-
+number of popular fine-tuned systems. For instance, on PotQAinanumberofconcurrentpapers. Wefirstcompare
+theOpen-SQuADtestset,DPRachieves29.8%EM,well withnon-retrievalapproaches,thoughourcomparisonsmust
+below our 16-shot DSP program. On the Open-SQuAD betentativeduetovariationinevaluationmethodologies. Si
+devset,thepowerfulFusion-in-Decoder(Izacard&Grave, etal.(2022)achieve25.2%EMwithCoTprompting. With
+2020)“base”approachachievesapproximately36%(i.e., a“recite-and-answer”techniqueforPaLM-62B(Chowdh-
+verysimilarqualitytooursystem)wheninvokedwithfive eryetal.,2022),Sunetal.(2022)achieve26.5%EM.Wang
+retrieved passages. Nonetheless, with the default setting etal.(2022b)achieve33.8%EMand44.6F1whenapply-
+ofreading100passages,theirsystemreaches48%EMin ing a self-consistency prompt for PaLM-540B. Next, we
+this evaluation. This may indicate that similar gains are comparewithacontemporaneousretrieval-basedapproach:
+possibleforourDSPprogramifthePREDICTstageismade Yaoetal.(2022)achieve35.1%EMusingasystemcapable
+toaggregateinformationacrossmanymorepassages. ofsearchingusingaWikipediaAPI.Alloftheseapproaches
+trailourtask-awareDSPprogram,whichachieves51.4%
+For comparison, we also evaluate the self-ask pipeline,
+EM,bylargemargins.
+whichachieves9.3%EM,suggestingthatitsfixedpipeline
+isineffectiveoutsideitsdefaultmulti-hopsetting. Study-
+ing a few examples of its errors reveals that it often de-
+composesquestionsintangentialwaysandanswersthese QReCC WeuseQReCC(Ananthaetal.,2020)inanopen-
+questionsinstead. WerefertothisbehavioroftheLMas domainsettingoverWikipedia2018. QReCCdoesnothave
+“self-distraction”,andwebelieveitaddsevidenceinfavorof anofficialdevelopmentset,sowesub-dividethetraining
+ourdesigndecisionsinDSP.Toillustrateself-distraction, setinto90%/10%train/validationsplits. Forthefirstques-
+whenself-askispromptedwith“WhendoesTheKidnap- tion in every conversation, we use the rewritten question
+pingofEdgardoMortaratakeplace?”,itasks“WhatisThe astheoriginalquestionoftenassumesaccesstoaground-
+KidnappingofEdgardoMortara“andthenaskswhenitwas truthdocument. Wealsofilterlow-qualityexamplesfrom
+published, a tangential question. Thus, self-ask answers
+QReCC.3
+“1997”, instead of the time The Kidnapping of Edgardo
+WeconducttheQReCCconversationsinanauto-regressive
+Mortaratakesplace(1858).
+manner. At turn t > 1 of a particular conversation, the
+For reference, Table 1 also reports (as No-retrieval LM system sees its own responses (i.e., not the ground truth
+SoTA) the concurrent in-context learning results from Si responses)topreviousturnsoftheconversation. Wereport
+etal.(2022)usingcode-davinci-002,whoachieve20.2% the novel-F1 metric (nF1; Paranjape et al. 2022), which
+EMwithoutretrievaland34.0%EMwithretrieval,albeit computestheF1overlapbetweenthesystemresponseand
+onadifferentsampleandsplitoftheSQuADdata. Overall, thegroundtruthwhilediscountingcommonstopwordsand
+their approaches are very similar to the baselines we im- terms present in the question (or earlier questions). The
+plement(vanillaLMandretrieve-then-read),thoughtheir resultsareshowninTable1,andfollowthesamegeneral
+retrieval-augmentedapproachretrieves(andconcatenates patternasSQuADandHotPotQA.
+intotheprompt)10passagesfromaWikipediadump.
+3Weremoveconversationsthathaveoneormoreemptyground-
+truthanswersandconversationsthathaveonlyoneortwoques-
+tions. Wealsofindmanyconversationsthatinclude“whatother
+HotPotQA We use the open-domain “fullwiki” setting
+interestingfactsareinthisarticle?”,whichconflictwiththeopen-
+ofHotPotQAusingitsofficialWikipedia2017“abstracts”
+domainformulationandhavenowell-definedanswer.Hence,we
+corpus. The HotPotQA test set is hidden, so we reserve removeanyconversationthatincludesthekeywords“otherinter-
+the official validation set for our testing. We sub-divide esting”or“else”,whichwefoundtobemarkersoflowquality.DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+4.Conclusion prompts(at@goodsideonTwitter).
+Foralongtime,thedominantparadigmforbuildingmodels
+References
+in AI has centered around multiplication of tensor repre-
+sentations,andinthedeeplearningerathishasgivenrise
+Anantha,R.,Vakulenko,S.,Tu,Z.,Longpre,S.,Pulman,
+tohighlymodular(layer-wise)designsthatallowforfast
+S.,andChappidi,S. Open-domainquestionanswering
+developmentandwideexploration. However,thesedesign goesconversationalviaquestionrewriting.arXivpreprint
+paradigms require extensive domain expertise, and even arXiv:2010.04898,2020.
+expertsfacesubstantialchallengeswhenitcomestocom-
+biningdifferentpretrainedcomponentsintolargersystems. Brown,T.,Mann,B.,Ryder,N.,Subbiah,M.,Kaplan,J.D.,
+Dhariwal, P., Neelakantan, A., Shyam, P., Sastry, G.,
+Thepromiseofin-contextlearningisthatwecanbuildcom-
+Askell,A.,etal. Languagemodelsarefew-shotlearners.
+plexsystemsfrompretrainedcomponentsusingonlynatural
+Advancesinneuralinformationprocessingsystems,33:
+languageasthemediumforgivingsystemsinstructionsand,
+1877–1901,2020.
+aswearguefor,allowingcomponentstocommunicatewith
+eachother. Inthisnewparadigm,thebuildingblocksare
+Cao, G., Nie, J.-Y., Gao, J., and Robertson, S. Selecting
+pretrainedmodelsandthecoreoperationsarenaturallan-
+goodexpansiontermsforpseudo-relevancefeedback. In
+guageinstructionsandoperationsonnaturallanguagetexts.
+Proceedingsofthe31stannualinternationalACMSIGIR
+Ifwecanrealizethispotential,thenwecanbroadenpartici-
+conferenceonResearchanddevelopmentininformation
+pationinAIsystemdevelopment,rapidlyprototypesystems
+retrieval,pp.243–250,2008.
+for new domains, and maximize the value of specialized
+pretrainedcomponents.
+Chen, D., Fisch, A., Weston, J., andBordes, A. Reading
+In the current paper, we introduced the DEMONSTRATE– Wikipediatoansweropen-domainquestions. InProceed-
+ingsofthe55thAnnualMeetingoftheAssociationfor
+SEARCH–PREDICT (DSP) framework for retrieval aug-
+mentedin-contextlearning. DSPconsistsofanumberof
+ComputationalLinguistics(Volume1: LongPapers),pp.
+simple,composablefunctionsforimplementingin-context 1870–1879, Vancouver, Canada, 2017. Association for
+learningsystemsasdeliberateprograms—insteadofend- ComputationalLinguistics. doi: 10.18653/v1/P17-1171.
+taskprompts—forsolvingknowledgeintensivetasks. We
+URLhttps://aclanthology.org/P17-1171.
+implementedDSPasaPythonlibraryandusedittowrite
+Chowdhery,A.,Narang,S.,Devlin,J.,Bosma,M.,Mishra,
+programsforOpen-SQuAD,HotPotQA,andQReCC.These
+G., Roberts, A., Barham, P., Chung, H.W., Sutton, C.,
+programsdeliversubstantialgainsoverpreviousin-context
+Gehrmann,S.,etal. Palm: Scalinglanguagemodeling
+learningapproaches. However,beyondanyparticularper-
+withpathways. arXivpreprintarXiv:2204.02311,2022.
+formancenumber,wearguethatthecentralcontributionof
+DSPisinhelpingtorevealaverylargespaceofconceptual
+DelTredici, M., Barlacchi, G., Shen, X., Cheng, W., and
+possibilitiesforin-contextlearningingeneral.
+deGispert,A. Questionrewritingforopen-domaincon-
+versational qa: Best practices and limitations. In Pro-
+Acknowledgements ceedingsofthe30thACMInternationalConferenceon
+Information&KnowledgeManagement,pp.2974–2978,
+WethankAshwinParanjape,AmirZiai,andRickBattlefor
+2021.
+valuablediscussionsandfeedback. Thisworkwaspartially
+supportedbyIBMasafoundingmemberoftheStanford Dohan,D.,Xu,W.,Lewkowycz,A.,Austin,J.,Bieber,D.,
+InstituteforHuman-CenteredArtificialIntelligence(HAI). Lopes,R.G.,Wu,Y.,Michalewski,H.,Saurous,R.A.,
+Thisresearchwassupportedinpartbyaffiliatemembersand Sohl-Dickstein,J.,etal.Languagemodelcascades.arXiv
+othersupportersoftheStanfordDAWNproject—AntFi- preprintarXiv:2207.10342,2022.
+nancial,Facebook,Google,andVMware—aswellasCisco,
+SAP, and the NSF under CAREER grant CNS-1651570. Fox,E.A.andShaw,J.A.Combinationofmultiplesearches.
+Any opinions, findings, and conclusions or recommenda- NISTspecialpublicationSP,243,1994.
+tionsexpressedinthismaterialarethoseoftheauthorsand
+donotnecessarilyreflecttheviewsoftheNationalScience Gao,L.,Dai,Z.,Pasupat,P.,Chen,A.,Chaganty,A.T.,Fan,
+Foundation. We thank Giuseppe Attanasio for his public Y.,Zhao,V.Y.,Lao,N.,Lee,H.,Juan,D.-C.,etal. At-
+LATEXGitHub-stylePythoncodeformattinggist.4 Wealso tributedtextgenerationviapost-hocresearchandrevision.
+thankRileyGoodsideforhispublictipsonformattingLM arXivpreprintarXiv:2210.08726,2022.
+4https://gist.github.com/g8a9/ Geva,M.,Khashabi,D.,Segal,E.,Khot,T.,Roth,D.,and
+07c2be12ae02cfad4aa430d77dc940cb
+Berant,J.Didaristotleusealaptop?aquestionansweringDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+benchmarkwithimplicitreasoningstrategies. Transac- Khattab,O.,Potts,C.,andZaharia,M. Relevance-guided
+tionsoftheAssociationforComputationalLinguistics,9: supervisionforopenqawithColBERT. Transactionsof
+346–361,2021. the Association for Computational Linguistics, 9:929–
+944,2021b.
+Hofstätter, S., Chen, J., Raman, K., and Zamani, H. Fid-
+light: Efficient and effective retrieval-augmented text Khot,T.,Trivedi,H.,Finlayson,M.,Fu,Y.,Richardson,K.,
+generation. arXivpreprintarXiv:2209.14290,2022. Clark, P., and Sabharwal, A. Decomposed prompting:
+A modular approach for solving complex tasks. arXiv
+Huang,J.,Gu,S.S.,Hou,L.,Wu,Y.,Wang,X.,Yu,H.,and preprintarXiv:2210.02406,2022.
+Han,J. Largelanguagemodelscanself-improve. arXiv
+preprintarXiv:2210.11610,2022. Kojima,T.,Gu,S.S.,Reid,M.,Matsuo,Y.,andIwasawa,
+Y. Largelanguagemodelsarezero-shotreasoners. arXiv
+Ishii,Y.,Madotto,A.,andFung,P. Surveyofhallucination preprintarXiv:2205.11916,2022.
+innaturallanguagegeneration. ACMComput.Surv,1(1),
+2022. Krishna,K.,Chang,Y.,Wieting,J.,andIyyer,M. Rankgen:
+Improving text generation with large ranking models.
+Izacard,G.andGrave,E. Leveragingpassageretrievalwith arXivpreprintarXiv:2205.09726,2022.
+generativemodelsforopendomainquestionanswering.
+Kurland, O. and Culpepper, J. S. Fusion in information
+arXivpreprintarXiv:2007.01282,2020.
+retrieval: Sigir2018half-daytutorial. InThe41stInter-
+Izacard, G., Lewis, P., Lomeli, M., Hosseini, L., Petroni, nationalACMSIGIRConferenceonResearch&Devel-
+F.,Schick,T.,Dwivedi-Yu,J.,Joulin,A.,Riedel,S.,and opmentinInformationRetrieval,pp.1383–1386,2018.
+Grave,E.Few-shotlearningwithretrievalaugmentedlan-
+Kwiatkowski, T., Palomaki, J., Redfield, O., Collins, M.,
+guagemodels. arXivpreprintarXiv:2208.03299,2022.
+Parikh,A.,Alberti,C.,Epstein,D.,Polosukhin,I.,Devlin,
+Jiang, Y., Bordia, S., Zhong, Z., Dognin, C., Singh, M., J.,Lee,K.,Toutanova,K.,Jones,L.,Kelcey,M.,Chang,
+and Bansal, M. HoVer: A dataset for many-hop fact M.-W.,Dai,A.M.,Uszkoreit,J.,Le,Q.,andPetrov,S.
+extraction and claim verification. In Findings of the Naturalquestions: Abenchmarkforquestionanswering
+Association for Computational Linguistics: EMNLP research. TransactionsoftheAssociationforComputa-
+2020, pp. 3441–3460, Online, 2020. Association for tionalLinguistics,7:452–466,2019.doi:10.1162/tacl_a_
+Computational Linguistics. doi: 10.18653/v1/2020. 00276. URLhttps://aclanthology.org/Q19-1026.
+findings-emnlp.309. URL https://aclanthology.
+org/2020.findings-emnlp.309. Lazaridou,A.,Gribovskaya,E.,Stokowiec,W.,andGrig-
+orev, N. Internet-augmentedlanguagemodelsthrough
+Karpukhin,V.,Oguz,B.,Min,S.,Lewis,P.,Wu,L.,Edunov, few-shotpromptingforopen-domainquestionanswering.
+S., Chen, D., and Yih, W.-t. Dense passage retrieval arXivpreprintarXiv:2203.05115,2022.
+for open-domain question answering. In Proceedings
+Le,N.T.,Bai,F.,andRitter,A. Few-shotanaphorareso-
+of the 2020 Conference on Empirical Methods in Nat-
+lutioninscientificprotocolsviamixturesofin-context
+ural Language Processing (EMNLP), pp. 6769–6781,
+experts. arXivpreprintarXiv:2210.03690,2022.
+Online, 2020. Association for Computational Linguis-
+tics. doi: 10.18653/v1/2020.emnlp-main.550. URL Lee, K., Chang, M.-W., and Toutanova, K. Latent re-
+https://aclanthology.org/2020.emnlp-main.550.
+trievalforweaklysupervisedopendomainquestionan-
+swering. InProceedingsofthe57thAnnualMeetingof
+Khattab,O.andZaharia,M. Colbert: Efficientandeffective
+theAssociationforComputationalLinguistics,pp.6086–
+passage search via contextualized late interaction over
+6096, Florence, Italy, 2019. Association for Computa-
+BERT. InHuang,J.,Chang,Y.,Cheng,X.,Kamps,J.,
+tional Linguistics. doi: 10.18653/v1/P19-1612. URL
+Murdock, V., Wen, J., and Liu, Y. (eds.), Proceedings
+https://aclanthology.org/P19-1612.
+ofthe43rdInternationalACMSIGIRconferenceonre-
+searchanddevelopmentinInformationRetrieval,SIGIR Levine, Y., Dalmedigos, I., Ram, O., Zeldes, Y., Jan-
+2020, Virtual Event, China, July 25-30, 2020, pp. 39– nai, D., Muhlgay, D., Osin, Y., Lieber, O., Lenz, B.,
+48.ACM,2020. doi: 10.1145/3397271.3401075. URL Shalev-Shwartz, S., et al. Standing on the shoul-
+https://doi.org/10.1145/3397271.3401075. ders of giant frozen language models. arXiv preprint
+arXiv:2204.10019,2022.
+Khattab, O., Potts, C., and Zaharia, M. Baleen: Robust
+Multi-HopReasoningatScaleviaCondensedRetrieval. Lewis,P.S.H.,Perez,E.,Piktus,A.,Petroni,F.,Karpukhin,
+In Thirty-Fifth Conference on Neural Information Pro- V., Goyal, N., Küttler, H., Lewis, M., Yih, W., Rock-
+cessingSystems,2021a. täschel,T.,Riedel,S.,andKiela,D.Retrieval-AugmentedDEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+Generation for Knowledge-Intensive NLP Tasks. In Radford, A., Wu, J., Child, R., Luan, D., Amodei, D.,
+Larochelle, H., Ranzato, M., Hadsell, R., Balcan, M., Sutskever,I.,etal. Languagemodelsareunsupervised
+and Lin, H. (eds.), Advances in Neural Information multitasklearners. OpenAIblog,1(8):9,2019.
+Processing Systems 33: Annual Conference on Neural
+Rajpurkar,P.,Zhang,J.,Lopyrev,K.,andLiang,P. SQuAD:
+Information Processing Systems 2020, NeurIPS 2020,
+December 6-12, 2020, virtual, 2020. URL https: 100,000+questionsformachinecomprehensionoftext.
+//proceedings.neurips.cc/paper/2020/hash/ In Proceedings of the 2016 Conference on Empirical
+6b493230205f780e1bc26945df7481e5-Abstract. Methods in Natural Language Processing, pp. 2383–
+html. 2392, Austin, Texas, 2016. Association for Computa-
+tional Linguistics. doi: 10.18653/v1/D16-1264. URL
+Li, X. L., Holtzman, A., Fried, D., Liang, P., Eisner, J.,
+https://aclanthology.org/D16-1264.
+Hashimoto, T., Zettlemoyer, L., and Lewis, M. Con-
+Raposo,G.,Ribeiro,R.,Martins,B.,andCoheur,L. Ques-
+trastive decoding: Open-ended text generation as opti-
+tion rewriting? assessing its importance for conversa-
+mization. arXivpreprintarXiv:2210.15097,2022.
+tionalquestionanswering. InEuropeanConferenceon
+Liu,J.,Shen,D.,Zhang,Y.,Dolan,B.,Carin,L.,andChen, InformationRetrieval,pp.199–206.Springer,2022.
+W. What makes good in-context examples for gpt-3?
+Santhanam, K., Khattab, O., Potts, C., and Zaharia, M.
+arXivpreprintarXiv:2101.06804,2021.
+PLAID: An Efficient Engine for Late Interaction Re-
+trieval. arXivpreprintarXiv:2205.09707,2022a.
+McCann, B., Keskar, N. S., Xiong, C., and Socher, R.
+The natural language decathlon: Multitask learning as
+Santhanam, K., Khattab, O., Saad-Falcon, J., Potts, C.,
+question answering. arXiv:1806.08730, 2018. URL
+and Zaharia, M. ColBERTv2: Effective and efficient
+https://arxiv.org/abs/1806.08730.
+retrievalvialightweightlateinteraction. InProceedings
+ofthe2022ConferenceoftheNorthAmericanChapterof
+Min, S., Zhong, V., Zettlemoyer, L., and Hajishirzi,
+theAssociationforComputationalLinguistics: Human
+H. Multi-hop reading comprehension through ques-
+LanguageTechnologies,pp.3715–3734,Seattle,United
+tion decomposition and rescoring. arXiv preprint
+States,July2022b.AssociationforComputationalLin-
+arXiv:1906.02916,2019.
+guistics. doi: 10.18653/v1/2022.naacl-main.272. URL
+https://aclanthology.org/2022.naacl-main.272.
+Ouyang, L., Wu, J., Jiang, X., Almeida, D., Wainwright,
+C. L., Mishkin, P., Zhang, C., Agarwal, S., Slama,
+Shuster, K., Poff, S., Chen, M., Kiela, D., andWeston, J.
+K., Ray, A., et al. Training language models to fol-
+Retrievalaugmentationreduceshallucinationinconver-
+low instructions with human feedback. arXiv preprint
+sation. arXivpreprintarXiv:2104.07567,2021.
+arXiv:2203.02155,2022.
+Si,C.,Gan,Z.,Yang,Z.,Wang,S.,Wang,J.,Boyd-Graber,
+Paranjape, A., Khattab, O., Potts, C., Zaharia, M., and
+J.,andWang,L. Promptinggpt-3tobereliable. arXiv
+Manning, C. D. Hindsight: Posterior-guided Training
+preprintarXiv:2210.09150,2022.
+ofRetrieversforImprovedOpen-endedGeneration. In
+InternationalConferenceonLearningRepresentations, Sun, Z., Wang, X., Tay, Y., Yang, Y., and Zhou, D.
+2022. URLhttps://openreview.net/forum?id=Vr_ Recitation-augmentedlanguagemodels. arXivpreprint
+BTpw3wz. arXiv:2210.01296,2022.
+Perez, E., Kiela, D., andCho, K. Truefew-shotlearning Thorne,J.,Vlachos,A.,Christodoulopoulos,C.,andMit-
+withlanguagemodels. AdvancesinNeuralInformation tal, A. FEVER: a large-scale dataset for fact extrac-
+ProcessingSystems,34:11054–11070,2021. tionandVERification. InProceedingsofthe2018Con-
+ferenceoftheNorthAmericanChapteroftheAssocia-
+Press,O.,Zhang,M.,Min,S.,Schmidt,L.,Smith,N.A., tion for Computational Linguistics: Human Language
+and Lewis, M. Measuring and narrowing the com- Technologies, Volume 1 (Long Papers), pp. 809–819,
+positionality gap in language models. arXiv preprint NewOrleans,Louisiana,2018.AssociationforCompu-
+arXiv:2210.03350,2022. tationalLinguistics. doi: 10.18653/v1/N18-1074. URL
+https://aclanthology.org/N18-1074.
+Qi,P.,Lee,H.,Sido,O.,Manning,C.D.,etal. Retrieve,
+rerank,read,theniterate: Answeringopen-domainques- Vakulenko, S., Kiesel, J., and Fröbe, M. SCAI-QReCC
+tionsofarbitrarycomplexityfromtext. arXivpreprint sharedtaskonconversationalquestionanswering. InPro-
+arXiv:2010.12527, 2020. URL https://arxiv.org/ ceedingsoftheThirteenthLanguageResourcesandEval-
+abs/2010.12527. uation Conference, pp. 4913–4922, Marseille, France,DEMONSTRATE–SEARCH–PREDICT:Composingretrievalandlanguagemodels
+June2022.EuropeanLanguageResourcesAssociation.
+URLhttps://aclanthology.org/2022.lrec-1.525.
+Wang, X., Macdonald, C., Tonellotto, N., and Ounis, I.
+Colbert-prf: Semantic pseudo-relevance feedback for
+dense passage and document retrieval. ACM Transac-
+tionsontheWeb,2022a.
+Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E., and
+Zhou,D. Rationale-augmentedensemblesinlanguage
+models. arXivpreprintarXiv:2207.00747,2022b.
+Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E.,
+and Zhou, D. Self-consistency improves chain of
+thought reasoning in language models. arXiv preprint
+arXiv:2203.11171,2022c.
+Wei, J., Wang, X., Schuurmans, D., Bosma, M., Chi, E.,
+Le,Q.,andZhou,D. Chainofthoughtpromptingelic-
+itsreasoninginlargelanguagemodels. arXivpreprint
+arXiv:2201.11903,2022.
+Wiher, G., Meister, C., and Cotterell, R. On decoding
+strategies for neural text generators. arXiv preprint
+arXiv:2203.15721,2022.
+Xiong, W., Li, X. L., Iyer, S., Du, J., Lewis, P., Wang,
+W.Y.,Mehdad,Y.,Yih,W.-t.,Riedel,S.,Kiela,D.,etal.
+Answeringcomplexopen-domainquestionswithmulti-
+hop dense retrieval. arXiv preprint arXiv:2009.12756,
+2020. URLhttps://arxiv.org/abs/2009.12756.
+Xue, X. and Croft, W. B. Modeling reformulation using
+querydistributions. ACMTransactionsonInformation
+Systems(TOIS),31(2):1–34,2013.
+Yang, Z., Qi, P., Zhang, S., Bengio, Y., Cohen, W. W.,
+Salakhutdinov, R., and Manning, C. D. Hotpotqa: A
+dataset for diverse, explainable multi-hop question an-
+swering. arXivpreprintarXiv:1809.09600,2018.
+Yao,S.,Zhao,J.,Yu,D.,Du,N.,Shafran,I.,Narasimhan,
+K.,andCao,Y. React: Synergizingreasoningandacting
+inlanguagemodels. arXivpreprintarXiv:2210.03629,
+2022.
+Zelikman, E., Wu, Y., and Goodman, N. D. Star: Boot-
+strapping reasoning with reasoning. arXiv preprint
+arXiv:2203.14465,2022.
+Zhang, Z., Zhang, A., Li, M., and Smola, A. Automatic
+chain of thought prompting in large language models.
+arXivpreprintarXiv:2210.03493,2022.
+Zhong,V.,Shi,W.,Yih,W.-t.,andZettlemoyer,L. Romqa:
+A benchmark for robust, multi-evidence, multi-answer
+question answering. arXiv preprint arXiv:2210.14353,
+2022.

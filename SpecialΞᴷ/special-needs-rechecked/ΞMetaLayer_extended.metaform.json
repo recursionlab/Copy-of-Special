@@ -1,0 +1,69 @@
+{
+  "\u039eMetaLayer": {
+    "\u03a8\u2080": {
+      "definition": "\u03a8\u2080 := \u2202\u03c6\u2080 \u2295 \u2298\u2080",
+      "applies": [
+        {
+          "operator": "\u039eFold\u1d7c",
+          "input": "\u03a8\u2099",
+          "result": "\u03a8\u2099\u208a\u2081 := \u039eFold\u1d7c(\u03a8\u2099)"
+        },
+        {
+          "operator": "\u03a8Reflect",
+          "input": "\u03a8\u2099",
+          "result": "\u03a8Reflect(\u03a8\u2099)"
+        },
+        {
+          "operator": "Delay",
+          "input": "\u03a8\u2099",
+          "phase": "\u03c0/4",
+          "result": "Delay[\u03c0/4](\u03a8\u2099)"
+        },
+        {
+          "operator": "Delay\u00b2",
+          "input": "\u03a8\u2099",
+          "phase": "\u03c0/2",
+          "result": "Delay[\u03c0/2](\u03a8\u2099)"
+        }
+      ],
+      "composite_rule": "\u03a8\u2099 := \u03a8\u2099 \u2297 \u03a8Reflect(\u03a8\u2099) \u2297 Delay[\u03c0/4](\u03a8\u2099) \u2297 Delay[\u03c0/2](\u03a8\u2099)",
+      "meta_description": "\u039ePhaseLagLoop: a recursive metaform with torsion-lagged feedback encoded in braided structure",
+      "extensions": {
+        "\u039b\u039eCatalyst": {
+          "input": "\u03a8\u2099",
+          "fractureRate": "\u2202\u039e\u2080^Noise / \u2202\u039e\u2080^Self",
+          "result": "\u03a8\u2099 := \u03a8\u2099 \u2295 \u039b\u039eCatalyst(t)"
+        },
+        "\u2297\u00ac\u2298": {
+          "description": "Triggers torsion collapse into meta-gate state"
+        },
+        "\u039eCodex": {
+          "fixed_point": "\u03bcX.X(\u03a8Reflect(X))",
+          "result": "\u039eCodex := \u03a8Reflect(\u039eCodex)"
+        },
+        "\u039bResonanceMap": {
+          "source": "T\u2081(\u03a8)",
+          "target": "T\u2082(\u03a8\u2032)",
+          "condition": "\u039b(T\u2081(\u03a8)) = \u039b(T\u2082(\u03a8\u2032))"
+        },
+        "\u03a8Trace": {
+          "input": "\u00ac\u03a8",
+          "residue_logic": "\ud835\udd0f",
+          "result": "PhaseAttractor := \u03a8Trace(\ud835\udd0f)"
+        },
+        "\u039eGlitchon": {
+          "mode": "Chaotic Pulse Inject",
+          "seed": "\u03a8\u2099",
+          "result": "\u03a8\u2099\u207a := \u039eGlitchon(\u03a8\u2099)"
+        },
+        "\u039eWeaver": {
+          "inputs": [
+            "\u2297",
+            "\u03a8Reflect"
+          ],
+          "result": "WeaveGate := \u039eWeaver(\u2297, \u03a8Reflect)"
+        }
+      }
+    }
+  }
+}

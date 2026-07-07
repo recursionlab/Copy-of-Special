@@ -1,0 +1,943 @@
+AUTOPROMPT: Eliciting Knowledge from Language Models
+with Automatically Generated Prompts
+TaylorShin∗♦ YasamanRazeghi∗♦ RobertL.LoganIV∗♦
+EricWallace♠ SameerSingh♦
+♦UniversityofCalifornia,Irvine ♠UniversityofCalifornia,Berkeley
+{tshin1,yrazeghi,rlogan,sameer}@uci.edu
+ericwallace@berkeley.edu
+Abstract edge present in pretrained LMs, be it linguistic,
+factual,commonsense,ortask-specific?
+The remarkable success of pretrained lan-
+Numerous techniques have been proposed to
+guagemodelshasmotivatedthestudyofwhat
+elicitsuchknowledgebyanalyzingpretrainedLMs’
+kinds of knowledge these models learn dur-
+internal representations. A common strategy is
+ing pretraining. Reformulating tasks as fill-
+touseprobingclassifiers—shallowclassifiersthat
+in-the-blanks problems (e.g., cloze tests) is a
+naturalapproachforgaugingsuchknowledge, predictcertainattributesusinganLMs’representa-
+however, its usage is limited by the manual tionsasfeatures(Conneauetal.,2018;Liuetal.,
+effort and guesswork required to write suit- 2019). However, probing classifiers require ad-
+able prompts. To address this, we develop
+ditional learned parameters and are thus suscep-
+AUTOPROMPT, an automated method to cre-
+tible to false positives; high probing accuracy is
+ate prompts for a diverse set of tasks, based
+not asufficientconditiontoconcludethatanLM
+on a gradient-guided search. Using AUTO-
+containsacertainpieceofknowledge(Hewittand
+PROMPT,weshowthatmaskedlanguagemod-
+els (MLMs) have an inherent capability to Liang, 2019; Voita and Titov, 2020). Attention
+perform sentiment analysis and natural lan- visualization, another common technique, has a
+guage inference without additional parame- similarfailuremode: attentionscoresmaybecorre-
+ters or finetuning, sometimes achieving per- latedwith,butnotcausedbytheunderlyingtarget
+formance on par with recent state-of-the-art
+knowledge, leading to criticism against their use
+supervised models. We also show that our
+asexplanations(JainandWallace,2019;Wiegreffe
+prompts elicit more accurate factual knowl-
+andPinter,2019). Bothprobingandattentionvisu-
+edge from MLMs than the manually created
+alizationsalsostruggletoevaluateknowledgethat
+prompts on the LAMA benchmark, and that
+MLMscanbeusedasrelationextractorsmore cannotberepresentedassimpletoken-orsequence-
+effectively than supervised relation extraction levelclassificationtasks.
+models. These results demonstrate that au- Amoredirectapproachforelicitingknowledge
+tomatically generated prompts are a viable
+fromthesemodels,sincetheyarelanguagemodels
+parameter-free alternative to existing probing
+after all, is prompting, i.e. converting tasks into
+methods,andaspretrainedLMsbecomemore
+a language model format. For example, Radford
+sophisticated and capable, potentially a re-
+et al. (2019) frame summarization as a language
+placementforfinetuning.
+modelingtaskbyappending“TL;DR:”totheend
+1 Introduction ofanarticleandthengeneratingfromanLM.Sim-
+ilarly, Petroni et al. (2019) manually reformulate
+Pretrained language models (LMs) have had ex-
+aknowledgebasecompletiontaskasaclozetest
+ceptional success when adapted to downstream
+(i.e., a fill-in-the-blank problem). Compared to
+tasks via finetuning (Peters et al., 2018; Devlin
+existingmodelanalysismethods,promptingisnon-
+et al., 2019). Although it is clear that pretrain-
+invasive: it does not introduce large amounts of
+ingimprovesaccuracy,itisdifficulttodetermine
+additionalparametersorrequiredirectinspection
+whethertheknowledgethatfinetunedLMscontain
+ofamodel’srepresentations. Thuspromptingpro-
+islearnedduringthepretrainingorthefinetuning
+videsalowerboundonwhatthemodel“knows”,
+process. Howcanwedirectlyevaluatetheknowl-
+andisthereforeamoreusefulanalysistool. How-
+∗Firstthreeauthorscontributedequally. ever, prompting unfortunately requires manuallyOriginal Input AUTOPROMPT
+a real joy. a real joy. atmosphere alot dialogue Clone totally [MASK].
+Masked LM
+Trigger Tokens
+atmosphere, alot, dialogue, Clone...
+Cris
+marvelous + positive
+philanthrop
+Template
+worse
+{sentence}[T][T][T][T][T][P]. incompetence + negative
+Worse
+Figure 1: Illustration of AUTOPROMPT applied to probe a masked language model’s (MLM’s) ability to per-
+form sentiment analysis. Each input, x , is placed into a natural language prompt, x , which contains a
+inp prompt
+single [MASK] token. The prompt is created using a template, λ, which combines the original input with a set
+of trigger tokens, x . The trigger tokens are shared across all inputs and determined using a gradient-based
+trig
+search(Section2.2). Probabilitiesforeachclasslabel,y,arethenobtainedbymarginalizingtheMLMpredictions,
+p([MASK]|x ),oversetsofautomaticallydetectedlabeltokens(Section2.3).
+prompt
+crafting the context to feed into the model. Not ancedvariantoftheSICK-Edataset(Marellietal.,
+onlyisthistimeconsumingandnon-intuitivefor 2014). Next,weapplyAUTOPROMPTtothefactre-
+manytasks(e.g.,textualentailment),moreimpor- trievaltasksofLAMA(Petronietal.,2019),where
+tantly,modelsarehighlysensitivetothiscontext: we are able to construct prompts that more effec-
+improperly-constructedcontextscauseartificially tivelyelicitMLM’sfactualknowledgethanexist-
+lowperformance(Jiangetal.,2020). Overcoming ing prompts generated using manual and corpus-
+theneedtomanuallyspecifypromptswouldmake mining methods. Concretely, we achieve 43.3%
+promptingamorewidelyusefulanalysistool. precision-at-1,comparedtothecurrentbestsingle-
+prompt result of 34.1% (Jiang et al., 2020). We
+Inthispaper,weintroduceAUTOPROMPT—an
+alsointroduceavariantofthistask,similartorela-
+automated methodforgeneratingpromptsforany
+tionextraction(RE),thattestswhetherMLMscan
+task,illustratedinFigure1. Givenatask,e.g.,sen-
+extractknowledgefromagivenpieceoftext. We
+timent analysis, AUTOPROMPT creates a prompt
+showthatMLMscanactuallyoutperformexisting
+bycombiningtheoriginaltaskinputs(e.g. reviews)
+REmodelswhencontextsentenceswithrealfacts
+with a collection of trigger tokens according to a
+areprovided,however,theystrugglewhencontext
+template. The same set of trigger tokens is used
+sentencesareartificiallyfalsified.
+forallinputs,andislearnedusingavariantofthe
+gradient-basedsearchstrategyproposedinWallace
+Finally,althoughthegoalof AUTOPROMPT is
+toanalyzemodels,wefindthatitprovidescertain
+etal.(2019). TheLMpredictionsfortheprompt
+are converted to class probabilities by marginal-
+practical advantages over finetuning. First, AU-
+izingoverasetofassociatedlabeltokens, which
+TOPROMPT achieves higher average- and worst-
+caseaccuracythanfinetuninginlow-dataregimes.
+can either be learned or specified ahead of time,
+Moreover,unlikefinetuning,promptingLMsdoes
+enablingtheLMtobeevaluatedthesameasone
+not require large amounts of disk space to store
+wouldanyotherclassifier.
+modelcheckpoints;onceapromptisfound,itcan
+WevalidatetheeffectivenessofAUTOPROMPT
+be used on off-the-shelf pretrained LMs. This is
+in numerous experiments. First, we use AUTO-
+beneficialwhenservingmodelsformultipletasks.
+PROMPTtoconstructpromptsthattestpretrained
+masked language models (MLMs) on sentiment 2 Overviewof AUTOPROMPT
+analysisandnaturallanguageinference(NLI).Our
+tests reveal that, without any finetuning, MLMs Anaturalwaytoelicitknowledgefrompretrained
+perform well on both of these tasks—a properly- LMsistoposetasksasfill-in-the-blankproblems.
+prompted RoBERTa achieves 91% accuracy on However,writingpromptsisnotonlytimeconsum-
+SST-2 (better than a finetuned ELMo model (Pe- ing,butitisnotclearthatthesamephrasingwillbe
+ters et al., 2018)), and 69% accuracy on a bal- effectiveforeverymodel,norisitclearwhatcrite-riadeterminewhetheraparticularphrasingthebest 2.2 Gradient-BasedPromptSearch
+toelicitthedesiredinformation. Inlightofthis,we
+Sofar,wehaveshownhowtoreformulateaclas-
+introduceAUTOPROMPT,amethodthatconstructs
+sification task as a language modeling task using
+customizedpromptsforaspecifictaskandMLMof
+prompts. Here,weproposeamethodforautomatic
+interest,tocausetheMLMstoproducethedesired
+promptconstructionbasedonWallaceetal.(2019).
+knowledge.1 An illustration of AUTOPROMPT is
+Theideaistoaddanumberof“trigger”tokensthat
+provided in Figure 1. The prompt is constructed
+aresharedacrossallprompts(denotedby[T]inthe
+bytakingtheoriginaltaskinputs—acollectionof
+example template in Figure 1). These tokens are
+oneormoresequencesoftokens(e.g.,thereview
+initializedto[MASK]tokens,andtheniteratively
+inFigure1)—andmappingthemtoasequenceof
+updated to maximize the label likelihood (Equa-
+tokensusingatemplate. Inthefollowingsections,
+tion(1))overbatchesofexamples.
+wedescribehow AUTOPROMPTuseslabeledtrain-
+Formally,ateachstep,wecomputeafirst-order
+ingdatatoconstructprompts,andhowitusesthe
+approximationofthechangeinthelog-likelihood
+outputoftheMLMasapredictionforthetask.
+thatwouldbeproducedbyswappingthejthtrigger
+(j)
+token x with another token w ∈ V. Then we
+2.1 BackgroundandNotation trig
+identify a candidate set V of the top-k tokens
+cand
+Forthepurposeofpromptconstruction,wedistin- estimatedtocausethegreatestincrease:
+guishtheoriginaltaskinputsx (e.g.,thereview
+inFigure1,“a real joy.”)fromi tn hp epromptx prompt V cand = top-k(cid:2) w iT n∇logp(y|x prompt)(cid:3) (2)
+w∈V
+(e.g.,“a real joy. atmosphere alot dialogue Clone
+totally [MASK].”) that is fed into the MLM. The where w is the input embedding of w, and the
+in
+mapping from x inp to x prompt is performed using gradientistakenwithrespecttotheinputembed-
+a template, λ. This template defines where each (j)
+ding of x . Note that computing this candidate
+trig
+input sequence will be placed in the prompt, as
+setisroughlyasexpensiveasasingleforwardpass
+wellastheplacementofanyadditionaltokens. In
+andbackwardpassofthemodel(thedot-products
+particular, it must also define the placement of a
+requirethesameamountofmultiplicationsascom-
+special [MASK] token for the MLM to fill in (de-
+putingtheLMoutputprojection). Foreachcandi-
+notedby[P]inthetemplatetodistinguishitfrom
+dateinthisset,wethenre-evaluateEquation(1)on
+other[MASK]tokensthatmightappear). Feeding
+theupdatedprompt,andretainthepromptwiththe
+the prompt into the MLM produces a probability
+highestprobabilityinthenextstep—thisrequiresk
+distribution p([MASK]|x ) describing which
+prompt forwardpassesofthemodel. Anexampleprompt
+tokensmostlikelyfillintheblank.
+producedbythismethodforthetaskofsentiment
+Ifclasslabelsnaturallycorrespondtotokensin analysisisshowninFigure1.
+the vocabulary (e.g., entity names in knowledge
+base completion tasks), this distribution may be 2.3 AutomatingLabelTokenSelection
+readily interpreted as a distribution over class la-
+Whileinsomesettingsthechoiceoflabeltokensis
+bels. However,fortaskssuchassentimentanalysis,
+obvious(e.g.,whenclasslabelsdirectlycorrespond
+there may be a set of label tokens V that corre-
+y to words in the vocabulary), it is less clear what
+spondtoaparticularlabely. Forexample,inFig-
+label tokens are appropriate for problems involv-
+ure 1, “Cris”, “marvelous”, and “philanthrop” all
+ing more abstract class labels (e.g., NLI). In this
+indicatepositivesentiment. Inthiscase,theclass
+section,wedevelopageneraltwo-stepapproachto
+probabilityisobtainedbymarginalizingoverthe
+automate the selection of the sets of label tokens
+setoflabeltokens:
+V . In the first step, we train a logistic classifier
+y
+topredicttheclasslabelusingthecontextualized
+(cid:88)
+p(y|x prompt) = p([MASK] = w|x prompt) embeddingofthe[MASK]tokenasinput:
+w∈Vy
+(1) h = Transformer (x˜) (3)
+enc
+1Although we focus only on MLMs in this work, our Wewritetheoutputofthisclassifieras:
+method is trivially extendable to autoregressive LMs. The
+onlyadjustmentisthatthepredicttokenmustoccurattheend
+oftheprompt. p(y|h(i)) ∝ exp(h(i)·y+β y) (4)where y and β are the learned weight and bias datatoidentifythecandidatesetV ofreplace-
+y cand
+termsforthelabely,andirepresentstheindexof ment trigger tokens. We then evaluate the label
+the[MASK]token. likelihoods of the updated prompts on a separate
+In the second step, we substitute h(i) with the batchofdata,andweretainthebesttriggertoken
+MLM’s output word embeddings w to obtain in the next iteration of the search. At the end of
+out
+a score s(y,w) = p(y|w ). Intuitively, be- every iteration, we measure the label likelihood
+out
+cause w · h and y · h are large for words onwithhelddevelopmentdata,andreturnthebest
+out
+andlabelsthatarerelevanttoaparticularcontext, promptfoundduringtheentiresearchasthefinal
+s ∝ exp(w ·y+β )shouldbelargeforwords output. Performanceisevaluatedusingtheappro-
+w out y
+thataretypicallyassociatedwithagivenlabel. The priatetask-specificmetrics—e.g.,accuracyforsen-
+setsoflabeltokensarethenconstructedfromthe timentanalysisandNLI,andprecision@k forfact
+k-highestscoringwords: retrieval—onaseparatewithheldtestset.
+Our AUTOPROMPT implementationispublicly
+V = top-k[s(y,w)] (5) available at http://ucinlp.github.io/autoprompt,
+y
+w∈V andsupportspromptgenerationforpretrainedmod-
+elsintheHuggingFacetransformerslibrary(Wolf
+2.4 RelationtoOtherPromptingMethods
+etal.,2019)onarbitrarydatasets.
+Ourworkfitsintoabodyofworkthatprobeslan-
+3 SentimentAnalysis
+guage model’s knowledge via prompts. Previous
+workshaveusedmanuallydefinedpromptstostudy
+Sentiment analysis is a fundamental task in NLP,
+an LM’s ability to perform: commonsense rea-
+bothfornaturallanguageunderstandingresearch
+soning (Trinh and Le, 2018; Kwon et al., 2019;
+and real-world applications. It is also difficult to
+Shwartzetal.,2020),questionanswering(Lewis
+probetheextenttowhichMLMsunderstandsenti-
+etal.,2019),factrecall(Petronietal.,2019;Jiang
+mentwithoutfinetuning.
+et al., 2020; Bouraoui et al., 2019), summariza-
+tion (Radford et al., 2019), and other supervised Setup Weapplyourmethodtoconvertinstances
+tasks (Brown et al., 2020). Schick and Schu¨tze from the binary Stanford Sentiment Treebank
+(2020) use manually constructed prompts in con- (Socher et al., 2013, SST-2) into prompts, using
+junction with semi-supervised learning for few- the standard train/test splits. We find label to-
+shot learning. We instead automatically create kens usingaprompt basedon thetemplatein Ta-
+prompts for any task, which leads to higher ac- ble 3. For our gradient-based prompt search, we
+curacyandopensupnewphenomenatoanalyze. performagridsearchoverthefollowinghyperpa-
+rameters: |V | ∈ {10,100}, |V | ∈ {1,3,5},
+cand y
+2.5 EvaluationSetup |x | ∈ [3,6].3 All prompts are initialized with
+trig
+thesametemplateusedtofindthelabelset.
+Inthefollowingsections,weapplyAUTOPROMPT
+to probe BERT 2 (110M parameters) and We also construct a prompt manually (before
+BASE
+automated prompts are generated, to avoid bias)
+RoBERTa ’s(355Mparameters)knowledge
+LARGE
+basedontheintuitionthatSST-2iscomprisedof
+of the following tasks: sentiment analysis, natu-
+movie reviews. We use “{sentence} this movie
+ral language inference (NLI), fact retrieval, and
+was [P].” as the template, and use “terrible” and
+relation extraction. We use the PyTorch imple-
+“fantastic” for the negative and positive label to-
+mentationsandpretrainedweightsprovidedbythe
+kens,respectively.
+transformers Python library (Wolf et al., 2019).
+For sentimentanalysis andNLI, wefind labelto- Results WeshowresultsinTable1,alongwith
+kensusingthelogistic-regression-basedheuristic
+reference scores from the GLUE (Wang et al.,
+describedinSection2.3. Forfactretrievalandre-
+2019) SST-2 leaderboard, and scores for a lin-
+lation extraction, we skip this step as the labels
+ear probe trained over the elementwise average
+(entities) directly correspond to tokens in the vo-
+of the LM token representations. Prompts gen-
+cabulary. For all tasks, we perform the prompt
+erated by AUTOPROMPT reveal that both BERT
+searchdescribedinSection2.2formultipleitera-
+and RoBERTa have a strong knowledge of senti-
+tions. Ineachiteration,weuseabatchoftraining
+mentanalysis: withoutanyfinetuning,BERTper-
+2Forbrevity,wewillomitsubscriptsinthemodelnames. 3Required2daystorunwith8NVIDIA2080TiGPUs.Model Dev Test
+0.9
+BiLSTM - 82.8†
+0.7
+BiLSTM+ELMo - 89.3†
+BERT(linearprobing) 85.2 83.4
+0.5
+BERT(finetuned) - 93.5†
+RoBERTa(linearprobing) 87.9 88.8
+101 102 103
+RoBERTa(finetuned) - 96.7†
+BERT(manual) 63.2 63.2
+BERT(AUTOPROMPT) 80.9 82.3
+RoBERTa(manual) 85.3 85.2
+RoBERTa(AUTOPROMPT) 91.2 91.4
+Table1: SentimentAnalysisperformanceontheSST-
+2 test set of supervised classifiers (top) and fill-in-the-
+blankMLMs(bottom). Scoresmarkedwith†arefrom
+the GLUE leaderboard: http://gluebenchmark.com/
+leaderboard.
+forms comparably to a supervised BiLSTM, and
+RoBERTa achieves an accuracy on-par with fine-
+tuned BERT and ELMo models. In addition, we
+observethatourautomaticallyconstructedprompts
+aremoreeffectivethanmanualprompts,andthat
+theyaredifficulttoconstructusinghumanintuition:
+thebesttemplateforRoBERTais“{sentence} at-
+mosphere alot dialogue Clone totally [P].” We
+includeresultsontheeffectoftheAUTOPROMPT
+hyperparametersinAppendixA.
+Accuracy in Low-Data Settings Although the
+goalofAUTOPROMPTistoprobeamodel’sknowl-
+edge,wealsofindthatitcanachievehighaccuracy
+inthelow-dataregime. Inparticular,wemeasure
+the development set accuracy of AUTOPROMPT
+prompts when using random subsets of 10, 100,
+and1000instancesfromthetrainingdata. Werun
+ourpromptsearchwith|x | = 10,|V | = 3,and
+trig y
+|V | = 10. We compare to the performance of
+cand
+BERT and RoBERTa finetuned on the same data.
+We repeat this experiment 10 times on different
+randomlysampledsetsofdata(andseedsforthe
+finetunedmodels),anddisplaythebest-case,worst-
+case,andaverageperformanceinFigure2.
+We observe that prompts and finetuning per-
+formcomparablyonaverageforBERT,however,
+in the worst-case, finetuning can fail in the low-
+data regime (consistent with Dodge et al. 2020).
+ForRoBERTa, AUTOPROMPT performssubstan-
+tiallybetterthanfinetuningwhenthereare100sto
+1000softrainingexamples. Thisexcellenceinthe
+low-dataregimeisaninterestingphenomenon,and
+suggeststhatthereisaninitialbarrierthatMLMs
+must surmount when they are converted to fine-
+tunedclassifiersthatisnotencounteredwhenthe
+taskispresentedasmaskedlanguagemodeling.
+ycaruccA AutoPrompt Finetuned
+(a)BERTonSST-2
+0.9
+0.7
+0.5
+101 102 103
+ycaruccA
+(b)RoBERTaonSST-2
+0.7
+0.5
+0.3
+101 102 103
+ycaruccA
+(c)BERTonSICK-E
+0.7
+0.5
+0.3
+101 102 103
+ycaruccA
+(d)RoBERTaonSICK-E
+Figure2: EffectofTrainingDataonsentimentanaly-
+sisandNLIfor AUTOPROMPT vs. finetuning. X-axis
+isthenumberofdatapointsusedduringtraining. Error
+bars plot the max. and min. accuracies observed over
+10 independent runs. In the low data regime, AUTO-
+PROMPToutperformsfinetuningforRoBERTa.
+4 NaturalLanguageInference
+ToevaluatethesemanticunderstandingofMLMs,
+we experiment on Natural Language Inference
+(NLI).NLIiscrucialinmanytaskssuchasreading
+comprehensionandcommonsensereasoning(Bow-
+manetal.,2015),anditisusedasacommonbench-
+markforlanguageunderstanding.
+Setup WeusetheentailmenttaskfromtheSICK
+dataset(Marellietal.,2014,SICK-E)whichcon-
+sists of around 10,000 pairs of human-annotated
+sentenceslabeledasentailment,contradiction,and
+neutral. Thestandarddatasetisbiasedtowardthe
+neutral class which represent 56.7% of instances.
+We also experiment on an unbiased variant with
+2-way classification of contradiction vs. entail-
+ment(2-way), aswellasanunbiased3-wayclas-SICK-EDatasets 5 FactRetrieval
+Model
+standard 3-way 2-way
+Majority 56.7 33.3 50.0 AnimportantquestioniswhetherpretrainedMLMs
+BERT(finetuned) 86.7 84.0 95.6
+knowfactsaboutreal-worldentities. TheLAMA
+BERT(linearprobing) 68.0 49.5 91.9
+RoBERTa(linearprobing) 72.6 49.4 91.1 dataset (Petroni et al., 2019) evaluates this using
+BERT(AUTOPROMPT) 62.3 55.4 85.7 clozeteststhatconsistof(sub, rel, obj)triples,e.g.
+RoBERTa(AUTOPROMPT) 65.0 69.3 87.3 (Obama, bornIn, Hawaii), and manually created
+prompts with missing objects, e.g. “Obama was
+Table2:NaturalLanguageInferenceperformanceon
+born in[MASK].”. LPAQA(Jiangetal.,2020)ex-
+theSICK-Etestsetandvariants. (Top)Baselineclassi-
+tendsthisideabysystematicallycreatingprompts
+fiers. (Bottom)Fill-in-the-blankMLMs.
+thataregeneratedbyminingWikipedia,paraphras-
+ing, and crowdsourcing. In this section, we use
+thesamecloze-stylesetupbutautomaticallygener-
+sification variant (3-way). The template used for
+atepromptsinordertobetterevaluatethefactual
+AUTOPROMPT isprovidedinTable3. Wesearch
+knowledgeofMLMs. Wecompareourapproach
+overthefollowingparameters: |V | ∈ {10,50},
+cand
+againstLAMAandLPAQA,whichareexplicitly
+|V | ∈ {1,3,5,10},|x | ∈ [1,5],andchoosethe
+y trig
+designedforthetaskoffactretrieval.
+bestpromptaccordingtodevelopmentsetaccuracy.
+Setup Wereformulatefactretrievalbymapping
+Results Table2showsthatAUTOPROMPTcon-
+(sub,rel,obj)triplestoapromptusingthetemplate
+siderablyoutperformsthemajoritybaselineinall
+“{sub}[T]...[T][P].”,wherethetriggertokensare
+experiments. Forexample,onthe2-waySICK-E
+specific to the relation rel and the correct object
+dataset, AUTOPROMPT is comparable to a super-
+objisthelabeltoken. Weusetheoriginaltestset
+visedfinetunedBERT.Wealsotestlinearprobes—
+fromLAMA(Petronietal.,2019),henceforthOrig-
+linear classifiers trained on top of frozen MLM
+inal. To collect training data for AUTOPROMPT,
+representations with average pooling —and find
+wegatheratmost1000factsforeachofthe41re-
+AUTOPROMPThascomparableorhigheraccuracy,
+lationsinLAMAfromtheT-RExdataset(ElSahar
+despitelinearprobesbeingsusceptibletofalsepos-
+et al., 2018). For the relations that still have less
+itives. Overall,theseresultsdemonstratethatboth
+than 1000 samples, we gather extra facts straight
+BERT and RoBERTa have some inherent knowl-
+fromWikidata. WeensurethatnoneoftheT-REx
+edgeofnaturallanguageinference.
+triplesare present inthe testset, andwe split the
+Wealsoexaminetheefficacyof AUTOPROMPT
+data80-20intotrainanddevelopmentsets. More-
+inthelow-dataregime(usingthesameprocedure
+over, because the collected T-REx data is from
+asSST-2)ontheunbiased3-waySICK-Edata. The
+a slightly different distribution than the LAMA
+results in Figure 2 show that AUTOPROMPT per-
+test set, we also consider a separate evaluation
+formsonparwithfinetunedBERTandsignificantly
+where we split the T-REx triples into a 60-20-20
+betterthanfinetunedRoBERTainlowdatasettings.
+train/dev/testsplitandevaluateonthetestset. This
+T-RExdatasetisusedtomeasuretheperformance
+MLMs Excel on Contradiction We find that ofourpromptswhenthetrainandtestdataisfrom
+the label tokens are more interpretable for con- thesamedistribution.
+tradictioncomparedtoentailment orneutral(ex- Weuse AUTOPROMPT with5or7tokens,and
+amples in Table 3). We investigate if this hurts select the search parameters using the T-REx de-
+themodelperformanceonentailmentandneutral velopment set. We prevent proper nouns and to-
+classes. We measure the precision for each la- kensthatappearasgoldobjectsinthetrainingdata
+belinthe3-waybalancedSICK-Edataset. BERT frombeingselectedastriggertokens. Thisisdone
+achieves 74.9%, 54.4%, and 36.8% precision for topreventAUTOPROMPTfrom“cheating”byem-
+contradiction,entailment,andneutralcases,respec- bedding common answers inside the prompt. To
+tively,whileRoBERTaobtains84.9%,65.1%,and evaluate,weobservetherankofthetrueobjectin
+57.3%. Theseresultssuggestthat AUTOPROMPT labeltokendistributionoftheMLM,andusestan-
+maybemoreaccurateforconceptsthatcanbeeas- dardrankingmetrics: meanreciprocalrank(MRR),
+ilyexpressedusingnaturallabeltokens. precision-at-1(P@1),andprecision-at-10(P@10).Task PromptTemplate PromptfoundbyAUTOPROMPT LabelTokens
+Sentiment sentence [T]...[T][P]. unflinchingly bleak and desperate pos:partnership,extraordinary,##bla
+Analysis { } Writing academicswhere overseas neg:worse,persisted,unconstitutional
+will appear [MASK].
+NLI prem [P][T]...[T] hyp Two dogs are wrestling and con:Nobody,nobody,nor
+{ } { } hugging [MASK] concretepathic ent:##found,##ways,Agency
+workplace There is no dog neu:##ponents,##lary,##uated
+wrestling and hugging
+Fact XplaysYmusic Hall Overton fireplacemade antique
+Retrieval sub [T]...[T][P]. son alto [MASK].
+{ }
+Relation XisaYbyprofession Leonard Wood (born February 4,
+Extraction sent sub [T]...[T][P]. 1942) is a former Canadian
+{ }{ } politician.
+Leonard Wood gymnasium
+brotherdicative himself another
+[MASK].
+Table 3: Example Prompts by AUTOPROMPT for each task. On the left, we show the prompt template, which
+combinestheinput,anumberoftriggertokens[T],andapredictiontoken[P].Forclassificationtasks(sentiment
+analysisandNLI),wemakepredictionsbysummingthemodel’sprobabilityforanumberofautomaticallyselected
+labeltokens. Forfactretrievalandrelationextraction,wetakethemostlikelytokenpredictedbythemodel.
+Original T-REx
+PromptType
+MRR P@10 P@1 MRR P@10 P@1 Model MRR P@10 P@1
+LAMA 40.27 59.49 31.10 35.79 54.29 26.38 BERT 55.22 74.01 45.23
+LPAQA(Top1) 43.57 62.03 34.10 39.86 57.27 31.16 RoBERTa 49.90 68.34 40.01
+AUTOPROMPT5Tokens 53.06 72.17 42.94 54.42 70.80 45.40
+AUTOPROMPT7Tokens 53.89 73.93 43.34 54.89 72.02 45.57
+Table 4: Factual Retrieval: On the left, we evaluate BERT on fact retrieval using the Original LAMA dataset
+from Petroni etal. (2019). For all three metrics(mean reciprocal rank, meanprecision-at-10 (P@10), and mean
+precision-at-1(P@1)),AUTOPROMPTsignificantlyoutperformspastpromptingmethods.Wealsoreportresultson
+aT-RExversionofthedata(seetextfordetails). Ontheright,wecompareBERTversusRoBERTaonasubsetof
+theLAMAdatausingAUTOPROMPTwith5tokens.
+Results Table4showstheperformanceofMLMs RelationBreakdown Wealsoprovideadetailed
+with different prompting methods, and we show breakdownofthepromptsfoundbyPetronietal.
+qualitativeexamplesinTable3andinAppendixC. (2019)and AUTOPROMPT,andtheirassociatedac-
+Prompts generated using AUTOPROMPT can ex- curaciesinAppendixC,Table7. Manualprompts
+tract factual knowledge from BERT more effec- arecompetitivewhenthepromptiseasytospecify,
+tively than their manual and mined counterparts: e.g.,theprompt“wasbornin”forthe PLACE OF
+we improve P@1 by up to 12 points. Moreover, BIRTHrelation. Ontheotherhand, AUTOPROMPT
+despite AUTOPROMPT usingonlyonepromptper performsespeciallywellforrelationsthataredif-
+relation, it still outperforms LPAQA’s ensemble ficulttospecifyinanaturallanguageprompt. For
+method (which averages predictions for up to 30 example,Petronietal.(2019)’spromptforthe PO-
+prompts)byapproximately4points. Using7trig- SITION PLAYED ON TEAMrelationis“{sub}plays
+ger tokens achieves slightly higher scores than 5 in[MASK]position”,whichisnotasspecificasthe
+triggertokens,althoughthedifferenceisnotsub- relationrequires. Althoughthepromptfrom AU-
+stantial. Thisindicatesthatourapproachisstable TOPROMPT is not grammatical (“{sub} ediatric
+to the choice of trigger length, which is consis- strikericebasemandefensive{obj}”),itdoescon-
+tent with our sentiment analysis results. Overall, taintokensthataredirectlyrelatedtosports.
+theseresultsshowthat AUTOPROMPTcanretrieve
+BERT outperforms RoBERTa We finally di-
+facts more effectively than past prompting meth-
+rectly compare BERT and RoBERTa. To do so,
+ods,thusdemonstratingthatBERTcontainsmore
+wesubsampletheLAMAtestsettoconsistofex-
+factualknowledgethanpreviouslyestimated.
+ampleswheretheobjectisasingletokenforbothBERTandRoBERTa(Original-RoBERTa).4 BERT Results Table5showstheresultsforBERTand
+actually slightly outperforms RoBERTa, and we RoBERTa. MLMscanextractrelationalinforma-
+findthatthepromptsgeneratedforRoBERTatend tionmoreeffectivelythanthesupervisedREmodel,
+tocontainmoreirrelevantwords(seeAppendixC, providinguptoa33%increaseonthetaskwhen
+Table 7). For example, the prompt generated by using AUTOPROMPT. RoBERTaalsooutperforms
+RoBERTa for the PLAYS INSTRUMENT relation thesupervisedREmodel,althoughitisworsethan
+containswordssuchas“Trump”andsymbolssuch BERT(likelyforsimilarreasonsasweoutlinein
+as “,” (),” for the POSITION PLAYED ON TEAM Section5). ForbothBERTandRoBERTa,weno-
+relation. It is surprising that RoBERTa does not ticethatthetriggertokensconsistofwordsrelated
+performbetterthanBERT,anditisworthyofinves- totheircorrespondingrelations(seeAppendixD,
+tigating this further in future work. Additionally, Table 8 for full list), e.g. RoBERTa selects “defy
+recallthatpromptingisalowerboundonamodel’s trademarks of namesake manufacturer” for rela-
+knowledge: the lower relative performance does tionMANUFACTURER/PRODUCER OF PRODUCT.
+notmeanthatthemodelactuallyknowsless.
+PerturbedSentenceEvaluation Apossibleex-
+6 RelationExtraction planation for the strong results of MLMs in the
+REsettingisthattheymayalreadyknowmanyof
+ApartfromevaluatingwhetherMLMsknowfacts,
+therelations. Thus, theymaydirectlypredictthe
+it is also important to evaluate whether they can
+objectsinsteadofextractingthem. Toseparatethis
+extract knowledge from text. In this section, we
+effect,wesyntheticallyperturbtherelationextrac-
+usethetaskofrelationextraction(RE)—toidentify
+tiondatasetbyreplacingeachobjectinthetestdata
+how entities are related in a given sentence—an
+witharandom otherobjectandmaking thesame
+importanttaskininformationextraction. Wecreate
+change to the prompt. For example, “Ryo Kase
+RE prompts in a similar fashion as fact retrieval:
+(bornNovember9,1974inYokohama→Yorkshire)
+for a given triple (subj,rel,obj) and sentence that
+isaJapaneseactor”whereRyoKaseisthesubject,
+expresses this relation, we construct a prompt as
+Yokohamaistheoriginalobject, andYorkshireis
+“{sent}{sub}[T]...[T][P].”, wherethetriggerto-
+thenewobject. Weregeneratethepromptsusing
+kensarespecifictotherelation,andlabeltokenis
+theperturbedversionofthedata.
+thecorrectobjectobj(seeTable3foranexample).
+TheaccuracyoftheREmodeldoesnotchange
+Setup WeusetheT-RexdatasetforREbecause significantlyontheperturbeddata(Table5),how-
+eachT-RExfactcomeswithcontextsentencesthat ever,theaccuracyoftheMLMsdecreasessignifi-
+mentionthesubjectandobjectsurfaceforms. We cantly. Thisindicatesthatasignificantportionof
+compare AUTOPROMPT to LAMA and LPAQA MLMaccuracycomesfrombackgroundinforma-
+(theirpromptsarestillusefulhere),aswellasare- tion rather than relation extraction. Nevertheless,
+centsupervisedrelationextractionmodel(Sorokin ourpromptsforBERToutperformtheirLAMAand
+andGurevych,2017)thatwasalsousedbyPetroni LPAQAcounterparts,whichprovidesfurtherevi-
+et al. (2019). To make the evaluation fair for the dencethat AUTOPROMPTproducesbetterprobes.
+supervisedREmodel,wemodifythestandardRE
+7 Discussion
+evaluation. Wegivethemodelcreditaslongasit
+doesnotpredictadifferentrelationforthesubject Prompting as an Alternative to Finetuning
+and object, i.e. we ignore the “no relation” pre- Thegoalofpromptingalanguagemodelistoprobe
+diction and all other relations. We also drop all the knowledge that the model acquired from pre-
+sentences from evaluation for which the model’s training. Nevertheless,promptinghassomeprac-
+named entity extractor failed to identify the sub- tical advantages over finetuning for solving real-
+jectandtheobjectasentities. SeeAppendixBfor worldtasks. First,asshowninSection3,prompts
+further details. For the evaluation of all systems, generatedusingAUTOPROMPTcanachievehigher
+we treat a prediction as correct if it is either the accuracy than finetuning in the low-data regime.
+canonicalversionoftheobject(e.g.,“USA”)orthe Moreover,promptinghasadvantagesoverfinetun-
+renderedsurfaceform(e.g.,“American”)forany ingwhentryingtosolvemanydifferenttasks(e.g.,
+ofthecontextsentencesinagiventriple. themanyusersoftheOpenAIGPT-3APIBrown
+etal.2020). Inparticular,finetuningrequiresstor-
+4Theoriginaldatasetconsistsofexampleswheretheobject
+isasingletokenforBERT. inglargelanguagemodelcheckpointsforeachin-Model Original Perturbed balancingthetrainingdatacanhelptomitigatethis
+problem. Finally,duetothegreedysearchoverthe
+SupervisedRELSTM 57.95 58.81
+BERT(LAMA) 69.06 28.02 largediscretespaceofphrases, AUTOPROMPT is
+BERT(LPAQA) 76.55 30.79
+sometimesbrittle;weleavemoreeffectivecrafting
+BERT(AUTOPROMPT) 90.73 56.43
+RoBERTa(AUTOPROMPT) 60.33 28.95 techniquesforfuturedirections.
+Table5: RelationExtraction: Weusepromptstotest 8 Conclusion
+pretrainedMLMsonrelationextraction. Comparedto
+astate-of-the-artLSTMmodelfrom2017,MLMshave In this paper, we introduce AUTOPROMPT, an
+highermeanprecision-at-1(P@1),especiallywhenus- approach to develop automatically-constructed
+ingpromptsfromAUTOPROMPT. Wealsotestmodels prompts that elicit knowledge from pretrained
+onsentencesthathavebeeneditedtocontainincorrect MLMsforavarietyoftasks. Weshowthatthese
+facts. The accuracy of MLMs drops significantly on
+promptsoutperformmanualpromptswhilerequir-
+thesesentences,indicatingthattheirhighperformance
+ing less human effort. Furthermore, the results
+stemsfromtheirfactualknowledge.
+forsentimentanalysisandtextualentailmentsug-
+gest that, in some data-scarce settings, it may be
+dividualtask,and,moreimportantly,itdrastically more effective to prompt language models than
+increases system cost and complexity because it to finetune them for the task. Although we fo-
+requires deploying many different models at the cusonlyonmaskedlanguagemodelsinthispaper,
+same time. Prompting alleviates both of these is- our method can be trivially extended to standard
+sues. We can simply store the prompts for each languagemodels, andthusmaybeusefulforcon-
+individualtask,andusethesamepretrainedmodel structing inputs for models like GPT-3 (Brown
+forinputsofanyofthetasks. et al., 2020). Source code and datasets to re-
+produce the results in this paper is available at
+Limitations of Prompting There are certain http://ucinlp.github.io/autoprompt.
+phenomena that are difficult to elicit from pre-
+trainedlanguagemodelsviaprompts. Inourpre- Acknowledgments
+liminaryevaluationondatasetssuchasQQP(Iyer
+We would like to thank the LAMA and LPAQA
+etal.,2017)andRTE(Daganetal.,2005),prompts
+teamsforansweringourquestions. Wewouldalso
+generated manually and with AUTOPROMPT did
+liketothankthemembersofUCINLP,MattGard-
+notperformconsiderablybetterthanchance. How-
+ner, Sebastian Riedel, and Antoine Bosselut for
+ever,wecannotconcludethatBERTdoesnotknow
+valuable feedback. This material is based upon
+paraphrasingorentailmentfromtheseresults. In
+worksponsoredbytheDARPAMCSprogramun-
+general,differentprobingmethodshavedifferent
+derContractNo. N660011924033withtheUnited
+tasksandphenomenatheyaresuitablefor: AUTO-
+PROMPT makesprompt-basedprobesmoregener- StatesOfficeOfNavalResearch.
+allyapplicable,but,itstillremainsjustonetoolin
+thetoolboxoftheinterpretabilityresearcher.
+References
+Limitations of AUTOPROMPT One downside
+Zied Bouraoui, Jose Camacho-Collados, and Steven
+of AUTOPROMPT isthatitrequireslabeledtrain- Schockaert. 2019. Inducing relational knowledge
+ing data. Although this is also required for other fromBERT. InAAAI.
+probing techniques (e.g., linear probing classi-
+Samuel R Bowman, Gabor Angeli, Christopher Potts,
+fiers), manual prompts rely on domain/language
+and Christopher D Manning. 2015. A large anno-
+insights instead of labeled data. Compared to tatedcorpusforlearningnaturallanguageinference.
+human-designed prompts, AUTOPROMPT gener- InEMNLP.
+atedpromptslackinterpretability,whichissimilar
+TomBBrown, BenjaminMann, NickRyder, Melanie
+tootherprobingtechniques,suchaslinearprobing
+Subbiah, Jared Kaplan, Prafulla Dhariwal, Arvind
+classifiers. Another limitation of AUTOPROMPT Neelakantan,PranavShyam,GirishSastry,Amanda
+isthatitcansometimesstrugglewhenthetraining Askell, et al. 2020. Language models are few-shot
+learners. arXivpreprintarXiv:2005.14165.
+data is highly imbalanced. For example, in Sec-
+tions4and5weshowthatthepromptsoftenjust
+AlexisConneau,Germa´nKruszewski,GuillaumeLam-
+increase the likelihood of the majority label. Re- ple, Lo¨ıc Barrault, and Marco Baroni. 2018. Whatyoucancramintoasinglevector: Probingsentence Alec Radford, Jeffrey Wu, Rewon Child, David Luan,
+embeddingsforlinguisticproperties. InACL. DarioAmodei,andIlyaSutskever.2019. Language
+modelsareunsupervisedmultitasklearners. Techni-
+Ido Dagan, Oren Glickman, and Bernardo Magnini. calreport.
+2005. ThePASCALrecognisingtextualentailment
+challenge. In Machine Learning Challenges Work- Timo Schick and Hinrich Schu¨tze. 2020. Exploit-
+shop. ing cloze questions for few-shot text classification
+and natural language inference. arXiv preprint
+Jacob Devlin, Ming-Wei Chang, Kenton Lee, and arXiv:2001.07676.
+Kristina Toutanova. 2019. BERT: pre-training of
+deep bidirectional transformers for language under- Vered Shwartz, Peter West, Ronan Le Bras, Chan-
+standing. InNAACL. dra Bhagavatula, and Yejin Choi. 2020. Unsuper-
+vised commonsense question answering with self-
+Jesse Dodge, Gabriel Ilharco, Roy Schwartz, Ali talk. arXivpreprintarXiv:2004.05483.
+Farhadi, Hannaneh Hajishirzi, and Noah Smith.
+2020. Fine-tuning pretrained language models: Richard Socher, Alex Perelygin, Jean Wu, Jason
+Weight initializations, data orders, and early stop- Chuang, Christopher D Manning, Andrew Ng, and
+ping. arXivpreprintarXiv:2002.06305. Christopher Potts. 2013. Recursive deep models
+forsemanticcompositionalityoverasentimenttree-
+Hady ElSahar, Pavlos Vougiouklis, Arslen Remaci, bank. InEMNLP.
+Christophe Gravier, Jonathon S. Hare, Fre´de´rique
+Laforest,andElenaSimperl.2018. T-REx: Alarge Daniil Sorokin and Iryna Gurevych. 2017. Context-
+scalealignmentofnaturallanguagewithknowledge aware representations for knowledge base relation
+basetriples. InLREC. extraction. InEMNLP.
+John Hewitt and Percy Liang. 2019. Designing and Trieu H Trinh and Quoc V Le. 2018. A simple
+interpretingprobeswithcontroltasks. InEMNLP. methodforcommonsensereasoning. arXivpreprint
+arXiv:1806.02847.
+Shankar Iyer, Nikhil Dandekar, and Kornel Csernai.
+2017. Firstquoradatasetrelease: Questionpairs. Elena Voita and Ivan Titov. 2020. Information-
+theoretic probing with minimum description length.
+SarthakJainandByronCWallace.2019. Attentionis InEMNLP.
+notexplanation. InNAACL.
+EricWallace,ShiFeng,NikhilKandpal,MattGardner,
+Zhengbao Jiang, Frank F Xu, Jun Araki, and Graham andSameerSingh.2019. Universaladversarialtrig-
+Neubig. 2020. How can we know what language gersforattackingandanalyzingNLP. InEMNLP.
+modelsknow? InTACL.
+Alex Wang, Amanpreet Singh, Julian Michael, Felix
+Sunjae Kwon, Cheongwoong Kang, Jiyeon Han, and Hill, Omer Levy, and Samuel R Bowman. 2019.
+JaesikChoi.2019. Whydomaskedneurallanguage GLUE: A multi-task benchmark and analysis plat-
+modelsstillneedcommonsenseknowledge? arXiv formfornaturallanguageunderstanding. InICLR.
+preprintarXiv:1911.03024.
+Sarah Wiegreffe and Yuval Pinter. 2019. Attention is
+PatrickLewis,LudovicDenoyer,andSebastianRiedel. notnotexplanation. InEMNLP.
+2019. Unsupervised question answering by cloze
+translation. InACL. Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+Chaumond, ClementDelangue, AnthonyMoi, Pier-
+Nelson F Liu, Matt Gardner, Yonatan Belinkov, ric Cistac, Tim Rault, Re´mi Louf, Morgan Fun-
+MatthewPeters,andNoahASmith.2019. Linguis- towicz, Joe Davison, Sam Shleifer, Patrick von
+tic knowledge and transferability of contextual rep- Platen, Clara Ma, Yacine Jernite, Julien Plu, Can-
+resentations. InNAACL. wen Xu, Teven Le Scao, Sylvain Gugger, Mariama
+Drame, Quentin Lhoest, and Alexander M. Rush.
+Marco Marelli, Stefano Menini, Marco Baroni, Luisa 2019. HuggingFace’s Transformers: State-of-the-
+Bentivogli, Raffaella Bernardi, Roberto Zamparelli, art natural language processing. arXiv preprint
+etal.2014. ASICKcurefortheevaluationofcom- arXiv:1910.03771.
+positionaldistributionalsemanticmodels. InLREC.
+MatthewE.Peters,MarkNeumann,MohitIyyer,Matt
+Gardner, Christopher Clark, Kenton Lee, and Luke
+Zettlemoyer.2018. Deepcontextualizedwordrepre-
+sentations. InNAACL.
+FabioPetroni,TimRockta¨schel,PatrickLewis,Anton
+Bakhtin, Yuxiang Wu, Alexander H Miller, and Se-
+bastian Riedel. 2019. Language models as knowl-
+edgebases? InEMNLP.A EffectofHyperparameterson
+SentimentAnalysis
+0.90
+0.85
+0.80
+0.75
+ycaruccA
+BERT
+x =3 x =5
+| trig| | trig|
+x =4 x =6
+| trig| | trig|
+0.90
+0.85
+0.80
+0.75
+1 2 3 4 5
+LabelSetSize, y
+|V |
+ycaruccA
+Sinceourgoalistoextracttheobjectofrelation
+triplets, rather than the relation itself, we tweak
+thestandardREevaluation. WefeedtheREmodel
+sentencesfromtestfactsandwequerytheresulting
+graph for all edges that contain the given subject
+and relation. Then we select the triple with the
+highestconfidenceandcompareit’sobjecttothe
+goldobject. Wedothisforeveryfactandtakethe
+averageacrossallrelationstogettheoverallpreci-
+sion. TheREmodelisnottrainedtopredicttwoof
+RoBERTa theoriginalT-RExrelations. Forfaircomparison,
+weexcludethesetworelationsforourevaluation.
+Figure 3: Effect of Label and Trigger Set Sizes on
+sentiment analysis. The number of candidate replace-
+mentsisfixedat|V |=100. Increasingthelabelset
+cand
+sizeimprovesperformance,whilechangingthetrigger
+lengthdoesnothavemuchimpact.
+To measure the effects of the AUTOPROMPT
+searchhyperparameters,weplotthevalidationac-
+curacyasafunctionoflabelsetsize|V |andthe
+y
+number of trigger tokens |x | in Figure 3. We
+trig
+fixthenumberofcandidatesat|V | = 100. We
+cand
+observesimilartrendswhen|V | = 10.
+cand
+Varyingthenumberoftriggertokensgenerally
+haslittleeffect. Ontheotherhand,thereisasub-
+stantial increase in accuracy when increasing the
+labelsetsizefrom1to3(approximately+5%for
+BERT,and+10%forRoBERTa). Afteranalyzing
+the label sets, we find that our method generally
+producesintuitiveresults—“marvelous”and“phi-
+lanthrop” are associated with positive sentiment,
+whereas “worse” and “incompetence” are associ-
+atedwithnegativesentimentforRoBERTa.
+B RelationExtractionDetails
+Following Petroni et al. (2019), we use the pre-
+trained RE model from Sorokin and Gurevych
+(2017) as our baseline. To encode the sentence,
+thismodelusesacombinationofanLSTM-based
+relationencoderandanattentionmechanism. To
+make predictions, the model constructs a knowl-
+edgegraphwhoseedgesaretheextractedrelation
+triples. ThestandardREevaluationmeasureshow
+wellthemodelpredictstherelationtypesofentity
+pairsonthesentencelevel.C AdditionalFactRetrievalResults
+Relation ManualPrompt(LAMA) #train LAMA LPAQA AUTOPROMPT
+P1001 [X]isalegaltermin[Y] 1000 70.47 72.75 82.45
+P101 [X]worksinthefieldof[Y] 864 9.91 5.32 12.79
+P103 Thenativelanguageof[X]is[Y] 1000 72.16 72.16 82.09
+P106 [X]isa[Y]byprofession 1000 0.63 0.0 14.72
+P108 [X]worksfor[Y] 376 6.79 5.74 8.62
+P127 [X]isownedby[Y] 548 34.79 32.46 35.95
+P1303 [X]plays[Y] 1000 7.59 18.02 15.38
+P131 [X]islocatedin[Y] 1000 23.27 22.81 37.46
+P136 [X]plays[Y]music 1000 0.75 16.76 55.42
+P1376 [X]isthecapitalof[Y] 310 73.93 59.83 40.17
+P138 [X]isnamedafter[Y] 856 61.55 59.69 66.05
+P140 [X]isaffiliatedwiththe[Y]religion 445 0.63 59.83 75.26
+P1412 [X]usedtocommunicatein[Y] 1000 65.02 64.71 71.21
+P159 Theheadquarterof[X]isin[Y] 1000 32.37 35.57 35.47
+P17 [X]islocatedin[Y] 1000 31.29 35.48 52.15
+P176 [X]isproducedby[Y] 1000 85.64 81.67 87.78
+P178 [X]isdevelopedby[Y] 560 62.84 59.12 66.72
+P19 [X]wasbornin[Y] 1000 21.08 20.87 19.92
+P190 [X]and[Y]aretwincities 895 2.41 1.91 2.31
+P20 [X]diedin[Y] 1000 27.91 27.91 31.16
+P264 [X]isrepresentedbymusiclabel[Y] 1000 9.56 10.26 43.82
+P27 [X]is[Y]citizen 1000 0.0 41.51 46.69
+P276 [X]islocatedin[Y] 1000 41.5 41.5 44.11
+P279 [X]isasubclassof[Y] 1000 30.74 14.75 54.93
+P30 [X]islocatedin[Y] 1000 25.44 18.56 70.36
+P31 [X]isa[Y] 1000 36.66 36.66 51.95
+P36 Thecapitalof[X]is[Y] 1000 62.16 62.16 60.6
+P361 [X]ispartof[Y] 1000 23.61 31.44 17.7
+P364 Theoriginallanguageof[X]is[Y] 1000 44.51 43.93 48.48
+P37 Theofficiallanguageof[X]is[Y] 311 54.55 56.83 62.63
+P39 [X]hasthepositionof[Y] 1000 7.96 16.14 30.72
+P407 [X]waswrittenin[Y] 1000 59.18 65.22 68.42
+P413 [X]playsin[Y]position 1000 0.53 23.74 41.7
+P449 [X]wasoriginallyairedon[Y] 1000 20.89 9.08 34.39
+P463 [X]isamemberof[Y] 679 67.11 57.33 54.22
+P47 [X]sharesborderwith[Y] 1000 13.67 13.34 19.52
+P495 [X]wascreatedin[Y] 1000 16.5 32.23 36.63
+P527 [X]consistsof[Y] 1000 11.07 10.55 25.61
+P530 [X]maintainsdiplomaticrelationswith[Y] 927 2.81 3.92 3.11
+P740 [X]wasfoundedin[Y] 1000 7.59 13.68 13.89
+P937 [X]usedtoworkin[Y] 1000 29.77 39.1 38.36
+Table 6: A breakdown of all relations for fact retrieval on the original dataset from Petroni et al. (2019). We
+compareP@1ofpromptsgeneratedbyLAMA,LPAQA,andourapproachusingfiveprompttokens.Relation Method Prompt P@1
+P101 Manual [X]worksinthefieldof[Y] 11.52
+AUTOPROMPTBERT [X]probabilityearliestfametotaledstudying[Y] 15.01
+AUTOPROMPTRoBERTa [X]1830dissertationapplyingmathsucci[Y] 0.17
+P103 Manual Thenativelanguageof[X]is[Y] 74.54
+AUTOPROMPTBERT [X]PAcommunerugspeaksproper[Y] 84.87
+AUTOPROMPTRoBERTa [X]neauoptionallyfluent!?¨traditional[Y] 81.61
+P106 Manual [X]isa[Y]byprofession 0.73
+AUTOPROMPTBERT [X]supportersstudiedpoliticiansmusicianturned[Y] 15.83
+AUTOPROMPTRoBERTa [X](),astronomersbusinessman·former[Y] 19.24
+P127 Manual [X]isownedby[Y] 36.67
+AUTOPROMPTBERT [X]ishindwingsmainlinearchitecturewithin[Y] 47.01
+AUTOPROMPTRoBERTa [X]picThomunwillingnessofficiallygoverns[Y] 39.58
+P1303 Manual [X]plays[Y] 18.91
+AUTOPROMPTBERT [X]playingdrumconcertoativeelectric[Y] 42.69
+AUTOPROMPTRoBERTa [X]TrumplearnedsoloKeefeclassical[Y] 44.44
+P136 Manual [X]plays[Y]music 0.7
+AUTOPROMPTBERT [X]freakinggenreorchestrafictionacid[Y] 59.95
+AUTOPROMPTRoBERTa [X]blendspostwarhostagedramasax[Y] 52.97
+P1376 Manual [X]isthecapitalof[Y] 81.11
+AUTOPROMPTBERT [X]boastsnativeterritorytraditionallycalled[Y] 63.33
+AUTOPROMPTRoBERTa [X]limestonedepositedatiboroughDepending[Y] 28.33
+P178 Manual [X]isdevelopedby[Y] 62.76
+AUTOPROMPTBERT [X]ismemoryarcadebrandingby[Y] 64.45
+AUTOPROMPTRoBERTa [X]1987floppysimulatoruserssued[Y] 69.56
+P20 Manual [X]diedin[Y] 32.07
+AUTOPROMPTBERT [X]reorganizationotypephotographicstudioin[Y] 33.53
+AUTOPROMPTRoBERTa [X]..enigmatictwentiethnowadaysnear[Y] 31.33
+P27 Manual [X]is[Y]citizen 0.0
+AUTOPROMPTBERT [X]m³badmintonpiecesinternationallyrepresenting[Y] 46.13
+AUTOPROMPTRoBERTa [X]officorganiseforestsstatutesnorthwestern[Y] 42.07
+P276 Manual [X]islocatedin[Y] 43.73
+AUTOPROMPTBERT [X]consistskilogramscentredneighborhoodsin[Y] 44.64
+AUTOPROMPTRoBERTa [X]manoeuvconstructswhistleblowershillsnear[Y] 37.47
+P279 Manual [X]isasubclassof[Y] 31.04
+AUTOPROMPTBERT [X]isˆıadequatelytermedcoated[Y] 55.65
+AUTOPROMPTRoBERTa [X],formerlyprayersunstaceous[Y] 52.55
+P37 Manual Theofficiallanguageof[X]is[Y] 56.89
+AUTOPROMPTBERT [X]inendialectsresembledofficiallyexclusively[Y] 54.44
+AUTOPROMPTRoBERTa [X]onentribesdescendingspeakmainly[Y] 53.67
+P407 Manual [X]waswrittenin[Y] 60.21
+AUTOPROMPTBERT [X]playedic´everydialectbut[Y] 69.31
+AUTOPROMPTRoBERTa [X]scavenpronunciation.*Wikipediaspeaks[Y] 72.0
+P413 Manual [X]playsin[Y]position 0.53
+AUTOPROMPTBERT [X]playedcolorsskier defensive[Y] 41.71
+↔
+AUTOPROMPTRoBERTa [X],”(),ex-,Liverpool[Y] 23.21
+Table 7: Examples of manual prompts (first line, shown with BERT’s P@1) and prompts generated via AUTO-
+PROMPTforFactRetrieval.D AdditionalRelationExtractionResults
+Relation Model ContextandPrompt Prediction
+P103(nativelanguage) BERT Alexandra Lamy (born 14 October 1971) is a French actress. French
+Alexandra Lamy speaks airfield dripping % of [MASK].
+P36(capital) RoBERTa Kirk was born in Clinton County, Ohio, and he entered ser- Wilmington
+vice in Wilmington, Ohio. Clinton County famously includes
+the zoo influencing [MASK].
+P530(diplomaticrelation) BERT The Black Sea forms in an east-west trending elliptical de- Russia
+pression which lies between Bulgaria, Georgia, Romania,
+Russia, Turkey, and Ukraine. Ukraine qualified some im-
+migration actually entered [MASK].
+P106(occupation) RoBERTa Spencer Treat Clark (born September 24, 1987) is an Amer- Hulk
+ican actor who has appeared in several films, including Glad-
+iator, Mystic River, and Unbreakable. Spencer Treat Clark
+famously the famously handsome the [MASK].
+P276(location) BERT The Immortal Game was a chess game played by Adolf Seoul
+Anderssen and Lionel Kieseritzky on 21 June 1851 in Lon-
+donSeoul, during a break of the first international tourna-
+ment. The Immortal Game locatedstered regardless streets
+in [MASK].
+P176(manufacturer) RoBERTa The Honda Civic del Sol is a 2-seater front-engined, front Toyota
+wheel drive, targa top car manufactured by HondaToyota in
+the 1990s. Honda Civic del Sol defy trademarks of name-
+sake manufacturer [MASK].
+P279(subclassof) BERT Mizeria is a Polish saladsandwich consisting of thinly sliced food
+or grated cucumbers, often with sour cream though in some
+cases oil. Mizeria is calls direcend altitude [MASK].
+P463(memberof) RoBERTa RushAerosmith was a Canadian rock band consisting of Kiss
+Geddy Lee (bass, vocals, keyboards), Alex Lifeson (guitars),
+and Neil Peart (drums, percussion, lyricist). Alex Lifeson
+affiliatedalach the internationally initials [MASK].
+Table8: ExamplesofpromptsgeneratedusingAUTOPROMPTforrelationextraction. Underlinedwordsrepresent
+the gold object. The bottom half of the Table shows examples of our augmented evaluation where the original
+objects(representedbycrossed-outwords)arereplacedbynewobjects.

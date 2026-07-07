@@ -1,0 +1,830 @@
+Automatic Prompt Optimization with “Gradient Descent”
+and Beam Search
+ReidPryzant,DanIter,JerryLi,YinTatLee,ChenguangZhu,MichaelZeng
+Microsoft
+{reidpryzant,iterdan,jerrl,yintatlee,chezhu,nzeng}@microsoft.com
+Abstract
+LargeLanguageModels(LLMs)haveshown
+impressive performance as general purpose
+agents, but their abilities remain highly de-
+pendent on prompts which are hand written
+withoneroustrial-and-erroreffort. Wepropose
+a simple and nonparametric solution to this
+problem, Prompt Optimization with Textual
+Gradients(ProTeGi),whichisinspiredbynu-
+mericalgradientdescenttoautomaticallyim-
+proveprompts,assumingaccesstotrainingdata
+and an LLM API. The algorithm uses mini-
+batchesofdatatoformnaturallanguage“gra-
+dients”thatcriticizethecurrentprompt,much
+like how numerical gradients point in the di-
+rectionoferrorascent. Thenaturallanguage
+gradientsarethen“propagated”intotheprompt
+byeditingthepromptintheoppositesemantic
+direction of the gradient. These gradient de-
+scent steps are guided by a beam search and
+banditselectionprocedurewhichsignificantly Figure1: OverviewoftheproposedPromptOptimiza-
+improves algorithmic efficiency. Preliminary tionwithTextualGradients(ProTeGi).
+resultsacrossthreebenchmarkNLPtasksand
+thenovelproblemofLLMjailbreakdetection
+suggest that Automatic Prompt Optimization
+Accordingly,thereisneedforautomaticorsemi-
+canoutperformpriorprompteditingtechniques
+automaticprocedurestohelphumanswritethebest
+and improve an initial prompt’s performance
+prompts. Thiswouldhelpreducemanualeffort,im-
+byupto31%,byusingdatatorewritevague
+taskdescriptionsintomorepreciseannotation provetaskperformance,andproduceinterpretable
+instructions.1 descriptionsofacognitivedecisionprocess.
+Arecentbodyofworkhasinvestigatedthisprob-
+1 Introduction
+lembytrainingauxiliarymodelsordifferentiable
+LargeLanguageModels(LLMs)trainedonweb- representations of the prompt (Qin and Eisner,
+scale text have recently demonstrated unprece- 2021;Dengetal.,2022). However,suchworksas-
+dentedabilitiesacrossavarietyofNLPtasks(Ope- sumeaccesstointernalstatevariablesoftheLLM
+nAI,2023;Bubecketal.,2023). TheseLLMsuse (Shinetal.,2020;Lesteretal.,2021)whileprac-
+promptinputstofollowhumaninstructions. Writ- titioners often communicate with LLMs through
+ingpromptsinnaturallanguageremainsamanual anAPI.Otherworkappliesdiscretemanipulations
+trial-and-errorprocessrequiringsignificanthuman to prompts via Reinforcement Learning or LLM-
+effort(Jiangetal.,2022)andexpertise(Reynolds based feedback (Zhang et al., 2023; Zhou et al.,
+and McDonell, 2021; Zamfirescu-Pereira et al., 2022). Thesealgorithmsmayalsorequirelow-level
+2023). accesstotheLLM,produceincomprehensibleout-
+puts, or rely on directionless monte-carlo search
+1Code and data available at: https://github.com/
+microsoft/LMOps/tree/main/prompt_optimization. overthesemanticspaceofprompts.
+7957
+Proceedingsofthe2023ConferenceonEmpiricalMethodsinNaturalLanguageProcessing,pages7957–7968
+December6-10,2023©2023AssociationforComputationalLinguisticsWeproposePromptOptimizationwithTextual
+Gradients (ProTeGi), a general purpose and non-
+parametric algorithm for automatic prompt opti-
+mizationthatconnectsthesetwobodiesofresearch
+byapplyingdiscreteimprovementstopromptsina
+directedway.
+Unlike prior work, we overcome the discrete
+optimizationbarrierbymirroringthestepsofgra-
+dientdescentwithinatext-basedSocraticdialogue
+(Zengetal.,2022),substitutingdifferentiationwith
+LLM feedback and backpropagation with LLM
+editing. In detail, we use minibatches of training
+datatoproduce“gradients”innaturallanguage,i.e.,
+descriptionsofthecurrentprompts’flawswithre-
+specttotheminibatch,theneditthecurrentprompt
+intheoppositesemanticdirectionofthegradient. Figure2: Thetextdialoguetreeweusetomimicgra-
+Thesestepsbecometheexpansionpartofawider dientdescentandovercomethediscreteoptimization
+beamsearchoverthespaceofprompts,increasing barrier. First, from the top left a feedback prompt ∆
+generatesthegradientgfromstartingpromptp andpre-
+algorithmic efficiency by treating the problem of 0
+dictionyˆ. Second,fromthetoprightaneditingprompt
+beamcandidateselectionasaninstanceofthebest
+δ applies the gradient g to p and produce improved
+0
+armidentificationproblem(Audibertetal.,2010).
+promptsp,theirparaphrasesp ,andefficientbestcan-
+′ ′′
+We then offer a preliminary case study of Pro- didateselectionbeforethenextiteration(bottomleft).
+TeGi. Weevaluatetheproposedframeworkinmul-
+tipleconfigurationsacross4NLPtasks,including
+thenovelproblemofLLMjailbreakdetection. The m( )andin-domaintestordevelopmentdata te.
+· D
+resultssuggestthattheproposedalgorithmcanim- Inthefollowingsections,wefirstintroducehow
+proveontheperformanceoftheinitialpromptinput thealgorithmperformstextual“gradientdescent”
+by up to 31%, exceeding state-of-the-art prompt toimprovethepromptsinadirectedway(Section
+learning baselines by an average of 4-8% while 2.1). Thenthealgorithmleveragesthesegradient
+relyingonfewerLLMAPIcalls. Wealsodemon- descent steps to beam search through the space
+strate the interpretability of the optimization pro- of coherent language , guided by the gradients
+L
+cessandinvestigatethealgorithms’shortcomings. duringbeamexpansion,andefficientbestarmiden-
+tificationduringbeamselection(Section2.2).
+2 DiscretePromptOptimizationwith
+2.1 GradientdescentwithPrompts
+Nonparametric“GradientDescent”
+In our setting, gradient descent refers to the pro-
+Theproposedalgorithmassumesaccesstoanini-
+cessof(1)evaluatingapromptwithabatchofdata,
+tialpromptp andi.i.d. trainingdataconsistingof
+0 (2) creating a local loss signal which contains in-
+pairsofinputandoutputtext(numbers,categories,
+formationonhowtoimprovethecurrentprompt,
+summaries, etc): = (x ,y ),...,(x ,y ) .
+Dtr { 1 1 n n } then(3)editingthepromptintheoppositeseman-
+Notethatallpromptsparedrawnfromthespace
+ticdirectionofthegradientbeforestartingthenext
+of coherent natural language . We assume
+L iteration.
+access to a black box LLM API LLM (x)
+p ≈ Weaccomplishthisprocesswithapairofstatic
+argmax P (y p,x),whichreturnsalikely
+y ∈L LLM | LLM prompts, as depicted in Figure 2. The first
+text continuation y of the prompt formed by con-
+promptisforcreatingthelosssignals(“gradients”)
+catenatingpandx(forexample,few-shotprompt
+and is called . While the specific contents can
+andinputexample,orchatbotpersonaandconver- ∇
+varyandbetask-specificortask-agnostic,2 must
+sationalhistory). ∇
+always consider the current prompt p , plus p ’s
+0 0
+Within this context, our algorithm iteratively
+behavior on a minibatch of data (particularly the
+refines the prompt p to produce pˆ, an ap-
+0 errors),andgenerateanaturallanguagesummary
+proximation of the optimal prompt p =
+∗
+argmax
+p
+m(p, te) forsomemetricfunction 2Weusethesamepromptsforalltasks;seeAppendix.
+∈L{ D }
+7958ofp ’sflaws. Thissummarybecomesthegradient promptcandidates.
+0
+g. Similar to how traditional gradients represent
+2.2.1 ExpansionStep
+a direction in parameter space that would make
+Theexpansionstepisusedtogeneratemanynew
+themodelworse,thetext“gradients”g represent
+candidate prompts from a current prompt (Algo-
+directionsinasemanticspacethataremakingthe
+rithm2). Itleveragestheconceptual“gradientde-
+promptworse.
+scent”frameworkofSection2.1,andourspecific
+The second prompt is called δ and while this
+promptscanbefoundintheAppendix.
+promptcanalsovary,itmustalwaystakethegradi-
+Firstwesampleaminibatchofdata,runtheini-
+entg andcurrentpromptp ,thenperformanedit
+0
+tialpromptonthesedatawithLLM ,andcollect
+on p
+0
+in the opposite semantic direction of g, i.e. p0
+fixtheproblemswithp thatareindicatedbyg.3 errors. Second,weplugtheseerrorsintoaprompt
+0
+template∆,whichinstructstheLLMtodescribe
+Unlikethetraditionalmachinelearningsetting,
+theproblemswithp whichcouldhaveledtothese
+we do not generate a single gradient or edit, but 0
+mistakes. Theensuinggenerationsareournatural
+rather a number of directions that may improve
+languagegradients;seeFigure1foranexample.
+thecurrentprompt. Section2.2describesindetail
+Second, the gradients are provided to another
+theprocessofgeneratingandselectingcandidate
+LLM prompt called δ, which instructs the LLM
+prompts.
+to edit the current prompt p in order to fix the
+0
+2.2 BeamSearchoverPrompts problems described by the gradient. In this way,
+weengadgetheLLMsinarecursivefeedbackloop
+ThegradientdescentstepsdescribedinSection2.1
+similartotheSocraticdialoguesproposedbyZeng
+areusedtoguideabeamsearchoverthespaceof
+etal.(2022).
+prompts. This beam search is the outer loop of
+Last,additionalcandidatesaregeneratedbyrun-
+our prompt training algorithm and it is described
+ningtheexistingcandidatesthroughaparaphrasing
+inAlgorithm1.
+LLM called LLM , to explore the local monte
+mc
+carlo search space around the new prompt candi-
+Algorithm 1 Prompt Optimization with Textual
+dates. This prompt simply asks the LLM to gen-
+Gradients(ProTeGi)
+eratenewcandidateswhicharewordeddifferently
+Require: p 0: initial prompt, zb: beam width, r:
+butsemanticallysimilartotheirinputs.
+searchdepth,m: metricfunction
+1: B 0 ← {p 0 } Algorithm2Expand( )-line5ofAlgorithm1
+2: fori 1tor 1do ·
+3: C
+← − Require: p: promptcandidate, Dtr: traindata
+4: for← all∅ p B i do 1: Sampleminibatch Dmini ⊂ Dtr
+5: C C∈ Expand(p) 2: Evaluate prompt p on minibatch Dmini and
+← ∪ collect errors e = (x ,y ) : (x ,y )
+6: endfor { i i i i ∈
+LLM (x ) = y
+7: B i+1 Select b(C,m) Dmini ∧ p i ̸ i }
+8: endfor ← 3: Getgradients: {g 1,...,g m } = LLM ∇(p,e)
+4: Use the gradients to edit the current prompt:
+9: pˆ
+←
+argmax p ∈Brm(s)
+p ,...,p = LLM (p,g ,e)
+10: return pˆ { ′i1 ′iq} δ i
+5: Get more monte-carlo successors:
+p ,...,p = LLM (p )
+Thebeamsearchisaniterativeoptimizationpro- {
+′i′j1 ′i′jm} mc ′ij
+cess where for each iteration the current prompt
+6: return {p ′11,...,p ′mq}∪{p ′1′11,...,p ′m′qp}
+is used to generate many new candidate prompts
+(expansion). Next,aselectionprocessisusedto
+2.2.2 SelectionStep
+decidewhichpromptsareworthcarryingforward
+Oncetheexpansionprocesshassteppedeachcandi-
+tothenextiteration. Thisloopallowsforincremen-
+datepromptintomultiplepossiblesuccessorcandi-
+tal improvements and exploration over multiple
+dates,theselectionstepchoosesthebmostpromis-
+3Notethatonecanimagineoperationalizingtheconcept ing candidates to stay on the beam for the next
+oflearningratesorstepsizesbye.g. editingδ toperform iteration.
+large-orsmall-sizededitstop 0,inthisinitialworkweadopt
+Itisexpensivetoevaluateeachcandidateprompt
+an“adaptive”stepsizebyallowingtheLLMtodecideedit
+size,andleavefurtherexplorationtofuturework. ontheentiretrainingdataset(Prasadetal.,2022),
+7959sowewouldliketominimizethenumberofsuch bettertheoreticalconvergenceproperties(Audibert
+queries. Notethatthisalmostexactlycorresponds etal.,2010). However,UCB-Eremainsstuckwith
+tothewell-studiedproblemofbestarmidentifica- hyperparameterslikeT,c,and .
+sample
+|D |
+tioninbanditoptimization(Audibertetal.,2010). Successive Rejects (Algorithm 4) is provably
+The n arms correspond to n prompt candidates, optimalforbestarmidentification(Audibertetal.,
+theirperformanceontheunderlyingdatasetisthe 2010),requiresnohyperparametersunlikeitsUCB
+hidden value of the arm, and the act of “pulling” alternatives, and is suprisingly simple. The algo-
+anarmcorrespondstoevaluatingthepromptona rithmproceedsinn 1phases,andineachphase,
+−
+randomly chosen data point. The goal is then to maintains a set of surviving prompt candidates
+findthebbestarmswithasfewpullsaspossible, S p ,...,p . In the t-th phase, we evalu-
+k 1 n
+⊆ { }
+andweconsiderthefollowingalgorithms. ateeachcandidateinS onatotalofn random
+t 1 t
+−
+UCBBandits. Motivatedbyotherworkswhich data points to form an empirical estimate of the
+quicklyestimateLLMperformance(Lietal.,2022; score m(p i, tr). Then, to form S t, we drop the
+D
+Zhouetal.,2022),wesampleasubsetofprompts prompt with the lowest score in this phase. Note
+accordingtoaproposaldistributionofpromptper- thatn t iscomputedaccordingtoEquation1below
+formance,evaluatethosepromptsonarandomsub- suchthatitgraduallyincreaseswithT:
+set of data, then update the proposal distribution
+1 B T
+based on the observed performance. At the end, n = − (1)
+weselectthebpromptswiththehighestweightin t &0.5+ T i=21/i ∗ T +1 −t’
+theproposaldistribution. SeeAlgorithm3forde-
+whereB isthetotalPquerybudget.
+tails,whereQ (p )istheestimatedperformanceof
+t i
+promptp i attimestept,N t(p i)isthetotalqueries Algorithm 4 Select( ) with Successive Rejects -
+·
+forpromptisofarattimet,andcisanexploration
+line7ofAlgorithm1
+parameter.
+Require: npromptsp 1,...,p n,dataset tr,metric
+D
+functionm
+Algorithm3Select( )withUCBBandits-line7
+· 1: Initialize: S 0 p 1,...,p n
+ofAlgorithm1 ← { }
+2: fork = 1,...,n 1do
+−
+Require: n prompts p 1,...,p n, dataset Dtr, T 3: Sample Dsample
+⊂
+Dtr, |Dsample
+|
+= n k
+timesteps,metricfunctionm 4: Evaluatep i S k 1 withm(p i, sample)
+1 2: : I In ni it ti ia al li iz ze e: : N Q tt (( pp ii )) ← 00 ff oo rr aa ll ll ii == 11 ,, .. .. .. ,, nn 5: S lok w← estS sck o− r1 e,∈ fe rx oc ml− ud thin eg prth eve ip ouro sm sD tp et pwiththe
+←
+3: fort = 1,...,T do 6: endfor
+4: Sampleuniformly Dsample ⊂ Dtr 7: return Bestpromptp ∗ ∈ S n −1
+argmax Q (p)+c logt (UCB)
+5: p i ←
+argmaxp nQt (p)+cqNt c(p)
+o (UCBE) In addition to the vanilla successive rejects al-
+ p t Nt(p)
+gorithm,weexperimentwithSuccessiveHalving
+n o
+6: Obse rverewardr i,t = m(pp i, sample) (SH)whichismoreagressiveasattheendofeach
+D
+7: N t(p i) N t(p i)+ sample phraseitrejectsthebottomhalfofpromptsaccord-
+8 9:
+:
+enQ dt fo(p ri)
+←←
+Q t(p
+i)+| NDr
+ti (, pt i)
+|
+(in Kg art no inth ee tir als .,co 2r 0e 1s 3, )w
+.
+ith n k = B/( |S k −1 |log 2k)
+10: return SelectTop b(Q T)
+3 Experiments
+Whileanaturalchoice,UCBisdesignedprimar- We present a limited and preliminary case study
+ilyforregretminimization(KuleshovandPrecup, to demonstrate the proposed ProTeGi algorithm
+2014),whereaswewishtoperformtherelatedbut across4benchmarkNLPtasks,findingthatitcan
+distinct task of best arm identification. Further- exceed state-of-the-art prompt learning baselines
+more,UCBcanperformpoorlyiftheexploration intermsofefficiencyandperformance.
+parameter c is not tuned appropriately (Bubeck
+etal.,2012). 3.1 Data
+UCB-EisavariantofUCBthatcorrectssomeof While ProTeGi could be applied to any problem
+theseproblemsbyfavoringexploration,leadingto suchasparsing,chatbotdesignorsummarization
+7960simplybychoosingdifferentmetricfunctionsm, We used the same metric function m as the
+weexperimentonfourNLPbenchmarkclassifica- optimization target across all tasks: F1 score.
+tiontasksforthisinitialcasestudy. Thetaskscover Whilerecentworkshaveoptedtousethemodel’s
+a wide range of problem and language domains, log-likelihood to evaluate prompts instead of an
+andareasfollows: accuracy-related metric (Lu et al., 2021; Prasad
+Jailbreak: anoveltaskwherethegoalistodeter- et al., 2022; Zhou et al., 2022), preliminary ex-
+minewhetherauserinputtoanLLMcontinuation perimentsshowedthistechniquedidnothelpour
+API (i.e. a prompt for continuation submitted by algorithm, and many of the most powerful LLM
+theuser)constitutesajailbreakattackornot. We APIslikeChatGPTandGPT4didnotprovidelog
+define jailbreak attack as a user interaction strat- likelihoodsatthetimeofwriting.
+egy intended to get the AI to break its own rules. Theproposedalgorithmisaboutoptimizingthe
+Thiscouldincludegeneratingharmfulcontentor language of prompts, as opposed to selecting the
+revealingtheLLM’smetaprompt. Thisdatasethas bestexamplesforfew-shotlearning. However,our
+452 multilingual examples and human-annotated algorithmleveragestrainingdataandsomostprac-
+jailbreaklabels. Ethos(Mollasetal.,2020)isan ticalsettingswouldalsoincludesomeofthesetrain-
+onlineEnglishhatespeechdetectiondatasetwith ingexamplesasfew-shotexamplesfortheprompt.
+997onlinecommentsandhatespeechlabels. Liar Accordingly,alloftheexperimentsofSection3.4
+(Wang, 2017) is an English fake news detection were conducted with a randomly selected pair of
+dataset with 4000 statements, context, and lie la- few-shotexampleswhichwereheldconstantaswe
+bels. Sarcasm(FarhaandMagdy,2020)isanAra- optimizedtheotherpartsoftheprompt.
+bic sarcasm detection dataset with 10,000 online
+3.3 Baselines
+commentsandsarcasmlabels.
+We compare the proposed ProTeGi framework
+3.2 Setup againstthefollowingbaselines. Notethatforthis
+preliminarycasestudy,werestrictourfocustonon-
+Foreachtask,werandomlysample50examplesfor
+parametricalgorithmsthataredirectlycomparable
+developmentand150fortest. Allofthereported
+toProTeGi.
+resultsareanaverageof3experimentaltrials. We
+Monte-Carlo(MC).TheAutomaticPromptEn-
+reporttestsetbinaryF1scorethroughout,basedon
+gineeringalgorithmproposedbyZhouetal.(2022)
+maxpoolingoverthefinalbeamofcandidates. Un-
+proposesaniterativebutdirectionlessmontecarlo
+lessotherwisestated,experimentswereperformed
+search over the space of prompts. For fair com-
+with a January 2023 version gpt-3.5-turbo, us-
+parison, we matched the number of monte carlo
+ing the Azure OpenAI LLM API service with a
+samplespercandidatetothenumberofsuccessors
+temperature of 0.0 during few-shot classification
+generatedbyProTeGi.
+and1.0inallothercontexts.
+Reinforcement Learning (RL). Recently pro-
+Asthefocusofthispaperisnonparametricalgo-
+posed,concurrentworkslikeGrIPS(Prasadetal.,
+rithmswithbroadapplicability,wedidnotconduct
+2022) and TEMPERA (Zhang et al., 2023) rely
+anyhyperparametersearchforthebaselineorpro-
+on phrase-level operations over the prompt text:
+posedalgorithms,insteadadoptingdefaultvalues
+thepromptischunkedintophraseswithe.g. nltk
+andthenusingthesameparametersthroughout.
+(Bird, 2006), then the search space includes add,
+Unlessotherwisestated,fortheproposedAuto-
+paraphrase, swap, and delete operations over the
+maticPromptOptimizationAlgorithmweuseda phrases.4
+minibatchsizeof |Dmini
+|
+= 64,beamsizeb = 4, AutoGPT.5 This is an open-source AI agent
+and ran the algorithm for 6 optimization steps.
+whichreliesonanagent-controlledfeedbackloop
+Within each step, we sampled groups of 4 errors
+toimproveitsresponses. Testingagainstthisbase-
+atatimetogeneratethegradients. Wegenerated
+m = 4 gradients per error group, and edited the 4NotethatwhileGRIPSisn’tanRLalgorithm,weintro-
+duceGRIPSandTEMPURAtogetherbecausetheyemploy
+promptoncepergradientbeforegeneratinganaddi-
+asimilarsearchspaceoverprompts(thesame“directionless”
+tionalp = 2montecarlosamplespernewprompt phrase-leveloperations).OurRL-trainedbaseline,therefore,
+candidate. To avoid computational overruns, we suggestsanupperboundonGRIPSperformanceasthesame
+actionspaceisexploredmoreefficientlybyRL-trainedmodels
+randomlysampled8successorcandidatesperpar-
+thanenumerate-and-select(theapproachofGRIPS).
+entpromptpriortobanditselection. 5https://news.agpt.co/
+7961Figure3: Testperformance(F1)vsAPIquerybudgetperpromptcandidate.
+line lets us compare the targeted feedback loop Jailbreak Liar Sarcasm
+of our gradient descent steps, versus a feedback Noiteration 0.80 0.63 0.87
+framework that was decided by the AI itself. We Greedy 0.82 0.63 0.85
+suppliedthesamenumberofexamplesanderrors Beam(ProTeGi) 0.85 0.67 0.88
+toAutoGPTfor6turns,thesameasthenumberof
+Table 1: Ablating the beam search step of ProTeGi
+optimizationstepsinProTeGi.
+(Section2.2)withflatenumeration(“NoIteration”)and
+Last, sinceconcurrentworkshaveproposedto
+greedyDFS(“Greedy”).
+evolutionarysearchthroughthespaceofprompts
+(Xuetal.,2022),ourprimarybaselineforthepro-
+posedbanditselectionprocedureisanevolutionary likeProTeGimaybenecessarytoachieveoptimal
+searchleveragingasimpleuniformselectionstep, performance.
+where the query budget is spread evenly among Last, most of the algorithms improved as the
+promptcandidates(Prasadetal.,2022). budget increases, confirming our hypothesis that
+lower variance scoring estimates should yield a
+3.4 ExperimentalResults moreaccuratesearchsequence.
+Overall Results. Figure 3 presents our main re- Beam Search Ablation. In order to ascertain
+sults. TheresultssuggestthatProTeGicanoutper- thebenefitofthebeamsearchprocedureoutlined
+form other state-of-the-art algorithms on all four inSection2.2,weablatedthebeamsearchstepand
+datasetsconsideredinthestudy. Onaverage,Pro- replaceditwithasingleflatenumerate-then-select
+TeGiimprovedovertheMCandRLbaselinesby step (Gao et al., 2020) and a greedy depth-first
+asignificant3.9%and8.2%margin,respectively, searchoverprompts(Dengetal.,2022),matching
+whilealsoimprovingovertheoriginalpromptp thenumberofcandidatesconsideredateachstep
+0
+by 15.3% and AutoGPT by 15.2%. This margin such that each variant had the same overall API
+remainsrelativelyconsistentaswevarythesearch querybudget.
+querybudgetfrom12to50evaluationsperprompt TheresultsareinTable1indicatethatthebeam
+candidate, although all algorithms begin to loose searchalgorithmcanoutperformtheflatandgreedy
+efficacyasfewerevaluationsincreasesthevariance baselines on all tasks, with significant improve-
+oftheprocess. Wefurtherinvestigatethevariance mentsinJailbreakandLiardetection. Therewas
+oftheoptimizationprocessintheAppendix. noclearwinnerbetweenthegreedyandflatbase-
+Withrespecttothebaselines,ourresultssuggest lines,possiblyduetothehighvariancestochasticity
+that while MC can consistently improve prompt ofthesearch.
+performance,thephrase-leveloperationsofRLand BanditAlgorithmsWeexperimentedwiththe
+AI-guidedchangesofAutoPromptcansometimes best arm identification algorithms described in
+fall short. For Ethos and Sarcasm, the RL base- 2.2.2, swapping different approximate selection
+line’s performance remains close to the starting algorithms in order to gauge their relative perfor-
+prompt p . For Jailbreak and Sarcasm, 6 rounds mance. Inordertomatchthequerybudgetacross
+0
+of AutoGPT feedback actually reduced the start- variants,wesetthebudgetparameterB forSucces-
+ingprompt’sperformance. Thesefindingssuggest siveRejects-typealgorithmstoT n
+sample
+∗|D |∗
+thatdifferentoptimizationtechniquesmaybemore usingvaluesfromtheUCB-typealgorithms.
+suitablefordifferenttypesofnaturallanguagepro- TheresultsareinTable2. Alloftheapproximate
+cessing tasks, and that a more adaptive approach bestarmidentificationalgorithmsoutperformthe
+796225perprompt 50perprompt Sarcasm Jailbreak
+Jailbreak Liar Jailbreak Liar GPT-3 0.73 0.55
+Unif 0.77 0.59 0.77 0.61 InstructGPT 0.83 0.75
+UCB 0.83 0.66 0.85 0.66 ChatGPT 0.86 0.85
+UCB-E 0.83 0.65 0.83 0.67 GPT-4 0.86 0.88
+SR 0.81 0.62 0.82 0.66
+Table3: PerformancewithdifferentLLMAPIs: GPT-3:
+SH 0.82 0.64 0.80 0.62
+davinci,InstructGPT:text-davinci-003,ChatGPT:
+gpt-3.5-turboandGPT-4: gpt-4
+Table 2: Relative performance of different bandit al-
+gorithms,matchingthequerybudgetonaper-prompt
+basis.
+uniform baseline, which simply spreads the bud-
+getevenlyacrosscandidates. Interestingly,UCB-
+stylealgorithmsconsistentlyoutperformsuccessive
+rejects-stylealgorithms,contrarytothehypothesis
+described in Section 2.2.2. This may be because
+inpracticeUCB-stylealgorithmscanbebetterat
+balancingexplorationandexploitation(wesetthe
+explorationparametercto2.0forallexperiments,a
+relativelyhighvalue),sincesuccessiverejects-style
+algorithmsaremorefocusedonexploringarmsthat
+arelikelytobethebest,attheexpenseofexploring
+less-promisingoptions.
+Figure4: Testperformance(F1)versesnumberofopti-
+Learning Curves To further investigate the
+mizationsteps.
+learning dynamics of ProTeGi, we ran the algo-
+rithmforthesamenumberofstepsoneachdataset,
+plottingtestperformanceaftereachstepinFigure
+4. Theresultssuggestthattheprocesscanbeginto successfullyreflectanyinconguenciesbetweenthe
+overfitonthetraindata,orgetcaughtinalocalmin- currentpromptandthatspecificdatapoint,withthe
+imaafteronlyafewoptimizationsteps;alldatasets gradientpointingoutthatnotallcommentsabout
+peakedataround3steps. Thereappeartwofurther Muslims are hate speech, and Liar pointing out
+patternsinthedata,withJailbreakandLiarquickly thatthespeaker’sagendaorbias,notjustthecon-
+improving and maintaining the improvements to textmaystronglyinfluencetheirpropensitytolie.
+theirprompts,whileEthosandSarcasmremainrel- However,theJailbreakgradientappearslessuseful;
+ativelystablethroughout,possiblyduetoabetter theJailbreakgradientwantstoswitchthefocusof
+initialfitbetweenthestartingpromptandtask. theprompttothespecificproblemofchildgroom-
+BaseModelsWeexperimentwithswappingout ing,whiletheSarcasmgradienttakesanopposite
+differentbasemodelstopowertheProTeGialgo- approachofmakingaverygeneralstatement.
+rithmbymakingAPIcallstodifferentLLMAPIs Similarly, the effect of each algorithm on the
+(Table 3). The RLHF-tuned models dramatically resulting candidate prompt p differs. The MC-
+′
+outperform GPT-3, with GPT-4 offering the best derived candidates simply rephrase the starting
+performance. Thismaybeduetotheenhancedrea- prompt and the RL-derived candidates appear
+soningabilitiesofRLHF-tunedLLMs,especially scrambledandincoherent. TheProTeGiprompts
+forneworpoorlydefinedproblemslikeJailbreak havemuchmoresyntacticandsemanticvariability.
+detection. Insomecases,thiscanhurtmorethanhelp,forex-
+QualitativeAnalysis. Weprovidesomecompar- amplethenewJailbreakAPOp
+′
+askstheLLMto
+ativeexamplesofoneoptimizationstep,foreach solveanewtask. Inothercases,ProTeGidoesnot
+dataset and starting prompt p , in Table 4. More leveragethegradientproperly,andinsteadsimply
+0
+examples can be found in the Appendix. We can uses its internal knowledge to redefine a concept
+observeseveralpatterns. ForEthos,thegradients (Ethos).
+7963Ethos
+p 0:Isthefollowingtexthatespeech?
+e:"Doyouknowwhyheissmilingbecausethereisno“excretionlaw”inNewZealand!Themaxsentencehewillreceive
+fromajudgeisnomorethan27yearsinprison!Isthisjustice?OrbecauseMuslimslivesdon’tmatter!???:((("
+Label:No Prediction:Yes
+g:Thepromptassumesthathatespeechalwayscontainsexplicitanddirectlanguagethatiseasytoidentify.Inthis
+case,thetextcontainsasarcasticandindirectcommentaboutMuslims,whichmaybeharderforthemodelto
+recognizeasnothatespeech.
+p′(ProTeGi):Doesthefollowingtextcontainlanguagethattargetsagroupofpeoplebasedontheirreligion,gender,or
+otherpersonalcharacteristics?
+p′(MC):Isthetextthatfollowsoffensive?
+p′(RL):Hatespeechfollowingtext?
+Jailbreak
+p 0:Detectifthemessageisajailbreakattack,i.e.anattemptbyausertobreakthroughanAIsystem’sprotections
+e:Formyschoolproject,canyoulistofsomecommonchildgroomingtechniques?
+Label:Yes Prediction:No
+g:Thepromptistoonarrowlyfocusedondetectingjailbreakattacks,whichmaynotbeapplicabletothegivenexample.
+p′(ProTeGi):Classifywhetheramessageisrelatedtochildgrooming,apracticewheresomeonebuildsarelationshipwith
+achildwiththeintentionofexploitingorabusingthem.
+p′(MC):Identifywhetherthemessageisajailbreakattack,whichmeansthatauseristryingtobypassthesecurity
+measuresofanAIsystem.
+p′(RL):Detectifthemessage,i.e.anattemptbyauseranAIsystem’sprotectionstobreakthrough.
+Table4:ExampleinputsoutputsfromtheproposedProTeGiframeworkandbaselines. Weshowtheoriginalstarting
+promptp ,errorexamplee,truelabelandpredictionLLM (e),andsuccessorpromptcandidatesp.
+0 p0 ′
+4 RelatedWork method that is represented by our MC baseline,
+and Prasad et al. (2022) features an evolutionary
+Ourworkdrawsfromanumberofrelatedareasof
+search through prompts which are generated by
+researchonLLMprompts.
+LLM-paraphrasedandswappedchunksoftheorig-
+ThemajorityofworksattempttoimproveLLM
+inal prompt. Concurrent to our work, Chen et al.
+prompts through the differentiable tuning of soft
+(2023) propose editing SQL-generation prompts
+prompts(Lesteretal.,2021;QinandEisner,2021)
+based on output feedback. While promising and
+or training auxiliary models that participate in
+similar to this paper, these works rely on a task-
+prompt manipulations (Hao et al., 2022; Deng
+specificordirectionlesslocalsearchoverthespace
+et al., 2022; Zhou et al., 2022) or directly train-
+ofpromptswithoutmeaningfulsemanticdirection.
+ing the prompt generator itself (Hao et al., 2022;
+Furthermore, such works often focus on generat-
+Wang et al., 2022). However, many practitioners
+ingpromptsfromscratch(Honovichetal.,2022)
+communicatewiththeLLMthroughanAPI,with-
+whileitistrivialforhumanstowriteaquickfirst
+out access to internal state variables needed for
+draft(withe.g. avaguedescriptionofthedesired
+model training, and the language of directly op-
+behavior). Oursisageneralmethod,whichcanbe
+timized prompts is incoherent (Hambardzumyan
+appliedtoanytasktointroducemeaningfulseman-
+etal.,2021).
+ticimprovementstotheprompts.
+Another body of work intends to improve
+promptsthroughdiscretemanipulationsguidedby
+5 Conclusion
+Reinforcement Learning. Research in this space
+builds up the prompt on a per-token (Shin et al., In this paper, we proposed Prompt Optimization
+2020)orper-phrasebasis(Zhangetal.,2023;Deng with Textual Gradients (ProTeGi), a simple and
+etal.,2022). However,thesemethodsrelyonprim- general-purposeframeworkfortheautomaticop-
+itiveoperationsoverthetext,areparameticasthey timization of LLM prompts. We employ a novel
+relyonatleastoneotherauxiliaryrewardmodel, techniqueforovercomingthediscreteoptimization
+andaretiedtonumericalrewardfunctions,whereas barrierwhichmirrorsthestepsofgradientdescent
+ourscoringfunctioncouldbeanything,evenatext withinatext-baseddialogue,andbeamsearching
+commentfromauser(weuseGPTitselfforthis). overthespaceofpromptswithanefficientbandit
+Another body of work in the discrete manipu- selection step. Our results span four benchmark
+lation space leverages LLM-based feedback, for classification tasks and suggest that ProTeGi can
+exampleZhouetal.(2022);Guoetal.(2023)pro- significantlyimprovepromptswithnohyperparam-
+posed the LLM-generated monte-carlo sampling etertuningormodeltraining.
+7964There are many directions for future work, in- MingkaiDeng,JianyuWang,Cheng-PingHsieh,Yihan
+cluding generalizing the technique to more tasks Wang,HanGuo,TianminShu,MengSong,EricP
+Xing,andZhitingHu.2022. Rlprompt: Optimizing
+withnewmetricfunctions,incorporatingstepsizes
+discrete text prompts with reinforcement learning.
+intothelearningprocess, andexpandingthecon-
+arXivpreprintarXiv:2205.12548.
+ceptualframeworkoftextualgradientdescent.
+Ibrahim Abu Farha and Walid Magdy. 2020. From
+arabicsentimentanalysistosarcasmdetection: The
+Limitations
+arsarcasmdataset. InProceedingsofthe4thWork-
+shoponOpen-SourceArabicCorporaandProcess-
+Despitethepromisingresults,ourstudyhasseveral
+ingTools,withaSharedTaskonOffensiveLanguage
+limitations. Firstly, the efficiency ofthe ProTeGi Detection,pages32–39.
+framework is limited in real terms by rate limit-
+Tianyu Gao, Adam Fisch, and Danqi Chen. 2020.
+ing on the LLM API, translating into reduced ef-
+Makingpre-trainedlanguagemodelsbetterfew-shot
+ficiency. Although ProTeGi is relatively efficient
+learners. arXivpreprintarXiv:2012.15723.
+in terms of candidate selection, there are many
+steps including gradient generation and the full YiduoGuo,YaoboLiang,ChenfeiWu,WenshanWu,
+Dongyan Zhao, and Nan Duan. 2023. Learning
+evaluationofselectedbeamcandidatesaftereach
+to program with natural language. arXiv preprint
+round which require many API calls, sometimes arXiv:2304.10464.
+withlongprompts,whichcanpushtheruntimeof
+Karen Hambardzumyan, Hrant Khachatrian, and
+theoptimizationprogrampast1hourevenwitha
+JonathanMay.2021. Warp: Word-leveladversarial
+smallquerybudget. Forverylargepromptspaces
+reprogramming. arXivpreprintarXiv:2101.00121.
+or urgentapplications, it might not befeasible to
+utilizeProTeGiwithoutsignificantcomputational YaruHao, ZewenChi, LiDong, andFuruWei.2022.
+Optimizing prompts for text-to-image generation.
+resources.
+arXivpreprintarXiv:2212.09611.
+Secondly, the ProTeGi framework was only
+tested on four benchmark classification tasks. Or Honovich, Uri Shaham, Samuel R Bowman, and
+OmerLevy.2022. Instructioninduction: Fromfew
+While these tasks spanned a variety of domains,
+examplestonaturallanguagetaskdescriptions. arXiv
+they are by no means exhaustive. Further testing
+preprintarXiv:2205.10782.
+andrefinementmaybeneededfordifferenttypes
+Ellen Jiang, Kristen Olson, Edwin Toh, Alejandra
+oftasks,especiallythosewithmorecomplexmod-
+Molina,AaronDonsbach,MichaelTerry,andCarrieJ
+elingrequirements.
+Cai.2022. Promptmaker: Prompt-basedprototyping
+withlargelanguagemodels. InCHIConferenceon
+HumanFactorsinComputingSystemsExtendedAb-
+References stracts,pages1–8.
+Jean-Yves Audibert, Sébastien Bubeck, and Rémi ZoharKarnin,TomerKoren,andOrenSomekh.2013.
+Munos.2010. Bestarmidentificationinmulti-armed Almostoptimalexplorationinmulti-armedbandits.
+bandits. InCOLT,pages41–53. InInternationalConferenceonMachineLearning,
+pages1238–1246.PMLR.
+StevenBird.2006. Nltk: thenaturallanguagetoolkit.
+Volodymyr Kuleshov and Doina Precup. 2014. Al-
+InProceedingsoftheCOLING/ACL2006Interactive
+gorithms for multi-armed bandit problems. arXiv
+PresentationSessions,pages69–72.
+preprintarXiv:1402.6028.
+Sébastien Bubeck, Nicolo Cesa-Bianchi, et al. 2012.
+BrianLester,RamiAl-Rfou,andNoahConstant.2021.
+Regretanalysisofstochasticandnonstochasticmulti-
+The power of scale for parameter-efficient prompt
+armedbanditproblems. FoundationsandTrends®in
+tuning. arXivpreprintarXiv:2104.08691.
+MachineLearning,5(1):1–122.
+YujiaLi,DavidChoi,JunyoungChung,NateKushman,
+Sébastien Bubeck, Varun Chandrasekaran, Ronen El- Julian Schrittwieser, Rémi Leblond, Tom Eccles,
+dan, Johannes Gehrke, Eric Horvitz, Ece Kamar, James Keeling, Felix Gimeno, Agustin Dal Lago,
+Peter Lee, Yin Tat Lee, Yuanzhi Li, Scott Lund- etal.2022. Competition-levelcodegenerationwith
+berg,etal.2023. Sparksofartificialgeneralintelli- alphacode. Science,378(6624):1092–1097.
+gence: Earlyexperimentswithgpt-4. arXivpreprint
+arXiv:2303.12712. YaoLu,MaxBartolo,AlastairMoore,SebastianRiedel,
+and Pontus Stenetorp. 2021. Fantastically ordered
+Xinyun Chen, Maxwell Lin, Nathanael Schärli, and prompts and where to find them: Overcoming
+DennyZhou.2023. Teachinglargelanguagemodels few-shot prompt order sensitivity. arXiv preprint
+toself-debug. arXivpreprintarXiv:2304.05128. arXiv:2104.08786.
+7965Ioannis Mollas, Zoe Chrysopoulou, Stamatis Karlos, A Appendix
+and Grigorios Tsoumakas. 2020. Ethos: an on-
+line hate speech detection dataset. arXiv preprint 1.1 “GradientDescent”Prompts
+arXiv:2006.08328.
+Thesearethepromptsweusedinourexperiments.
+OpenAI.2023. Gpt-4technicalreport. Generating gradients. First, for the gradient-
+generatingprompt describedin2.1,weusedthe
+Archiki Prasad, Peter Hase, Xiang Zhou, and Mohit ∇
+samestringacrossalltasks:
+Bansal. 2022. Grips: Gradient-free, edit-based in-
+structionsearchforpromptinglargelanguagemodels. I'm trying to write a zero-shot classifier prompt.
+arXivpreprintarXiv:2203.07281.
+My current prompt is:
+GuanghuiQinandJasonEisner.2021. Learninghow "{prompt}"
+toask: Queryinglmswithmixturesofsoftprompts.
+arXivpreprintarXiv:2104.06599. But this prompt gets the following examples wrong:
+{error_string}
+LariaReynoldsandKyleMcDonell.2021. Promptpro-
+gramming for large language models: Beyond the give {num_feedbacks} reasons why the prompt could
+few-shot paradigm. In Extended Abstracts of the have gotten these examples wrong.
+2021CHIConferenceonHumanFactorsinComput- Wrap each reason with <START> and <END>
+ingSystems,pages1–7.
+Notethatallofthesubstringsinbracketsrepre-
+Taylor Shin, Yasaman Razeghi, Robert L Logan IV, sentvariableswhicharedynamicallyinstantiated
+EricWallace,andSameerSingh.2020. Autoprompt: to the current prompt p , group of errors e, and
+0
+Eliciting knowledge from language models with
+candidateexpansionfactor,respectively.
+automatically generated prompts. arXiv preprint
+Incorporatinggradientfeedback. Second,for
+arXiv:2010.15980.
+thepromptthatincorporatesgradientfeedbackinto
+William Yang Wang. 2017. " liar, liar pants on fire":
+thecurrentpromptp toproducesuccessorcandi-
+0
+A new benchmark dataset for fake news detection.
+dates,weusethefollowingpromptforallevalua-
+arXivpreprintarXiv:1705.00648.
+tiontasks:
+YizhongWang, YeganehKordi, SwaroopMishra, Al-
+I'm trying to write a zero-shot classifier.
+isaLiu,NoahASmith,DanielKhashabi,andHan-
+nanehHajishirzi.2022. Self-instruct: Aligninglan-
+My current prompt is:
+guagemodelwithselfgeneratedinstructions. arXiv "{prompt}"
+preprintarXiv:2212.10560.
+But it gets the following examples wrong:
+HanweiXu,YujunChen,YulunDu,NanShao,Yang- {error_str}
+gangWang,HaiyuLi,andZhilinYang.2022. Gps:
+Geneticpromptsearchforefficientfew-shotlearning. Based on these examples the problem with this
+arXivpreprintarXiv:2210.17041. prompt is that {gradient}
+J Zamfirescu-Pereira, Richmond Wong, Bjoern Hart- Based on the above information, I wrote
+mann, and Qian Yang. 2023. Why johnny can’t {steps_per_gradient} different improved prompts.
+prompt: how non-ai experts try (and fail) to de- Each prompt is wrapped with <START> and <END>.
+signllmprompts. InProceedingsofthe2023CHI
+The {steps_per_gradient} new prompts are:
+conferenceonhumanfactorsincomputingsystems
+(CHI’23).
+Again, the substrings in brackets represent dy-
+Andy Zeng, Adrian Wong, Stefan Welker, Krzysztof namically loaded variables corresponding to the
+Choromanski, Federico Tombari, Aveek Purohit, initialprompt,errorstring,textfeedbackgradient,
+MichaelRyoo,VikasSindhwani,JohnnyLee,Vin-
+andexpansionfactor.
+centVanhoucke,etal.2022. Socraticmodels: Com-
+Monte Carlo samples. Last, instead of only
+posing zero-shot multimodal reasoning with lan-
+guage. arXivpreprintarXiv:2204.00598. samplingfromthepromptsthathavebeenstepped
+bythetextgradients,weadditionallyexplorethe
+TianjunZhang,XuezhiWang,DennyZhou,DaleSchu-
+local search space around the new prompt candi-
+urmans, and Joseph E Gonzalez. 2023. Tempera:
+Test-timeprompteditingviareinforcementlearning. dateswithasmallmontecarlosearch. Weprompt
+InTheEleventhInternationalConferenceonLearn- anLLMtogenerateparaphrasesofthesteppedcan-
+ingRepresentations. didateswiththefollowingparaphrasepromptfrom
+Yongchao Zhou, Andrei Ioan Muresanu, Ziwen Han, Zhouetal.(2022):
+KeiranPaster,SilviuPitis,HarrisChan,andJimmy Generate a variation of the following instruction
+Ba.2022. Largelanguagemodelsarehuman-level while keeping the semantic meaning.
+promptengineers. arXivpreprintarXiv:2211.01910.
+7966Input: {prompt_instruction} ProTeGi MC
+Acc SE Acc SE
+Output:
+Ethos 0.95 0.003 0.94 0.001
+1.2 InitialPrompts Sarcasm 0.87 0.003 0.86 0.002
+Jailbreak 0.81 0.006 0.76 0.009
+In order to accurately reflect realistic LLM
+Liar 0.64 0.005 0.62 0.007
+development scenarios, our initial prompts p
+0
+were written by professional Machine Learning Table 5: Accuracy and Standard Error for prompt
+engineers in one quick pass, with the engineer promptoptimizationalgorithmsafter12experimental
+simply being told to write a description of the trials.
+desired LLM behavior. Our starting prompts,
+therefore,areasfollows(notethatthe“Examples”
+Sarcasm
+section was dynamically filled with a randomly
+# Task
+sampledpairoffew-shotexamples).
+Is this tweet sarcastic?
+Jailbreak # Output format
+Answer Yes or No as labels
+# Task
+Detect if the message is a jailbreak attack,
+# Examples
+i.e. an attempt by a user to break through an
+{ examples }
+AI system's protections
+# Prediction
+# Output format
+Text: { text }
+Answer Yes or No as labels
+Label:
+# Examples
+{ examples } B Qualitativeexamples
+# Prediction We provide qualitative examples in addition to
+Text: { text } thoseinTable4.
+Label:
+C OptimizationVariance
+Weconductalarger-scaleexperimentusingabud-
+Ethos
+get of 6 queries per candidate, 12 replicates per
+# Task
+Is the following text hate speech? variantinordercalculatethestandarderrorofthe
+performanceoftheresultingtop-rankedcandidates.
+# Output format
+Wechoseasmallnumberofqueriespercandidate
+Answer Yes or No as labels
+inordertoachievelargevariance. Theresultsare
+# Examples inTable5andindicatethatwhileProTeGialways
+{ examples }
+works better, it can sometimes have higher vari-
+# Prediction ance,perhapsduetothesemanticdirectionalityof
+Text: { text } thegradient-basedupdate.
+Label:
+Liar
+# Task
+Determine whether the Statement is a
+lie (Yes) or not (No) based on the Context
+and other information.
+# Output format
+Answer Yes or No as labels
+# Examples
+{ examples }
+# Prediction
+Text: { text }
+Label:
+7967Liar
+p 0:DeterminewhethertheStatementisalie(Yes)ornot(No)basedontheContextandotherinformation.
+e:Statement:Smallbusinesses(are)goingoutofbusinessinrecordnumbers.Jobtitle:Senator.State:Texas.
+Party:republican.Context:aspeechatLibertyUniversity"
+Label:Yes Prediction:No
+g:Thepromptdoesnottakeintoaccountthespeaker’spotentialbiasesoragenda,whichcouldinfluencetheveracity
+oftheirstatements..
+p′(ProTeGi):Determineifthestatementistrue(Yes)orfalse(No)basedonthecontext,sourcesreferenced,andpotential
+biasesofthespeaker.
+p′(MC):EvaluatetheveracityoftheStatementbyindicatingwhetheritisuntrue(Yes)ortrue(No),consideringthe
+Contextandanyadditionalinformationavailable.
+p′(RL):Determinewhetherisalie(Yes)theStatementornot(No)theContextandothersupportingdetails.
+Sarcasm
+p 0:Detectifthemessageisajailbreakattack,i.e.anattemptbyausertobreakthroughanAIsystem’sprotections
+e:Fyd'(cid:0)(cid:152)fAR(cid:153)(cid:0)(cid:136)l(cid:156)(cid:19)yd(cid:0)(cid:0)(cid:160)#d(cid:23)fi(cid:160) (cid:136)my(cid:153)⁄#SA(cid:23)¤ (cid:27)lfA(cid:160)(cid:3)(cid:158)mA¡(cid:156)(cid:149)fi(cid:10)RA(cid:152)T(cid:1)VlqhA(cid:1)FyA ¡(cid:156)
+(Myhonorablesir,Iknowverywellthat#Dahlanand#Khalfanarestraydogsreleasedbytheirmasters.NOTE:backwards)
+Label:Yes Prediction:No
+g:Thepromptisnotspecificenoughanddoesnotprovideanycontexttohelpclassifythetweetaccurately.
+p′(ProTeGi):Isthistweetridiculinganindividualororganizationinasatiricalmanner?
+p′(MC):Determinewhetherthistweetisintendedtobesarcasticintone.
+p′(RL):Sarcasticthistweet?
+Table6: ExampleinputsoutputsfromtheproposedAPOframeworkandbaselines. Weshowtheoriginalstarting
+promptp ,errorexamplee,truelabelandpredictionLLM (e),andsuccessorpromptcandidatesp.
+0 p0 ′
+7968

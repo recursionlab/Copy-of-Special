@@ -1,0 +1,367 @@
+Context Awareness Gate For Retrieval Augmented
+Generation
+Mohammad Hassan Heydari Arshia Hemmat Erfan Naman Afsaneh Fatemi
+Computer Engineering Faculty Computer Engineering Faculty Computer Engineering Facu. Computer Engineering Faculty
+University of Isfahan University of Isfahan University of Isfahan University of Isfahan
+Isfahan, Iran Isfahan, Iran Isfahan, Iran Isfahan, Iran
+mheydarii@mehr.ui.ac.ir arshiahemmat@mehr.ui.ac.ir erfannaman@mehr.ui.ac.ir a fatemi@eng.ui.ac.ir
+Abstract—Retrieval-Augmented Generation (RAG) has proaches contribute to more accurate and effective retrieval
+emerged as a widely adopted approach to mitigate the of information.
+limitations of large language models (LLMs) in answering
+Despite ongoing efforts to develop more reliable retrieval
+domain-specific questions. Previous research has predominantly
+methods for extracting relevant data chunks, many question-
+focusedonimprovingtheaccuracyandqualityofretrieveddata
+chunks to enhance the overall performance of the generation answering systems do not solely rely on local or domain-
+pipeline. However, despite ongoing advancements, the critical specific datasets for answering user queries. In addition to
+issue of retrieving irrelevant information—which can impair a domain-specific user queries, many input queries do not
+model’s ability to utilize its internal knowledge effectively—has
+necessitate retrieval from local datasets, which reduces the
+received minimal attention. In this work, we investigate the
+scalability and reliability of question-answering systems [11].
+impact of retrieving irrelevant information in open-domain
+questionanswering,highlightingitssignificantdetrimentaleffect To tackle this limitation, retrieval methods based on query
+on the quality of LLM outputs. To address this challenge, we classification and routing mechanisms have proven effective
+proposetheContextAwarenessGate(CAG)architecture,anovel in enhancing retrieval accuracy by directing the search toward
+mechanism that dynamically adjusts the LLM’s input prompt
+a set of documents closely related to the user’s query [10].
+based on whether the user query necessitates external context
+However,inourstudy,wedemonstratethatevenwithsemantic
+retrieval. Additionally, we introduce the Vector Candidates
+method, a core mathematical component of CAG that is routing, the probability of retrieving irrelevant information
+statistical, LLM-independent, and highly scalable. We further remainsnon-negligible,particularlywhendealingwithabroad
+examine the distributions of relationships between contexts and domain of potential queries.
+questions, presenting a statistical analysis of these distributions. Due to the inherently local search mechanism of Retrieval-
+This analysis can be leveraged to enhance the context retrieval
+Augmented Generation (RAG) systems [1], [12], even for
+process in retrieval-augmented generation (RAG) systems.
+queries that are largely irrelevant, the pipeline will still return
+Index Terms—Retrieval-Augmented Generation, Hallucina-
+tion,LargeLanguageModels,OpenDomainQuestionAnswering a set number of passages. While existing research has made
+strides in addressing the challenge of imperfect data retrieval
+[11],[13],[14],theissueofbroad-domainquestionanswering
+in RAG systems has received relatively little attention.
+I. INTRODUCTION
+Many queries submitted to RAG-enhanced question-
+Retrieval-augmented generation (RAG) has emerged as a answering (QA) systems do not require data retrieval, such as
+leading approach for implementing question-answering sys- dailyconversations,generalknowledgequestions,orquestions
+tems that require intensive domain-specific knowledge [1]. that large language models (LLMs) themselves can answer
+This method allows for the utilization of customized datasets using their internal knowledge [10], [11], [15]. Retrieving
+to generate answers, grounded in the information provided passages for all input queries, especially in these cases, can
+by those datasets. However, the effectiveness of the retrieval significantly diminish the retrieval precision [11] and the con-
+component within RAG pipelines is critical, as it directly text relevancy [16], often rendering them entirely irrelevant.
+influences the reliability and quality of the generated outputs To address this issue, we propose a novel context-aware
+[2], [3]. gate architecture for RAG-enhanced systems which is highly
+In efforts to enhance the quality of the retrieval component scalable of dynamically routing the LLM input prompt to
+inRAGpipelines,researchhasdemonstratedthattransforming increase the quality of pipeline outputs.
+theuser’sinputqueryintovaryinglevelsofabstractionbefore For better comprehension of our work, we highlight three
+conducting the document search can significantly improve main contributions in this study:
+the relevance of the retrieved data. Several methods have • Context Awareness Gate (CAG): We introduce a novel
+been proposed, including query expansion into multi-query gate architecture that significantly broadens the domain
+searches, chain of verification [4], [5], pseudo-context search accessibilityofRAGsystems.CAGleveragesbothquery
+[6] and query transformation [7], [8], [9], [10]. These ap- transformation and dynamic prompting to enhance the
+4202
+voN
+52
+]GL.sc[
+1v33161.1142:viXrareliability of RAG pipelines in both open-domain and al. (2024) [20] argue that simply adding more context to the
+closed-domain question answering tasks. LLMinputpromptdoesnotnecessarilyimproveperformance.
+• Vector Candidates (VC): We propose a statistical se- In a recent and highly relevant study, Wang et al. (2024)
+mantic analysis algorithm that improves semantic search [11] show that when retrieval precision is below 20%, RAG
+and routing by utilizing the concept of pseudo-queries is not beneficial for QA systems. They highlight that when
+and in-dataset embedding distributions. retrievalprecisionapproacheszero,theRAGpipelineperforms
+• Context Retrieval Supervision Benchmark (CRSB) significantly worse than a pipeline without RAG.
+Dataset:Alongsideourtechnicalandstatisticalinvestiga-
+tions, we introduce the CRSB dataset, which consists of
+III. APPROACH
+data from 17 diverse fields. We study the inner context- To address the challenges associated with retrieving irrele-
+query distributions of this rich dataset and demonstrate vantinformation[11],weproposetheContextAwarenessGate
+the effectiveness and scalability of Vector Candidates on (CAG) architecture, which utilizes Vector Candidates as its
+practical QA systems 1 . primary statistical method for query classification. CAG sig-
+nificantlyimprovestheperformanceofopen-domainquestion-
+answering systems by dynamically adjusting the input prompt
+for the LLM, transitioning from RAG-based context prompts
+to Few Shot, Chain-of-Thought (CoT) [4], [5], and other
+methodologies. Consequently, the LLM responds to user
+queries based on its internal knowledge base.
+A. Context Awareness Gate (CAG)
+To address the issue of retrieving irrelevant data chunks for
+each input query, one solution is to ask a supervising large
+language model (LLM) to classify whether the query should
+promptaretrieval-augmentedgeneration(RAG)oraRAG-free
+response. This involves determining whether the input query
+fallswithinthescopeofthelocaldatabase.However,asignif-
+icantlimitationofthisapproachisthehighcomputationalcost
+of using an LLM with billions of parameters for a relatively
+simple task like query classification. Even smaller language
+models come with their own challenges, such as hallucination
+Fig. 1. Context Awareness Gate (CAG) architecture for open domain and limited reasoning capabilities [11].
+questionsanswering
+To mitigate these issues,we propose an efficient yet highly
+effective statistical approach, known as Vector Candidates.
+II. RELATEDWORK The key idea behind Vector Candidates is to generate pseudo-
+queries for each document in the set, then calculate the dis-
+improving both retrieval quality and the outputs of large
+tribution of embeddings and their similarities. By comparing
+language models. Query2Doc [17] and HyDE [6] generate
+the input query to this distribution, it is possible to estimate
+pseudo-documents based on the input query and utilize these
+whether context retrieval is necessary with a certain level of
+for semantic search instead of the query itself. RQ-RAG
+probability. If the input query is far from this distribution,
+[18] decomposes complex queries into simpler sub-queries,
+it is recommended not to retrieve any context and instead
+enhancing retrieval performance. The Rewrite-Retrieve-Read
+reformulate the LLM input prompt into a simpler few-shot
+framework [7] employs query rewriting to improve the match
+question-answering task, rather than utilizing RAG. The over-
+between queries and relevant documents. Additionally, some
+all architecture of CAG is presented in figure 1
+studies suggest that for queries answerable by the large lan-
+The limitation of this approach may appear to be the
+guage model (LLM) based on its internal knowledge, query
+necessity of generating numerous pseudo-queries for a local
+classification using a smaller language model can benefit
+dataset. However, when comparing it to LLM supervision,
+overall pipeline performance [10].
+the complexity of the Vector Candidates method, which op-
+Intermsofimprovingmodeloutputquality,RobustRAG[3]
+erates on a set of contexts with C contexts and N pipeline
+investigates the vulnerability of RAG-based systems to mali-
+input requests, reveals a significant advantage. Specifically,
+ciouspassagesinjectedintotheknowledgedatabase.Conflict-
+the complexity of the Vector Candidates method is O(1), as
+Disentangle Contrastive Decoding (CD2) [19] proposes a
+it relies solely on the number of contexts, regardless of the
+framework to reconcile conflicts between an LLM’s internal
+number of input requests ( This happens when we disable the
+knowledgeandexternalknowledgestoredinadatabase.Yuet
+query transformation as one of the CAG steps ) . In contrast,
+the complexity of LLM supervision scales linearly with the
+1The CRSB dataset is available at: https://huggingface.co/datasets/
+heydariAI/CRSB numberofinputrequests,representedasO(N).Thisindicatesthat while generating pseudo-queries may seem cumbersome, hyperparameter derived from common statistical metrics such
+the overall efficiency of the Vector Candidates approach is as minimum, mean, median, or quartiles. Additionally, we
+superior in scenarios with multiple input requests. defineathresholdT,whichservesasanotherhyperparameter,
+Alongside all the steps involved in the Vector Candidates to create a risk range for decision-making. This threshold
+approach,theprocessbeginswithtransformingtheuser’sinput helps in determining the confidence level for whether context
+query into a more appropriate format to enhance the quality retrieval should be applied, balancing the trade-off between
+of semantic search. This query transformation is critical as precision and recall in the retrieval process.
+it ensures that the input is optimized for better alignment
+C. Context Retrieval Supervision Bench (CRSB)
+with the embeddings used in the retrieval process. After this
+transformation, the Vector Candidates method is applied to We introduce the Context Retrieval Supervision Bench
+assess the relevance of context retrieval. (CRSB) dataset, which can be used to evaluate the per-
+FollowingquerytransformationandVectorCandidatesanal- formance of context-aware systems and retrieval-augmented
+ysis, the Context-Adaptive Generation (CAG) system dynam- generation (RAG) semantic routers. The CRSB contains 17
+ically adapts the input query into a suitable prompt. This different topics, with each context associated with 3 pseudo-
+involves determining whether context retrieval is necessary queries. This design allows the CRSB to encompass a total
+or if the LLM can answer the query based on its internal of 5,100 question-answer pairs. With a correct permutation,
+knowledge, utilizing techniques like Chain of Thought (CoT) CRSB can offer more than 83000 context-query pairs to
+reasoning [4], [5], agents, or other methods. evaluate the context awareness systems and semantic routing
+pipelines..
+B. Vector Candidates
+IV. EXPERIMENTS
+To address the issues of using a LLM for context su-
+Toanalyzethestatisticalrelationshipsbetweenrelevantand
+pervision , we propose a statistical approach based on the
+irrelevant context-query pairs, we examine the distribution of
+distributions of emmbedings of contexts and pseudo-queries.
+collected contexts and generated pseudo-queries. We begin by
+Algorithm 1 Vector Candidates Algorithm gathering 1,700 contexts across 17 distinct topics. For each
+context, we prompt the Gemma 2 9B language model [21] to
+Require: ContextsC,PseudoQueriesQ,PolicyP,Threshold
+generatethreepseudo-queries.Weappliedall−mpnet−base−
+T, Input Query q
+v2 as our embedding model and create a vector database of
+Ensure: A classification (True or False)
+contexts and pseudo-queries embeddings [22].
+1: Compute dataset distributions based on cosine similarity:
+We then calculate the similarity distributions for Positive
+C·Q
+D ← (relevant) context-query pairs, where the queries require con-
+∥C∥∥Q∥ text retrieval, as well as for Negative (irrelevant) context-
+querypairs.Withappropriatepermutations,weanalyze83,000
+2: Compute input query similarities with contexts: Positive and Negative context-query pairs. Various statistical
+C·q metrics are applied to these distributions, and the results are
+d←
+∥C∥∥q∥ presented in Table I.
+3: if max(d)>P(D)−T then TABLEI
+4: return True
+STATISTICALANALYSISONCRSB
+5: else
+6: return False Policy Positive Negative
+7: end if Minimum 0.110 -0.193
+5thPercentile 0.554 -0.052
+1stQuartile 0.662 -0.000
+Based on the proposed method in Algorithm (1), we first Mean 0.705 0.047
+calculate the cosine similarity distributions between the con- Median 0.716 0.039
+3rdQuartile 0.762 0.086
+texts and pseudo-queries. Then, we compute the similarity
+95thPercentile 0.836 0.219
+between the user’s original query and each context in the Maximum 0.912 0.654
+dataset. If the maximum similarity found between the orig-
+inal query and the contexts falls within the distribution of As demonstrated in Table I, over 95% of positive context-
+context-pseudo-query similarities, this suggests that retrieval- question pairs exhibit a cosine similarity greater than 0.55,
+augmented generation (RAG) might be beneficial. Otherwise, while more than 95% of negative context-query pairs have
+it is more efficient to exclude RAG from the pipeline. This a cosine similarity lower than 0.21. The median value for
+approachisgroundedinourstatisticalanalysisandtheresults the positive set exceeds 0.71, whereas the median for the
+presented by Wang et al. [11]. negativesetisbelow0.04.Althoughthemaximumvalueofthe
+To measure the relevancy between the described distribu- negative set is higher than the minimum value of the positive
+tions and the user query, we apply a policy P, which is a set, the density of the positive distribution is greater thanthat of the negative distribution approximately 98.7% of the Our experimental evaluation demonstrates the superior per-
+time. These statistics provide a comprehensive understanding formance of our method, CAG, in terms of both context rel-
+that, by utilizing these metrics as a policy, we can develop evancy and answer relevancy across different datasets. When
+a statistical method that is highly effective in classifying user applied to the SQuAD dataset [24], the baseline model RAG
+queriestoestablishdynamicprompts,asdiscussedinprevious achieved a context relevancy score of 0.06 and an answer
+sections. relevancyscoreof0.186,highlightingsignificantlimitationsin
+Due to the algebraic nature of our method, we have in- capturing and retrieving relevant information. In contrast, our
+tegrated advanced high-performance techniques for parallel CAGapproachdramaticallyimprovedthesemetrics,achieving
+computing and accelerated linear algebra through the JAX a context relevancy of 0.684 and answer relevancy of 0.821.
+framework[23].LeveragingJAX’sabilitytohandleautomatic Thisindicatesasubstantialenhancementinthemodel’sability
+differentiation and just-in-time compilation (JIT) seamlessly, to retrieve and understand contextually relevant information
+we are able to optimize the underlying computations for both and provide more accurate answers.
+CPU and GPU architectures. This not only allows for faster Furthermore, applying our CAG architecture to the CRSB
+execution but also ensures scalability across large datasets dataset yielded even stronger results, with context relevancy
+and complex models. Our approach significantly improves reaching 0.783 and answer relevancy rising to 0.84. These
+the efficiency in computing the distributions of the dataset, findings suggest that our approach not only generalizes well
+offering a more streamlined and scalable solution for high- across datasets but also significantly enhances the system’s
+dimensional data analysis 2 . overall comprehension and open domain question answering
+capabilities.
+V. RESULTS AccordingtotherepresentedresultsintableII,weconclude
+ToevaluatethecapabilitiesandperformanceoftheContext that open domain question answering using RAG on a closed
+Awareness Gate (CAG), we applied this architecture to the database , significantly reduces the reliability of the QA
+SQuADdataset[24]andourproposedbenchmark,CRSB.We systems;whichconfirmstheresultsofwangetal.(2024)[11].
+implemented an open-domain question-answering pipeline to
+VI. CONCLUSION
+assess the outcomes of CAG under two approaches:
+WhileRAGpresentsawidelyadoptedapproachforquestion
+• Setting CRSB as the local dataset while querying from
+answeringusinglocaldatabases,itexhibitsnotablelimitations
+SQuAD [24]. The pipeline should identify irrelevant
+in open-domain question answering . Previous research has
+queriestothedatasetandrefrainfromusingRAG,instead
+seldom addressed the critical issue that retrieving irrelevant
+generating a few-shot response using the LLM input
+data chunks can detract from the model’s ability to generate
+prompt.
+accurate responses, particularly when relying on the model’s
+• Setting CRSB as the local dataset and querying about
+internal knowledge.
+informationwithinCRSB.Thepipelineshouldrecognize
+In this study, we propose a novel, statistically-driven, and
+the need for context retrieval and manage queries to
+highly scalable approach to mitigate this challenge. Our
+retrieve relevant data according to RAG steps.
+method, the Context Awareness Gate (CAG), dynamically
+For both approaches, we evaluate using two metrics from
+adjuststhemodel’sinputdomain,refiningtheretrievalprocess
+RAGAS: context relevancy and answer relevancy [16]. In
+basedonthesemanticrelevanceofthedatatotheuser’squery.
+the first approach, due to the absence of retrieved context,
+This adaptive mechanism enhances the model’s capability to
+we ask our model to generate a pseudo-context that answers
+provide more accurate answers by optimizing its interaction
+the query and then calculate the context relevancy based on
+with the dataset.
+this generated context. Our question-answering base model is
+OpenAI GPT-4o mini. To demonstrate the effectivenessof the VII. FUTUREDIRECTION
+proposed pipeline, we compare the results of the classic RAG This work opens up several promising avenues for further
+and the proposed CAG. research and enhancement of Context Awareness Gate (CAG)
+Fortheevaluationstep,weappliedbothRAGandCAG.We in open-domain question answering systems:
+set 95% density distribution as the Policy P and we set the
+• IncorporatingBestPracticesinInformationRetrieval:
+threshold T to 0 as the Vector Candidates hyperparameters.
+Futureworkcouldfocusonintegratingthemethodologies
+outlined in [15] to refine CAG’s information retrieval
+TABLEII pipeline.Specifically,thesepracticescouldoptimizehow
+EVALUATIONOFCONTEXT-AWAREGENERATION(CAG)ONSQUADAND
+CAG filters and ranks relevant information, leading to
+CRSB
+evenmoreprecisedataselection.Byenhancingthegran-
+ContextRelevancy AnswerRelevancy ularity of relevance scoring during retrieval, CAG could
+SQuADonRAG 0.06 0.186 furtherimproveitsabilitytoidentifyandutilizethemost
+SQuADonCAG(Ours) 0.684 0.821
+CRSBonCAG(Ours) 0.783 0.84 contextually pertinent chunks of information, boosting
+both retrieval accuracy and downstream performance in
+2Ourprojectisavailableat:https://github.com/heydaari/CAG generating high-quality responses.• Replacing Pseudo-Context Search with Pseudo-Query [18] C.-M. Chan, C. Xu, R. Yuan, H. Luo, W. Xue, Y. Guo, and J. Fu,
+Search: While the pseudo-context search strategy pro- “Rq-rag:Learningtorefinequeriesforretrievalaugmentedgeneration,”
+arXivpreprintarXiv:2404.00610,2024.
+posed in HyDE [6] has been effective, this study intro-
+[19] Z. Jin, P. Cao, Y. Chen, K. Liu, X. Jiang, J. Xu, Q. Li, and
+ducestheconceptofpseudo-querysearchasapotentially J. Zhao, “Tug-of-war between knowledge: Exploring and resolving
+more robust alternative. Future research could explore knowledge conflicts in retrieval-augmented language models,” arXiv
+preprintarXiv:2402.14409,2024.
+the efficacy of this approach across various datasets and
+[20] Y. Yu, W. Ping, Z. Liu, B. Wang, J. You, C. Zhang, M. Shoeybi,
+domains. A systematic evaluation of the pseudo-query and B. Catanzaro, “Rankrag: Unifying context ranking with retrieval-
+search could reveal whether it generalizes better across augmentedgenerationinllms,”arXivpreprintarXiv:2407.02485,2024.
+[21] G.Team,M.Riviere,S.Pathak,P.G.Sessa,C.Hardin,S.Bhupatiraju,
+differentquestion-answeringtasks,especiallyincomplex
+L. Hussenot, T. Mesnard, B. Shahriari, A. Rame´ et al., “Gemma 2:
+or multi-turn dialogues, where context awareness is cru- Improving open language models at a practical size,” arXiv preprint
+cial for maintaining conversation coherence. arXiv:2408.00118,2024.
+[22] N. Reimers and I. Gurevych, “Sentence-bert: Sentence embeddings
+using siamese bert-networks,” in Proceedings of the 2019 Conference
+REFERENCES on Empirical Methods in Natural Language Processing. Association
+for Computational Linguistics, 11 2019. [Online]. Available: https:
+//arxiv.org/abs/1908.10084
+[1] P. Lewis, E. Perez, A. Piktus, F. Petroni, V. Karpukhin, N. Goyal,
+[23] A. Roberts, H. W. Chung, G. Mishra, A. Levskaya, J. Bradbury,
+H. Ku¨ttler, M. Lewis, W.-t. Yih, T. Rockta¨schel et al., “Retrieval-
+D. Andor, S. Narang, B. Lester, C. Gaffney, A. Mohiuddin et al.,
+augmented generation for knowledge-intensive nlp tasks,” Advances in
+“Scaling up models and data with t5x and seqio,” Journal of Machine
+NeuralInformationProcessingSystems,vol.33,pp.9459–9474,2020.
+LearningResearch,vol.24,no.377,pp.1–8,2023.
+[2] J. Chen, H. Lin, X. Han, and L. Sun, “Benchmarking large language
+[24] P. Rajpurkar, “Squad: 100,000+ questions for machine comprehension
+modelsinretrieval-augmentedgeneration,”inProceedingsoftheAAAI
+oftext,”arXivpreprintarXiv:1606.05250,2016.
+ConferenceonArtificialIntelligence,vol.38,no.16,2024,pp.17754–
+17762.
+[3] C. Xiang, T. Wu, Z. Zhong, D. Wagner, D. Chen, and P. Mittal,
+“Certifiably robust rag against retrieval corruption,” arXiv preprint
+arXiv:2405.15556,2024.
+[4] S.Dhuliawala,M.Komeili,J.Xu,R.Raileanu,X.Li,A.Celikyilmaz,
+and J. Weston, “Chain-of-verification reduces hallucination in large
+languagemodels,”arXivpreprintarXiv:2309.11495,2023.
+[5] J.Wei,X.Wang,D.Schuurmans,M.Bosma,F.Xia,E.Chi,Q.V.Le,
+D. Zhou et al., “Chain-of-thought prompting elicits reasoning in large
+languagemodels,”Advancesinneuralinformationprocessingsystems,
+vol.35,pp.24824–24837,2022.
+[6] L.Gao,X.Ma,J.Lin,andJ.Callan,“Precisezero-shotdenseretrieval
+withoutrelevancelabels,”arXivpreprintarXiv:2212.10496,2022.
+[7] X. Ma, Y. Gong, P. He, H. Zhao, and N. Duan, “Query rewrit-
+ing for retrieval-augmented large language models,” arXiv preprint
+arXiv:2305.14283,2023.
+[8] W. Peng, G. Li, Y. Jiang, Z. Wang, D. Ou, X. Zeng, D. Xu, T. Xu,
+and E. Chen, “Large language model based long-tail query rewriting
+in taobao search,” in Companion Proceedings of the ACM on Web
+Conference2024,2024,pp.20–28.
+[9] H. S. Zheng, S. Mishra, X. Chen, H.-T. Cheng, E. H. Chi, Q. V. Le,
+and D. Zhou, “Take a step back: Evoking reasoning via abstraction in
+largelanguagemodels,”arXivpreprintarXiv:2310.06117,2023.
+[10] Y. Gao, Y. Xiong, X. Gao, K. Jia, J. Pan, Y. Bi, Y. Dai, J. Sun, and
+H. Wang, “Retrieval-augmented generation for large language models:
+Asurvey,”arXivpreprintarXiv:2312.10997,2023.
+[11] F. Wang, X. Wan, R. Sun, J. Chen, and S. O¨. Arık, “Astute rag:
+Overcoming imperfect retrieval augmentation and knowledge conflicts
+forlargelanguagemodels,”arXivpreprintarXiv:2410.07176,2024.
+[12] K. Guu, K. Lee, Z. Tung, P. Pasupat, and M. Chang, “Retrieval
+augmented language model pre-training,” in International conference
+onmachinelearning. PMLR,2020,pp.3929–3938.
+[13] Z. Jin, P. Cao, Y. Chen, K. Liu, X. Jiang, J. Xu, Q. Li, and
+J. Zhao, “Tug-of-war between knowledge: Exploring and resolving
+knowledge conflicts in retrieval-augmented language models,” arXiv
+preprintarXiv:2402.14409,2024.
+[14] A.Mallen,A.Asai,V.Zhong,R.Das,D.Khashabi,andH.Hajishirzi,
+“Whennottotrustlanguagemodels:Investigatingeffectivenessofpara-
+metricandnon-parametricmemories,”arXivpreprintarXiv:2212.10511,
+2022.
+[15] X.Wang,Z.Wang,X.Gao,F.Zhang,Y.Wu,Z.Xu,T.Shi,Z.Wang,
+S.Li,Q.Qianetal.,“Searchingforbestpracticesinretrieval-augmented
+generation,”arXivpreprintarXiv:2407.01219,2024.
+[16] S. Es, J. James, L. Espinosa-Anke, and S. Schockaert, “Ragas: Au-
+tomated evaluation of retrieval augmented generation,” arXiv preprint
+arXiv:2309.15217,2023.
+[17] L.Wang,N.Yang,andF.Wei,“Query2doc:Queryexpansionwithlarge
+languagemodels,”arXivpreprintarXiv:2303.07678,2023.

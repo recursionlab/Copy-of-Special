@@ -1,0 +1,11 @@
+
+Research Notes on Complex Systems
+
+Complex Systems exhibit nonlinear behavior where small changes can have large effects.
+These systems are characterized by emergence, self-organization, and adaptive behavior.
+
+Feedback Loops are essential components that create stability or instability in complex systems.
+Positive feedback amplifies changes while negative feedback maintains equilibrium.
+
+Networks in complex systems show small-world properties with high clustering and short path lengths.
+Scale-free networks have power-law degree distributions with highly connected hubs.

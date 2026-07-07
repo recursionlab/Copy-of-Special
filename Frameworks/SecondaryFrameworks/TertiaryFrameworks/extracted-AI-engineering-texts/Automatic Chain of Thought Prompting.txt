@@ -1,0 +1,1197 @@
+AUTOMATIC CHAIN OF THOUGHT PROMPTING
+IN LARGE LANGUAGE MODELS
+ZhuoshengZhang†∗,AstonZhang‡,MuLi‡,AlexSmola‡
+†ShanghaiJiaoTongUniversity,‡AmazonWebServices
+ABSTRACT
+Largelanguagemodels(LLMs)canperformcomplexreasoningbygeneratingintermediatereasoning
+steps.Providingthesestepsforpromptingdemonstrationsiscalledchain-of-thought(CoT)prompting.
+CoTpromptinghastwomajorparadigms. Oneleveragesasimplepromptlike“Let’sthinkstepby
+step”tofacilitatestep-by-stepthinkingbeforeansweringaquestion. Theotherusesafewmanual
+demonstrations one by one, each composed of a question and a reasoning chain that leads to an
+answer.Thesuperiorperformanceofthesecondparadigmhingesonthehand-craftingoftask-specific
+demonstrations one by one. We show that such manual efforts may be eliminated by leveraging
+LLMswiththe“Let’sthinkstepbystep”prompttogeneratereasoningchainsfordemonstrationsone
+byone,i.e.,let’sthinknotjuststepbystep,butalsoonebyone. However,thesegeneratedchains
+oftencomewithmistakes. Tomitigatetheeffectofsuchmistakes,wefindthatdiversitymattersfor
+automaticallyconstructingdemonstrations. WeproposeanautomaticCoTpromptingmethod: Auto-
+CoT.Itsamplesquestionswithdiversityandgeneratesreasoningchainstoconstructdemonstrations.
+OntenpublicbenchmarkreasoningtaskswithGPT-3,Auto-CoTconsistentlymatchesorexceedsthe
+performanceoftheCoTparadigmthatrequiresmanualdesignsofdemonstrations. Codeisavailable
+athttps://github.com/amazon-research/auto-cot
+1 Introduction
+Largelanguagemodels(LLMs)[Brownetal.,2020,Thoppilanetal.,2022,Raeetal.,2021,Chowdheryetal.,2022]
+haveperformedimpressivelyoncomplexreasoningtasksbydecomposingthemulti-stepproblemsintointermediate
+stepsbeforeproducingtheanswer. Thisreasoningprocessiselicitedbyaveryrecenttechnique: chain-of-thought
+(CoT)prompting[Weietal.,2022a].
+CoTpromptingcanbecategorizedintotwomajorparadigms. Oneaddsasinglepromptlike“Let’sthinkstepbystep”
+afterthetestquestiontofacilitatethereasoningchainsinLLMs[Kojimaetal.,2022]. Sincethispromptingparadigm
+istask-agnosticanddoesnotneedinput-outputdemonstrations,itiscalledZero-Shot-CoT(leftofFigure1). With
+Zero-Shot-CoT,LLMshaveshowntobedecentzero-shotreasoners. Theotherparadigmisfew-shotpromptingwith
+manualreasoningdemonstrationsonebyone[Weietal.,2022a]. Eachdemonstrationhasaquestionandareasoning
+chain. Areasoningchainiscomposedofarationale(aseriesofintermediatereasoningsteps)andanexpectedanswer.
+Withallthedemonstrationsbeingmanuallydesigned,thisparadigmisreferredtoasManual-CoT(rightofFigure1).
+Inpractice, Manual-CoThasobtainedstrongerperformancethanZero-Shot-CoT[Weietal.,2022a,Kojimaetal.,
+2022]. However,thissuperiorperformancehingesonthehand-draftingofeffectivedemonstrations. Specifically,the
+hand-draftinginvolvesnontrivialeffortsindesignsofbothquestionsandtheirreasoningchainsfordemonstrations.
+Moreover,humaneffortsfordesigningtask-specificdemonstrationsareevenmore: differenttasks,suchasarithmetic
+[RoyandRoth,2015]andcommonsensereasoning[Talmoretal.,2019],requiredifferentwaysofdemonstrations.
+Toeliminatesuchmanualdesigns,weadvocateanotherAuto-CoTparadigmtoautomaticallyconstructdemonstrations
+withquestionsandreasoningchains. Specifically,Auto-CoTleveragesLLMswiththe“Let’sthinkstepbystep”prompt
+togeneratereasoningchainsfordemonstrationsonebyone,i.e.,let’sthinknotjuststepbystep,butalsoonebyone.
+∗WorkdoneduringaninternshipatAmazonWebServices.CorrespondencetoZhuoshengZhang<zhangzs@sjtu.edu.cn>and
+AstonZhang<astonz@amazon.com>
+2202
+tcO
+7
+]LC.sc[
+1v39430.0122:viXraManual DemosOne by One
+Q:Apetstorehad64puppies.Inonedaytheysold28of
+them and put the rest into cages with 4 in each cage. Q: There are 15 trees in the grove. Grove workers will plant
+Howmanycagesdidtheyuse?
+trees in the grove today. After they are done, there will be 21
+A:Let’sthinkstepbystep. trees.Howmanytreesdidthegroveworkersplanttoday?
+RationaleGeneration Question
+A:Thereare15treesoriginally.Thentherewere21treesafter
+LLM
+somemorewereplanted.Sotheremusthavebeen21-15=6.
+Theansweris6. Rationale
+Answer …
+Q:Apetstorehad64puppies.Inonedaytheysold28of
+them and put the rest into cages with 4 in each cage. Q:Apetstorehad64puppies.Inonedaytheysold28ofthem
+Howmanycagesdidtheyuse? and put the rest into cages with 4 in each cage. How many
+cagesdidtheyuse?
+A:Let’sthinkstepbystep.Thereare64puppies.28of
+A:
+themweresold.Thisleaves36puppies.Eachcagehas
+4puppies,soweneed9cages. Generated Rationale
+Therefore,theanswer(arabicnumerals)is
+LLM Test Question
+AnswerExtraction
+LLM
+The pet store had 64 puppies. They sold 28 of them. So they
+had64-28=36puppiesleft.Theyputthemintocageswith4
+9. ineachcage.Sotheyused36/4=9cages.Theansweris9.
+(a) Zero-Shot-CoT (b) Manual-CoT
+Figure1: Zero-Shot-CoT[Kojimaetal.,2022](usingthe“Let’sthinkstepbystep”prompt)andManual-CoT[Wei
+etal.,2022a](usingmanuallydesigneddemonstrationsonebyone)withexampleinputsandoutputsofanLLM.
+However,wefindthatthischallengecannotbeeffectivelyaddressedbysimplesolutions. Forexample,givenatest
+questionofadataset, retrievingsemanticallysimilarquestionsandinvokingZero-Shot-CoTtogeneratereasoning
+chainswillfail. AlthoughLLMsaredecentzero-shotreasoners,theyarenotperfect: Zero-Shot-CoTcanstillmake
+mistakesinreasoningchains.
+To mitigate the effect of reasoning chain mistakes from Zero-Shot-CoT, our analysis shows that diversity of
+demonstrationquestionsisthekey. Basedonthisinsight,weproposeanAuto-CoTmethodtoautomaticallyconstruct
+demonstrations. Auto-CoTconsistsoftwomainsteps. First,partitionquestionsofagivendatasetintoafewclusters.
+Second,selectarepresentativequestionfromeachclusterandgenerateitsreasoningchainusingZero-Shot-CoTwith
+simpleheuristics.
+WeevaluateAuto-CoTontenbenchmarkreasoningtasksincluding:(i)arithmeticreasoning(MultiArith[RoyandRoth,
+2015],GSM8K[Cobbeetal.,2021],AQUA-RAT[Lingetal.,2017],SVAMP[Pateletal.,2021]);(ii)commonsense
+reasoning (CSQA [Talmor et al., 2019], StrategyQA [Geva et al., 2021]); (iii) symbolic reasoning (Last Letter
+Concatenation,CoinFlip)[Weietal.,2022a]. ExperimentalresultsshowthatwithGPT-3,Auto-CoTconsistently
+matches or exceeds the performance of Manual-CoT that requires manual designs. This indicates that LLMs can
+performCoTreasoningbyautomaticallyconstructingdemonstrations.
+2 RelatedWork
+Thissectionreviewstwolinesofresearchthatformthebasisofthiswork: chain-of-thought(CoT)promptingfor
+multi-stepreasoningandin-contextlearningforinducingLLMstolearnfromdemonstrations.
+2.1 Chain-of-thoughtPrompting
+CoTpromptingisagradient-freetechniqueofinducingLLMstoproduceintermediatereasoningstepsthatleadtothe
+finalanswer. Weietal.[2022a]formallystudiedthetopicofCoTpromptinginlanguagemodels. Thistechniqueelicits
+LLMstogenerateacoherentseriesofintermediatereasoningstepsthatleadtothefinalanswertoaquestion. Studies
+haveshownthatLLMscanperformCoTreasoningwithzero-shotprompting(Zero-Shot-CoT)[Kojimaetal.,2022]or
+manuallywrittenfew-shotdemonstrations(Manual-CoT)[Weietal.,2022a].
+Zero-Shot-CoT. Kojimaetal.[2022]showedthatLLMsaredecentzero-shotreasonerswhosegeneratedrationales
+havealreadyreflectedtheCoTreasoning. Thisfindinginspiresourworktoleveragetheself-generatedrationalesfor
+demonstrations. GeneratingrationalesbyLLMswasshowntobepracticalinarecentwork[Zelikmanetal.,2022]. In
+2theirwork,anLLMispromptedtogeneraterationalesandthoserationalesthatleadtothecorrectanswerareselected.
+Theselectionrequiresatrainingdatasetofquestionswithannotatedanswers. Incontrast,ourworkconsidersamore
+challengingscenariowhereonlyasetoftestquestionsaregiven(withoutatrainingdataset),followingCoTprompting
+studiesbyWeietal.[2022a]andKojimaetal.[2022].
+Manual-CoT. Manual-CoT achieves stronger performance by eliciting the CoT reasoning ability with effective
+manualdemonstrations. Thedemonstrationsforthereasoningprocessaremanuallydesigned. However,thehuman
+effortsindesignsofbothquestionsandtheirreasoningchainsarenontrivial. Insteadofaddressingthislimitation,recent
+studiesmainlyfocusonhand-craftingmorecomplexdemonstrationsorleveragingensemble-likemethods. Onetrendis
+problemdecomposition. Inleast-to-mostprompting[Zhouetal.,2022],complexproblemsarereducedtosub-problems,
+andthenthesub-problemsaresolvedsequentially. Theothertrendistovoteovermultiplereasoningpathsforatest
+question. Wangetal.[2022a]introducedaself-consistencydecodingstrategytosamplemultipleoutputsofLLMsand
+thentookamajorityoverthefinalanswers. Wangetal.[2022b]andLietal.[2022]introducedrandomnessintheinput
+spacetoproducemorediverseoutputsforvoting. Theyusedmanually-designeddemonstrationsastheseedsetand
+generatedadditionalrationales: leaveonequestionfromtheseedsetandusetheremainingdemonstrationstogenerate
+rationales for this question by the LLM. Unlike the aforementioned research lines that rely on manually-designed
+demonstrations,ourworkintendstoeliminatemanualdesignswithcompetitiveperformance.
+2.2 In-ContextLearning
+CoTpromptingiscloselyrelatedtoin-contextlearning(ICL)[Radfordetal.,2019,Brownetal.,2020]. ICLenables
+LLMstoperformatargettaskbyfeedingafewpromptedexamplesaspartoftheinput. Withoutgradientupdate,ICL
+allowsasinglemodeltoperformvarioustasksuniversally. Therearevariousresearchlinestoimprovetheperformance
+ofICL:(i)retrievingrelateddemonstrationstothetestinstancewherethepopularpracticeisdynamicallyretrieving
+relatedtrainingexamplesforagiventestinput[Rubinetal.,2022,Suetal.,2022];(ii)augmentingwithfine-grained
+information, such as incorporating task instruction [Mishra et al., 2022, Wei et al., 2022b, Sanh et al., 2022]; (iii)
+manipulatingoutputprobabilitiesofLLMsinsteadofdirectlycomputingthelikelihoodoftargetlabels[Holtzmanetal.,
+2021,Zhaoetal.,2021,Minetal.,2022a].
+DespitethesuccessofICL,studies[Liuetal.,2022a,Luetal.,2022]haveshownthatthestrengthofICLmayvary
+widely depending on the choice of in-context demonstrations [Liu et al., 2022b]. In detail, the formatting of the
+prompt, such as wording or order of demonstrations, may lead to performance fluctuations [Webson and Pavlick,
+2022, Zhao et al., 2021]. A recent work [Min et al., 2022b] even questioned the necessity of ground-truth input-
+output mapping: using incorrect labels in the examples only marginally lowers the performance. However, the
+existinganalysisofICLismainlybasedonstandardclassificationandmulti-choicedatasetsthatonlyhavesimple
+<input→output>mappings. WediscoverthatthosefindingsmaynotbeapplicabletotheCoTpromptingscenariowith
+morecomplex<input→rationale→output>mappings. Forexample,mistakesineitherthe<input→rationale>mapping
+orthe<rationale→output>mappingwillleadtoadramaticperformancedrop(AppendixA.1).
+3 ChallengeofAuto-CoT
+Asjustdiscussed,theperformanceofICLhingesonhand-crafteddemonstrations. AsreportedinManual-CoT[Wei
+etal.,2022a],usingdemonstrationswrittenbydifferentannotatorsbringsupto28.2%accuracydisparityinasymbolic
+reasoningtask,whilechangingtheorderofdemonstrationsresultsinlessthan2%changesinmosttasks. Thissuggests
+thatthekeychallengeofAuto-CoTliesinautomaticallyconstructingdemonstrationswithgoodquestionsandtheir
+reasoningchains.
+RecallthatManual-CoThand-craftsafew(e.g.,8)questionsindemonstrations. Withsimilarity-basedretrievalmethods
+beingwidelyadoptedforpromptingLLMs[Rubinetal.,2022,Suetal.,2022],apromisingcandidatesolutionisto
+sampledemonstrationquestionsusingsimilarity-basedretrieval. WefollowthemorechallengingassumptioninCoT
+studies[Weietal.,2022a,Kojimaetal.,2022]thatonlyasetoftestquestionsaregiven(withoutatrainingdataset).
+FollowingLiuetal.[2022a],weuseSentence-BERT[ReimersandGurevych,2019]toencodequestions. Foreach
+questionqtestinatestdataset,wesampledemonstrationquestionsqdemo(i=1,...,k)fromtherestofthequestions.
+i
+WedesignaRetrieval-Q-CoTmethodtoretrievethetop-k(e.g.,k =8)similarquestionsbasedoncosinesimilarity.
+Tocomparewiththissimilarity-basedmethod,wealsotestarelativelymorediversity-basedmethod: Random-Q-CoT,
+whichrandomlysampleskothertestquestionsforeachtestquestion.
+BothRetrieval-Q-CoTandRandom-Q-CoTinvokeZero-Shot-CoT[Kojimaetal.,2022]togeneratethereasoningchain
+cdemo(rationaleandanswer)foreachsampledquestionqdemo,asLLMsaredecentzero-shotreasoners[Kojimaetal.,
+i i
+2022].WeuseGPT-3[Brownetal.,2020]with175Bparameters(text-davinci-002)fortheLLMunlessotherwisestated.
+3Onahighlevel,bothRetrieval-Q-CoTandRandom-Q-CoTtaketheconcatenationofqdemo,cdemopairs(i=1,...,k)
+i i
+andqtestasinputtopredictthereasoningchainforqtest,whichcontainstheanswerintheend(likerightofFigure1).
+To our surprise, Retrieval-Q-CoT underperforms Random-Q-CoT
+on the arithmetic dataset MultiArith [Roy and Roth, 2015] (Table Table 1: Accuracy (%) of different sampling
+1). Note that the retrieval methods were originally proposed in methods. Symbol†indicatesusingtrainingsets
+tasks with annotated labels [Rubin et al., 2022, Su et al., 2022], withannotatedreasoningchains.
+however,invokingZero-Shot-CoTdoesnotguaranteeentirelycorrect
+reasoningchains. Thus,wehypothesizethattheinferiorperformance Method MultiArith GSM8K AQuA
+ofRetrieval-Q-CoTiscausedbyincorrectreasoningchainsbyZero-
+Zero-Shot-CoT 78.7 40.7 33.5
+Shot-CoT.Totestthishypothesis,weexperimentwithRetrieval-Q-
+Manual-CoT 91.7 46.9 35.8†
+CoTontwootherdatasetsGSM8K[Cobbeetal.,2021]andAQuA
+[Lingetal.,2017]thathavetrainingsetswithannotatedreasoning Random-Q-CoT 86.2 47.6† 36.2†
+chains. Theresultsareshownwith†inTable1. Underthesetting Retrieval-Q-CoT 82.8 48.0† 39.7†
+withannotatedreasoningchains,Retrieval-Q-CoTevenoutperforms
+Manual-CoT.TheresultindicatesthatRetrieval-Q-CoTiseffective
+whenhumanannotationsareavailable.
+Althoughhumanannotationsareuseful,suchmanualeffortsarenontrivial.However,automaticallygeneratingreasoning
+chainsviaZero-Shot-CoTunderperformsManual-CoT,especiallywhenthechallengeofquestionsamplingisnot
+addressed. TodesignmoreeffectiveAuto-CoT,weneedtounderstanditschallengebetter.
+3.1 Retrieval-Q-CoTFailsduetoMisleadingbySimilarity
+SinceRetrieval-Q-CoTusesafewpromptingdemonstrationslikeinManual-CoT,Retrieval-Q-CoTisexpectedto
+perform competitively as well. However, reasoning chains (both rationales and answers) in Retrieval-Q-CoT are
+generatedbyZero-Shot-CoT:theymayhavemistakesthatleadtowronganswers. Letussimplycalldemonstrations
+withwronganswersaswrongdemonstrations. Intuitively,aftersimilarquestionstoatestquestionareretrieved,wrong
+demonstrationscausedbyZero-Shot-CoTmaymisleadthesameLLMtoreasonsimilarlywithawronganswer(e.g.,
+replicatingmistakes)forthetestquestion. Werefertothisphenomenonasmisleadingbysimilarity. Wewillinvestigate
+whethermisleadingbysimilaritycontributestotheinferiorperformanceofRetrieval-Q-CoT.
+50
+40
+30
+20
+Retrieval-Q-CoT Random-Q-CoT
+)%(etaR
+Tobeginwith, weinvokeZero-Shot-CoTonallthe600questions
+from the MultiArith dataset. Among them, we collect those 128
+questions (denoted as Q) where Zero-Shot-CoT generates wrong
+answers (error rate: 21.3% = 128/600). As we mentioned, with
+extra demonstrations, Retrieval-Q-CoT and Random-Q-CoT are
+expectedtoperformmorecompetitivelythanZero-Shot-CoT.Among
+QwhereZero-Shot-CoTfails,wecallthosewhereRetrieval-Q-CoT
+orRandom-Q-CoTstillfailastheirunresolvedquestions. Wedivide
+thenumberofunresolvedquestionsby128(numberofquestionsin
+Q)tocalculatetheunresolvingrate. Ahigherunresolvingratemeans
+thatamethodmorelikelystillmakesmistakeslikeZero-Shot-CoT.
+Figure2: UnresolvingRate.
+Figure2showsthattheunresolvingrateofRetrieval-Q-CoT(46.9%)
+ismuchhigherthanRandom-Q-CoT(25.8%). Itindicatesthatwithsimilarquestionsbeingsampledfortestquestions,
+Retrieval-Q-CoTisnegativelyaffectedbymisleadingbysimilarity.
+ToshowthatunresolvedquestionsofRetrieval-Q-CoTtendtobesimilar,wepresentacasestudyinTable2. Intheleft
+part,theretrieveddemonstrationquestionsaresimilartothetestquestionandask“howlongwillittakehimtocookthe
+rest?” ThereasoningchainsgeneratedbyZero-Shot-CoTproduceanswersregarding“thetotalof”insteadof“therest”.
+Followingthedemonstrations,Retrieval-Q-CoTalsofailsbymisunderstandingthemeaningof“therest”. Incontrast,
+Random-Q-CoTcorrectlyunderstands“therest”betterwithoutmakingsimilarmistakesinthedemonstrations,thanks
+torelativelymorediverse(random)demonstrations.
+3.2 ErrorsFrequentlyFallintotheSameCluster
+MotivatedbytheobservationsinTable2,weusek-meanstopartitionallthe600testquestionsintok = 8clusters,
+whereeachclustercontainssimilarquestions.2 WiththeseclustersandreasoningchainsgeneratedbyZero-Shot-CoT
+2WeuseSentence-BERT[ReimersandGurevych,2019]toencodequestionsandapplyk-meansforclustering.
+4Table 2: Examples of Retrieval-Q-CoT and Random-Q-CoT for constructing demonstrations and prediction. The
+upperpartcontainstheautomaticallyconstructeddemonstrations,andthelowerpartcontainstestquestionsalongwith
+predictedreasoningchains.
+Retrieval-Q-CoT Random-Q-CoT
+Q:Achefneedstocook9potatoes.Hehasalreadycooked7.Ifeach Q:Wendyuploaded79picturestoFacebook. Sheput
+potatotakes3minutestocook,howlongwillittakehimtocook 44picsintoonealbumandputtherestinto5different
+therest? albums.Howmanypictureswereineachalbum?
+A:Let’sthinkstepbystep.Thechefhasalreadycooked7potatoes. A:Let’sthinkstepbystep.Wendyuploaded79pictures
+Thatmeansithastakenhim7*3minutestocookthose7potatoes. toFacebook.Sheput44picturesintoonealbum.That
+That means it will take him 3 more minutes to cook each of the meanssheputtherestofthepicturesinto5different
+remaining2potatoes.Thatmeansitwilltakehimatotalof7*3+2 albums.Thatmeanseachalbumwouldhave(79-44)/5=
+*3=21minutestocookall9potatoes.Theansweris21.(cid:55) 15picturesineachalbum.Theansweris15.(cid:88)
+Q:Achefneedstocook13potatoes. Hehasalreadycooked5. If Q:Atarestauranteachadultmealcosts$5andkidseat
+eachpotatotakes6minutestocook,howlongwillittakehimto free. Ifagroupof15peoplecameinand8werekids,
+cooktherest? howmuchwoulditcostforthegrouptoeat?
+A:Let’sthinkstepbystep.Thechefhasalreadycooked5potatoes. A:Let’sthinkstepbystep. Thereare8kids, sothat
+Thatmeansithastakenhim30minutessofar.Thereare13potatoes meansthereare7adults. Eachadultmealcosts$5,so
+intotal. 5havebeencookedsofar. Thatmeansthereare8leftto thatmeansthatthe7adultswillcost$5*7=$35.Nowwe
+cook.Eachpotatotakes6minutestocook.Thatmeansitwilltake justneedtoaddthetwonumberstogether.$35+8=43$.
+thechef48minutestocookthe8remainingpotatoes.Intotal,itwill Soitwouldcost$43forthegrouptoeat.Theansweris
+takethechef78minutestocookall13potatoes.Theansweris78.(cid:55) 43.(cid:55)
+Q:Achefneedstocook15potatoes. Hehasalreadycooked8. If Q:Achefneedstocook15potatoes. Hehasalready
+eachpotatotakes9minutestocook,howlongwillittakehimto cooked8. Ifeachpotatotakes9minutestocook,how
+cooktherest? longwillittakehimtocooktherest?
+A:Let’sthinkstepbystep.Thechefhasalreadycooked8potatoes. A:Let’sthinkstepbystep. Thechefneedstocook15
+Thatmeansithastakenhim8*9minutestocookthose8potatoes. potatoes.Hehasalreadycooked8.Thatmeanshehasto
+Thatmeansitwilltakehim9minutestocookeachoftheremaining cook15-8=7morepotatoes.Eachpotatotakes9minutes
+7potatoes.Thatmeansitwilltakehimatotalof8*9+7*9=135 tocook.Thatmeansitwilltakehim9*7=63minutesto
+minutestocookall15potatoes.Theansweris135.(cid:55) cooktherestofthepotatoes.Theansweris63.(cid:88)
+(inSection3.1),nowwearecuriousifcertainclusterscontainquestionswhereZero-Shot-CoTfrequentlyfails. Thus,
+wecalculatetheerrorrate(questionswithwrongZero-Shot-CoTanswers/totalquestions)foreachcluster.
+60
+40
+20
+0
+1 2 3 4 5 6 7 8
+)%(etaRrorrE
+AsshowninFigure3,thereexistsacluster(Cluster2)withfrequent
+Zero-Shot-CoTerrors(52.3%). Thephenomenoncouldbegenericas
+Zero-Shot-CoTmaylacksomeskillstosolvesomecommonproblems
+intargettasks.3 Forconvenienceofdescriptions,letuscallthecluster
+withthehighesterrorrateasthefrequent-errorcluster(e.g.,Cluster
+2inFigure3). Therefore,theimperfectnatureofgeneratedreasoning
+chainsinazero-shotfashionposesrisksofretrievingmultiplesimilar
+questions inside a frequent-error cluster by using similarity-based
+methods. Forthetestquestioninthefrequent-errorcluster,Retrieval-
+Q-CoTmoreeasilyconstructsdemonstrationswithmultiplesimilar
+mistakes. Asaresult,Retrieval-Q-CoToftenmakessimilarmistakes
+likeZero-Shot-CoT,reiteratedbyitshigherunresolvingrateinFigure Figure3: Clustersofsimilarquestions.
+2.
+3.3 DiversityMayMitigateMisleadingbySimilarity
+TheanalysissofarcompellinglyshowsthatLLMsarestillnotperfectzero-shotreasoners;thus,weaimtomitigatethe
+effectoftheirZero-Shot-CoTerrors,especiallytomitigatemisleadingbysimilarityinthedesignofAuto-CoT.
+Aswewillshowlater(Section5.5),presentingasmallportionofmistakes(e.g.,1or2wrongdemonstrationsout
+of8)wouldnotharmtheoverallreasoningperformancefortestquestions. Supposethatquestionsofallthewrong
+demonstrationsfallintothesamefrequent-errorcluster;thensamplingonequestionfromeverydifferentclusterwill
+leadtoahigherthan7/8=87.5%chancetoconstructallthe8correctdemonstrations. Sincedifferentclustersreflect
+diversesemanticsofthequestions,thisclustering-basedsamplingmethodcanbeconsideredasdiversity-based,which
+isinsharpcontrasttosimilarity-basedRetrieval-Q-CoT.Ononehand,samplingquestionswithdiversitymaymitigate
+3Weobservesimilarphenomenawhenchangingtheclusternumberorusingotherdatasets(AppendixA.2).
+5theeffectofmisleadingbysimilarity(Section3.1). Ontheotherhand,ifwetookeachdemonstrationasakindofskill,
+diversedemonstrationsseemtocovermorealternativeskillsforsolvingtargetquestions: eventhoughtherestillexists
+asmallportion(e.g.,1/8)ofmistakesinthedemonstrations,theperformancewillnotbenegativelyaffected(tobe
+showninFigure6).
+Nevertheless,theclustering-basedsamplingmethodmaystillconstructasmallportionofwrongdemonstrations,such
+asfromquestionsinthefrequent-errorcluster. Aswewillshowlater,someofthesewrongdemonstrationsmaybe
+eliminatedwithheuristics. Forexample,wrongdemonstrationsoftencomewithlongquestionsandlongrationales.
+Usingsimpleandgenericheuristics,suchasonlyconsideringshorterquestionswithshorterrationales,furtherhelps
+mitigatetheeffectofimperfectZero-Shot-CoTcapabilities(AppendixC.2).
+4 Auto-CoT:AutomaticChain-of-ThoughtPrompting
+BasedontheobservationsandconsiderationsinSection3,weproposeanAuto-CoTmethodtoconstructdemonstrations
+withquestionsandreasoningchainsautomatically. Auto-CoTconsistsoftwomainstages: (i)questionclustering:
+partitionquestionsofagivendatasetintoafewclusters;(ii)demonstrationsampling: selectarepresentativequestion
+fromeachclusterandgenerateitsreasoningchainusingZero-Shot-CoTwithsimpleheuristics. Theoverallprocedure
+isillustratedinFigure4.
+Auto Demos One by One
+Q: While shopping for music online, Zoe bought 3 country albums and 5
+Q: While shopping for music online, Zoe bought 3 …
+pop albums. Each album came with a lyric sheet and had 3 songs. How
+manysongsdidZoebuytotal?
+A:Let’sthinkstepbystep.Zoebought3countryalbums.Eachalbumhas3
+songs.Soshebought3*3=9songsfromthecountryalbums.Zoebought5
+Q: A chef needs to cook 9 potatoes. He has already…
+popalbums.Eachalbumhas3songs.Soshebought5*3=15songsfrom
+thepopalbums.Zoebought9+15=24songsintotal.Theansweris24.
+…
+Q: A chef needs to cook 9 potatoes. He has already cooked 7. If each
+potatotakes3minutestocook,howlongwillittakehimtocooktherest?
+Clustering A:Let’sthinkstepbystep.Thechefhasalreadycooked7potatoes.That
+1 k meansithastakenhim7*3minutestocookthose7potatoes.Thatmeans
+itwilltakehim3moreminutestocookeachoftheremaining2potatoes…
+Q:Apetstorehad64puppies.Inonedaytheysold28ofthemandput
+therestintocageswith4ineachcage.Howmanycagesdidtheyuse?
+LLM DemoConstruction A:Let’sthinkstepbystep.
+1 Q: While shopping for music online …A: Let’s … Test Question LLM In-Context Reasoning
+SamplingbySelectionCriteria
+Thepetstorehad64puppies.Theysold28ofthem.Thatmeanstheyhave
+k Q: A chef needs to cook 9 potatoes ...A: Let’s … 36 puppies left. They put the rest into cages with 4 in each cage. That
+meanstheyhave9cages.Theansweris9.
+Figure4: OverviewoftheAuto-CoTmethod. DifferentfromManual-CoTinFigure1,demonstrations(ontheright)
+areautomaticallyconstructedonebyone(total: k)usinganLLMwiththe“Let’sthinkstepbystep”prompt.
+4.1 QuestionClustering
+Sincediversity-basedclusteringmaymitigatemisleadingbysimilarity(Section3.3),weperformclusteranalysisfora
+givensetofquestionsQ. WefirstcomputeavectorrepresentationforeachquestioninQbySentence-BERT[Reimers
+andGurevych,2019]. Thecontextualizedvectorsareaveragedtoformafix-sizedquestionrepresentation. Then,the
+questionrepresentationsareprocessedbythek-meansclusteringalgorithmtoproducek clustersofquestions. For
+questionsineachclusteri,sortthemintoalistq(i) =[q(i),q(i),...]intheascendingorderofthedistancetothecenter
+1 2
+ofclusteri. ThisquestionclusteringstageissummarizedinAlgorithm1.
+4.2 DemonstrationSampling
+Inthesecondstage,weneedtogeneratereasoningchainsforthosesampledquestionsandthensampledemonstrations
+thatsatisfyourselectioncriteria.
+6Moreconcretely,weconstructademonstrationd(i)(concatenationofaquestion,arationale,andananswer)foreach
+clusteri(i = 1,...,k). Forclusteri,weiterateoverquestionsinthesortedlistq(i) = [q(i),q(i),...](obtainedby
+1 2
+Algorithm1)untilsatisfyingourselectioncriteria. Inotherwords,aquestionthatisclosertothecenterofclusteri
+isconsideredearlier. Saythatthej-thclosestquestionq(i) isbeingconsidered. Apromptedinputisformulatedas:
+j
+[Q:q(i). A:[P]],where[P]isasingleprompt“Let’sthinksteptostep”. ThisformedinputisfedintoanLLMusing
+j
+Zero-Shot-CoT[Kojimaetal.,2022]tooutputthereasoningchainconsistingoftherationaler(i) andtheextracted
+j
+answera(i). Then,acandidatedemonstrationd(i) forthei-thclusterisconstructedbyconcatenatingthequestion,
+j j
+rationale,andanswer: [Q:q(i),A:r(i)◦a(i)].
+j j j
+Similartothecriteriaofthehand-craftingdemonstrationsinWeietal.[2022a],ourselectioncriteriafollowsimple
+heuristicstoencouragesamplingsimplerquestionsandrationales: settheselecteddemonstrationd(i)asd(i)ifithasa
+j
+questionq(i)withnomorethan60tokensandarationaler(i)withnomorethan5reasoningsteps.4
+j j
+Algorithm1Cluster Algorithm2Construct
+Require: A set of questions Q and the number of Require: Sortedquestionsq(i) =[q(i),q(i),...]foreachclusteri
+demonstrationsk 1 2
+(i=1,...,k),emptydemonstrationlistd
+Ensure: Sorted questions q(i) = [q(i),q(i),...] for each
+1 2 Ensure: Demonstrationlistd=[d(1),...,d(k)]
+clusteri(i=1,...,k)
+1: procedureCLUSTER(Q,k) 1: procedureCONSTRUCT(q(i),...,q(k))
+2: foreachquestionqinQdo 2: foreachclusteri=1,...,kdo
+3: EncodeqbySentence-BERT 3: foreachquestionq(i)inq(i)do
+j
+4: Clusteralltheencodedquestionrepresentationsinto 4: Generaterationaler(i)andanswera(i)forq(i)using
+j j j
+kclusters Zero-Shot-CoT
+5: foreachclusteri=1,...,kdo 5: ifq(i),r(i)satisfyselectioncriteriathen
+j j
+6: Sort questions q(i) = [q 1(i),q 2(i),...] in the 6: Addd(i) =[Q:q j(i),A:r j(i)◦a( ji)]tod
+ascendingorderofthedistancetotheclustercenter 7: break
+7: returnq(i)(i=1,...,k) 8: returnd
+As summarized in Algorithm 2, after demonstration sampling for all the k clusters, there will be k constructed
+demonstrations[d(1),...,d(k)]. Theconstructeddemonstrationsareusedtoaugmentatestquestionqtestforin-context
+learning. Specifically,theinputistheconcatenationofallthedemonstrations[d(1),...,d(k)]followedby[Q:qtest. A:
+[P]].ThisinputisfedtoLLMstoobtainthereasoningchainwiththeanswerintheendforqtest(rightofFigure4).
+5 Experiments
+Webrieflydescribetheexperimentalsetupandpresentmainexperimentalresults. Moreexperimentaldetailsandresults
+canbefoundintheappendices.
+5.1 Experimentalsetup
+TasksandDatasets. Ourmethodisevaluatedontenbenchmarkdatasetsfromthreecategoriesofreasoningtasks:
+(i)arithmeticreasoning(MultiArith[RoyandRoth,2015],GSM8K[Cobbeetal.,2021],AddSub[Hosseinietal.,
+2014],AQUA-RAT[Lingetal.,2017],SingleEq[Koncel-Kedziorskietal.,2015],SVAMP[Pateletal.,2021]);(ii)
+commonsensereasoning(CSQA[Talmoretal.,2019],StrategyQA[Gevaetal.,2021]);(iii)symbolicreasoning(Last
+LetterConcatenation,CoinFlip)[Weietal.,2022a].
+Implementation. WeusethepublicGPT-3[Brownetal.,2020]ofthetext-davinci-002versionwith175Bparameters
+for the LLM [Ouyang et al., 2022] unless otherwise stated. We select this LLM because it has the strongest CoT
+reasoningperformanceamongpublicLLMs,asreportedinKojimaetal.[2022]andWeietal.[2022a]. Wealsoevaluate
+theCodexmodel[Chenetal.,2021](code-davinci-002)astheLLM.FollowingWeietal.[2022a],thenumberof
+demonstrationskis8exceptforAQuAandLetter(4),CSQA(7),andStrategyQA(6).
+4BecauseZero-Shot-CoToftenuses“\n”forseparatingthereasoningsteps,therulecanbeeasilyimplementedbycountingthe
+“\n”tokensinthegeneratedrationales.
+7Table3: Accuracyontendatasetsfromthreecategoriesofreasoningtasks.
+Model Arithmetic Commonsense Symbolic
+MultiArith GSM8K AddSub AQuA SingleEq SVAMP CSQA Strategy Letter Coin
+Zero-Shot 22.7 12.5 77.0 22.4 78.7 58.8 72.6 54.3 0.2 53.8
+Zero-Shot-CoT 78.7 40.7 74.7 33.5 78.7 63.7 64.6 54.8 57.6 91.4
+Few-Shot 33.8 15.6 83.3 24.8 82.7 65.7 79.5 65.9 0.2 57.2
+Manual-CoT 91.7 46.9 81.3 35.8 86.6 68.9 73.5 65.4 59.0 97.2
+Auto-CoT 92.0 47.9 84.8 36.5 87.0 69.5 74.4 65.4 59.7 99.9
+Baselines. Wecompareourmethodswithfourbaselinemethods: Zero-Shot[Kojimaetal.,2022],Zero-Shot-CoT
+[Kojimaetal.,2022],Few-Shot[Weietal.,2022a],andManual-CoT[Weietal.,2022a]. Zero-Shot-CoTandManual-
+CoTareillustratedinFigure1. TheZero-Shotbaselineconcatenatesatestquestionwiththeprompt“Theansweris”as
+theLLMinput. TheFew-ShotbaselinehasthesameLLMinputasManual-CoTexceptforremovedrationalesfromall
+thedemonstrations.
+5.2 CompetitivePerformanceofAuto-CoTonTenDatasets
+Table 3 compares accuracy on ten datasets from three
+categories of reasoning tasks. The Zero-Shot and Zero- Table4: AccuracyusingtheCodexLLM.
+Shot-CoTresultsaretakenfromKojimaetal.[2022],the
+Few-Shot and Manual-CoT results are taken from Wei Method MultiArith GSM8K AddSub
+et al. [2022a], and the Auto-CoT results are averaged
+Zero-Shot-CoT 64.8 31.8 65.6
+over three random runs. Overall, Auto-CoT consistently
+Manual-CoT 96.8 59.4 84.6
+matchesorexceedstheperformanceoftheCoTparadigm
+that requires manual designs of demonstrations. Due to Auto-CoT 93.2 62.8 91.9
+the cost of manual designs, Manual-CoT may design the
+samedemonstrationsformultipledatasets(e.g.,5/6ofthe
+arithmetic datasets). In contrast, Auto-CoT is more flexible and task-adaptive: every single dataset gets its own
+demonstrationsthatareautomaticallyconstructed.
+5.3 VisualizationofQuestionClustering
+Figure5visualizesquestionclustering(withPCAprojection)intendatasets. Theillustrationindicatesthatthereexist
+genericpatterns,wheredifferentpatternsmaybecharacterizedbyquestionsfromdifferentclusters. Wepresentthe
+constructeddemonstrationsofAuto-CoTinAppendixD.
+MultiArith GSM8K AddSub AQUA SingleEq
+SVAMP CSQA StrategyQA Last Letter Concatenation Coin Flip
+Figure5: Questionclusteringontendatasetsofreasoningtasks. Starsdenoteclustercenters.
+8
+#55.4 GeneralEffectivenessUsingtheCodexLLM
+ToevaluatethegeneraleffectivenessofAuto-CoTusingdifferentLLMs,herewechangetheLLMtotheCodexmodel
+[Chenetal.,2021]. AsinTable4,theCodexLLMleadstoperformanceimprovementforManual-CoTwhencompared
+withTable3thatusestheGPT-3(text-davinci-002)LLM.Nonetheless,usingtheCodexLLM,theoverallperformance
+ofAuto-CoTisstillcompetitivecomparedtoManual-CoT,providingadditionalempiricalevidencefortheeffectiveness
+ofAuto-CoT.
+5.5 EffectofWrongDemonstrations
+RecallourdiscussionsinSection3.3thattherecanbewrongdemonstrations(whoseanswersarewrong). Toseeif
+diversitymitigatesthiseffect,wedesignanIn-ClusterSamplingbaselinethatconstructsdemonstrationsbyrandomly
+sampling questions from the same cluster that contains a test question. Figure 6 compares accuracy with varying
+amountsofwrongdemonstrationsonMultiArith.ComparedwithIn-ClusterSampling,Auto-CoT(usingdiversity-based
+clustering)islessaffectedbywrongdemonstrations: itsperformancestilldoesnotdegradesignificantlyevenwhen
+presentedwith50%wrongdemonstrations.
+100
+95
+90
+85
+80
+12.5% 25.0% 37.5% 50.0%
+Percentageofwrongdemonstrations
+)%(ycaruccA
+In-ClusterSampling Auto-CoT
+100
+90
+80
+70
+60
+1 2 3 4 5 6 7 8 9 10
+Batch
+Figure6: Effectofwrongdemonstrations.
+)%(ycaruccA
+Zero-Shot-CoT Manual-CoT Auto-CoT*
+Figure7: Bootstrapingforthestreamingsetting.
+5.6 MoreChallengingStreamingSetting
+CoTstudiescommonlyassumethatafulldatasetwithtestquestionsisgiven[Weietal.,2022a,Kojimaetal.,2022].
+Basedonthegivendataset,Auto-CoTsamplesquestionstoconstructthedemonstrations. Nonetheless,nowweconsider
+amorechallengingstreamingsettingwhereasmallbatchoftestquestions(saymquestions)arriveatatimelikein
+datastreams.
+Toaddressthischallenge,weextendAuto-CoTtoabootstrappingversionAuto-CoT*: (i)InitializeanemptysetM ;
+0
+(ii)Whenbatch1ofquestionsq(1),...,q(1) arrive,invokeZero-Shot-CoT(noclusteringduetosmallm)foreach
+1 m
+q(1)toobtainitsreasoningchainc(1). Addquestion-chainpairs(q(1),c(1)),...,(q(1),c(1))toM andcallthenewset
+i i 1 1 m m 0
+M ;(iii)Whenbatchb(b>1)ofquestionsq(b),...,q(b)arrive,constructdemonstrationswithexistingquestionsand
+1 1 m
+reasoningchainsinM (likeAuto-CoT)andusethedemonstrationsforin-contextreasoningforeachq(b). Add
+b−1 i
+question-chainpairs(q(b),c(b)),...,(q(b),c(b))toM andcallthenewsetM .
+1 1 m m b−1 b
+Figure7comparestheaccuracyonMultiArithateachbatch(m = 30)inthisstreamingsetting(extendedversion:
+Figure11intheAppendix). Asexpected,forbatch1,Auto-CoT*andZero-Shot-CoTobtainequalaccuracy. From
+batch2,Auto-CoT*performscomparablywithManual-CoT.Thisresultindicatesthatourmethodisstilleffectivein
+themorechallengingstreamingsetting.
+6 Conclusion
+LLMshaveshownreasoningcapabilitieswithCoTprompting. ThesuperiorperformanceofManual-CoThingesonthe
+hand-craftingofdemonstrations. Toeliminatesuchmanualdesigns,weproposedAuto-CoTtoautomaticallyconstruct
+demonstrations. It samples questions with diversity and generates reasoning chains to construct demonstrations.
+ExperimentalresultsontenpublicbenchmarkreasoningdatasetsshowedthatwithGPT-3, Auto-CoTconsistently
+matchesorexceedstheperformanceoftheCoTparadigmthatrequiresmanualdesignsofdemonstrations.
+9References
+TomB.Brown,BenjaminMann,NickRyder,MelanieSubbiah,JaredKaplan,PrafullaDhariwal,ArvindNeelakantan,
+Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal, Ariel Herbert-Voss, Gretchen Krueger, Tom
+Henighan,RewonChild,AdityaRamesh,DanielM.Ziegler,JeffreyWu,ClemensWinter,ChristopherHesse,Mark
+Chen,EricSigler,MateuszLitwin,ScottGray,BenjaminChess,JackClark,ChristopherBerner,SamMcCandlish,
+AlecRadford, IlyaSutskever, andDarioAmodei. Languagemodelsarefew-shotlearners. InHugoLarochelle,
+Marc’Aurelio Ranzato, Raia Hadsell, Maria-Florina Balcan, and Hsuan-Tien Lin, editors, Advances in Neural
+InformationProcessingSystems33: AnnualConferenceonNeuralInformationProcessingSystems2020,NeurIPS
+2020, December 6-12, 2020, virtual, 2020. URL https://proceedings.neurips.cc/paper/2020/hash/
+1457c0d6bfcb4967418bfb8ac142f64a-Abstract.html.
+RomalThoppilan,DanielDeFreitas,JamieHall,NoamShazeer,ApoorvKulshreshtha,Heng-TzeCheng,AliciaJin,
+Taylor Bos, Leslie Baker, Yu Du, YaGuang Li, Hongrae Lee, Huaixiu Steven Zheng, Amin Ghafouri, Marcelo
+Menegali, YanpingHuang,MaximKrikun, DmitryLepikhin,JamesQin, DehaoChen,YuanzhongXu,Zhifeng
+Chen,AdamRoberts,MaartenBosma,VincentZhao,YanqiZhou,Chung-ChingChang,IgorKrivokon,WillRusch,
+MarcPickett,PraneshSrinivasan,LaicheeMan,KathleenMeier-Hellstern,MeredithRingelMorris,TulseeDoshi,
+RenelitoDelosSantos,TojuDuke,JohnnySoraker,BenZevenbergen,VinodkumarPrabhakaran,MarkDiaz,Ben
+Hutchinson,KristenOlson,AlejandraMolina,ErinHoffman-John,JoshLee,LoraAroyo,RaviRajakumar,Alena
+Butryna,MatthewLamm,ViktoriyaKuzmina,JoeFenton,AaronCohen,RachelBernstein,RayKurzweil,Blaise
+Aguera-Arcas,ClaireCui,MarianCroak,EdChi,andQuocLe. Lamda: Languagemodelsfordialogapplications,
+2022. URLhttps://arxiv.org/abs/2201.08239.
+JackW.Rae,SebastianBorgeaud,TrevorCai,KatieMillican,JordanHoffmann,FrancisSong,JohnAslanides,Sarah
+Henderson,RomanRing,SusannahYoung,ElizaRutherford,TomHennigan,JacobMenick,AlbinCassirer,Richard
+Powell,GeorgevandenDriessche,LisaAnneHendricks,MaribethRauh,Po-SenHuang,AmeliaGlaese,Johannes
+Welbl, SumanthDathathri, SaffronHuang, JonathanUesato, JohnMellor, IrinaHiggins, AntoniaCreswell, Nat
+McAleese, Amy Wu, Erich Elsen, Siddhant Jayakumar, Elena Buchatskaya, David Budden, Esme Sutherland,
+KarenSimonyan, MichelaPaganini, LaurentSifre, LenaMartens, XiangLorraineLi, AdhigunaKuncoro, Aida
+Nematzadeh,ElenaGribovskaya,DomenicDonato,AngelikiLazaridou,ArthurMensch,Jean-BaptisteLespiau,
+MariaTsimpoukelli,NikolaiGrigorev,DougFritz,ThibaultSottiaux,MantasPajarskas,TobyPohlen,ZhitaoGong,
+DanielToyama,CypriendeMassond’Autume,YujiaLi,TayfunTerzi,VladimirMikulik,IgorBabuschkin,Aidan
+Clark,DiegodeLasCasas,AureliaGuy,ChrisJones,JamesBradbury,MatthewJohnson,BlakeHechtman,Laura
+Weidinger,IasonGabriel,WilliamIsaac,EdLockhart,SimonOsindero,LauraRimell,ChrisDyer,OriolVinyals,
+KareemAyoub,JeffStanway,LorrayneBennett,DemisHassabis,KorayKavukcuoglu,andGeoffreyIrving. Scaling
+languagemodels: Methods,analysis&insightsfromtraininggopher,2021. URLhttps://arxiv.org/abs/2112.
+11446.
+AakankshaChowdhery,SharanNarang,JacobDevlin,MaartenBosma,GauravMishra,AdamRoberts,PaulBarham,
+Hyung Won Chung, Charles Sutton, Sebastian Gehrmann, Parker Schuh, Kensen Shi, Sasha Tsvyashchenko,
+Joshua Maynez, Abhishek Rao, Parker Barnes, Yi Tay, Noam Shazeer, Vinodkumar Prabhakaran, Emily Reif,
+NanDu,BenHutchinson,ReinerPope,JamesBradbury,JacobAustin,MichaelIsard,GuyGur-Ari,Pengcheng
+Yin,TojuDuke,AnselmLevskaya,SanjayGhemawat,SunipaDev,HenrykMichalewski,XavierGarcia,Vedant
+Misra, Kevin Robinson, Liam Fedus, Denny Zhou, Daphne Ippolito, David Luan, Hyeontaek Lim, Barret
+Zoph, Alexander Spiridonov, Ryan Sepassi, David Dohan, Shivani Agrawal, Mark Omernick, Andrew M. Dai,
+ThanumalayanSankaranarayanaPillai,MariePellat,AitorLewkowycz,EricaMoreira,RewonChild,Oleksandr
+Polozov,KatherineLee,ZongweiZhou,XuezhiWang,BrennanSaeta,MarkDiaz,OrhanFirat,MicheleCatasta,
+JasonWei,KathyMeier-Hellstern,DouglasEck,JeffDean,SlavPetrov,andNoahFiedel. Palm: Scalinglanguage
+modelingwithpathways,2022. URLhttps://arxiv.org/abs/2204.02311.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,EdChi,QuocLe,andDennyZhou. Chainofthought
+promptingelicitsreasoninginlargelanguagemodels. InThirty-sixthConferenceonNeuralInformationProcessing
+Systems(NeurIPS2022),2022a. URLhttps://arxiv.org/abs/2201.11903.
+TakeshiKojima,ShixiangShaneGu,MachelReid,YutakaMatsuo,andYusukeIwasawa. Largelanguagemodelsare
+zero-shotreasoners. InThirty-sixthConferenceonNeuralInformationProcessingSystems(NeurIPS2022),2022.
+URLhttps://arxiv.org/abs/2205.11916.
+SubhroRoyandDanRoth. Solvinggeneralarithmeticwordproblems. InProceedingsofthe2015Conferenceon
+EmpiricalMethodsinNaturalLanguageProcessing,pages1743–1752,Lisbon,Portugal,2015.Associationfor
+ComputationalLinguistics. doi: 10.18653/v1/D15-1202. URLhttps://aclanthology.org/D15-1202.
+Alon Talmor, Jonathan Herzig, Nicholas Lourie, and Jonathan Berant. CommonsenseQA: A question answering
+challenge targeting commonsense knowledge. In Proceedings of the 2019 Conference of the North American
+10ChapteroftheAssociationforComputationalLinguistics: HumanLanguageTechnologies,Volume1(Longand
+ShortPapers),pages4149–4158,Minneapolis,Minnesota,2019.AssociationforComputationalLinguistics. doi:
+10.18653/v1/N19-1421. URLhttps://aclanthology.org/N19-1421.
+KarlCobbe,VineetKosaraju,MohammadBavarian,MarkChen,HeewooJun,LukaszKaiser,MatthiasPlappert,Jerry
+Tworek,JacobHilton,ReiichiroNakano,ChristopherHesse,andJohnSchulman. Trainingverifierstosolvemath
+wordproblems,2021. URLhttps://arxiv.org/abs/2110.14168.
+WangLing,DaniYogatama,ChrisDyer,andPhilBlunsom. Programinductionbyrationalegeneration: Learning
+tosolveandexplainalgebraicwordproblems. InProceedingsofthe55thAnnualMeetingoftheAssociationfor
+ComputationalLinguistics(Volume1: LongPapers),pages158–167,Vancouver,Canada,2017.Associationfor
+ComputationalLinguistics. doi: 10.18653/v1/P17-1015. URLhttps://aclanthology.org/P17-1015.
+ArkilPatel,SatwikBhattamishra,andNavinGoyal.AreNLPmodelsreallyabletosolvesimplemathwordproblems? In
+Proceedingsofthe2021ConferenceoftheNorthAmericanChapteroftheAssociationforComputationalLinguistics:
+HumanLanguageTechnologies,pages2080–2094,Online,2021.AssociationforComputationalLinguistics. doi:
+10.18653/v1/2021.naacl-main.168. URLhttps://aclanthology.org/2021.naacl-main.168.
+MorGeva,DanielKhashabi,EladSegal,TusharKhot,DanRoth,andJonathanBerant. Didaristotleusealaptop? a
+questionansweringbenchmarkwithimplicitreasoningstrategies. TransactionsoftheAssociationforComputational
+Linguistics,9:346–361,2021. doi: 10.1162/tacl_a_00370. URLhttps://doi.org/10.1162/tacl_a_00370.
+EricZelikman,YuhuaiWu,andNoahDGoodman. Star: Bootstrappingreasoningwithreasoning. arXivpreprint
+arXiv:2203.14465,2022. URLhttps://arxiv.org/abs/2203.14465.
+DennyZhou,NathanaelSchärli,LeHou,JasonWei,NathanScales,XuezhiWang,DaleSchuurmans,OlivierBousquet,
+QuocLe,andEdChi. Least-to-mostpromptingenablescomplexreasoninginlargelanguagemodels. arXivpreprint
+arXiv:2205.10625,2022. URLhttps://arxiv.org/abs/2205.10625.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,andDennyZhou. Self-consistencyimproveschainof
+thoughtreasoninginlanguagemodels. arXivpreprintarXiv:2203.11171,2022a. URLhttps://arxiv.org/abs/
+2203.11171.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,andDennyZhou. Rationale-augmentedensemblesin
+languagemodels. arXivpreprintarXiv:2207.00747,2022b. URLhttps://arxiv.org/abs/2207.00747.
+YifeiLi,ZeqiLin,ShizhuoZhang,QiangFu,BeiChen,Jian-GuangLou,andWeizhuChen. Ontheadvanceofmaking
+languagemodelsbetterreasoners. arXivpreprintarXiv:2206.02336,2022. URLhttps://arxiv.org/abs/2206.
+02336.
+Alec Radford, Jeffrey Wu, Rewon Child, David Luan, Dario Amodei, Ilya Sutskever, et al. Language models are
+unsupervisedmultitasklearners. OpenAIblog,page9,2019.
+Ohad Rubin, Jonathan Herzig, and Jonathan Berant. Learning to retrieve prompts for in-context learning. In
+Proceedings of the 2022 Conference of the North American Chapter of the Association for Computational
+Linguistics: Human Language Technologies, pages 2655–2671, 2022. doi: 10.18653/v1/2022.naacl-main.191.
+URLhttps://aclanthology.org/2022.naacl-main.191.
+HongjinSu,JungoKasai,ChenHenryWu,WeijiaShi,TianluWang,JiayiXin,RuiZhang,MariOstendorf,Luke
+Zettlemoyer, NoahASmith, etal. Selectiveannotationmakeslanguagemodelsbetterfew-shotlearners. arXiv
+preprintarXiv:2209.01975,2022. URLhttps://arxiv.org/abs/2209.01975.
+Swaroop Mishra, Daniel Khashabi, Chitta Baral, and Hannaneh Hajishirzi. Cross-task generalization via natural
+languagecrowdsourcinginstructions.InProceedingsofthe60thAnnualMeetingoftheAssociationforComputational
+Linguistics(Volume1: LongPapers),pages3470–3487,2022. doi: 10.18653/v1/2022.acl-long.244. URLhttps:
+//aclanthology.org/2022.acl-long.244.
+Jason Wei, Maarten Bosma, Vincent Zhao, Kelvin Guu, Adams Wei Yu, Brian Lester, Nan Du, Andrew M. Dai,
+and Quoc V Le. Finetuned language models are zero-shot learners. In International Conference on Learning
+Representations,2022b. URLhttps://openreview.net/forum?id=gEZrGCozdqR.
+VictorSanh,AlbertWebson,ColinRaffel,StephenBach,LintangSutawika,ZaidAlyafeai,AntoineChaffin,Arnaud
+Stiegler, Arun Raja, Manan Dey, M Saiful Bari, Canwen Xu, Urmish Thakker, Shanya Sharma Sharma, Eliza
+Szczechla, Taewoon Kim, Gunjan Chhablani, Nihal Nayak, Debajyoti Datta, Jonathan Chang, Mike Tian-Jian
+Jiang,HanWang,MatteoManica,ShengShen,ZhengXinYong,HarshitPandey,RachelBawden,ThomasWang,
+Trishala Neeraj, Jos Rozen, Abheesht Sharma, Andrea Santilli, Thibault Fevry, Jason Alan Fries, Ryan Teehan,
+TevenLeScao,StellaBiderman,LeoGao,ThomasWolf,andAlexanderMRush. Multitaskpromptedtraining
+enables zero-shot task generalization. In International Conference on Learning Representations, 2022. URL
+https://openreview.net/forum?id=9Vrb9D0WI4.
+11AriHoltzman,PeterWest,VeredShwartz,YejinChoi,andLukeZettlemoyer. Surfaceformcompetition: Whythe
+highest probability answer isn’t always right. In Proceedings of the 2021 Conference on Empirical Methods in
+Natural Language Processing, pages 7038–7051, 2021. doi: 10.18653/v1/2021.emnlp-main.564. URL https:
+//aclanthology.org/2021.emnlp-main.564.
+Zihao Zhao, Eric Wallace, Shi Feng, Dan Klein, and Sameer Singh. Calibrate before use: Improving few-shot
+performanceoflanguagemodels. InInternationalConferenceonMachineLearning,pages12697–12706,2021.
+URLhttp://proceedings.mlr.press/v139/zhao21c/zhao21c.pdf.
+SewonMin, MikeLewis, HannanehHajishirzi, and LukeZettlemoyer. Noisychannellanguagemodel prompting
+forfew-shottextclassification. InProceedingsofthe60thAnnualMeetingoftheAssociationforComputational
+Linguistics (Volume 1: Long Papers), pages 5316–5330, 2022a. doi: 10.18653/v1/2022.acl-long.365. URL
+https://aclanthology.org/2022.acl-long.365.
+Jiachang Liu, Dinghan Shen, Yizhe Zhang, William B Dolan, Lawrence Carin, and Weizhu Chen. What makes
+good in-context examples for gpt-3? In Proceedings of Deep Learning Inside Out (DeeLIO 2022): The 3rd
+WorkshoponKnowledgeExtractionandIntegrationforDeepLearningArchitectures,pages100–114,2022a. doi:
+10.18653/v1/2022.deelio-1.10. URLhttps://aclanthology.org/2022.deelio-1.10.
+Yao Lu, Max Bartolo, Alastair Moore, Sebastian Riedel, and Pontus Stenetorp. Fantastically ordered prompts
+and where to find them: Overcoming few-shot prompt order sensitivity. In Proceedings of the 60th Annual
+MeetingoftheAssociationforComputationalLinguistics(Volume1: LongPapers),pages8086–8098,2022. doi:
+10.18653/v1/2022.acl-long.556. URLhttps://aclanthology.org/2022.acl-long.556.
+HaokunLiu,DerekTam,MohammedMuqeeth,JayMohta,TenghaoHuang,MohitBansal,andColinRaffel. Few-shot
+parameter-efficientfine-tuningisbetterandcheaperthanin-contextlearning. arXivpreprintarXiv:2205.05638,
+2022b. URLhttps://arxiv.org/abs/2205.05638.
+Albert Webson and Ellie Pavlick. Do prompt-based models really understand the meaning of their prompts? In
+Proceedingsofthe2022ConferenceoftheNorthAmericanChapteroftheAssociationforComputationalLinguistics:
+HumanLanguageTechnologies, pages2300–2344, Seattle, UnitedStates, 2022.AssociationforComputational
+Linguistics. doi: 10.18653/v1/2022.naacl-main.167. URL https://aclanthology.org/2022.naacl-main.
+167.
+Sewon Min, Xinxi Lyu, Ari Holtzman, Mikel Artetxe, Mike Lewis, Hannaneh Hajishirzi, and Luke Zettlemoyer.
+Rethinkingtheroleofdemonstrations: Whatmakesin-contextlearningwork? arXivpreprintarXiv:2202.12837,
+2022b. URLhttps://arxiv.org/abs/2202.12837.
+Nils Reimers and Iryna Gurevych. Sentence-BERT: Sentence embeddings using Siamese BERT-networks. In
+Proceedingsofthe2019ConferenceonEmpiricalMethodsinNaturalLanguageProcessingandthe9thInternational
+JointConferenceonNaturalLanguageProcessing(EMNLP-IJCNLP),pages3982–3992,HongKong,China,2019.
+AssociationforComputationalLinguistics. doi: 10.18653/v1/D19-1410. URLhttps://aclanthology.org/
+D19-1410.
+MohammadJavadHosseini,HannanehHajishirzi,OrenEtzioni,andNateKushman. Learningtosolvearithmetic
+wordproblemswithverbcategorization. InProceedingsofthe2014ConferenceonEmpiricalMethodsinNatural
+LanguageProcessing(EMNLP),pages523–533,Doha,Qatar,2014.AssociationforComputationalLinguistics. doi:
+10.3115/v1/D14-1058. URLhttps://aclanthology.org/D14-1058.
+RikKoncel-Kedziorski,HannanehHajishirzi,AshishSabharwal,OrenEtzioni,andSienaDumasAng.Parsingalgebraic
+wordproblemsintoequations. TransactionsoftheAssociationforComputationalLinguistics,3:585–597,2015. doi:
+10.1162/tacl_a_00160. URLhttps://aclanthology.org/Q15-1042.
+LongOuyang,JeffWu,XuJiang,DiogoAlmeida,CarrollL.Wainwright,PamelaMishkin,ChongZhang,Sandhini
+Agarwal,KatarinaSlama,AlexRay,JohnSchulman,JacobHilton,FraserKelton,LukeMiller,MaddieSimens,
+AmandaAskell,PeterWelinder,PaulChristiano,JanLeike,andRyanLowe. Traininglanguagemodelstofollow
+instructionswithhumanfeedback,2022. URLhttps://arxiv.org/abs/2203.02155.
+MarkChen,JerryTworek,HeewooJun,QimingYuan,HenriquePondedeOliveiraPinto,JaredKaplan,HarriEdwards,
+Yuri Burda, Nicholas Joseph, Greg Brockman, et al. Evaluating large language models trained on code. arXiv
+preprintarXiv:2107.03374,2021. URLhttps://arxiv.org/abs/2107.03374.
+RikKoncel-Kedziorski,SubhroRoy,AidaAmini,NateKushman,andHannanehHajishirzi. MAWPS:Amathword
+problem repository. In Proceedings of the 2016 Conference of the North American Chapter of the Association
+forComputationalLinguistics: HumanLanguageTechnologies,pages1152–1157,SanDiego,California,2016.
+AssociationforComputationalLinguistics. doi: 10.18653/v1/N16-1136. URLhttps://aclanthology.org/
+N16-1136.
+12A ExtendedanalysisforthechallengeofAuto-CoT
+A.1 Impactofdemonstrationelements.
+Ademonstrationisatriplecomposedby<question, rationale, answer>asshowninFigure1. Weshuffleeitherof
+thedemonstrationcomponentstoseehowtheperformancechanges. AccordingtotheresultsinTable5,shuffling
+questionshastheleastperformancereduction(91.7%→73.8%). Apossiblereasonforthedecentperformanceisthat
+themodelmaycapturetherationale-answermappingpatterns. Thepatternisexpectedtoreflecthowtheintermediate
+reasoningstepscanleadtothefinalanswer. Thisfindingshowsthatitispossibletoleveragethegeneratedrationales
+byZero-Shot-CoTbecausethoserationalesareoftenlogicallycorrecteventhoughtheymayleadtowronganswers
+[Kojimaetal.,2022].
+Table5: Impactofdifferentcomponentsinthedemonstrations.
+Method Accuracy
+Manual-CoT 91.7
+ShuffleQuestions 73.8
+ShuffleRationales 43.8
+ShuffleAnswers 17.0
+Incontrast,shufflingeitherrationalesoranswersreducestheaccuracysignificantly(91.7%→43.8%/17.0%). The
+observation indicates that the rationale-answer consistency is critical. This kind of mismatch actually happens in
+Zero-Shot-CoT.AnexampleisshowninTable6.Usingsuchdemonstrationsmightteachthemodelillusion—predicting
+answerswithoutbasis.
+Table6:Mistakesmadebyrationale-answerinconsistencyinthedemonstration.Thefirstblockshowsthedemonstration
+usedforthetestquestioninthesecondblock.
+Q:FortheschoolbakesaleWendymadepastries.Shebaked4cupcakesand29cookies.Afterthesaleshehad24totakeback
+home.Howmanypastriesdidshesell?
+A:Let’sthinkstepbystep.Wendymade4cupcakesand29cookies.Shesoldsomepastries.Shehad24totakebackhome.
+Howmanypastriesdidshesell?Wecansetupanequationtosolvethisproblem.Wendymade4cupcakesand29cookies.She
+soldsomepastries. Shehad24totakebackhome. Howmanypastriesdidshesell?Wecansetupanequationtosolvethis
+problem.4cupcakes+29cookies-pastriessold=24past.Theansweris29.(cid:55)
+Q:Achefneedstocook13potatoes.Hehasalreadycooked5.Ifeachpotatotakes6minutestocook,howlongwillittake
+himtocooktherest?
+A:Let’sthinkstepbystep.Achefneedstocook15potatoes.Hehasalreadycooked8.Ifeachpotatotakes9minutestocook,
+howlongwillittakehimtocooktherest?Wecansetupanequationtosolvethisproblem.Achefneedstocook15potatoes.
+Hehasalreadycooked8.Ifeachpotatotakes9minutestocook,howlongwillittakehimtocooktherest?Wecansetupan
+equationtosolvethisproblem.8potatoes+(15-8)potatoes=15potatoes.Theansweris72minutes.(cid:55)
+A.2 Observationoffrequent-errorclusters
+ToverifyifZero-Shot-CoTfailsatsimilarproblems,weclusterthequestionsintoafewclustersandcalculatethe
+errorrateoftheanswerstothequestionsineachcluster. AsshowninFigure8,themistakestendtogatherinone
+ormoreclustersacrossdifferentdatasets. Weobserveasimilarphenomenonwhentheclusternumberchanges,as
+shown in Figure 9. The phenomenon has shown to be generic that Zero-Shot-CoT may lack some skills to solve
+some common problems in target tasks. We call the cluster with the highest error rate as a frequent-error cluster.
+Therefore,theimperfectnatureofgeneratedreasoningchainsposesrisksofretrievingasetofsimilarquestionsinside
+thefrequent-errorclusterforsimilarity-basedretrieval.
+B ExperimentalDetails
+B.1 TasksandDatasets
+Ourmethodisevaluatedontenbenchmarkdatasetsthatcoverarithmeticreasoning, commonsensereasoning, and
+symbolicreasoningtasks. ThestatisticsofthedatasetsareshowninTable7.
+1360
+40
+20
+0
+12345678
+)%(etaRrorrE
+60
+40
+20
+0
+12345678
+(a)MultiArith(∆=43)
+)%(etaRrorrE
+60
+40
+20
+0
+12345678
+(b)AddSub(∆=46)
+)%(etaRrorrE
+50
+40
+30
+1 2 3 4 5 6 7
+(c)SingleEq(∆=48)
+)%(etaRrorrE
+(d)CSQA(∆=19)
+Figure8: Questionclusteringindifferentdatasets. (∆iscomputedbythedifferenceoflargestandsmallestvalues.
+30
+20
+10
+0
+1 2
+)%(etaRrorrE
+40
+30
+20
+10
+0
+1 2 3 4
+(a)ClustersNum.=2
+)%(etaRrorrE
+60
+40
+20
+0
+1 2 3 4 5 6
+(b)ClustersNum.=4
+)%(etaRrorrE
+60
+40
+20
+0
+12345678
+(c)ClustersNum.=6
+)%(etaRrorrE
+(d)ClustersNum.=8
+Figure9: Questionclusteringwithdifferentnumbersofclusters.
+ArithmeticReasoning. Forarithmeticreasoning,weconsiderthefollowingsixdatasets: (i)MultiArith[Royand
+Roth,2015],(ii)GSM8K[Cobbeetal.,2021],(iii)AddSub[Hosseinietal.,2014],(iv)AQUA[Lingetal.,2017],(v)
+SingleEq[Koncel-Kedziorskietal.,2015],and(vi)SVAMP[Pateletal.,2021]. Thefirstthreearefromtheclassic
+MathWorldProblemRepository[Koncel-Kedziorskietal.,2016],andthelastthreearefrommorerecentbenchmarks.
+CommonsenseReasoning. Forcommonsensereasoning,weuse(i)CommonsenseQA(CSQA)[Talmoretal.,2019]
+and(ii)StrategyQA[Gevaetal.,2021]. CommonsenseQAasksquestionswithcomplexsemanticsthatoftenrequire
+reasoningbasedonpriorknowledge[Talmoretal.,2019]. StrategyQArequiresmodelstoinferanimplicitmulti-hop
+reasoningtoanswerquestions[Gevaetal.,2021].
+SymbolicReasoning. Forsymbolicreasoning,weuse(i)LastLetterConcatenation[Weietal.,2022a]and(ii)Coin
+Fliptasks[Weietal.,2022a]. LastletterConcatenationrequiresthemodeltoconcatenatethelastlettersofeachword.
+ThegoalofCoinFlipistoanswerwhetheracoinisstillheadsupafterpeopleeitherflipordonotflipthecoin.
+Table7: DatasetDescription.
+Dataset Numberofsamples Averagewords AnswerFormat Licence
+MultiArith 600 31.8 Number Unspecified
+AddSub 395 31.5 Number Unspecified
+GSM8K 1319 46.9 Number MITLicense
+AQUA 254 51.9 Multiplechoice Apache-2.0
+SingleEq 508 27.4 Number NoLicense
+SVAMP 1000 31.8 Number MITLicense
+CSQA 1221 27.8 Multiplechoice Unspecified
+StrategyQA 2290 9.6 YesorNo Apache-2.0
+LastLetters 500 15.0 String Unspecified
+CoinFlip 500 37.0 YesorNo Unspecified
+B.2 ImplementationDetails
+WeuseGPT-3[Brownetal.,2020]ofthetext-davinci-002versionwith175BparametersfortheLLM[Ouyangetal.,
+2022]unlessotherwisestated. WeselectthemodelbecauseitispublicandiswidelyusedtoassesstheabilityofCoT
+14reasoninginLLMs[Weietal.,2022a,Kojimaetal.,2022]. ThemodelisaccessedviatheOpenAIAPI.5 Greedy
+decodingisusedtogeneratetheoutput. Wesetmax_tokens=256andtemperature=0. FollowingWeietal.[2022a],
+thenumberofdemonstrationskusedforin-contextlearningis8inmosttasks,exceptfor4inAQuAandLastLetter
+Concatenation,7inCSQA,and6inStrategyQA.
+C Analysis
+C.1 Comparisonsofcriteriaforsortingquestions
+Wecomparedifferentwaysofsortingquestionsineachcluster,including: (i)minimaldistancetotheclustercenter
+(In-ClusterMinDist,asadoptedinAuto-CoT),(ii)maximaldistancetotheclustercenter(In-ClusterMaxDist),and
+(iii)randomsamplinginsidethecluster(In-ClusterRandom). Toalleviatetheinfluenceofwrongdemonstrations,we
+onlysamplethedemonstrationswithcorrectanswersforthisanalysis.
+Table8: Influenceofdemonstrationsampling.
+Method MultiArith
+Auto-CoT 93.7
+In-ClusterMinDist 93.7
+In-ClusterRandom 89.2
+In-ClusterMaxDist 88.7
+ComparingtheresultsinTable8,weseethatthedemonstrationsaregenerallybetteriftheyareclosertothecluster
+center.
+C.2 Effectivenessofthesimpleheuristics
+InSection4,weapplysimpleheuristicstoencouragethemodeltousesimpleandaccuratedemonstrations. Similarto
+thecriteriaofthehand-craftingdemonstrationsinWeietal.[2022a],ourselectioncriteriafollowsimpleheuristicsto
+encouragesamplingsimplerquestionsandrationales: settheselecteddemonstrationd(i)asd(i)ifithasaquestionq(i)
+j j
+withnomorethan60tokensandarationaler(i)withnomorethan5reasoningsteps.6 Forarithmeticreasoningtasks
+j
+exceptforAQuA(becauseitisamultiple-choiceproblem),werequirethata(i) isnotemptyandappearsinr(i)7 to
+j j
+mitigatetheriskofrationale-answermismatches(aswefindthatsuchmistakesareharmfulinAppendixA.1). Ifthe
+question,rationale,andtheanswersatisfytheconditionsabove,thenacandidatedemonstrationd(i)forthei-thcluster
+j
+isconstructedbyconcatenatingthequestion,rationale,andanswer: [Q:q(i),A:r(i)◦a(i)].
+j j j
+Table9: Averagemistakesinthreerunsofdemonstrationconstruction.
+MultiArithAddSubGSM8KAQuASingleEqSVAMPCSQAStrategyLetterCoin
+Num.ofDemos 8 8 8 4 8 8 7 6 4 8
+Simpleheuristics 0.3 1.7 1.7 1 1 0.7 2.7 2.3 0 0
+w/oheuristics 1.3 5 3 2.7 2 3.3 3.3 2.3 3 1
+Werunthedemonstrationconstructionprocessthreetimesbeforeandafterusingsimpleheuristicstoquantifyitseffect.
+Table9showsthecomparison. Thesimpleheuristicsreducetheaveragenumberofwrongrationalesinconstructing
+demonstrations. Figure 10 further depicts the error rate with and without the simple heuristics. The error rate is
+computedbytheaveragenumberofwrongrationalesdividedbythenumberofdemonstrations. Weseethatourmethod
+cankeeptheerrorratebelow20%inmosttasks(7/10).
+5OurexperimentsarerunbetweenJuly-2022andSeptember-2022byusingOpenAIAPI.
+6BecauseZero-Shot-CoToftenuses“\n”forseparatingthereasoningsteps,therulecanbeeasilyimplementedbycountingthe
+“\n”tokensinthegeneratedrationales.
+7Inarithmeticreasoningtasks,rationalesofteninfertheiranswersatthelastfewtokens,asdemonstrationsexamplesshownin
+AppendixD.
+15100
+80 75
+66
+62
+60
+47
+41
+40 37 38 3838
+25 25
+20 20
+20 16
+12 12
+8
+4
+0 0
+0
+MultiArith AddSub GSM8K AQuA SingleEq SVAMP CSQA Strategy LastLetterCoinFlip
+)%(etaRrorrE
+Simpleheuristics w/oheuristics
+Figure10: Averageerrorrate(%)ofsampleddemonstrations.
+C.3 Extended: MoreChallengingStreamingSetting
+InSection5.6,wediscussedtheapplicationofAuto-CoTinamorechallengingstreamingsettingwhereasmallbatch
+oftestquestions(saymquestions)arriveatatimelikeindatastreams.
+Duetopagespacelimits,weonlyshowedtheresultsofthefirst10batches(300testquestionsintotal)inSection5.6.
+InFigure11,weillustratetheaccuracyofeachbatchonallthe600testquestionsinMultiArith. Asexpected,forbatch
+1,Auto-CoT*andZero-Shot-CoTobtainequalaccuracy. Frombatch2,Auto-CoT*quicklyperformscomparablywith
+Manual-CoT.Thisresultindicatesthatourmethodisstilleffectiveinthemorechallengingstreamingsetting.
+100
+90
+80
+60
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+Batch
+)%(ycaruccA
+Zero-Shot-CoT Manual-CoT Auto-CoT*
+Figure11: Bootstrappingforthestreamingsetting.
+16D Appendix: Automaticallyconstructeddemonstrations
+Table10: AutomaticallyconstructeddemonstrationsforMultiArith.
+Q:ForHalloweenKatieandhersistercombinedthecandytheyreceived. Katiehad8piecesofcandywhileher
+sisterhad23. Iftheyate8piecesthefirstnight,howmanypiecesdotheyhaveleft?
+A:Let’sthinkstepbystep. Katieandhersisterhaveatotalof8+23=31piecesofcandy. Iftheyeat8piecesthe
+firstnight,theyhave31-8=23piecesleft. Theansweris23.
+Q:Apetstorehad78puppies. Inonedaytheysold30ofthemandputtherestintocageswith8ineachcage.
+Howmanycagesdidtheyuse?
+A:Let’sthinkstepbystep. Thereare78puppies. 30aresold,sothatmeansthereare48left. 48dividedby8is6,
+sothatmeansthereare6cageswith8puppiesineach. Theansweris6.
+Q:Awaiterhad14customerstowaiton. If3customersleftandhegotanother39customers,howmanycustomers
+wouldhehave?
+A:Let’sthinkstepbystep. Thewaiterhad14customerstowaiton. If3customersleft,thatmeanshewouldhave
+11customersleft. Ifhegotanother39customers,thatmeanshewouldhave50customersintotal. Theansweris
+50.
+Q:Biancawasorganizingherbookcasemakingsureeachoftheshelveshadexactly8booksonit. Ifshehad5
+shelvesofmysterybooksand4shelvesofpicturebooks,howmanybooksdidshehavetotal?
+A:Let’sthinkstepbystep. Thereare5shelvesofmysterybooks. Eachshelfhas8books. Sothat’s40mystery
+books. Thereare4shelvesofpicturebooks. Eachshelfhas8books. Sothat’s32picturebooks. 40+32=72
+books. Theansweris72.
+Q:Wendyuploaded45picturestoFacebook. Sheput27picsintoonealbumandputtherestinto9different
+albums. Howmanypictureswereineachalbum?
+A:Let’sthinkstepbystep. First,weknowthatWendyuploaded45picturesintotal. Second,weknowthatWendy
+put27picturesintoonealbum. ThatmeansthatWendyputtheremaining18picturesinto9differentalbums. That
+meansthateachalbumwouldhave2pictures. Theansweris2.
+Q:Atriviateamhad7memberstotal,butduringagame2membersdidn’tshowup. Ifeachmemberthatdidshow
+upscored4points,howmanypointswerescoredtotal?
+A:Let’sthinkstepbystep. Therewere7membersontheteam,but2membersdidn’tshowup. Thatmeansthat
+therewere5membersthatdidshowup. Eachmemberthatshowedupscored4points. Soif5memberseach
+scored4points,thenthetotalnumberofpointsscoredwouldbe5*4=20. Theansweris20.
+Q:Mikemade69dollarsmowinglawnsoverthesummer. Ifhespent24dollarsbuyingnewmowerblades,how
+many5dollargamescouldhebuywiththemoneyhehadleft?
+A:Let’sthinkstepbystep. Mikemade$69frommowinglawns. Hespent$24onnewmowerblades. Thatmeans
+hehas$45left. Eachgamecosts$5,sohecouldbuy9games. Theansweris9.
+Q:Theschoolcafeteriaordered8redapplesand43greenapplesforstudentslunches. But,ifonly42students
+wantedfruit,howmanyextradidthecafeteriaendupwith?
+A:Let’sthinkstepbystep. Theschoolcafeteriaordered8redapplesand43greenapplesforstudentslunches.
+Thismeansthattheyorderedatotalof51apples. But,ifonly42studentswantedfruit,Thismeansthattheschool
+cafeteriawouldhave9applesleftover. Theansweris9.
+17Table11: AutomaticallyconstructeddemonstrationsforAddSub.
+Q:Sallypicked7lemonsandMarypicked9lemonsfromthelemontree. Howmanylemonswerepickedintotal
+?
+A:Let’sthinkstepbystep. Sallypicked7lemonsandMarypicked9lemons. SowecansaythatSallypicked7
+lemonsandMarypicked9lemons. Sowecansaythat7+9=16lemonswerepickedintotal. Theansweris16.
+Q:Gordonbought3.42poundsoffruitforaclassparty. Theclassate2.2poundsofthefruit. Howmuchfruitis?
+A:Let’sthinkstepbystep. Gordonbought3.42poundsoffruit. Theclassate2.2poundsofthefruit. Thatmeans
+thatthereis3.42-2.2=1.22poundsoffruitleft. Theansweris1.22.
+Q:Maryhad21dimesand38penniesinherbank. Herdadborrowed18penniesfromMary. Howmanypennies
+doesshehavenow?
+A:Let’sthinkstepbystep. Maryhad21dimesand38penniesinherbank. Herdadborrowed18penniesfrom
+Mary. Sonow,Maryhas21dimesand20penniesinherbank. Theansweris20.
+Q:Joanfound72seashellsand12starfishesonthebeach. ShegaveAlyssasomeofherseashells. Shehas28
+seashell. HowmanyseashellsdidshegivetoAlyssa?
+A:Let’sthinkstepbystep. Joanfound72seashellsand12starfishes. ShegaveAlyssasomeofherseashells. So
+weneedtofindouthowmanyseashellsshegavetoAlyssa. Joanhas28seashells. SoshegaveAlyssa44seashells.
+Theansweris44.
+Q:Lastyear,90171peoplewereborninacountry,and16320peopleimmigratedtoit. Howmanynewpeople
+beganlivinginthecountrylastyear?
+A:Let’sthinkstepbystep. First,90171peoplewereborninthecountry. Then,16320peopleimmigratedtothe
+country. Thatmeanstherewere90171+16320=106491newpeoplelivinginthecountrylastyear. Theansweris
+106491.
+Q:Aconstructioncompanyisrepavingadamagedroad. Sofar,theyhaverepavedatotalof4938inchesofthe
+road. Today,theyrepaved805inchesoftheroad. Howmanyinchesoftheroadhadtheyrepavedbeforetoday?
+A:Let’sthinkstepbystep. Thecompanyhasrepavedatotalof4938inchesoftheroad. Today,theyrepaved805
+inchesoftheroad. Sobeforetoday,theyhadrepaved4938-805=4133inchesoftheroad. Theansweris4133.
+Q:Thereare5scissorsand3pencilsinthedrawer. Jasonplaced4scissorsinthedrawer. Howmanyscissorsare
+nowthereintotal?
+A:Let’sthinkstepbystep. Thereare5scissorsand3pencilsinthedrawer. Jasonplaced4scissorsinthedrawer.
+Now,thereare9scissorsinthedrawer. Theansweris9.
+Q:Thereare37shortbushesand30talltreescurrentlyinthepark. Parkworkerswillplant20shortbushestoday.
+Howmanyshortbusheswilltheparkhavewhentheworkersarefinished?
+A:Let’sthinkstepbystep. Thereare37shortbushesand30talltreescurrentlyinthepark. Parkworkerswill
+plant20shortbushestoday. Thismeansthatwhentheworkersarefinished,therewillbeatotalof57shortbushes
+inthepark. Theansweris57.
+18Table12: AutomaticallyconstructeddemonstrationsforGSM8K.
+Q:TwotrainsleaveSanRafaelatthesametime. Theybegintravelingwestward,bothtravelingfor80miles. The
+nextday,theytravelnorthwards,covering150miles. What’sthedistancecoveredbyeachtraininthetwodays?
+A:Let’sthinkstepbystep. Onthefirstday,bothtrainstravel80miles. Sothefirsttraincovers80miles,andthe
+secondtraincovers80miles. Onthesecondday,bothtrainstravel150miles. Sothefirsttraincovers150miles,
+andthesecondtraincovers150miles. Intotal,thefirsttraincovers230miles,andthesecondtraincovers230
+miles. Theansweris230.
+Q:Atankofwaterhasadepthof17feetonMonday. OnTuesday,thetankhad7feetmorewater. OnWednesday,
+thedepthofthewateristwothirdsofwhatitwasonTuesday. Whatisthetank’swaterdepthonWednesday?
+A:Let’sthinkstepbystep. OnMonday,thedepthwas17feet. OnTuesday,thedepthwas7feetmorethanon
+Monday,sothedepthwas24feet. OnWednesday,thedepthwastwothirdsofwhatitwasonTuesday,sothe
+depthwas16feet. Theansweris16.
+Q:Whileatthedollarstore,Sloanecounts100customersenteringthestore. Thenextday,shecounts50more
+customersthanthefirstday. Ifthetotalnumberofcustomersbythethirddaywas500,howmanycustomersdid
+shecountonthethirdday?
+A:Let’sthinkstepbystep. Onthefirstday,Sloanecounted100customers. Onthesecondday,shecounted50
+morecustomersthanshedidonthefirstday. So,shecounted150customersonthesecondday. Onthethirdday,
+shecounted500customers. Therefore,onthethirdday,Sloanecounted500customers. Theansweris500.
+Q:Laurel’sfriendgaveher24babyoutfitsthatherchildnolongerneeded. Atherbabyshower,Laurelreceived
+twicetheamountofnewbabyoutfits. Then,Laurel’smomgiftedherwithanother15babyoutfits. Howmany
+outfitsdoesshehaveforherbaby?
+A:Let’sthinkstepbystep. Laurel’sfriendgaveher24babyoutfits. Soshehas24babyoutfits. Atherbaby
+shower,Laurelreceivedtwicetheamountofnewbabyoutfits. Soshehas48babyoutfits. Then,Laurel’smom
+giftedherwithanother15babyoutfits. Soshehas63babyoutfits. Theansweris63.
+Q:PamandFredwenttoacarnival. Pamrodetherollercoaster2timeswhileFredrodeit4times. Afterthat,each
+ofthemdecidedtoridetheluge2times. Ifeachridecost6tickets,howmanyticketsdidtheyusethatday?
+A:Let’sthinkstepbystep. Pamrodetherollercoaster2times. So,that’s2*6=12tickets. Fredrodetheroller
+coaster4times. So,that’s4*6=24tickets. Pamrodetheluge2times. So,that’s2*6=12tickets. Fredrodethe
+luge2times. So,that’s2*6=12tickets. Intotal,theyused12+24+12+12=60tickets. Theansweris60.
+Q:Theeighth-gradeclassheldabake-off. KelsiemadetwotimesmorecookiesthanJosh. Joshmadeone-fourth
+thenumberofcookiesthatSuzannemade. IfSuzannemade36cookies,howmanydidKelsiemake?
+A:Let’sthinkstepbystep. Joshmadeone-fourththenumberofcookiesthatSuzannemade. SoifSuzannemade
+36cookies,Joshmade9cookies. KelsiemadetwotimesmorecookiesthanJosh. SoifJoshmade9cookies,
+Kelsiemade18cookies. Theansweris18.
+Q:Janehassaved$4ofherallowanceeveryweekforthepast8weeks. Ifshecontinuestosavethesameamount
+eachweek,howmanymoreweekswillittakeforhertohavesavedatotalof$60?
+A:Let’sthinkstepbystep. Janehassaved$4ofherallowanceeveryweekforthepast8weeks. Thatmeansshe
+has$32insavingssofar. $60-$32=$28$28/$4=7ItwilltakeJane7moreweekstohavesavedatotalof$60.
+Theansweris7.
+Q:MiaandEmmaarecurrently16yearsapartinage. IfMia,whoisyoungerthanEmma,is40yearsold,what’s
+theaverageoftheirages?
+A: Let’s think step by step. Mia is currently 16 years old. Mia is younger than Emma. Mia is 40 years old.
+Therefore,Emmamustbe40+16=56yearsold. Theaverageoftheiragesis(40+56)/2=48yearsold. The
+answeris48.
+19Table13: AutomaticallyconstructeddemonstrationsforAQuA.
+Q:Julie’syardisrectangular. Onesideoftheyardis100feetwide. Thetotalareaoftheyardis3,000squarefeet.
+Whatisthelengthoftheothersideoftheyard? AnswerChoices: (A)30feet(B)20feet(C)10feet(D)50feet(E)
+60feet
+A:Let’sthinkstepbystep. Weknowthattheyardisrectangular,soithasfoursides. Wealsoknowthatoneside
+oftheyardis100feetwide. Thetotalareaoftheyardis3,000squarefeet. Wecansetuptheequation: 3,000=
+100xx=30So,thelengthoftheothersideoftheyardis30feet. TheanswerisA.
+Q:Inabagofredandgreensweets,theratioofredsweetstogreensweetsis3:4. Ifthebagcontains120green
+sweets,howmanyredsweetsarethere? AnswerChoices: (A)90(B)80(C)95(D)100(E)85
+A:Let’sthinkstepbystep. Thereare3redsweetsforevery4greensweets. Thatmeansthatforevery12sweets,
+thereare9redsweets. Thatmeansthatforevery120greensweets,thereare90redsweets. Theansweris(A).The
+answerisA.
+Q:Acarfinishesajourneyin20hoursatthespeedof60km/hr. Ifthesamedistanceistobecoveredin10hours,
+howmuchspeeddoesthecargain? AnswerChoices: (A)80kmph(B)50kmph(C)120kmph(D)70kmph(E)
+80kmph
+A:Let’sthinkstepbystep. Thecariscurrentlytravellingat60km/hr. Inordertotravelthesamedistancein10
+hours,thecarwouldneedtotravelat6timesthespeed,or360km/hr. Therefore,thecarwouldneedtogain300
+km/hr. TheanswerisC.TheanswerisC.
+Q:MarktoldJohn"IfyougivemehalfyourmoneyIwillhaveRs.75. Johnsaid,"ifyougivemeonethirdofyour
+money,IwillhaveRs.75/-. HowmuchmoneydidJohnhave? AnswerChoices: (A)22(B)60(C)28(D)26(E)
+18
+A:Let’sthinkstepbystep. IfMarkhasRs.75,thenJohnhasRs.75aswell. IfMarkgivesJohnhalfhismoney,
+thenMarkwillhaveRs.37.50andJohnwillhaveRs.112.50. However,thisisn’toneoftheanswerchoices. If
+MarkgivesJohnonethirdofhismoney,thenMarkwillhaveRs.50andJohnwillhaveRs.100. Thisisoneofthe
+answerchoices,soJohnmusthavehadRs.100tobeginwith. TheanswerisD.
+20Table14: AutomaticallyconstructeddemonstrationsforSingleEq.
+Q:Mark’sfathergavehim$85. Markbought10books,eachofwhichcost$5. HowmuchmoneydoesMarkhave
+left?
+A:Let’sthinkstepbystep. Mark’sfathergavehim$85. Markbought10books,eachofwhichcost$5. That
+meansthatMarkspent$50onbooks. SoMarkhas$85-$50=$35left. Theansweris35.
+Q:Timhas44books. Samhas52books. Howmanybooksdotheyhavetogether?
+A:Let’sthinkstepbystep. Step1: HowmanybooksdoesTimhave? Step2: HowmanybooksdoesSamhave?
+Step3: Howmanybooksdotheyhavetogether? Timhas44books. Samhas52books. Theyhave96books
+together. Theansweris96.
+Q:Thereare22walnuttreescurrentlyinthepark. Parkworkerswillplantmorewalnuttreestoday. Whenthe
+workersarefinishedtherewillbe55walnuttreesinthepark. Howmanywalnuttreesdidtheworkersplanttoday?
+A:Let’sthinkstepbystep. Therearecurrently22walnuttreesinthepark. Theworkerswillplantmorewalnut
+treestoday. Whentheworkersarefinished,therewillbe55walnuttreesinthepark. Theworkersplanted33
+walnuttreestoday. Theansweris33.
+Q:Karenadded0.25ofacupofwalnutstoabatchoftrailmix. Later,sheadded0.25ofacupofalmonds. How
+manycupsofnutsdidKarenputinthetrailmixinall?
+A:Let’sthinkstepbystep. Karenadded0.25ofacupofwalnutstoabatchoftrailmix. Thisisthefirststep,and
+sofar,shehasadded0.25cupsofwalnuts. Later,sheadded0.25ofacupofalmonds. Thisisthesecondstep,and
+sofar,shehasadded0.5cupsofnuts(0.25cupsofwalnuts+0.25cupsofalmonds). Therefore,intotal,Karenhas
+added0.5cupsofnutstothetrailmix. Theansweris0.5.
+Q:Sara,Keith,Benny,andAlyssaeachhave96baseballcards. Howmanydozenbaseballcardsdotheyhavein
+all?
+A:Let’sthinkstepbystep. Thereare12dozensinagross,soweneedtodivide96by12. 96/12=8Therefore,they
+have8dozensofbaseballcardsinall. Theansweris8.
+Q:Craigwalked0.2ofamilefromschooltoDavid’shouseand0.7ofamilefromDavid’shousetohisownhouse.
+HowmanymilesdidCraigwalkinall?
+A:Let’sthinkstepbystep. Craigwalked0.2milesfromschooltoDavid’shouse. Then,Craigwalked0.7miles
+fromDavid’shousetohisownhouse. Intotal,Craigwalked0.2+0.7=0.9miles. Theansweris0.9.
+Q:Tomfound5seashellsonthebeach. hegaveJessica2oftheseashells. Howmanyseashellsdoeshenowhave?
+A:Let’sthinkstepbystep. Tomfound5seashells. TomgaveJessica2seashells. Tomnowhas3seashells. The
+answeris3.
+Q:Brenda’smothermadecookiesfor5. Ifsheprepared35cookiesandeachofthemhadthesamenumberof
+cookies,howmanydideachofthemhave?
+A:Let’sthinkstepbystep. Brenda’smothermade35cookies. Weknowthatshemadethemfor5people. That
+meansthatshemade7cookiesforeachperson. Theansweris7.
+21Table15: AutomaticallyconstructeddemonstrationsforSVAMP.
+Q:Marcoandhisdadwentstrawberrypicking. Marco’sdad’sstrawberriesweighed11pounds. Iftogethertheir
+strawberriesweighed30pounds. HowmuchdidMarco’sstrawberriesweigh?
+A:Marco’sdad’sstrawberriesweigh11pounds. Iftogethertheirstrawberriesweigh30pounds,thenMarco’s
+strawberriesweigh19pounds. Theansweris19.
+Q:19redpeaches,11yellowpeachesand12greenpeachesareinthebasket. Howmanymoreredpeachesthan
+yellowpeachesareinthebasket?
+A:Thereare19redpeachesand11yellowpeaches. 19-11=8Thereare8moreredpeachesthanyellowpeaches.
+Theansweris8.
+Q:Bakermade144cakes. Hesold71ofthem. Thenhemade111morecakes. Howmanymorecakesdidbaker
+makethanthosehesold?
+A:First,hemade144cakesandsold71ofthem. So,hehas144-71=73cakesleft. Then,hemade111more
+cakes. So,hehas73+111=184cakesintotal. Now,weneedtofindouthowmanymorecakeshemadethan
+thosehesold. Thereare184cakesintotal. Hesold71ofthem. So,hemade184-71=113morecakesthanthose
+hesold. Theansweris113.
+Q:Bryantookalookathisbooksaswell. Ifhehasatotalof42booksandeachbookshelfcontains2booksHow
+manybookshelvesdoeshehave?
+A:WeknowthatBryanhas42booksintotal. Weknowthateachbookshelfhas2books. Fromthis,wecaninfer
+thatBryanhas21bookshelves. Theansweris21.
+Q:Inaschoolthereare902girlsand811boys. 44moregirlsjoinedtheschool. Howmanygirlsarethereinthe
+schoolnow?
+A:Thereare902girlsand811boysintheschool. 44moregirlsjoinedtheschool. Thatmeanstherearenow(902
++44)=946girlsintheschool. Theansweris946.
+Q:Healsohad26aquariumsforsaltwateranimals. Theaquariumhad52saltwateranimalsintotalandevery
+aquariumhadthesamenumberofanimals. Howmanysaltwateranimalsdoeseachaquariumhave?
+A:Weknowthatthereare26aquariumsand52animalsintotal. Thatmeansthatifwedivide52by26,wewill
+knowhowmanyanimalsareineachaquarium. 52dividedby26equals2. So,eachaquariumhas2saltwater
+animals. Theansweris2.
+Q:Amailmanhastogive25piecesofjunkmailtoeachblock. Ifhegives5mailstoeachhouseinablockHow
+manyhousesarethereinablock?
+A:Themailmanhastogive25piecesofjunkmailtoeachblock. Thatmeansifthemailmangives5piecesofjunk
+mailtoeachhouse,hewouldhavegivenaway25piecesofjunkmailaftervisiting5houses. Therefore,ifthe
+mailmanhastogive25piecesofjunkmailtoeachblock,hewouldhavetovisit5housesinablock. Theansweris
+5.
+Q:EverydayRyanspends3hoursonlearningenglishandsomemorehoursonlearningchinese. Ifhespendsa
+totalof4hoursonlearningenglishandchineseeverydayHowmanyhoursdoeshespendonlearningchinese?
+A:First,weknowthatRyanspends3hoursonlearningEnglisheveryday. Second,weknowthatRyanspendsa
+totalof4hoursonlearningEnglishandChineseeveryday. Fromthis,wecaninferthatRyanspends1houron
+learningChineseeveryday. Theansweris1.
+22Table16: AutomaticallyconstructeddemonstrationsforCSQA.
+Q:Wherecanyoufindadogshouse? AnswerChoices: (A)foundoutside(B)faithful(C)frightening(D)cold(E)
+fourlegs
+A:Let’sthinkstepbystep. Adogneedsahousetoprotectitfromtheweatherandpredators. Thehouseshouldbe
+bigenoughforthedogtomovearoundin,butnottoobigorthedogwillbecold. Thehouseshouldhaveadoor
+tokeepoutthecoldandarooftokeepouttherain. Thehouseshouldbemadeofsturdymaterialsthatwillnot
+collapseinthewind. Thebestplacetofindadoghouseisatapetstoreorahomeimprovementstore. Youcan
+alsofinddoghousesonline. TheanswerisA.
+Q:Wherewouldyoufindaticketboothandseeaconcert? AnswerChoices: (A)clerk(B)indoors(C)movie
+theater(D)venue(E)auditorium
+A:Let’sthinkstepbystep. Youwouldgotoaticketboothtopurchaseaticketforaconcert. Theconcertwould
+takeplaceatavenue, whichcouldbeindoorsoroutdoors. Itismostlikelythattheconcertwouldtakeplace
+indoorsatalargeauditoriumoramovietheater. TheanswerisD.
+Q:Whatdopeopleaimtodoatwork? AnswerChoices: (A)completejob(B)learnfromeachother(C)kill
+animals(D)wearhats(E)talktoeachother
+A:Let’sthinkstepbystep. Peopleusuallygotoworkinordertoearnmoney,whichtheycanusetobuythings
+theywantorneed. Inordertodothis,theymustcompletetheirjob. Thisusuallymeansworkingwithothersin
+ordertogetthejobdoneefficiently. Sometimes,peoplelearnnewthingsfromtheircoworkers. Forexample,they
+mightlearnanewskillorhowtodotheirjobbetter. Finally,peopleusuallytalktotheircoworkersduringtheir
+breakorafterwork. TheanswerisA.
+Q:Wheredoyoustorealargecontainer? AnswerChoices: (A)supermarket(B)factory(C)juice(D)hostel(E)
+cabinet
+A:Let’sthinkstepbystep. Weneedtostorealargecontainer. Itwon’tfitinacabinet,sothat’snottheanswer. It
+alsowon’tfitinajuicecontainer,sothat’snottheanswer. Itcouldfitinafactory,butthat’snotnecessarilywhere
+youwouldstoreit. Itcouldalsofitinasupermarket,butthat’snotnecessarilywhereyouwouldstoreit. Themost
+likelyanswerisahostel. TheanswerisD.
+Q:Ifthereisapondwithtreesaroundit,whereititlikelylocated? AnswerChoices: (A)ground(B)bathroom(C)
+forest(D)countryside(E)ruralarea
+A:Let’sthinkstepbystep. Apondislikelytobelocatedneartreesbecausetreesneedwatertosurvive. Therefore,
+themostlikelylocationforapondwithtreesarounditisinaforest. TheanswerisC.
+Q:Jameswasmeetingafriend. Theyhadplanedaslowday. Theydidn’twanttodomuch. Theyjustwanted
+what? AnswerChoices: (A)relaxation(B)panic(C)alarm(D)joy(E)cheer
+A:Let’sthinkstepbystep. Jameswasmeetingafriend. Theyhadplannedaslowday. Theydidn’twanttodo
+much. Theyjustwanted_____. Theonlylogicalanswerchoiceisrelaxation. TheanswerisA.
+Q:whatdoesapersondotostayhealthy? AnswerChoices: (A)fever(B)eateveryday(C)excited(D)headache
+(E)expressive
+A:Let’sthinkstepbystep.Tostayhealthy,apersonshouldprobablydothingslikeeatinghealthyfoods,exercising,
+andgettingenoughrest. Sotheanswerchoicesthatbestfitare(B)eateveryday,(C)excited,and(D)headache.
+TheanswerisB.
+23Table17: AutomaticallyconstructeddemonstrationsforStrategyQA.
+Q:WouldavegetarianbeabletoeatsomethingatChick-fil-A?
+A:Let’sthinkstepbystep. Chick-fil-Aisarestaurantchainthatspecializesinchickensandwiches. Sorightoff
+thebat,wecansaythatavegetarianprobablywouldn’tbeabletofindasandwichthattheycouldeat. However,
+Chick-fil-Adoesoffersaladsandsidesthatavegetariancouldeat. Theanswerisyes.
+Q:CanJustinTimberlakerideShipwreckFallsatSixFlags?
+A:Let’sthinkstepbystep. First,let’sconsidertheheightrequirementforShipwreckFalls,whichis48inches.
+Next,we’lllookupJustinTimberlake’sheight. Accordingtovarioussources,Timberlakeisbetween5’8"and
+5’11". Finally,we’llcompareTimberlake’sheighttotheheightrequirementforShipwreckFalls. SinceTimberlake
+istallerthan48inches,hewouldbeabletorideShipwreckFalls. Theanswerisyes.
+Q:Wouldasnakehavereasonstofearahoneybadger?
+A:Let’sthinkstepbystep. Asnake’smainmethodofattackistocoilaroundananimalandconstrictituntilit
+suffocates. Thiswouldbedifficulttodotoahoneybadger,whichhasthickskinandisveryagile. Inaddition,
+honeybadgersareknowntobeveryaggressive,andtheyhavesharpclawsandteeththatcoulddoalotofdamage
+toasnake. So,itisreasonabletosaythatasnakewouldhavereasonstofearahoneybadger. Theanswerisyes.
+Q:WillQueenElizabethbeburiedinthePantheon?
+A:Let’sthinkstepbystep. First,thePantheonisachurch,soit’spossiblethatshecouldbeburiedthere. Second,
+QueenElizabethIIisstillalive,soshehasn’tbeenburiedyet. Third,evenifsheweretobeburiedinthePantheon,
+it’sunlikelythatwewouldknowaboutitaheadoftime,soit’shardtosayforsure. Theanswerisno.
+Q:CanyouseethemooninWembleyArena?
+A:Let’sthinkstepbystep. WembleyArenaisanindoorvenue,sothemoonwouldonlybevisibleiftherewasa
+holeintheroof. Eventhen,themoonwouldonlybevisibleduringthenight. Sotheanswerisprobablyno. The
+answerisno.
+Q:Didthe40thpresidentoftheUnitedStatesforwardlolcatstohisfriends?
+A:Let’sthinkstepbystep. The40thpresidentoftheUnitedStateswasRonaldReagan. Thereisnoevidencethat
+RonaldReaganeverforwardedlolcatstohisfriends. Theanswerisno.
+Table18: AutomaticallyconstructeddemonstrationsforLastLetterConcatenation.
+Q:Takethelastlettersofeachwordsin"LesleyLunaNadiaAdriana"andconcatenatethem.
+A:Let’sthinkstepbystep. Thelastletterof"Lesley"is"y". Thelastletterof"Luna"is"a". Thelastletterof
+"Nadia"is"a". Thelastletterof"Adriana"is"a". Sothefinalansweris"yaaa". Theanswerisyaaa.
+Q:Takethelastlettersofeachwordsin"AlfonsoCollinAmadoDick"andconcatenatethem.
+A:Let’sthinkstepbystep. Thelastletterof"Alfonso"is"o". Thelastletterof"Collin"is"n". Thelastletterof
+"Amado"is"o". Thelastletterof"Dick"is"k". Sothefinalanswerwouldbe"onok". Theanswerisonok.
+Q:Takethelastlettersofeachwordsin"CristinaSaadBridgetKatie"andconcatenatethem.
+A:Let’sthinkstepbystep. Thelastletterof"Cristina"is"a". Thelastletterof"Saad"is"d". Thelastletterof
+"Bridget"is"t". Thelastletterof"Katie"is"e". Sothefinalanswerwouldbe"adte". Theanswerisadte.
+Q:Takethelastlettersofeachwordsin"IdaliaArnoldoMarlaDuane"andconcatenatethem.
+A:Let’sthinkstepbystep. Thelastletterof"Idalia"is"a". Thelastletterof"Arnoldo"is"o". Thelastletterof
+"Marla"is"a". Thelastletterof"Duane"is"e". Sothefinalanswerwouldbe"aoae". Theanswerisaoae.
+24Table19: AutomaticallyconstructeddemonstrationsforCoinFlip.
+Q:Acoinisheadsup. Shariflipsthecoin. Bellaflipsthecoin. Lizadoesnotflipthecoin. Mairadoesnotflipthe
+coin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Shariflipsthecoin. Thecoinisnowtailsup. Bellaflipsthecoin. Thecoinisnow
+headsup. Lizadoesnotflipthecoin. Thecoinisstillheadsup. Mairadoesnotflipthecoin. Thecoinisstillheads
+up. Theanswerisyes.
+Q:Acoinisheadsup. Joyceflipsthecoin. Leroyflipsthecoin. Alyssadoesnotflipthecoin. Maggiedoesnotflip
+thecoin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Joyceflipsthecoin,sonowitistailsup. Leroyflipsthecoin,sonowitisheadsup
+again. Alyssadoesnotflipthecoin,soitremainstailsup. Maggiedoesnotflipthecoin,soitremainsheadsup.
+Sothefinalanswerisyes,thecoinisstillheadsup. Theanswerisyes.
+Q:Acoinisheadsup. Ubaldodoesnotflipthecoin. Katrinaflipsthecoin. Francisdoesnotflipthecoin. Lynn
+flipsthecoin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Ubaldodoesnotflipthecoin,sothecoinremainsheadsup. Katrinaflipsthecoin,so
+thecoinisnowtailsup. Francisdoesnotflipthecoin,sothecoinremainstailsup. Lynnflipsthecoin,sothecoin
+isnowheadsupagain. Theanswerisyes.
+Q:Acoinisheadsup. Carmeloflipsthecoin. Tonyflipsthecoin. Susanflipsthecoin. Saradoesnotflipthecoin.
+Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Carmeloflipsthecoin. Thecoinisnowtailsup. Tonyflipsthecoin. Thecoinisnow
+headsup. Susanflipsthecoin. Thecoinisnowtailsup. Saradoesnotflipthecoin. Thecoinisstilltailsup. The
+answerisno.
+Q:Acoinisheadsup. Pauloflipsthecoin. Tatyanaflipsthecoin. Bernicedoesnotflipthecoin. Raúlflipsthe
+coin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Pauloflipsthecoin. Thismeansthatthecoinisnowtailsup. Tatyanaflipsthecoin.
+Thecoinisnowheadsupagain. Bernicedoesnotflipthecoin. Thecoinremainsheadsup. Raúlflipsthecoin.
+Thecoinisnowtailsupagain. Theanswerisno.
+Q:Acoinisheadsup. Claudiaflipsthecoin. Coledoesnotflipthecoin. Matthewdoesnotflipthecoin. Juan
+Pablodoesnotflipthecoin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Claudiaflipsthecoin,soitisnowtailsup. Coledoesnotflipthecoin,soitremains
+tailsup. Matthewdoesnotflipthecoin,soitremainstailsup. JuanPablodoesnotflipthecoin,soitremainstails
+up. Sotheanswerisno,thecoinisnotheadsup. Theanswerisno.
+Q:Acoinisheadsup. Ajdoesnotflipthecoin. Jdflipsthecoin. Maddiedoesnotflipthecoin. Franciscadoesnot
+flipthecoin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Ajdoesnotflipthecoin,sothecoinremainsheadsup. Jdflipsthecoin,sothecoinis
+nowtailsup. Maddiedoesnotflipthecoin,sothecoinremainstailsup. Franciscadoesnotflipthecoin,sothe
+coinremainstailsup. So,thefinalansweristhatthecoinistailsup. Theanswerisno.
+Q:Acoinisheadsup. Albertdoesnotflipthecoin. Feliciadoesnotflipthecoin. Margoflipsthecoin. Pattydoes
+notflipthecoin. Isthecoinstillheadsup? Notethat"flip"heremeans"reverse".
+A:Let’sthinkstepbystep. Albertdoesnotflipthecoin,sothecoinremainsheadsup. Feliciadoesnotflipthe
+coin,sothecoinremainsheadsup. Margoflipsthecoin,sothecoinisnowtailsup. Pattydoesnotflipthecoin,so
+thecoinremainstailsup. Theanswerisno.
+25

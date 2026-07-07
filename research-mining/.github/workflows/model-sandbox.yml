@@ -1,0 +1,29 @@
+name: model-sandbox
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 3 * * 0'  # weekly
+
+jobs:
+  validate-model:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install sentence-transformers scikit-learn numpy || true
+      - name: Run model sandbox validation
+        run: |
+          python -c "from ingest import model_sandbox as ms; print('validate:', ms.validate_model())"
+      - name: Upload artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-sandbox-output
+          path: .

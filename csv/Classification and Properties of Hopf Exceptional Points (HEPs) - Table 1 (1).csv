@@ -1,0 +1,13 @@
+Hopf Exceptional Point Type,Topological Invariant,Symmetry Protection,Codimension,Homotopy Group Classification,Physical Phenomenon,Source
+HEP3,$\mathbb{Z}$,Pseudo-Hermiticity,3,$\pi_{3}(S^{2})$,Pair annihilation with opposite topological charges; linked nodal lines,"1, 2, 3"
+HEP3,$\mathbb{Z}_{24}$,Pseudo-Hermiticity,3,$\pi_{3}(S^{2})$  (Hopf map) or  $\pi_{3}(S^{3})$,Pair annihilation of nodes with opposite charges; acting as own 'antiparticles'; recursive phase fracture and Tesseracton-like dimensional recursion,"1, 3, User Description"
+HEP3,$\mathbb{Z}_{2}$,Pseudo-Hermiticity or PT-symmetry,3,$\pi_{3}(S^{2})$,Topological stability provided by Hopf link geometry,Not in source
+HEP3,$\mathbb{Z}_{2}$,None,5,$\pi_{4}(S^{3})$,Acts as its own antiparticle; undergoes pair annihilation with copies of itself,4
+HEP3,Braid group  $B_{3}$,Pseudo-chirality at  $\delta_{ef} = 0$,4 (reduced to 2 by symmetries),Not in source,Eigenvalues braiding described by the braid group  $B_{3}$  and state transfer arising from the encirclement,5
+HEP3,$\mathbb{Z}_{12}$,Not in source,7,$\pi_{6}(S^{3})$,Follows exotic fusion rules beyond Bernard-LeClair symmetry classes,4
+HEP3,$\mathbb{Z}_{3}$,Not in source,10,$\pi_{9}(S^{3})$,Annihilates with two copies of itself (reminiscent of parafermions),4
+HEP4,$\mathbb{Z}$,PT-symmetry,4,$\pi_{3}(S^{2})$,Characterized by the Hopf invariant (linking of inverse maps in momentum space); inflates into a loop of EP4s under perturbation,4
+HEP4,$\mathbb{Z}_{24}$,Not in source,9,$\pi_{8}(S^{5})$,Non-Hermitian topology captured by finite groups beyond the periodic table,4
+HEP5,$\mathbb{Z}$,PT-symmetry,5,$\pi_{4}(S^{3})$  (Quaternionic Hopf map),Acting as their own 'antiparticles' upon collision; topological stability in 5D parameter space,"3, User Description"
+HEP5,$\mathbb{Z}_{24}$,PT-symmetry or pseudo-Hermiticity,4 or 5,$\pi_{4}(S^{3})$,Acting as own 'antiparticles'; higher-order exceptional strings; stability of nodes in higher-dimensional parameter spaces,2
+HEP5,$\mathbb{Z}_{2}$,"PT-symmetry, pseudo-Hermiticity, CP-symmetry, or chiral symmetry",5,$\pi_{4}(S^{3})$,Acting as own 'antiparticles' in higher-order topological phase space; stabilized by symmetry resulting in real resultants,"1, 4"

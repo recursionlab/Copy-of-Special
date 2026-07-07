@@ -1,0 +1,112 @@
+[
+  {
+    "id": "concept-cybernetics-001",
+    "type": "Theory",
+    "definition": "Cybernetics is the scientific study of control and communication in both animal and machine systems, encompassing feedback mechanisms, information processing, and the statistical aspects of organization in complex systems. It integrates ideas from mathematics, engineering, physiology, and statistics to understand purposeful behavior and adaptation.",
+    "significance": "Cybernetics revolutionized interdisciplinary science by bridging engineering, biology, and social sciences, providing a unified framework for analyzing self-regulating systems and influencing fields like artificial intelligence, robotics, and systems theory.",
+    "relations": [
+      "Feedback",
+      "Information and Entropy",
+      "Time Series Prediction",
+      "Learning Machines"
+    ],
+    "confidence_score": 0.98,
+    "source": "CYBERNETICS.pdf",
+    "version": "1.0.0",
+    "extraction_date": "2025-09-14T21:32:32.002045",
+    "mathematical_formulation": null,
+    "examples": [],
+    "prototypes": [],
+    "references": [],
+    "tags": [],
+    "notes": "Extracted using LLM: openrouter/sonoma-sky-alpha"
+  },
+  {
+    "id": "concept-feedback-002",
+    "type": "Method",
+    "definition": "Feedback is a process in which a portion of the output of a system is returned to its input to influence subsequent behavior, enabling regulation, stability, or adaptation, as seen in steering engines or biological reflexes like picking up a pencil. It can lead to effective control or, if excessive, to oscillations such as purpose tremor in pathology.",
+    "significance": "Feedback is foundational to cybernetics as it explains how systems achieve purposeful action and maintain homeostasis, impacting engineering design (e.g., servomechanisms) and understanding neurological disorders, thus advancing both technology and medicine.",
+    "relations": [
+      "Cybernetics",
+      "Black Box Analysis",
+      "Non-linear Systems",
+      "Clonus Oscillation"
+    ],
+    "confidence_score": 0.97,
+    "source": "CYBERNETICS.pdf",
+    "version": "1.0.0",
+    "extraction_date": "2025-09-14T21:32:32.002045",
+    "mathematical_formulation": null,
+    "examples": [],
+    "prototypes": [],
+    "references": [],
+    "tags": [],
+    "notes": "Extracted using LLM: openrouter/sonoma-sky-alpha"
+  },
+  {
+    "id": "concept-information-entropy-003",
+    "type": "Theory",
+    "definition": "Information is quantified as the measure of uncertainty reduction in a message, often using the unit of bits for decisions between equally probable alternatives, while entropy represents the degree of disorganization in a system, being the negative of information. This framework links communication theory to thermodynamics, explaining phenomena like Maxwell's demon.",
+    "significance": "By equating information to negative entropy, it provides a statistical mechanics basis for communication and control, essential for noise reduction in engineering, understanding biological metabolism, and addressing limits in information transmission.",
+    "relations": [
+      "Cybernetics",
+      "Time Series Prediction",
+      "Non-linear Systems",
+      "Learning Machines"
+    ],
+    "confidence_score": 0.96,
+    "source": "CYBERNETICS.pdf",
+    "version": "1.0.0",
+    "extraction_date": "2025-09-14T21:32:32.002045",
+    "mathematical_formulation": null,
+    "examples": [],
+    "prototypes": [],
+    "references": [],
+    "tags": [],
+    "notes": "Extracted using LLM: openrouter/sonoma-sky-alpha"
+  },
+  {
+    "id": "concept-blackbox-004",
+    "type": "Method",
+    "definition": "A black box is an apparatus or system, such as a network with input and output terminals, whose internal structure is unknown but whose overall input-output behavior can be analyzed and synthesized using techniques like random noise inputs and orthonormal expansions. A white box is a counterpart with a known, designed structure to mimic the black box.",
+    "significance": "This approach enables the analysis and replication of complex systems without full internal knowledge, crucial for engineering non-linear devices, biological modeling, and developing adaptive machines, democratizing system study across disciplines.",
+    "relations": [
+      "Feedback",
+      "Non-linear Systems",
+      "Learning Machines",
+      "Cybernetics"
+    ],
+    "confidence_score": 0.95,
+    "source": "CYBERNETICS.pdf",
+    "version": "1.0.0",
+    "extraction_date": "2025-09-14T21:32:32.002045",
+    "mathematical_formulation": null,
+    "examples": [],
+    "prototypes": [],
+    "references": [],
+    "tags": [],
+    "notes": "Extracted using LLM: openrouter/sonoma-sky-alpha"
+  },
+  {
+    "id": "concept-learning-machines-005",
+    "type": "Theory",
+    "definition": "Learning machines are adaptive devices that improve performance based on past experience, such as predictors adjusting to statistical patterns in time series or game-playing automata reweighting strategies to maximize success in checkers. They extend beyond linear prediction to non-linear and self-reproducing systems, analogous to biological heredity and neural adaptation.",
+    "significance": "They bridge cybernetics with artificial intelligence and biology, enabling automated programming, theorem proving, and self-organization, with profound implications for automation, education, and understanding cognition and evolution.",
+    "relations": [
+      "Cybernetics",
+      "Feedback",
+      "Information and Entropy",
+      "Black Box Analysis"
+    ],
+    "confidence_score": 0.94,
+    "source": "CYBERNETICS.pdf",
+    "version": "1.0.0",
+    "extraction_date": "2025-09-14T21:32:32.002045",
+    "mathematical_formulation": null,
+    "examples": [],
+    "prototypes": [],
+    "references": [],
+    "tags": [],
+    "notes": "Extracted using LLM: openrouter/sonoma-sky-alpha"
+  }
+]

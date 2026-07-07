@@ -1,0 +1,134 @@
+---
+title: "4E cognition - Wikipedia"
+source: "https://en.wikipedia.org/wiki/4E_cognition"
+author:
+  - "[[Contributors to Wikimedia projects]]"
+published: 2025-03-31
+created: 2026-02-03
+description:
+tags:
+  - "clippings"
+---
+[
+
+![Wiki Loves Folklore Logo](https://upload.wikimedia.org/wikipedia/commons/6/69/Wiki_Loves_Folklore_Logo.svg)
+
+Wiki Loves Folklore Logo
+
+Wiki Loves Folklore Photograph your local culture, help Wikipedia and win!
+
+\[Help with translations!\]
+
+](https://commons.wikimedia.org/wiki/Special:MyLanguage/Commons:Wiki_Loves_Folklore_2026)
+
+**4E cognition** refers to a group of theories in (the [philosophy of](https://en.wikipedia.org/wiki/Philosophy_of_science "Philosophy of science")) [cognitive science](https://en.wikipedia.org/wiki/Cognitive_science "Cognitive science") that challenge traditional views of the [mind](https://en.wikipedia.org/wiki/Mind "Mind") as something that happens only inside the [brain](https://en.wikipedia.org/wiki/Brain "Brain").[^1]
+
+The four Es stand for:
+
+- [embodied](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition"), meaning that a [brain](https://en.wikipedia.org/wiki/Brain "Brain") is found in and, more importantly, vitally interconnected with a larger physical/biological body;
+- [embedded](https://en.wikipedia.org/wiki/Embodied_embedded_cognition "Embodied embedded cognition"), which refers to the limitations placed on the body by the external environment and [laws of nature](https://en.wikipedia.org/wiki/Natural_law "Natural law");
+- [extended](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis"), which argues that the mind is supplemented and even enhanced by the exterior world (e.g., [writing](https://en.wikipedia.org/wiki/Writing "Writing"), a [calculator](https://en.wikipedia.org/wiki/Calculator "Calculator"), etc.); and
+- [enactive](https://en.wikipedia.org/wiki/Enactivism "Enactivism"), which is the argument that without dynamic processes, actions that require reactions, the mind would be ineffectual.[^2] [^3]
+
+It could be argued that the four Es are compounding extensions of cognition or the mind, being part of a body that is, in turn, part of an environment which limits it but also allows for certain extensions, all of which require dynamic actions and reactions.[^4]
+
+## History
+
+Ideas of [embodied cognition](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition"), or rather the idea that our physical bodies play a crucial role in our [decision making](https://en.wikipedia.org/wiki/Decision-making "Decision-making"), can be traced back as far as [Plato's](https://en.wikipedia.org/wiki/Plato "Plato") dialogues and [Aristotelian thought](https://en.wikipedia.org/wiki/Aristotle "Aristotle").[^5] It was, however, in the twentieth century that this debate began to resemble the current discussion, fueled by disagreements between [cognitivists](https://en.wikipedia.org/wiki/Cognitivism_\(psychology\) "Cognitivism (psychology)") and [behaviourists](https://en.wikipedia.org/wiki/Behaviorism "Behaviorism"). Tensions within [cognitivism](https://en.wikipedia.org/wiki/Cognitivism_\(psychology\) "Cognitivism (psychology)"), as well as the increasing popularity of [neurobiology](https://en.wikipedia.org/wiki/Neurobiology "Neurobiology"), led, on the one side, to a predominant focus on internal, [cognitive processes](https://en.wikipedia.org/wiki/Cognitive_processes "Cognitive processes") while neglecting [environmental factors](https://en.wikipedia.org/wiki/Environmental_factor "Environmental factor"), which in turn caused a push-back fuelling our modern understanding of [embodied cognition](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition").[^2]
+
+The term 4E cognition is hard to trace back to its first use, however, some sources attribute it to [Shaun Gallagher](https://en.wikipedia.org/wiki/Shaun_Gallagher "Shaun Gallagher") and the conference on 4E cognition he organised in 2007, while others indicate the term to be first used in 2006 at an 'Embodied mind workshop' at [Cardiff University](https://en.wikipedia.org/wiki/Cardiff_University "Cardiff University") that Gallagher attended.[^2]
+
+Embodiment or [embodied cognition](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition") arguably presents the bridge between cognitivism and 4E cognition as the embodiment of cognitive function provides the necessary conditions for [embeddedness](https://en.wikipedia.org/wiki/Embodied_embedded_cognition "Embodied embedded cognition"), [enactedness](https://en.wikipedia.org/wiki/Enactivism "Enactivism"), and [extendedness](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis") to connect to [cognition](https://en.wikipedia.org/wiki/Cognition "Cognition").[^6]
+
+4E cognition was and is heavily influenced by [phenomenology](https://en.wikipedia.org/wiki/Phenomenology_\(psychology\) "Phenomenology (psychology)"),[^7] but also by [Marxist](https://en.wikipedia.org/wiki/Marxism "Marxism") and [feminist](https://en.wikipedia.org/wiki/Feminism "Feminism") thinking, as well as [queer-theory](https://en.wikipedia.org/wiki/Queer_theory "Queer theory").[^8] The ideas are still rather fragmented in nature due to their four main components, which can not be neatly divided, causing conceptual questions of internal boundary concepts.[^2] As a young field, it is held back both by its fragmented nature and a relative lack of critical evaluations.[^8] It is important to acknowledge that 4E cognition, though young, is a broad field containing and combining several different theoretical perspectives that conflict with one another to varying degrees.[^9] The somewhat convoluted and competing nature of the theories that can be grouped as 4E cognition, as well as the field's relative youth, make it difficult to put together an exhaustive history beyond the history of its four main theoretical pillars: [embodiment](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition"), [embeddedness](https://en.wikipedia.org/wiki/Embodied_embedded_cognition "Embodied embedded cognition"), [extendedness](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis"), and [enactedness](https://en.wikipedia.org/wiki/Enactivism "Enactivism").
+
+If there are separate theories of cognition (e.g., embodied, extended, etc.), why group them under this umbrella, causing important epistemological and especially ontological dilemmas?[^10] Notably, other theories of 'non-traditional' cognition are not included under the 4E umbrella.[^11] The four E's in 4E cognition importantly all reject, or at a minimum draw into question, some of the core tenets of traditional cognitivism.[^11]
+
+Importantly, 4E cognition is seen as deindividualizing cognition to some extent, allowing for a broader examination of the interplay of personal, [social](https://en.wikipedia.org/wiki/Social "Social"), political, and [ethical](https://en.wikipedia.org/wiki/Ethics "Ethics") aspects that shape human cognition.[^12] This can be compared to advancements in the field of [epigenetics](https://en.wikipedia.org/wiki/Epigenetics "Epigenetics"), which have allowed for a broader examination of environmental (both natural and social) factors and their influence on what had previously only been subject to [genetic](https://en.wikipedia.org/wiki/Genetics "Genetics") theorizing.[^13] [^14]
+
+In a similar vein, 4E cognition might also help ground cognition in evolutionary theory by extending cognition to a biological account subject to development over time by means of evolution.[^15]
+
+Overall, the importance of the extension that is 4E cognition aims to reexamine ideas of a self-centered view of cognition, advocating for a more [holistic](https://en.wikipedia.org/wiki/Holism "Holism") approach.[^16] Ideally, this would allow us to reconsider ideas of [justice](https://en.wikipedia.org/wiki/Justice "Justice") and [individual rights](https://en.wikipedia.org/wiki/Individual_rights "Individual rights") and responsibilities that take into account a more nuanced understanding of the relations between people and their context, balancing [self-agency](https://en.wikipedia.org/wiki/Self-agency "Self-agency") with factors beyond it.[^16]
+
+According to the traditional teachings of [cognitive psychology](https://en.wikipedia.org/wiki/Cognitive_psychology "Cognitive psychology"), [cognition](https://en.wikipedia.org/wiki/Cognition "Cognition") is a type of information processing based on representational mental structures.[^17] This idea, as the name suggests, was heavily influenced by [computer science](https://en.wikipedia.org/wiki/Computer_science "Computer science").[^18] In this light, the brain is a kind of [central processing unit](https://en.wikipedia.org/wiki/Central_processing_unit "Central processing unit") that organises and directs all else.[^19] The classical cognitivist view draws a strong boundary between 'the internal' and 'the external', where cognition is solely a subject of 'the internal' realm.[^2]
+
+The four E's, however, break down this [boundary](https://en.wikipedia.org/wiki/Boundaries_of_the_mind "Boundaries of the mind"). [Cognition](https://en.wikipedia.org/wiki/Cognition "Cognition") can not reside solely within the confines of our heads if it is also [embodied](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition"), [embedded](https://en.wikipedia.org/wiki/Embodied_embedded_cognition "Embodied embedded cognition"), [enacted](https://en.wikipedia.org/wiki/Enactivism "Enactivism"), and [extended](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis").[^8] In a way, 4E cognition is interested in the extracranial processes affecting [cognition](https://en.wikipedia.org/wiki/Cognition "Cognition").[^2]
+
+#### Embodied cognition
+
+Broadly speaking, there is a strong and a weak perspective of embodied cognition in 4E cognition. The weak understanding refers to mental processes being causally dependent on extracranial processes.[^2] This essentially means that there is a [cause and effect](https://en.wikipedia.org/wiki/Cause_and_effect "Cause and effect") or action-reaction relationship between the [mind](https://en.wikipedia.org/wiki/Mind "Mind") and the body and its environment, etc. The strong perspective views extracranial processes as a (partial) constitutive aspect of cognition.[^2] An example here could be using a [calculator](https://en.wikipedia.org/wiki/Calculator "Calculator") to solve math problems. The [calculator](https://en.wikipedia.org/wiki/Calculator "Calculator") is not part of your brain or mind, but it supports your cognitive processes.[^8]
+
+In addition to the weak and the strong reading of 4E cognition, there is also the distinction between bodily and extrabodily extracranial processes.[^2] Bodily extracranial processes refer to processes within the body, e.g., sensory perception. Extrabodily extracranial processes refer to processes outside of the body, like the aforementioned calculator example.
+
+When combining the weak/strong reading of embodied cognition and bodily/extrabodily extracranial process, four claims about embodied cognition emerge:[^2]
+
+1. strongly embodied and bodily processes
+2. strongly embodied and extrabodily processes
+3. weakly embodied and bodily processes
+4. weakly embodied and extrabodily processes
+
+The first and third claims signify a strong and a weak reading of [embodied cognition](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition") in the more classical sense. The second claim fits almost perfectly with [embedded cognition](https://en.wikipedia.org/wiki/Embodied_embedded_cognition "Embodied embedded cognition").[^2] [^19] Claim two is most compatible with [extended cognition](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis").[^20]
+
+#### Enacted cognition
+
+Finally, [enacted cognition](https://en.wikipedia.org/wiki/Enactivism "Enactivism") refers to cognition being connected to active interaction between a conscious agent and their environment.[^21] Here, too, there can be a weak and a strong reading.
+
+## Criticisms
+
+Given the divided nature of the field, much criticism surrounding the lack of unity within the field has emerged. In particular, the claims of [embodied cognition](https://en.wikipedia.org/wiki/Embodied_cognition "Embodied cognition") centering around the body conflict with the tenets of [extended cognition](https://en.wikipedia.org/wiki/Extended_mind_thesis "Extended mind thesis"), which also conflict with the body/environment distinction that is central to [enactivism](https://en.wikipedia.org/wiki/Enactivism "Enactivism").[^10] Some theoreticians argue that the umbrella of 4E theories is still lacking a common language that might bridge the gaps between the theories that constitute it.[^5] There is also the concern that the grouping of such variable theories results in an important loss of nuance and complexity, which is a part of human cognition.[^11]
+
+Another concern raised is the " [dogma](https://en.wikipedia.org/wiki/Dogma "Dogma") of harmony".[^22] The criticism contained there regards the notion that within 4E theorizing, there is generally an optimistic and harmonic expectation of the extension between humans and their technologies, ignoring the possibility of those extensions detracting from cognition in some way rather than adding to it.[^22]
+
+Recent attempts to incorporate embodied cognitive neuroscience have been argued to hold the potential to resolve internal issues within 4E cognition.[^23]
+
+Overall, a concern often voiced regarding 4E cognition is that its proponents are at best only vaguely interested in cognition. More broadly, this concern reflects the arguably too distracted nature of this emerging field.[^24]
+
+## References
+
+[^1]: Alexander, Cameron (2025-01-21). ["What is 4E cognitive science?"](https://doi.org/10.1007%2Fs11097-025-10055-w). *Phenomenology and the Cognitive Sciences*. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1007/s11097-025-10055-w](https://doi.org/10.1007%2Fs11097-025-10055-w). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1572-8676](https://search.worldcat.org/issn/1572-8676).
+
+[^2]: Newen, Albert; Gallagher, Shaun; De Bruin, Leon (2018-09-13), Newen, Albert; De Bruin, Leon; Gallagher, Shaun (eds.), ["4E Cognition: Historical Roots, Key Concepts, and Central Issues"](https://academic.oup.com/edited-volume/28083/chapter-abstract/212118698?redirectedFrom=fulltext), *The Oxford Handbook of 4E Cognition*, Oxford University Press, p. 0, [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1093/oxfordhb/9780198735410.013.1](https://doi.org/10.1093%2Foxfordhb%2F9780198735410.013.1), [ISBN](https://en.wikipedia.org/wiki/ISBN_\(identifier\) "ISBN (identifier)") [978-0-19-873541-0](https://en.wikipedia.org/wiki/Special:BookSources/978-0-19-873541-0 "Special:BookSources/978-0-19-873541-0"), retrieved 2025-04-01 `{{[citation](https://en.wikipedia.org/wiki/Template:Citation "Template:Citation")}}`: CS1 maint: work parameter with ISBN ([link](https://en.wikipedia.org/wiki/Category:CS1_maint:_work_parameter_with_ISBN "Category:CS1 maint: work parameter with ISBN"))
+
+[^3]: Shapiro, Lawrence; Spaulding, Shannon (2024), ["Embodied Cognition"](https://plato.stanford.edu/entries/embodied-cognition/), in Zalta, Edward N.; Nodelman, Uri (eds.), *The Stanford Encyclopedia of Philosophy* (Fall 2024 ed.), Metaphysics Research Lab, Stanford University, retrieved 2025-04-01
+
+[^4]: ["Edizioni Ca' Foscari"](https://edizionicafoscari.unive.it/riviste/the-journal-for-the-philosophy-of-language-mind-an/2020/2/4e-cognition-and-the-spectrum-of-aesthetic-experie/). *edizionicafoscari.unive.it*. Retrieved 2025-04-01.
+
+[^5]: Stanciu, Diana (2023-11-21). ["Consciousness, 4E cognition and Aristotle: a few conceptual and historical aspects"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10699441). *Frontiers in Computational Neuroscience*. **17** 1204602. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.3389/fncom.2023.1204602](https://doi.org/10.3389%2Ffncom.2023.1204602). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1662-5188](https://search.worldcat.org/issn/1662-5188). [PMC](https://en.wikipedia.org/wiki/PMC_\(identifier\) "PMC (identifier)") [10699441](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10699441). [PMID](https://en.wikipedia.org/wiki/PMID_\(identifier\) "PMID (identifier)") [38077752](https://pubmed.ncbi.nlm.nih.gov/38077752).
+
+[^6]: Lebert, Angélique; Vilarroya, Óscar (2024). ["The links between experiential learning and 4E cognition"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11580775). *Annals of the New York Academy of Sciences*. **1541** (1): 37– 52. [Bibcode](https://en.wikipedia.org/wiki/Bibcode_\(identifier\) "Bibcode (identifier)"):[2024NYASA1541...37L](https://ui.adsabs.harvard.edu/abs/2024NYASA1541...37L). [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1111/nyas.15238](https://doi.org/10.1111%2Fnyas.15238). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1749-6632](https://search.worldcat.org/issn/1749-6632). [PMC](https://en.wikipedia.org/wiki/PMC_\(identifier\) "PMC (identifier)") [11580775](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11580775). [PMID](https://en.wikipedia.org/wiki/PMID_\(identifier\) "PMID (identifier)") [39383206](https://pubmed.ncbi.nlm.nih.gov/39383206).
+
+[^7]: Rowlands, Mark (2015). "Bringing Philosophy Back: 4e Cognition and the Argument from Phenomenology". In Dahlstrom, Daniel; Elpidorou, Andreas; Hopp, Walter (eds.). [*Philosophy of Mind and Phenomenology*](https://www.academia.edu/10342965) (1st ed.). Taylor & Francis Group. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.4324/9781315889634-27](https://doi.org/10.4324%2F9781315889634-27) (inactive 7 July 2025). [ISBN](https://en.wikipedia.org/wiki/ISBN_\(identifier\) "ISBN (identifier)") [9781315889634](https://en.wikipedia.org/wiki/Special:BookSources/9781315889634 "Special:BookSources/9781315889634").`{{[cite book](https://en.wikipedia.org/wiki/Template:Cite_book "Template:Cite book")}}`: CS1 maint: DOI inactive as of July 2025 ([link](https://en.wikipedia.org/wiki/Category:CS1_maint:_DOI_inactive_as_of_July_2025 "Category:CS1 maint: DOI inactive as of July 2025"))
+
+[^8]: Carney, James (2020-12-01). ["Thinking avant la lettre: A Review of 4E Cognition"](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7250653). *Evolutionary Studies in Imaginative Culture*. **4** (1): 77– 90. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.26613/esic.4.1.172](https://doi.org/10.26613%2Fesic.4.1.172). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [2472-9876](https://search.worldcat.org/issn/2472-9876). [PMC](https://en.wikipedia.org/wiki/PMC_\(identifier\) "PMC (identifier)") [7250653](https://www.ncbi.nlm.nih.gov/pmc/articles/PMC7250653). [PMID](https://en.wikipedia.org/wiki/PMID_\(identifier\) "PMID (identifier)") [32457930](https://pubmed.ncbi.nlm.nih.gov/32457930).
+
+[^9]: ["Embodied Cognition"](https://www.routledge.com/Embodied-Cognition/Shapiro/p/book/9781138746992). *Routledge & CRC Press*. Retrieved 2025-06-09.
+
+[^10]: Kersten, Luke; Deane, George; Dewhurst, Joe (2017), Gunzelmann, Glenn; Howes, Andrew; Tenbrink, Thora; Davelaar, Eddy (eds.), ["Resolving Two Tensions in 4e Cognition Using Wide Computationalism"](https://philarchive.org/rec/KERRTT), *Proceedings of the 39th Annual Conference of Cognitive Science Society*, pp. 2395– 2400, retrieved 2025-06-10
+
+[^11]: Menary, Richard (2010-12-01). ["Introduction to the special issue on 4E cognition"](https://doi.org/10.1007/s11097-010-9187-6). *Phenomenology and the Cognitive Sciences*. **9** (4): 459– 463. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1007/s11097-010-9187-6](https://doi.org/10.1007%2Fs11097-010-9187-6). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1572-8676](https://search.worldcat.org/issn/1572-8676).
+
+[^12]: Anderson, Miranda (2022). ["4E Cognition and the Mind-Expanding Arts"](https://philarchive.org/rec/ANDECA-12). *European Journal of Philosophy in Arts Education*. **1** (7): 7– 64.
+
+[^13]: Moore, David (2015-01-01). ["The Developing Genome: An Introduction to Behavioral Epigenetics"](https://scholarship.claremont.edu/pitzer_facbooks/16). *Pitzer Faculty Books*.
+
+[^14]: Dupras, Charles; Joly, Yann; Rial-Sebbag, Emmanuelle (2020-03-01). ["Human rights in the postgenomic era: Challenges and opportunities arising with epigenetics"](https://doi.org/10.1177/0539018419900139). *Social Science Information*. **59** (1): 12– 34. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1177/0539018419900139](https://doi.org/10.1177%2F0539018419900139). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [0539-0184](https://search.worldcat.org/issn/0539-0184).
+
+[^15]: Barrett, Louise (2018-09-13), Newen, Albert; De Bruin, Leon; Gallagher, Shaun (eds.), ["The Evolution of Cognition: A 4E Perspective"](https://doi.org/10.1093/oxfordhb/9780198735410.013.38), *The Oxford Handbook of 4E Cognition*, Oxford University Press, p. 0, [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1093/oxfordhb/9780198735410.013.38](https://doi.org/10.1093%2Foxfordhb%2F9780198735410.013.38), [ISBN](https://en.wikipedia.org/wiki/ISBN_\(identifier\) "ISBN (identifier)") [978-0-19-873541-0](https://en.wikipedia.org/wiki/Special:BookSources/978-0-19-873541-0 "Special:BookSources/978-0-19-873541-0"), retrieved 2025-06-10 `{{[citation](https://en.wikipedia.org/wiki/Template:Citation "Template:Citation")}}`: CS1 maint: work parameter with ISBN ([link](https://en.wikipedia.org/wiki/Category:CS1_maint:_work_parameter_with_ISBN "Category:CS1 maint: work parameter with ISBN"))
+
+[^16]: Dibaei, Mahdi. [*Essay: 4E Cognition and Practical Ethical Implications*](https://philarchive.org/rec/DIBEEC).
+
+[^17]: Walter, Sven; Kyselo, Miriam (2009-09-01). ["Fred Adams, Ken Aizawa: The Bounds of Cognition"](https://link.springer.com/article/10.1007/s10670-009-9161-2). *Erkenntnis*. **71** (2): 277– 281. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1007/s10670-009-9161-2](https://doi.org/10.1007%2Fs10670-009-9161-2). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1572-8420](https://search.worldcat.org/issn/1572-8420).
+
+[^18]: Simon, Herbert A. (1980-01-01). ["Cognitive science: The newest science of the artificial"](https://www.sciencedirect.com/science/article/abs/pii/S0364021381800031). *Cognitive Science*. **4** (1): 33– 46. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1016/S0364-0213(81)80003-1](https://doi.org/10.1016%2FS0364-0213%2881%2980003-1) (inactive 2 August 2025). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [0364-0213](https://search.worldcat.org/issn/0364-0213).`{{[cite journal](https://en.wikipedia.org/wiki/Template:Cite_journal "Template:Cite journal")}}`: CS1 maint: DOI inactive as of August 2025 ([link](https://en.wikipedia.org/wiki/Category:CS1_maint:_DOI_inactive_as_of_August_2025 "Category:CS1 maint: DOI inactive as of August 2025"))
+
+[^19]: Walter, Sven (2014-06-01). ["Situated Cognition: A Field Guide to Some Open Conceptual and Ontological Issues"](https://link.springer.com/article/10.1007/s13164-013-0167-y). *Review of Philosophy and Psychology*. **5** (2): 241– 263. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1007/s13164-013-0167-y](https://doi.org/10.1007%2Fs13164-013-0167-y). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1878-5166](https://search.worldcat.org/issn/1878-5166).
+
+[^20]: Stephan, Achim; Walter, Sven; Wilutzky, Wendy (2014). ["Emotions Beyond Brain and Body"](https://philpapers.org/rec/STEEBB). *Philosophical Psychology*. **27** (1): 65– 81. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1080/09515089.2013.828376](https://doi.org/10.1080%2F09515089.2013.828376).
+
+[^21]: [*Francisco J. Varela, Evan T. Thompson, Eleanor Rosch The Embodied Mind Cognitive Science And Human Experience MIT Press ( 1993)*](http://archive.org/details/FranciscoJ.VarelaEvanT.ThompsonEleanorRoschTheEmbodiedMindCognitiveScienceAndHum).
+
+[^22]: Aagaard, Jesper (2021-02-17). ["4E cognition and the dogma of harmony"](https://doi.org/10.1080/09515089.2020.1845640). *Philosophical Psychology*. **34** (2): 165– 181. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1080/09515089.2020.1845640](https://doi.org/10.1080%2F09515089.2020.1845640). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [0951-5089](https://search.worldcat.org/issn/0951-5089).
+
+[^23]: Dove, Guy (2024-10-01). ["How to build a better 4E cognition"](https://doi.org/10.1080/17588928.2024.2403340). *Cognitive Neuroscience*. **15** (3– 4): 104– 105. [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1080/17588928.2024.2403340](https://doi.org/10.1080%2F17588928.2024.2403340). [ISSN](https://en.wikipedia.org/wiki/ISSN_\(identifier\) "ISSN (identifier)") [1758-8928](https://search.worldcat.org/issn/1758-8928). [PMID](https://en.wikipedia.org/wiki/PMID_\(identifier\) "PMID (identifier)") [39306677](https://pubmed.ncbi.nlm.nih.gov/39306677).
+
+[^24]: Aizawa, Ken (2018-09-13), Newen, Albert; De Bruin, Leon; Gallagher, Shaun (eds.), ["Critical Note: So, What Again is 4E Cognition?"](https://doi.org/10.1093/oxfordhb/9780198735410.013.6), *The Oxford Handbook of 4E Cognition*, Oxford University Press, p. 0, [doi](https://en.wikipedia.org/wiki/Doi_\(identifier\) "Doi (identifier)"):[10.1093/oxfordhb/9780198735410.013.6](https://doi.org/10.1093%2Foxfordhb%2F9780198735410.013.6), [ISBN](https://en.wikipedia.org/wiki/ISBN_\(identifier\) "ISBN (identifier)") [978-0-19-873541-0](https://en.wikipedia.org/wiki/Special:BookSources/978-0-19-873541-0 "Special:BookSources/978-0-19-873541-0"), retrieved 2025-06-10 `{{[citation](https://en.wikipedia.org/wiki/Template:Citation "Template:Citation")}}`: CS1 maint: work parameter with ISBN ([link](https://en.wikipedia.org/wiki/Category:CS1_maint:_work_parameter_with_ISBN "Category:CS1 maint: work parameter with ISBN"))

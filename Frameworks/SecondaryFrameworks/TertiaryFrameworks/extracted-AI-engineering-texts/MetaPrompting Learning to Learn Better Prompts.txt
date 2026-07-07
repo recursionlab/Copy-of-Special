@@ -1,0 +1,956 @@
+MetaPrompting: Learning to Learn Better Prompts
+YutaiHou*,HongyuanDong*,XinghaoWang,BohanLi,WanxiangChe†
+ResearchCenterforSocialComputingandInformationRetrieval
+HarbinInstituteofTechnology,China
+{ythou, hydong, xhwang, bhli, car}@ir.hit.edu.cn
+Abstract
+Prompting method is regarded as one of
+the crucial progress for few-shot nature lan-
+guageprocessing. Recentresearchonprompt-
+ing moves from discrete tokens based “hard
+prompts”tocontinuous“softprompts”,which
+employlearnablevectorsaspseudopromptto-
+kensandachievebetterperformance. Though
+showing promising prospects, these soft-
+promptingmethodsareobservedtorelyheav-
+ily on good initialization to take effect. Un-
+fortunately, obtaining a perfect initialization
+for soft prompts requires understanding of
+inner language models working and elabo-
+rate design, which is no easy task and has
+to restart from scratch for each new task.
+To remedy this, we propose a generalized
+soft prompting method called MetaPrompt-
+ing, which adopts the well-recognized model-
+agnostic meta-learning algorithm to automati-
+callyfindbetterpromptinitializationthatfacil-
+Figure 1: Comparison between conventional soft-
+itates fast adaptation to new prompting tasks.
+promptingmethod(left)andproposedMetaPrompting
+Extensive experiments show MetaPrompting
+(right).xdenotesthequerysentence,andzislearnable
+tacklessoftpromptinitializationproblemand
+pseudo tokens in soft prompts. φ represents all train-
+brings significant improvement on four differ-
+ableparameters.MetaPromptingexploitsoptimization-
+entdatasets(over7pointsimprovementinac-
+based meta-learning to find an initialization φ that
+meta
+curacyfor1-shotsetting),achievingnewstate-
+facilitatesbetterandfasteradaptationtonewtasks.
+of-the-artperformance.
+1 Introduction
+modeling problem. For example, say we want to
+classify the sentiment of the book review “I will
+Enabling models to learn from a few labeled ex-
+neverreaditagain.”,wecanappendaprompt“It
+amples, i.e., Few-Shot Learning (FSL), is one of
+was”tothesentence, getting“Iwillneverreadit
+the key steps toward more human-like artificial
+again. Itwas”. Itisnaturaltoexpectahigherprob-
+intelligence. Recently, takingadvantageoflarge-
+ability from the PLM to generate “terrible” than
+scalePretrainedLanguageModels(PLM)(Brown
+“great”then. Suchconvertingbridgesthegapbe-
+etal.,2020),prompting-basedmethodsachieveim-
+tweenpre-trainingandtargettasks. Consequently,
+pressive results for few-shot learning of Natural
+ithasbettertransferabilityandlessdependenceon
+LanguageProcessing(NLP)(Gaoetal.,2021;Liu
+targettaskdata.
+etal.,2021a;Zhaoetal.,2021).
+Prompting-basedmethodsinsertapieceoftext, Theperformanceofpromptingmethodsisfound
+i.e. prompts,totheinputexamples,sothatthefew- tobegreatlyaffectedbythedesignofprompts(Gao
+shottaskcanbeformulatedasa(masked)language et al., 2021). That is, a good prompt makes sig-
+nificantdifference. Earlyattemptstakemanually-
+*Equalcontribution.
+†Emailcorresponding designedpromptsorsearchpromptsautomatically.
+3202
+beF
+3
+]LC.sc[
+4v68411.9022:viXraSchicketal.(2020)and(SchickandSchütze,2021) fasterandbetteracrossvarioustargetdomaintasks
+explore to automatically identify label words. In (See Figure 1). Extensive experiments show that
+pursuit of better performance compared to hand- MetaPrompting achieves promising performance
+picked prompts, Gao et al. (2021) proposes LM- withdesiredrobustness.
+BFF to search both prompt templates and label Wesummarizethemaincontributionofthispa-
+words. AutoPrompt (Shin et al., 2020) lever- perasfollows:
+agesgradient-basedsearchingtofindoutthebest (1) We propose a novel prompting method
+prompts. These prompts consist of discrete to- MetaPrompting, which employs optimization-
+kens,whichlimitsthepromptsearchspace. Tofur- basedmeta-learningalgorithmtofindadaptiveini-
+therliberatethepotentialofprompts,recentworks tializationforsoft-promptmethods. Tothebestof
+employ learnable vectors as prompt content and our knowledge, this is the first study of applying
+learnoptimalpromptsincontinuousspace,which meta-learningtopromptingproblemsetting.
+is so-called “soft prompts” (Liu et al., 2021c; Li (2) We conduct extensive experiments on four
+and Liang, 2021). Since they no longer require different datasets with various few-shot settings,
+promptstobecomposedofrealwords,thesemeth- andresultsshowthesuperiorityofMetaPrompting
+odsgreatlyexpandthepossibilitiesofpromptsand overnormallyfine-tunedsoft-promptmethodsand
+thusachievebetterperformance(Liuetal.,2021b). SOTAmeta-learningbaselines.
+(3) Further analysis experiments indicate that
+However,despitethepromisingprospectsofsoft
+MetaPromptingsignificantlyalleviatessoftprompt
+prompts, learning a good prompt is still far from
+initialization problem, and learns general meta-
+trivial. Becausesoft-promptssearchforoptimalso-
+knowledgetocountertheinstabilityofpromptvari-
+lutionsinaninfinitecontinuousspace,thechoiceof
+ance. WealsostudyMetaPrompting’scompatibil-
+thestartingpointforthesearch(i.e.,promptinitial-
+itywithdifferentmeta-learningmethodsandgive
+ization)becomescrucial. Soft-promptisobserved
+empiricalanalysisoftheirperformancedifference.
+tobemoresensitivetodifferentinitializationthan
+All code and data will be publicly available at
+discretepromptsinlowdatasetting(LiandLiang,
+https://github.com/Dousia/MetaPrompting.
+2021; Liu et al., 2021b). Unfortunately, creating
+a perfect prompt initialization requires both un-
+2 PreliminariesandRelatedWorks
+derstandingofLMs’innerworkingsandtrial-and-
+error. Lesteretal.(2021)initializesoftpromptwith Inthissection,wereviewrelatedworkandprovide
+the token embeddings of hand-crafted prompt di- preliminaries about Language Model Prompting
+rectly. Zhongetal.(2021b)searchdiscretetokens andMeta-learning.
+asbetterinitialization,whichshowsbetterperfor-
+mance. What’s worse is that these initializations 2.1 PromptingLanguageModels
+are task-bounded. Every time we confront a new Prompting methods are proposed to better apply
+task,thecostlyprocessofinitializationdesignhas pre-trainedlanguagemodelstodownstreamtasks
+tostartfromscratch. by aligning them with pre-training tasks. For
+MaskedLanguageModels(MLMs),thefirststep
+Inthispaper,totackletheaboveissues,welet
+istoconvertasampletextxtox byinsert-
+loosethepromptdesignofaspecifictask,butin- prompt
+ingpromptwordswhichcontain[MASK]tokens.
+stead focus on obtaining a task general prompt
+Takingthenewsheadlineclassificationtaskasan
+initializationthatfacilitatesfasterandbetteradap-
+example,thepromptedtextisgivenas:
+tationtonewpromptingtasks. Recentlyproposed
+optimization-basedmeta-learningalgorithms,such
+x =[CLS]xThetopicis[MASK].[SEP], (1)
+prompt
+asMAML(Finnetal.,2017)andReptile(Nichol
+etal.,2018),achievebetteradaptionbylearninga where“Thetopicis[MASK]”areprompttokens.
+parameter initialization. Following their essence, Then, we ask pre-trained MLM to complete the
+we tackle soft prompt initialization problem by prompted text x , and the word to be filled
+prompt
+proposingMetaPrompting,whichisageneralized at[MASK]positionisregardedasananswer. An
+softpromptingmethodpoweredbymeta-learning answer-labelmapisthenusedtoconverttheword
+algorithms. MetaPrompting learns general meta- probability distribution at [MASK] to classifica-
+knowledge from source domain tasks to form a tionresults. Forexample,answers‘arts’and‘cul-
+better soft prompt initialization, and thus adapts ture’canbemappedtolabel‘ARTS&CULTURE’,while‘environment’canbemappedtolabel‘EN-
+VIRONMENT’. The average probability of each
+x z topic is arts .
+label’scorrespondinganswersiscomputedasthe
+arts Arts&Culture
+label’sfinalprobability. culture
+tech Technology
+Early prompting methods, such as GPT- MLM politics Politics
+: :
+3(Brownetal.,2020)andPET/iPET(Schickand : :
+Schütze,2021),usehand-craftedprompttemplates.
+Althoughpromisingresultsareachieved,theper- Trainable param
+··· ···
+formanceofthesemethodsheavilyreliesonthese- Frozen param
+lectionofpre-definedprompttemplates. Moreover, Sample text x
+tokens
+designing prompts is extremely time-consuming,
+x z topic is . Soft prompt z
+tokens
+andhand-craftedpromptsmaybesub-optimal.
+Anumberofrecentworksproposetoautomate Figure2: Anillustrationofsoft-promptingmethod. x
+referstothesampletext, andz representssoftprompt
+thesearchofdiscreteprompttemplates(Shinetal.,
+tokens. All trainable parameters are colored in blue,
+2020;Gaoetal.,2021;Davisonetal.,2019;Jiang
+whilefixedonesarecoloredingrey.
+etal.,2020;Havivetal.,2021),whileotherstreat
+prompt tokens as continuous trainable parame-
+tecture (e.g. memory-augmented components in
+ters (Li and Liang, 2021; Liu et al., 2021c; Qin
+model-based algorithms). Andrychowicz et al.
+and Eisner, 2021). In this work, we follow P-
+(2016) and Ravi and Larochelle (2017) train re-
+tuning(Liuetal.,2021c)tocombinesoftprompt
+currentneuralnetworkstotransformvanillagradi-
+andanchortokensastemplates. Insteadofdirectly
+entdescentdirectionforbetteroptimizationresults.
+applyingthemodelinfew-shottasks,however,we
+MAML(Finnetal.,2017)optimizesmodelparam-
+adopt meta-learning methods to find a better ini-
+eterstofindabetterinitializationpoint,sothatthe
+tializationpointforbothsoftpromptembeddings
+modelcanadaptfasterandbettertounseentasks.
+andMLMparameters,becausetheyareverysen-
+InadditiontoMAML,moreelaboratemethodsalso
+sitivetoinitializationinfew-shotsettings(Liand
+learninnerloopgradientdescentdirection(Lietal.,
+Liang, 2021; Liu et al., 2021b). Note that a re-
+2017)andinnerstepsizes(Antoniouetal.,2019).
+centwork(Zhongetal.,2021a)alsolearnsprompt
+Utilizingfirst-orderderivatives,FOMAML(Finn
+model on a number of source domain tasks, but
+et al., 2017) and Reptile (Nichol et al., 2018) are
+theirmethodconsumesheavyhumanlabortode-
+proposed to reduce the memory consumption of
+signhardpromptsforeachtask,anddirectlyfine-
+high-orderderivativecalculation.
+tunesthemodelwithoutinvolvingmetaalgorithms.
+3 Method
+2.2 MetaLearning
+Since prompt-based methods, especially those
+Meta-learning algorithms can be classified into adopting soft prompts, are very sensitive to pa-
+metric-basedmethods,model-basedmethodsand rameter initialization (Li and Liang, 2021; Liu
+optimization-basedmethods. Metric-basedmeth- et al., 2021b), we introduce optimization-based
+odssuchasSiameseNetwork(Kochetal.,2015), meta-learningmethodsintopromptingmethodsto
+MatchingNetwork(Vinyalsetal.,2016)andProto- find better initialization points for prompt-based
+typicalNetwork(Snelletal.,2017),areproposed modelsandfurtherexploretheircapabilitiesinfew-
+tolearnametricspacethatgatherssimilarsamples shot scenarios. In this section, we first introduce
+and separates distinct ones. Model-based meta- theprompt-basedmodeltuningprocessusedinour
+learningalgorithmsuseadditionalmetalearnersto method(§3.1),andthendescribehowtoconstruct
+assistmodelprediction(Gravesetal.,2014;Mishra MetaPromptingtasks(§3.2). Finally,weelaborate
+etal.,2018;Qiaoetal.,2018). and formulate the Meta Prompting objective and
+Differentfromabovealgorithms,optimization- parameterupdatingstrategies(§3.3and§3.4).
+based meta-learning methods learn to improve
+3.1 Prompt-basedModelTuning
+model’s optimization procedure. Optimization-
+based approach is more suitable for prompting Inthiswork,weusesoftpromptswithanchorto-
+models as it neither requires a specific task form kens. As illustrated in Figure 2, prompt tokens
+(i.e., metric learning form) nor additional archi- consist of soft tokens which are represented astrainable parameters (blue) as well as anchor to-
+Soft prompt Back propagation
+kenswhicharefixedastheembeddingsofspecific embeddings &
+words (grey). Hard-soft combined prompt tem- MLM parameters
+Meta training stage
+plates render the model more flexible, while pre-
+servingenoughsemanticinformationtotriggerthe Adapt loss
+Clone Support
+MLM to produce correct predictions. Similar to Set
+P-tuning(Liuetal.,2021c),weimplementtransfor- Meta
+Adapt
+mationlayersonsoftpromptembeddings,allowing update Meta
+loss Meta loss
+Query
+themtoescapefromlocalminimasmoothly.
+Set
+Inthisway,wedefineMLMparametersasθand
+softprompttokenembeddingsasφ. Givenafew-
+×n
+Meta testing stage
+shot task τ where D = {(x ,y )} represents
+τ i i i∈τ
+trainingsamples,theprompttuningobjectivecan Adapt loss
+Support
+beformulatedasfollows: Set
+θ∗,φ∗ = argminL Dτ(f φ,θ) Adapt
+θ,φ
+(cid:88) (2) Query
+=argmax logP(y i|x i;φ,θ), Predictions
+Set
+θ,φ
+(xi,yi)∈Dτ
+where L is the loss function, and f is prompt-
+φ,θ
+basedmodelparameterizedbyMLMparametersθ Figure 3: Meta training and testing procedures of
+MetaPrompting.
+andsoftpromptembeddingsφ.
+D τ containsfewlabeleddatabecauseofthehigh adaption process of few-shot tasks by updating
+annotationcostinreal-worldscenarios. Asaresult, cloned model parameters θ0 and φ0 on Dsupport .
+i i τi
+the initialization of parameters θ and φ are more TheadaptionobjectiveisgiveninEquation(2),and
+thancrucialtothemodel’sperformance. thisprocesscanbeformulatedas:
+3.2 ConstructingMetaPromptingTasks θ ik =θ ik−1−α∇ θ ik−1L Dτs iupport(f φk i−1,θ ik−1),
+(4)
+To get a better initialization point for parameters φk i =φk i−1−α∇ φk i−1L Dτs iupport(f φk i−1,θ ik−1),
+θ and φ, we propose to sample Meta Prompting
+whereαindicateslearningrateandk = 1,2,3,...
+tasksfromaccessiblesourcedataandconductmeta-
+indicatestheinnerstep. Thegoaloflearningwith
+trainingonthesesampledtasks. Thismetatraining
+Meta Prompting tasks is to minimize the loss of
+processaimstosimulatethemodel’sadaptationto
+theadaptedpromptingmodel,whichisparameter-
+newfew-shottasks. ized as f , on Dquery . This objective can be
+WesampleeachMetaPromptingtaskτ as:
+φi,θi τi
+i describedasfollows:
+τ i = (D τs iupport,D τq iuery), (3) θobj,φobj = arg θ,m φinL Dτq iuery(f φi,θi). (5)
+where D τs iupport indicates the support set and Optimizing towards this objective is to mimic
+D τq iuery indicates the query set in traditional few- realfew-shottextclassificationscenarios,anden-
+shotlearningsettings. Notethatmetatrainingtasks ablepromptingmodeltofindabetterinitialization
+andmetatestingtasksshouldbesampledfromdif- pointforfastadaptationtonewtasks. Letβ bethe
+ferentdomains,topreventthemodelfromsimply learningratewhenupdatingmodelparameterson
+memorizingtrainingsamples. Dquery , and H be Hessian matrix. We formulate
+τi
+thesecond-ordergradientofpromptparameterφ
+3.3 ApplyingMeta-learningtoPrompting computedonDquery
+inthefollowingform:
+Models
+τi
+φ ← φ−β·gsecond
+φ
+AfterconstructingMetaPromptingtasks,wetrain
+our prompting model on these tasks to find a = φ−β∇ φL Dτq iuery(f φi,θi)
+better initialization point. Figure 3 illustrates = φ−β∇ φiL Dτq iuery(f φi,θi)·∇ φ(φ i) (6)
+the meta training and meta testing procedures of
+MetaPrompting. GivenaMetaPromptingtaskτ i,
+= φ−β∇ φiL Dτq iuery(f φi,θi)·
+weclonethemodel’sparametersandsimulatethe (I−αH φ(L Dτs iupport(f φ,θ))),where we assume φ is φ adapted for one inner Theseheadlinescover41newscategoriesandthe
+i
+steponDsupport . Inpractice,innerstepscanbein- averagetextlengthis11.
+τi
+creasedforbetterperformance. Pre-trainedMLM Amazonproductdatacontainsaround24,000
+parametersθisupdatedinthesamewayasprompt product reviews from 1996 to 2014 from Ama-
+parametersφinEquation(6). zon(HeandMcAuley,2016). Thesereviewscon-
+tain24categoriescorrespondingtotheirrespective
+3.4 StableandMemory-efficientMeta
+productcategorieswithvaryingtextlengths. The
+PromptLearning averagetextlengthis140.
+Although broadly used in meta-learning tasks, 20 Newsgroups contains 18,820 newsgroup
+MAML suffers from training instability and ex- documentsof20differenttopics(Lang,1995). We
+ploding memory consumption when model size used 20news-18828 version following Bao et al.
+andinnerstepgrow. Toaddressthefirstproblem, (2019). Theaveragetextlengthis340.
+wefollowAntoniouetal.(2019)tointroduceMulti- Reuterscontains620document-levelnewsarti-
+StepLossBack-propagation(MSLB)intoprompt- clesof31differenttopicsfrom1987(Lewis,1997).
+ingmodeltuningprocess. Inthisway,prompting Theaveragetextlengthis168.
+modelparametersreceiveoptimizationinformation We adopt the same pre-processing and data-
+from each inner step during adaptation, alleviat- splittingstrategywithBaoetal.(2019)toprocess
+ing the vanishing/exploding gradient problem in theabovedatasets.
+thestackeddeepneuralarchitectureconstructedin
+adaptationprocess. 4.2 Implementation
+As for the exploding memory consumption is- Weusethepre-trainedBERT(bert-base-uncased)
+sue,wealsoexploretocombinememory-efficient withHuggingFacescodebase(Wolfetal.,2019)as
+alternativessuchasFOMAML(Finnetal.,2017) thepre-trainedlanguagemodel.
+and Reptile (Nichol et al., 2018) with prompting
+For soft prompting model, we follow Liu et al.
+model. FOMAMLremovesthehigh-orderderiva-
+(2021c)touseatwo-layerbiLSTMandatwo-layer
+tives term in Equation (6), providing a cheap ap-
+MLPtotransformsoft-promptembeddings. Wedi-
+proximation for MAML. Reptile updates model
+videthelearnableparametersofpromptingmodel
+parameterstowardstheoptimalpointofeachtask,
+intotwoparts: pre-trainedmodelandpromptem-
+which is obtained by adapting the model on the
+beddings. AdamW(LoshchilovandHutter,2018)
+support set samples. Equipped with these algo-
+isusedtooptimizetwotypesofparameters,with
+rithms,MetaPromptingcanlearnmetaknowledge initial learning rates of 1e−5 and 5e−5, respec-
+withlimitedmemoryconsumption.
+tively. For pre-trained model parameters, we set
+weightdecayto0.1. Wealsoadoptlinearwarmup
+4 Experiment
+andlineardecaystrategyforlearningrates. Batch
+sizeissetas16forallstages,andthemodeladapts
+We conduct experiments by evaluating the pro-
+for15epochsontestepisodes. Werun3indepen-
+posed methods on four widely-used benchmark
+dentrunswithrandomseedsforeachsetting.
+datasetswithvariouslowresourcesettings.
+Beforemeta-trainingstage,wegenerate10,000
+4.1 Dataset training episodes, 2,500 validation episodes and
+1,000 testing episodes comprehensively and ran-
+Following Bao et al. (2019); Xu and Xiang
+domly. During the training stage, we train the
+(2021), we use the following four text classifica-
+model with 100 sampled training episodes per
+tiondatasetsforexperiments,whichprovidewell-
+epoch. When there is no validation accuracy in-
+foundedbenchmarksforthemeta-train&meta-test
+creasefor10epochs,weapplyearlystopping. For
+settingandvaryindomainandtextlength.
+meta-testing, we test the model on all 1,000 test
+HuffPost headlines contains around 36,900
+episodesandreporttheaverageaccuracy.
+newsheadlinesfrom2012to2018obtainedfrom
+HuffPost(Misra,2018;MisraandGrover,2021).
+4.3 Baselines
+ForotherdatasetsusedinBaoetal.(2019),RCV1(Lewis Wecomparewiththefollowingbaselines:
+etal.,2004)isnotincludedduetooverlylongtextlengths,
+1-NNisa1-nearest-neighborclassifierbasedon
+whileFewRel(Hanetal.,2018)isexcludedbecauseitdoes
+notprovideeachlabel’ssemanticmeanings. Euclideandistance.Method 20News Amazon HuffPost Reuters Average
+1shot 5shot 1shot 5shot 1shot 5shot 1shot 5shot 1shot 5shot
+1-NN 38.8 51.9 51.4 67.1 31.5 42.3 57.8 82.9 44.88 61.05
+FT 33.0 47.1 45.7 63.9 32.4 44.1 70.9 91.0 45.50 61.53
+PROTO 37.8 46.5 41.9 59.2 34.8 50.2 61.0 72.1 43.88 57.00
+MAML 37.2 48.6 43.6 62.4 38.9 53.7 61.5 72.0 45.30 59.18
+RR 44.8 64.3 60.2 79.7 37.6 59.5 69.1 93.0 52.93 74.13
+DS(2019) 52.1 68.3 62.6 81.1 43.0 63.5 81.8 96.0 59.88 77.23
+DE-MLMAN(2021) − − − − 49.7 60.9 − − − −
+DE-MAML(2021) − − − − 51.8 67.3 − − − −
+DE-PROTO(2021) − − − − 52.3 69.6 − − − −
+KGML-PROTO(2021) − − 58.6 74.5 42.3 58.7 − − − −
+KGML-MAML(2021) − − 51.4 58.8 44.2 54.1 − − − −
+P-TUNING(2021c) 61.20 71.47 62.18 79.13 54.48 65.75 90.01 96.66 66.97 78.25
+FROG-GNN(2021) − − 71.5 83.6 54.1 69.6 − − − −
+LASAML-PN(2021) − − − − 62.1 70.1 − − − −
+CONTRASTNET(2022) 71.74 81.57 76.13 85.17 53.06 65.32 86.42 95.33 71.84 81.85
+OURS(PRETRAININIT) 72.52 76.32 75.12 83.27 70.82 75.47 95.07 97.29 78.38 83.09
+OURS(METAINIT) 73.75 76.57 77.65 85.54 71.93 76.32 95.20 97.17 79.63 83.90
+Table 1: Results of 1-shot and 5-shot classification on four datasets in terms of accuracy. The rows below the
+mid-line are results of MetaPrompting. ‘-’ means that the result of this dataset is not given in the original paper.
+Wedonotshowstandarddeviationofourexperimentresultshereduetospacelimits. Fullresultscanbefoundin
+AppendixA.
+FT(Chenetal.,2019)pre-trainsaclassifieron works with MAML (KGML-MAML) and proto-
+sourcedomaindata,andthenfine-tunes(FT)iton typicalnetwork(KGML-Proto).
+eachsupportsetbeforeevaluation. P-tuning (Liu et al., 2021c) is a prompt-based
+RR(Bertinettoetal.,2019)adoptsridgeregres- methodthatusesmaskedlanguagemodeltocon-
+sion(RR)forclassification. vert target tasks into cloze problems. It employs
+MAML(Finnetal.,2017)meta-learnsaclassi- soft-promptingtechniquestooptimizepromptsin
+fierwithMAMLalgorithm,sothatthemodelcan continuousspace.
+adaptfasterandbettertotargetdomaintasks. Frog-GNN (Xu and Xiang, 2021) is a graph
+Prototypical network (Snell et al., 2017) is a neuralnetworkbasedmethod,whichextractsbet-
+metric-basedmethodwhichmeta-learnsametric ter query representations with multi-perspective
+space by minimizing the Euclidean distance be- aggregationofgraphnodeneighbors.
+tweenthecentroidofeachcategoryandthecorre- LaSAML-PN (Luo et al., 2021) is a meta-
+spondingsamples. learningframeworkthatminessemanticinforma-
+DS (Bao et al., 2019) is trained within a meta- tioninlabelsandattachesittothesentenceasthe
+learningframeworktomapthedistributionsigna- inputoftheencodertoobtaindiscriminativesen-
+tures (DS), i.e., characteristics of the underlying tenceembeddings.
+worddistributions,intoattentionscorestoextract ContrastNet (Chen et al., 2022) is the SOTA
+moretransferablefeatures. method. Itintroducesinstance-levelandtask-level
+DE(Ohashietal.,2021)generatesdistinctlabel regularization loss into vanilla contrastive learn-
+representationsthatembedinformationspecificto ingmodelbasedonBERTrepresentationsforbet-
+eachlabeltoaidclassificationtasks. Duringexper- tergeneralizationperformance. Theregularization
+iments,itiscombinedwithMAML(DE-MAML) loss is computed with samples augmented by an
+andprototypicalnetwork(DE-PROTO),aswellas additionalBERTmodel.
+MLMAN(YeandLing,2019)(DE-MLMAN).
+4.4 MainResults
+KGML(Yaoetal.,2021)extractsadditionalrep-
+resentationforeachsentencefromexternalknowl- Weevaluatetheproposedmethodsinboth5-way
+edgebase,tobridgethegapbetweenmeta-training 1-shot and 5-way 5-shot settings and report per-
+and meta-testing tasks. During experiments, it formanceonfourdifferentdatasetswithdifferent
+textstyles. AsshowninTable1,ourmodeloutper-
+Theabove6baselinesusesfastTextembeddings(Joulin
+formspreviousSOTAmethodContrastNetwithout
+etal.,2016)andeachword’sinversedocumentfrequencyto
+producesentenceembeddings. using additional PLM. Averagely, our model im-proves 1-shot accuracy by 7.79 (10.84% ↑) and Method HuffPost Amazon 20News Reuters
+5-shot accuracy by 2.05 (2.50% ↑) across four
+BASELINE 65.75 79.13 71.47 96.66
+datasets. MetaPromptinggainslessimprovement OURS 73.06 83.64 75.60 97.26
+on 20Newsgroup and Amazon, because their la-
+Table2:PLMfrozen,MetaPromptingstillachievesbet-
+belsarehardtointerpretasnaturalwords,which
+ter performance over randomly initialized baseline on
+posesdifficultiesforpromptingmodels(Shinetal.,
+testdomains. Resultsaregivenin5shotsetting.
+2020;Cuietal.,2022). Variousmethodsarepro-
+posed to address this problem (Shin et al., 2020;
+Gaoetal.,2021;Hambardzumyanetal.,2021;Cui learning. NotethatKGML-MAMLadoptsanaddi-
+etal.,2022;Jiangetal.,2021). Inthiswork,how- tionalknowledgebase,whileourmodeldoesnot
+ever, we do not spend much effort on elaborate butstillachievesbetterperformance.
+answer design but instead focus on soft prompt (5) To further demonstrate meta learning
+initialization problem. Although equipped with method’seffectivenessinpromptlearning,wecon-
+simplydesignedanswersets,MetaPromptingstill ductablationsstudybyremovingtheMetaPrompt-
+achievesnew state-of-the-art performance across ing Objective and learn an initialization by pre-
+thefourdatasets. training soft prompt model on Meta Prompting
+Meanwhile, we have following observations Tasks described in Section 3.2. The results are
+basedonTable1: shownas OURS (PRETRAIN INIT). Performance
+(1)Comparedwithothersoft-promptingmeth- drops are witnessed across all four datasets and
+ods, i.e., P-tuning, our method obtains superior few-shotsettings,validatingthenecessityofmeta
+results. Although meta learning is conducted on objectivesinfindingabetterinitialization.
+completelydifferentsourcedomainMetaPrompt-
+4.5 Analysis
+ing tasks, our method still learns a better prompt
+modelinitializationpoint,whichallowsfasterand Inthispart,weanalyzetheproposedmethodfrom
+betteradaptiontonewpromptingtasks. differentaspects.
+(2) When compared to traditional supervised
+MetaPrompting tackles soft prompt initializa-
+learning methods, such as FT, all prompt-based
+tionproblem. MainresultsdisplayedinSection
+methodsachievesignificantimprovements,which
+4.4 are obtained with LM parameters tuned for
+demonstratestheeffectivenessofpromptingmech-
+faircomparisonwithpreviousSOTAbaselines. To
+anism in narrowing the gap between pretraining
+furthervalidatetheimportanceoflearningagood
+anddownstreamtasks.
+promptinitialization,wefreezePLM’sparameters
+(3) Metric learning-based baselines, such as
+whileleavingsoftpromptparametersunfrozento
+ContrastNet and LASAML-PN, perform as the
+onlylearnabetterpromptinitializationonsource
+strongest baselines on Amazon and HuffPost
+domains. Wetestourmeta-learning-basedinitial-
+datasets,respectively. Wefindthatdirectlyusing
+izationstrategyagainstrandominitialization,and
+prompt-basedmethodmaynotnecessarilyperform
+theresultsareshowninTable2. Therandomlyini-
+better, because of the absence of domain-related
+tializedsoftpromptbaselineperformspoorlyand
+initialization. TheproposedMetaPromptingallevi-
+unstably,whileourmethodconsistentlyyieldsbet-
+atestheaboveissueandachievesnewstate-of-the-
+terresultswithlowervarianceacrossfourdatasets,
+art performance. Among strong metric-learning
+which verifies our hypothesis and the validity of
+baselines,Frog-GNNconductstransductivelearn-
+theMetaPrompting.
+ingwithadditionallabelpropagationinformation,
+and ContrastNet uses an additional BERT model MetaPrompting learns general meta-
+toregularizethemainmodelwithaugmenteddata. knowledge from various source domains.
+Our model achieves better performance without AlthoughMetaPromptingshowspromisingresults
+implementinganyofabovetricks. when meta trained on source domain tasks from
+(4) Compared with other optimization-based the same dataset, it is impractical to always
+meta-learning methods such as MAML, DE- build corresponding meta-training tasks for each
+MAMLandKGML-MAML,MetaPromptingcon- few-shot scenario. To this end, we conduct
+sistentlyperformsbetter,demonstratinggoodcom- meta-training on Out-Of-Domain (OOD) tasks
+patibility between prompting methods and meta- to better analyze MetaPrompting’s ability inSourcedomain Targetdomain Acc HuffPost Amazon
+Method
+1shot 5shot 1shot 5shot
+− HuffPost 65.75
+Metatuning HuffPost 67.46 P-TUNING ±3.46 ±1.90 ±5.30 ±1.85
+Reuters HuffPost 69.18 OURS ±0.23 ±0.09 ±0.17 ±0.45
+20Newsgroup HuffPost 71.04
+Amazon HuffPost 71.47
+Table4:Analysisforanti-disturbanceagainstchanging
+HuffPost(Diff.labelset) HuffPost 76.32
+ofpromptingform.
+Table 3: Given irrelevant source domain data,
+MetaPromptingstilllearnsmetaknowledgetoimprove Setting MAML++ MAML FOMAML Reptile
+theperformanceontargetdomains. 1SHOT 71.93 71.43 70.56 69.76
+5SHOT 76.32 76.04 76.08 74.09
+transferringmeta-knowledgefromvarioussource
+Table 5: MetaPrompting’s performance with different
+domains. metalearningmethods.
+Table3showstheresultsof5-shotssetting. Even
+given irrelevant meta-training data and prompt
+the proposed method is promising in real-world
+templates from other datasets, MetaPrompting
+applications, because prompt designing requires
+still learns meta knowledge to tackle target do-
+heavy workload and domain-specific knowledge.
+maintasksandoutperformsthebaselinerobustly.
+ApplyingMetaPromptingsignificantlyreducesthe
+Among OOD datasets, Metatuning (Zhong et al.,
+costofpromptengineering.
+2021a) contains a series of text classification
+tasks, and each task is accompanied by several Applying different meta-learning methods to
+hand-crafted questions which require yes/no an- promptingmodels. Inthispart,weconductem-
+swers. The task formulation of Metatuning is pirical analysis on different optimization-based
+distinct from HuffPost. However, MetaPrompt- meta-learningmethodsappliedinpromptingmod-
+ingstillmakesittotransfermeta-knowledgefrom els. Results are shown in Table 5. Stabilizing
+MetatuningtoHuffPost’stargetdomains,improv- MAML training procedure, MAML++ performs
+ingmodelperformancebyapproximately2points. the best among all methods, while Reptile fails
+Although MetaPrompting’s performance varies to achieve comparable performance with others.
+amongsourcedomaintasksaccordingtotheirdata WeattributeReptile’slowperformancetoPLM’s
+qualityforgeneralizationpurposes,theproposed sensitivitytoparametertuningprocess,whichcan
+model outperforms the baseline across all source bedistortedbyReptile’sparameterupdatingstrat-
+domaintasks,verifyingMetaPrompting’seffective- egy. MAMLandFOMAMLshowsimilarresults,
+nessintransferringmeta-knowledge. becauseMetaPrompting’sslowtuningprocessnar-
+rowsthegapbetweentheircalculatedgradientdur-
+Anti-disturbanceanalysis Weexpectthemeta-
+ingmeta-training.
+learnedinitializationalleviatespromptingmodels’
+susceptibilitytovaryingpromptforms. Toverify Analysis for learning procedure of prompting
+this,wetestthepromptingmodelwithmultipledif- methods. We analyze the decreasing trend of
+ferentpromptformsandreportthestandarddevia- adaptation loss to better understand the learning
+tion. Specifically,weaddtwomorediscreteprompt procedureofsoft-promptmodel. Specifically,we
+templates, and randomly replace the template to- visualizemodeladaptationlosscurveduringmeta-
+kenswithpseudotokenstotestMetaPrompting’s testingon5shotAmazondataset.
+robustnessacrossdifferenttemplates. AsshowninFigure4,task-relatedinitialization
+Table 4 shows the results. While changing the (Ours (Pretrain Init)) helps the model converge
+prompting form indeed impacts the performance fasterandendupatalowerpositionthanrandomly
+for both our method and normal soft prompting initializedbaseline. Theproposedmeta-learning-
+methods,theproposedmeta-learningmethodsig- basedmethod(Ours(MetaInit))furtherimproves
+nificantlyreducesperformancefluctuation,show- the learning process in new tasks, indicating that
+ingimpressiveanti-disturbanceability. Therefore, themeta-learnedinitializationpointcontainsmore
+Weadd“Thetopic/productcategory:[MASK].Input:x” WeonlyincludetheMSLBtrickofMAML++(Antoniou
+and “x. What is the topic/productcategory ? [MASK].”, etal.,2019)duetotheincompatibility(BNlayertricks)ortriv-
+wheretopicandproductcategoryareusedforHuffPostand ialperformanceimprovement(Per-stepadaptionloss,cosine
+Amazondatasetrespectively. annealinglearningrates).2.00
+1.75
+1.50
+1.25
+1.00
+0.75
+0.50
+0.25
+0.00
+0 5 10 15
+Steps
+ssol
+noitatpadA
+Tom Brown, Benjamin Mann, Nick Ryder, Melanie
+labels Subbiah,JaredDKaplan,PrafullaDhariwal,Arvind
+Ours (Meta Init)
+Ours (Pretrain Init) Neelakantan,PranavShyam,GirishSastry,Amanda
+Baseline Askell, et al. 2020. Language models are few-shot
+learners. InProc.ofNIPS,volume33,pages1877–
+1901.
+Junfan Chen, Richong Zhang, Yongyi Mao, and Jie
+Xue. 2022. Contrastnet: A contrastive learning
+framework for few-shot text classification. In Proc.
+ofAAAI.
+Wei-Yu Chen, Yen-Cheng Liu, Zsolt Kira, Yu-
+Chiang Frank Wang, and Jia-Bin Huang. 2019. A
+closer look at few-shot classification. In Proc. of
+Figure4: Analysisonpromptlearningprocess.
+ICLR.
+GanquCui,ShengdingHu,NingDing,LongtaoHuang,
+generalizablemetaknowledgetoaidnewtasks.
+and Zhiyuan Liu. 2022. Prototypical verbalizer
+for prompt-based few-shot tuning. In Proceedings
+5 Conclusion of the 60th Annual Meeting of the Association for
+ComputationalLinguistics(Volume1:LongPapers),
+In this paper, we introduce a generalized pages7014–7024.
+optimization-based meta-learning approach
+MetaPromptingforfew-shotNLPproblems. Uti- JoeDavison,JoshuaFeldman,andAlexanderMRush.
+2019. Commonsense knowledge mining from pre-
+lizingsampledmetatasksandmeta-learning-based
+trainedmodels. InProc.ofEMNLP-IJCNLP,pages
+optimization,MetaPromptinglearnstofindanini- 1173–1178.
+tializationthatalleviatessoftpromptinitialization
+problem,andallowsbetterandfasteradaptionto ChelseaFinn,PieterAbbeel,andSergeyLevine.2017.
+Model-agnosticmeta-learningforfastadaptationof
+newtasks. Extensiveexperimentsonfourfew-shot
+deepnetworks. InProc.ofICML,pages1126–1135.
+learning benchmarks show that MetaPrompting
+significantly outperforms vanilla soft-prompting Tianyu Gao, Adam Fisch, and Danqi Chen. 2021.
+models and strong meta-learning baselines, Makingpre-trainedlanguagemodelsbetterfew-shot
+learners. In Proc. of ACL-IJCNLP, pages 3816–
+achievingnewstate-of-the-artperformance.
+3830.
+6 Acknowledgement
+Alex Graves, Greg Wayne, and Ivo Danihelka.
+2014. Neural turing machines. arXiv preprint
+ThisworkwassupportedbytheNationalKeyR&D
+arXiv:1410.5401.
+ProgramofChinaviagrant2020AAA0106501and
+theNationalNaturalScienceFoundationofChina Karen Hambardzumyan, Hrant Khachatrian, and
+JonathanMay.2021. Warp: Word-leveladversarial
+(NSFC)viagrant61976072and62176078.
+reprogramming. InProceedingsofthe59thAnnual
+Meeting of the Association for Computational Lin-
+guisticsandthe11thInternationalJointConference
+References
+on Natural Language Processing (Volume 1: Long
+Papers),pages4921–4933.
+Marcin Andrychowicz, Misha Denil, Sergio Gomez
+Colmenarejo, Matthew W. Hoffman, David Pfau,
+Xu Han, Hao Zhu, Pengfei Yu, Ziyun Wang, Yuan
+TomSchaul,andNandodeFreitas.2016. Learning
+Yao,ZhiyuanLiu,andMaosongSun.2018. Fewrel:
+tolearnbygradientdescentbygradientdescent. In
+Alarge-scalesupervisedfew-shotrelationclassifica-
+Proc.ofNIPS.
+tiondatasetwithstate-of-the-artevaluation. InProc.
+Antreas Antoniou, Harri Edwards, and Amos Storkey. ofEMNLP,pages4803–4809.
+2019. Howtotrainyourmaml. InProc.ofICLR.
+Adi Haviv, Jonathan Berant, and Amir Globerson.
+Yujia Bao, Menghua Wu, Shiyu Chang, and Regina 2021. BERTese: Learning to speak to BERT. In
+Barzilay.2019. Few-shottextclassificationwithdis- Proc.ofEACL,pages3618–3623.
+tributionalsignatures. InProc.ofICLR.
+RuiningHeandJulianMcAuley.2016. Upsanddowns:
+L Bertinetto, J Henriques, PHS Torr, and A Vedaldi. Modelingthevisualevolutionoffashiontrendswith
+2019. Meta-learning with differentiable closed- one-class collaborative filtering. In proc. of WWW,
+formsolvers. InProc.ofICLR. pages507–517.Zhengbao Jiang, Jun Araki, Haibo Ding, and Graham Nikhil Mishra, Mostafa Rohaninejad, Xi Chen, and
+Neubig. 2021. How can we know when language PieterAbbeel.2018. Asimpleneuralattentivemeta-
+models know? on the calibration of language mod- learner. InProc.ofICLR.
+elsforquestionanswering. TransactionsoftheAsso-
+ciationforComputationalLinguistics,9:962–977. RishabhMisra.2018. Newscategorydataset,06.
+Zhengbao Jiang, Frank F Xu, Jun Araki, and Graham Rishabh Misra and Jigyasa Grover. 2021. Sculpting
+Neubig. 2020. How can we know what language DataforML:ThefirstactofMachineLearning.
+models know? Transactions of the Association for
+ComputationalLinguistics,8:423–438. Alex Nichol, Joshua Achiam, and John Schulman.
+2018. On first-order meta-learning algorithms.
+Armand Joulin, Edouard Grave, Piotr Bojanowski, arXivpreprintarXiv:1803.02999.
+Matthijs Douze, Hérve Jégou, and Tomas Mikolov.
+2016. Fasttext.zip: Compressingtextclassification Sora Ohashi, Junya Takayama, Tomoyuki Kajiwara,
+models. arXivpreprintarXiv:1612.03651. andYukiArase.2021. Distinctlabelrepresentations
+for few-shot text classification. In Proc. of ACL-
+Gregory Koch, Richard Zemel, Ruslan Salakhutdinov, IJCNLP,pages831–836.
+et al. 2015. Siamese neural networks for one-shot
+image recognition. In ICML deep learning work- SiyuanQiao,ChenxiLiu,WeiShen,andAlanLYuille.
+shop,volume2. 2018. Few-shotimagerecognitionbypredictingpa-
+rametersfromactivations. InProc.ofCVPR,pages
+Ken Lang. 1995. Newsweeder: Learning to filter net- 7229–7238.
+news. InProc.ofICML,pages331–339.
+Guanghui Qin and Jason Eisner. 2021. Learning how
+BrianLester,RamiAl-Rfou,andNoahConstant.2021. toask:QueryingLMswithmixturesofsoftprompts.
+The power of scale for parameter-efficient prompt InProc.ofNAACL-HLT,pages5203–5212.
+tuning. InProc.ofEMNLP,pages3045–3059.
+SachinRaviandH.Larochelle.2017. Optimizationas
+DLewis.1997. Reuters-21578textcategorizationtest amodelforfew-shotlearning. InProc.ofICLR.
+collection. Distribution1.0,AT&TLabs-Research.
+Timo Schick, Helmut Schmid, and Hinrich Schütze.
+DavidDLewis,YimingYang,TonyRussell-Rose,and
+2020. Automatically identifying words that can
+Fan Li. 2004. Rcv1: A new benchmark collection
+serve as labels for few-shot text classification. In
+fortextcategorizationresearch. Journalofmachine
+Proc.ofCOLING,pages5569–5578.
+learningresearch,5:361–397.
+Timo Schick and Hinrich Schütze. 2021. Exploiting
+Xiang Lisa Li and Percy Liang. 2021. Prefix-tuning:
+cloze-questions for few-shot text classification and
+Optimizing continuous prompts for generation. In
+naturallanguageinference. InProc.ofEACL,pages
+Proc.ofACL-IJCNLP,pages4582–4597.
+255–269.
+Zhenguo Li, Fengwei Zhou, Fei Chen, and Hang Li.
+Timo Schick and Hinrich Schütze. 2021. It’s not just
+2017. Meta-sgd: Learningtolearnquicklyforfew-
+size that matters: Small language models are also
+shotlearning. arXivpreprintarXiv:1707.09835.
+few-shotlearners. InProc.ofNAACL,pages2339–
+2352.
+JiachangLiu,DinghanShen,YizheZhang,BillDolan,
+Lawrence Carin, and Weizhu Chen. 2021a. What
+Taylor Shin, Yasaman Razeghi, Robert L Logan IV,
+makes good in-context examples for gpt-3? arXiv
+EricWallace,andSameerSingh.2020. Autoprompt:
+preprintarXiv:2101.06804.
+Elicitingknowledgefromlanguagemodelswithau-
+PengfeiLiu,WeizheYuan,JinlanFu,ZhengbaoJiang, tomaticallygeneratedprompts. InProc.ofEMNLP,
+Hiroaki Hayashi, and Graham Neubig. 2021b. Pre- pages4222–4235.
+train, prompt, and predict: A systematic survey of
+Jake Snell, Kevin Swersky, and Richard Zemel. 2017.
+prompting methods in natural language processing.
+Prototypical networks for few-shot learning. In
+arXivpreprintarXiv:2107.13586.
+Proc.ofNIPS,volume30,pages4077–4087.
+Xiao Liu, Yanan Zheng, Zhengxiao Du, Ming Ding,
+Oriol Vinyals, Charles Blundell, Timothy Lillicrap,
+Yujie Qian, Zhilin Yang, and Jie Tang. 2021c. Gpt
+understands,too. arXivpreprintarXiv:2103.10385. Daan Wierstra, et al. 2016. Matching networks for
+one shot learning. In Proc. of NIPS, volume 29,
+Ilya Loshchilov and Frank Hutter. 2018. Decoupled pages3630–3638.
+weightdecayregularization. InProc.ofICLR.
+Thomas Wolf, Lysandre Debut, Victor Sanh, Julien
+Qiaoyang Luo, Lingqiao Liu, Yuhao Lin, and Wei Chaumond, ClementDelangue, AnthonyMoi, Pier-
+Zhang.2021. Don’tmissthelabels: Label-semantic ric Cistac, Tim Rault, Rémi Louf, Morgan Fun-
+augmented meta-learner for few-shot text classifi- towicz, et al. 2019. Huggingface’s transformers:
+cation. In Findings of ACL-IJCNLP, pages 2773– State-of-the-art natural language processing. arXiv
+2782. preprintarXiv:1910.03771.Shiyao Xu and Yang Xiang. 2021. Frog-gnn: Multi-
+perspectiveaggregationbasedgraphneuralnetwork
+forfew-shottextclassification. ExpertSystemswith
+Applications,176:114795.
+Huaxiu Yao, Ying-xin Wu, Maruan Al-Shedivat, and
+Eric Xing. 2021. Knowledge-aware meta-learning
+for low-resource text classification. In Proc. of
+EMNLP,pages1814–1821.
+Zhi-Xiu Ye and Zhen-Hua Ling. 2019. Multi-level
+matching and aggregation network for few-shot re-
+lation classification. In Proc. of ACL, pages 2872–
+2881.
+Zihao Zhao, Eric Wallace, Shi Feng, Dan Klein, and
+SameerSingh.2021. Calibratebeforeuse: Improv-
+ingfew-shotperformanceoflanguagemodels. InIn-
+ternationalConferenceonMachineLearning,pages
+12697–12706.
+RuiqiZhong,KristyLee,ZhengZhang,andDanKlein.
+2021a. Adapting language models for zero-shot
+learning by meta-tuning on dataset and prompt col-
+lections. InFindingsofEMNLP,pages2856–2878.
+ZexuanZhong,DanFriedman,andDanqiChen.2021b.
+Factualprobingis[MASK]:learningvs.learningto
+recall. InProc.ofNAACL-HLT,pages5017–5033.
+A Fullexperimentresults
+Hereweprovidefullexperimentresultswithstan-
+darddeviation. FullresultsareshowninTable6.ofthisdatasetisnotgivenintheoriginalpaper. Table6:
+Fullresultsof1-shotand5-shotclassificationonfourdatasetsintermsofaccuracy.
+Therowsbelowthemid-lineareresultsofMetaPrompting.
+‘-’meansthattheresult
+OURS(METAINIT)
+73.75±0.10
+76.57±0.06
+77.65±0.47
+85.54±0.03
+71.93±0.22
+76.32±0.05
+95.20±0.12
+97.17±0.18
+79.63
+83.90
+OURS(PRETRAININIT)
+72.52±0.67
+76.32±0.21
+75.12±0.65
+83.27±0.03
+70.82±0.74
+75.47±0.24
+95.07±0.15
+97.29±0.06
+78.38
+83.09
+CONTRASTNET(2022)
+71.74
+81.57
+76.13
+85.17
+53.06
+65.32
+86.42
+95.33
+71.84
+81.85
+LASAML-PN(2021)
+−
+−
+−
+−
+62.1
+70.1
+−
+−
+−
+−
+FROG-GNN(2021)
+−
+−
+71.5
+83.6
+54.1
+69.6
+−
+−
+−
+−
+P-TUNING(2021c)
+61.20
+71.47
+62.18
+79.13
+54.48
+65.75
+90.01
+96.66
+66.97
+78.25
+KGML-MAML(2021)
+−
+−
+51.4
+58.8
+44.2
+54.1
+−
+−
+−
+−
+KGML-PROTO(2021)
+−
+−
+58.6
+74.5
+42.3
+58.7
+−
+−
+−
+−
+DE-PROTO(2021)
+−
+−
+−
+−
+52.3
+69.6
+−
+−
+−
+−
+DE-MAML(2021)
+−
+−
+−
+−
+51.8
+67.3
+−
+−
+−
+−
+DE-MLMAN(2021)
+−
+−
+−
+−
+49.7
+60.9
+−
+−
+−
+−
+DS(2019)
+52.1
+68.3
+62.6
+81.1
+43.0
+63.5
+81.8
+96.0
+59.88
+77.23
+RR
+44.8
+64.3
+60.2
+79.7
+37.6
+59.5
+69.1
+93.0
+52.93
+74.13
+MAML
+37.2
+48.6
+43.6
+62.4
+38.9
+53.7
+61.5
+72.0
+45.30
+59.18
+PROTO
+37.8
+46.5
+41.9
+59.2
+34.8
+50.2
+61.0
+72.1
+43.88
+57.00
+FT
+33.0
+47.1
+45.7
+63.9
+32.4
+44.1
+70.9
+91.0
+45.50
+61.53
+1-NN
+38.8
+51.9
+51.4
+67.1
+31.5
+42.3
+57.8
+82.9
+44.88
+61.05
+1shot
+5shot
+1shot
+5shot
+1shot
+5shot
+1shot
+5shot
+1shot
+5shot
+Method
+20News
+Amazon
+HuffPost
+Reuters
+Average

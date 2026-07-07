@@ -1,0 +1,356 @@
+Preprint
+THINK BEYOND SIZE: DYNAMIC PROMPTING FOR
+MORE EFFECTIVE REASONING
+KameshR
+SathyabamaInstituteofScienceofTechnology
+{kameshrajeshkanna}@outlook.com
+ABSTRACT
+This paper presents Dynamic Prompting, a novel framework aimed at improv-
+ingthereasoningcapabilitiesofLargeLanguageModels(LLMs). Incontrastto
+conventionalstaticpromptingmethods,DynamicPromptingenablestheadaptive
+modification of prompt sequences and step counts based on real-time task com-
+plexityandmodelperformance.Thisdynamicadaptationfacilitatesmoreefficient
+problem-solving, particularly in smaller models, by reducing hallucinations and
+repetitivecycles. OurempiricalevaluationsdemonstratethatDynamicPrompting
+allowssmallerLLMstoperformcompetitivelywithmuchlargermodels,thereby
+challengingtheconventionalemphasisonmodelsizeastheprimarydeterminant
+ofreasoningefficacy.
+1 INTRODUCTION
+Large Language Models (LLMs) have demonstrated remarkable capabilities in natural language
+processingtasks,suchasmachinetranslation,textsummarization,andquestionanswering. Recent
+advancementshavehighlightedthepotentialofLLMsinfew-shotandzero-shotlearningparadigms,
+wheretheycangeneralizetounseentaskswithminimalsupervisionBrownetal.(2020);Weietal.
+(2022a).Thesebreakthroughshavereshapedthelandscapeofartificialintelligence,enablingmodels
+tohandleabroadspectrumoftaskswithoutextensiveretraining.
+Traditionally,modelperformancehasbeenlargelyattributedtothesizeofthemodel—largermodels
+with billions of parameters were believed to outperform smaller counterparts by capturing more
+complex patterns in language data. This belief has driven the development of increasingly large
+architectures,suchasGPT-3with175billionparameters,andtheevenlargerGPT-4. Theprevailing
+assumption is that by scaling up the number of parameters, models can achieve greater accuracy
+andperformbetterindownstreamtasks. Asaresult,significantresearchattentionhasbeendirected
+towardscalingupLLMs,aimingforimprovementsinreasoning,comprehension,andgeneralization.
+However, scaling models comes with considerable challenges. Increasing model size results in
+greater computational overhead, memory usage, and resource requirements, which limits their ac-
+cessibility and deployability in many practical applications. Moreover, research has shown that
+simply increasing the size of a model does not always lead to proportional gains in performance,
+especiallywhenaddressingmorecomplextasksTianetal.(2024).
+In light of these limitations, alternative approaches to enhancing model performance without ex-
+pandingmodelsizehavegainedattention.Ourresearchbuildsuponthisparadigmbyexploringways
+to leverage dynamic prompting, aiming to close the performance gap between smaller and larger
+LLMs. Throughthisapproach,weseektodemonstratethatmodelswithfewerparameterscanbeas
+effective,ifnotmoreso,whenequippedwithadaptivepromptingstrategies,therebychallengingthe
+notion that model size alone dictates performance in natural language tasks. This exploration has
+thepotentialtoreduceresourcedependencyanddemocratizetheuseofpowerfulmodelsinawide
+rangeofapplications.
+Inthiswork,weintroduceanoveldynamicpromptingmethodthatautomaticallyadjuststhenum-
+berofpromptingstepsbasedontaskcomplexityandmodelperformanceinrealtime. Ourfindings
+revealthatsmallermodelscaneffectivelyleveragedynamicpromptstoachievehighreasoningac-
+curacy,challengingthenotionthatlargermodelsareinherentlysuperiorOpenAIetal.(2023).
+1
+4202
+tcO
+01
+]GL.sc[
+1v03180.0142:viXraPreprint
+2 RELATED WORK
+The performance of Large Language Models (LLMs) in few-shot learning has gained significant
+attentioninthenaturallanguageprocessing(NLP)community. Few-shotlearningallowsmodelsto
+generalizefromjustafewexamples, showcasinganabilitytoperformvarioustaskswithminimal
+supervision. ThiscapabilitywaspopularizedwiththeintroductionofGPT-3byBrownetal.(2020)
+Zhang et al. (2022), who demonstrated that models could be prompted with a few examples and
+solvetaskswithouttask-specifictrainingdata. Infew-shotscenarios, themodelusestheprovided
+examplestoinferpatterns,makingitadaptableacrossdifferenttasks.Incontrast,zero-shotlearning,
+wherenoexamplesareprovided,teststhemodel’sabilitytoleverageitsinternalknowledgefortask
+completion.
+The success of few-shot learning prompted further exploration into more sophisticated prompting
+techniques.Amongthem,chain-of-thoughtprompting,introducedbyWeietal.(2022b),playsakey
+roleinenhancingreasoningcapabilitieswithinLLMs. Thistechniqueinvolvesbreakingdownthe
+problemintomultiplesteps,encouragingthemodeltoarticulateitsreasoningprocess.Byfollowing
+thismulti-stepapproach, themodelisbetterequippedtohandlecomplexproblems, oftenyielding
+more accurate and interpretable results. Chain-of-thought prompting underscores the importance
+of guiding LLMs through incremental reasoning rather than presenting the final question directly
+Zhongetal.(2024).
+Additionally, techniques such as retrieval-augmented generation have shown that integrating ex-
+ternal information into model inference can further enhance performance on knowledge-intensive
+tasks. For example, Lewis et al. (2021) demonstrated how retrieving relevant documents and in-
+corporatingthatknowledgeintothegenerationprocessimprovesthequalityofanswers,especially
+in tasks where factual knowledge is required. This approach highlights how augmenting prompts
+withexternaldatacansignificantlyboostthemodel’seffectivenessinbothzero-shotandfew-shot
+scenarios.
+Recent advancements, such as those introduced by Wang et al. (2023), emphasize improving the
+model’s self-consistency during reasoning tasks. By ensuring that the model remains consistent
+initsreasoningsteps,itbecomesmorereliableincomplextasks,yieldinghigherperformancewith
+fewererrors.Thesedevelopmentsinreasoningtechniquesunderscorethepotentialforprompt-based
+interventionstoimprovetask-specificoutcomes.
+Building upon these foundations, our work introduces dynamic prompting, which extends beyond
+static few-shot and chain-of-thought prompting by providing real-time adaptability during infer-
+ence. Dynamic prompting allows for fine-grained control over the model’s interaction with a task
+by breaking it down into tailored steps, adjusting the prompt based on the problem complexity or
+modelperformance. Thismethodnotonlyimprovestaskunderstandingbutalsoempowerssmaller
+modelstoachieveperformancelevelscomparabletolargercounterpartsbyoptimizingpromptcon-
+struction. This introduces a novel dimension to prompt engineering, where the focus shifts from
+simplyscalingupmodelstomakingmoreefficientuseoftheavailablemodelsizethroughadaptive
+techniques. Inthefollowingsections,wedelvedeeperintothedesignandimplicationsofdynamic
+prompting,showinghowitpushestheboundariesofwhatisachievableinLLMs.
+3 METHODOLOGY
+Thispaperexplorestheeffectivenessofdynamicpromptinginimprovingtheaccuracyofresponses
+generatedbysmallerlargelanguagemodels(LLMs)withfewerparameters.
+3.1 ABOUTTHEDATASET
+Model’s performance on a range of arithmetic reasoning benchmarks, including MultiArith Ko-
+jima et al. (2022), SVAMP Patel et al. (2021), AddSub, GSM8K Cobbe et al. (2021), AQuA, and
+SingleEq. These datasets test skills from basic operations to complex multi-step problem-solving.
+For instance, MultiArith and SVAMP assess multi-step reasoning, while AddSub focuses on sim-
+plearithmetic,andGSM8Kevaluatesgrade-school-levelproblem-solving. Additionally,wetested
+commonsensereasoningusingCSQAandStrategyQA,whichrequirethemodeltoapplyeveryday
+knowledge and strategic thinking. This evaluation provides acomprehensive understanding of the
+2Preprint
+model’s ability to handle both structured mathematical problems and more open-ended reasoning
+tasks.
+3.2 MODELSELECTION
+Forthisstudy,weselectedthegemma2-9b-itmodel,whichfeatures9billionparameters.Thismodel
+waschosenduetoitsbalancebetweencomputationalefficiencyandlanguageprocessingcapability.
+While larger models like GPT-3.5, with 175 billion parameters, and GPT-4, with approximately
+1.76 trillion parameters, offer substantial power, they require significant computational resources.
+Incontrast,thegemma2-9b-itmodelprovidesfasterinferencetimes,makingitwell-suitedforreal-
+timeapplications,yetstilldeliversrobustperformanceingenerallanguagetasks.
+3.3 EVALUATIONSETUP
+Toevaluatetheeffectivenessofdynamicprompting,weconductedexperimentscomparingitsper-
+formancetotraditionalzero-shotpromptingacrosstheaforementioneddatasets. Bothsmallermod-
+els like gemma2-9b-it and larger models like GPT-3.5 and GPT-4 were assessed, allowing for a
+comparative analysis of the impact of model size and prompting strategy. Accuracy scores across
+eachdatasetwererecorded,highlightingtheabilityofdynamicpromptingtoenhanceperformance,
+particularly in smaller models, by guiding the reasoning process more effectively than static zero-
+shotmethods.
+4 DESIGN AND IMPLEMENTATION
+Thedynamicpromptingsystemisdesignedtoenhancetheperformanceandreasoningcapabilities
+oflanguagemodelsthroughastructuredapproachtopromptgeneration. Insteadofrelyingonthe
+sheer size and parameter count of large language models (LLMs) like LLaMA or GPT, dynamic
+prompting focuses on guiding the model through a detailed step-by-step process. This approach
+mimicstheproblem-solvingtechniquesusedbyhumans,whereacomplexquestionisbrokendown
+into manageable parts and explained in detail, allowing the model to arrive at a more precise and
+accurateconclusion.
+Thesystememploysatwo-tieredpromptstructure. Initially,aguidedpromptbreaksdowntheques-
+tion, instructing the model to act in a “teacher-like” role. This prompt encourages the model to
+perform methodical reasoning, ensuring that each step in the process is explained clearly and log-
+ically. Themodel’soutputsreflectthesamesystematicapproach,providingadetailedexplanation
+ofhowitarrivedatthefinalresult, asseenintheflowchartinFigure1. Inthefinalpromptstage,
+thesystemthensimplifiestheanswertoensurethattheresponseisprovidedinaconcise,numeri-
+cal or direct form, which is essential for use cases requiring straightforward answers. This design
+allowsforthemodeltoachievehigheraccuracywhileremainingefficient,thusoptimizingitsusein
+real-worldapplications.
+TheimplementationofthissystemusedtheGroqAPI,anessentialcomponentforhandlingtheinter-
+actionsbetweentheuserinputsandthelanguagemodelitself.TheGroqAPIfacilitatessmoothcom-
+municationbetweenthemodelandthesystem, enablingdynamicpromptingtooccurinreal-time.
+TheAPIisparticularlysuitedformanaginglargedatasetsandprocessingresponsesathighspeeds,
+which are critical for the rapid decision-making needed in tasks that involve dynamic prompting.
+Furthermore, by leveraging the Groq API, the system was able to manage the token limit of 2500
+tokensperinteraction,ensuringthateachresponsegeneratedwasnotonlydetailedbutalsoconcise,
+preventingunnecessarycomputationaloverhead.
+The core model chosen for this implementation is the gemma2-9b-it model, which features 9 bil-
+lion parameters. This model strikes a balance between the computational efficiency needed for
+real-timeapplicationsandtherobustlanguageprocessingcapabilitiesnecessaryfortasksrequiring
+detailed, step-by-step reasoning. In comparison to larger models like LLaMA or GPT, which can
+haveparametercountsexceeding13billion,thegemma2-9b-itmodeloffersseveraladvantages.The
+reducedparametercountresultsinfasterinferencetimes,loweringcomputationalcostssignificantly
+while still maintaining high performance in most general-purpose language tasks. This makes the
+gemma2-9b-it model an ideal choice for applications with limited computational resources, such
+3Preprint
+Figure1: DynamicPromptingDesign
+asreal-timedecision-makingsystems,mobileapplications,orenvironmentswhereserverresources
+areconstrained.
+5 RESULTS AND DISCUSSION
+The results of our experiments across multiple datasets—SVAMP, GSM8K, AddSub, MultiArith,
+SingleEq, andAQuA—demonstrateacompellingcasefortheefficacyofdynamicpromptingover
+traditional zero-shot approaches. We evaluated both GPT-3.5 and GPT-4 using zero-shot and dy-
+namic prompting methods, and the accuracy across all datasets highlights the advantages of this
+approach.
+Table1: Accuracyontendatasetsfromthreecategoriesofreasoningtasks.
+Model MultiArith GSM8K AddSub AQUA SingleEq SVAMP CSQA Strategy
+GPT-3.5Turbo
+Zero-Shot-CoT 95.3 78.9 85.8 53.0 93.5 79.3 72.3 66.1
+Manual-CoT 97.8 82.3 92.1 60.2 94.9 82.5 74.5 68.5
+GPT-4
+Zero-Shot-CoT 97.8 94.6 92.4 72.8 95.0 90.4 - -
+Manual-CoT 98.1 97.1 95.1 77.1 96.0 94.2 - -
+Gemma9B
+DynamicPrompting 99.44 98.72 96.37 77.1 99.4 93 94 82
+The accuracy achieved by models such as GPT-3.5 and GPT-4, in both zero-shot and dynamic
+promptingconfigurations,showsapredictabletrend:largermodelswithadvancedpromptingstrate-
+giestendtooutperformtheirzero-shotcounterparts. However,themoststrikingfindingistheper-
+4Preprint
+formance of dynamic prompting, which not only competes with but often surpasses the results of
+significantlylargermodels,especiallywhenappliedtosmallermodelslikeGPT-3.5.
+For instance, in the SingleEq dataset, dynamic prompting achieved an accuracy of 99.4%, which
+outperforms both GPT-3.5 Zero Shot (93.5%) and GPT-4 Zero Shot (95.0%). Similarly, on other
+datasetslikeSVAMPandGSM8K,dynamicpromptingprovidescompetitiveaccuracywithoutthe
+needformassivecomputationaloverhead. Theseresultsindicatethatsmallermodels,whenguided
+bymoreintelligentandadaptablepromptingstrategies,canmatchandevenexceedthecapabilities
+ofmuchlargermodelsinavarietyoftasks.
+These findings highlight that model size is not necessarily the key determinant of performance.
+Instead,awell-designedpromptingstrategythatadaptstothecomplexityofthetaskallowssmaller
+models to perform at levels comparable to, or better than, larger ones. Dynamic prompting, by
+breaking down complex tasks and guiding the model through nuanced reasoning steps, helps the
+modelengagemoredeeplywiththetask,resultinginhigheraccuracy.
+Additionally,dynamicpromptingenablesamoreflexibleandresource-efficientapproachtosolving
+taskscomparedtothecomputationalloadoflargermodels. Theabilityofthismethodtogeneralize
+across various datasets and problem types showcases its versatility and robustness. In contrast to
+the static and rigid zero-shot techniques, dynamic prompting encourages iterative refinement of
+responses,guidingthemodelthroughthereasoningprocesstoarriveatmoreaccurateconclusions.
+Inconclusion,thefindingsfromourexperimentssuggestthatincreasingmodelsizeisnottheonly
+avenueforachievingsuperiorperformanceinnaturallanguageprocessingtasks.Byfocusingonop-
+timizingtaskdesignandutilizingadvancedpromptingtechniqueslikedynamicprompting,wecan
+enablesmallermodelstosolvecomplextaskswithalevelofprecisionandunderstandingpreviously
+thoughttobeexclusivetolargermodels. Thisapproachopensupnewpossibilitiesformodeldevel-
+opmentandsuggestsashiftinfutureresearchfocusfromscalingmodelstoenhancingtask-solving
+strategiesthroughinnovativepromptingmethods.
+6 FUTURE WORK
+While our research on dynamic prompting has yielded promising results in enhancing the perfor-
+mance of smaller models, several limitations warrant consideration. First, the effectiveness of dy-
+namicpromptingmayvarysignificantlyacrossdifferenttasksanddomains. Theadaptabilityofthe
+prompts,whilebeneficial,mayrequireextensivetuningandvalidationforeachspecificapplication
+to achieve optimal results. Consequently, future studies should focus on developing standardized
+methodologiesforassessingandrefiningdynamicpromptingacrossdiverseNLPtasks.
+Second, our approach relies heavily on the model’s ability to interpret and adjust prompts in real-
+time,whichmayleadtoinconsistenciesinperformance,especiallyincomplexscenarios. Ensuring
+thatmodelsmaintainacoherentreasoningpathwhileadaptingtochangingtaskrequirementsposes
+asignificantchallenge. Futureworkcouldexploreintegratingreinforcementlearningstrategiesto
+improveconsistencyandreliabilityindynamicprompting,enablingmodelstolearnfromtheirpast
+interactionsandadaptaccordingly.
+Another limitation lies in the computational overhead associated with dynamic prompting. The
+real-timeadjustmentsinpromptingcanintroducelatency,makingitlesspracticalfortime-sensitive
+applications. Addressing this issue requires research into optimizing the efficiency of dynamic
+prompting methods, possibly through the use of lightweight models or hardware accelerators that
+canhandlereal-timeprocessingdemands.
+Intermsoffuturework,exploringtheintegrationofdynamicpromptingwithotheradvancedtech-
+niques,suchasmeta-learningorfew-shotadaptation,couldfurtherenhancemodelperformanceand
+versatility. Investigating how these techniques can complement each other may yield more robust
+solutions,especiallyinknowledge-intensivedomainswheremodelperformanceiscritical.
+Furthermore,thereispotentialfordynamicpromptingtobeappliedbeyondtraditionalNLPtasks.
+Future research could explore its effectiveness in multimodal contexts, where models are required
+to process and reason over various types of data, such as images, audio, and text. This expansion
+intomultimodalframeworkscouldopenupnewavenuesforenhancingthereasoningcapabilitiesof
+models,ultimatelyleadingtomoregeneralizedAIsystems.
+5Preprint
+Lastly,asthefieldevolves,ethicalconsiderationssurroundingthedeploymentofsuchdynamicmod-
+elsmustbeaddressed. Ensuringthatdynamicpromptingdoesnotinadvertentlypropagatebiasesor
+generateharmfuloutputsisparamount. Futureworkshouldemphasizedevelopingsafeguardsand
+ethical guidelines to govern the use of dynamic prompting techniques in real-world applications,
+fosteringresponsibleAIdevelopment.
+7 CONCLUSION
+In this work, we explored the potential of dynamic prompting as a novel and efficient method for
+enhancing the performance of Large Language Models (LLMs). Our experiments across diverse
+datasets,demonstratethatdynamicpromptingcansignificantlyelevatetheaccuracyofmodels,even
+thosewithsmallerparametersizeslikeGemma-9B.Bybreakingdowncomplextasksintostructured
+prompts that guide the model’s reasoning process, dynamic prompting enables models to tackle
+problemswithgreaternuanceanddepth.
+A key takeaway from our research is that increasing model size is not the sole path to achieving
+superior performance. Rather, an intelligent and adaptable prompting strategy, such as dynamic
+prompting, allows smaller models to perform at par with or even exceed the capabilities of much
+larger models. This not only challenges the traditional approach of scaling up models for better
+resultsbutalsoopensupopportunitiesformoreresource-efficient,sustainableAIdevelopment.
+Dynamicprompting’sabilitytoadjustbasedontaskcomplexityshowcasesitsflexibilityandrobust-
+ness across different problem types. It represents a shift in paradigm, where the emphasis moves
+away from building increasingly large models and towards optimizing the interaction between the
+modelandtheproblemitself. Thisshiftencouragesamorethoughtfuldesignoftask-solvingstrate-
+gies,enablingthecreationofmodelsthatarebothefficientandhighlycapable.
+As we move forward, our findings suggest exciting possibilities for future research in prompt en-
+gineering and LLM development. The results presented here underscore the potential of dynamic
+prompting to not only improve model performance but also inspire a new direction in the field of
+AI: one that prioritizes smarter, more effective problem-solving techniques over sheer model size.
+Webelievethatthisapproachwillpavethewayformoreaccessibleandscalableadvancementsin
+naturallanguageprocessingandAIasawhole.
+8 ACKNOWLEDGMENTS
+Iwouldliketoextendmysincerethankstotheanonymouspeerreviewersfortheirvaluablefeedback
+andsuggestions,whichhavesignificantlyimprovedthequalityofthispaper.
+IamalsogratefultoMs. HarnithaSureshforhercollaborationandsupportthroughouttheprocess
+ofwritingthispaper.
+REFERENCES
+Tom B. Brown, Benjamin Mann, Nick Ryder, Melanie Subbiah, Jared Kaplan, Prafulla Dhari-
+wal, Arvind Neelakantan, Pranav Shyam, Girish Sastry, Amanda Askell, Sandhini Agarwal,
+ArielHerbert-Voss,GretchenKrueger,TomHenighan,RewonChild,AdityaRamesh,DanielM.
+Ziegler, Jeffrey Wu, Clemens Winter, Christopher Hesse, Mark Chen, Eric Sigler, Mateusz
+Litwin, Scott Gray, Benjamin Chess, Jack Clark, Christopher Berner, Sam McCandlish, Alec
+Radford,IlyaSutskever,andDarioAmodei. Languagemodelsarefew-shotlearners,2020. URL
+https://arxiv.org/abs/2005.14165.
+Karl Cobbe, Vineet Kosaraju, Mohammad Bavarian, Mark Chen, Heewoo Jun, Lukasz Kaiser,
+Matthias Plappert, Jerry Tworek, Jacob Hilton, Reiichiro Nakano, Christopher Hesse, and John
+Schulman. Training verifiers to solve math word problems, 2021. URL https://arxiv.
+org/abs/2110.14168.
+Takeshi Kojima, Shixiang Shane Gu, Machel Reid, Yutaka Matsuo, and Yusuke Iwasawa. Large
+languagemodelsarezero-shotreasoners,2022.
+6Preprint
+PatrickLewis,EthanPerez,AleksandraPiktus,FabioPetroni,VladimirKarpukhin,NamanGoyal,
+Heinrich Ku¨ttler, Mike Lewis, Wen tau Yih, Tim Rockta¨schel, Sebastian Riedel, and Douwe
+Kiela. Retrieval-augmentedgenerationforknowledge-intensivenlptasks,2021. URLhttps:
+//arxiv.org/abs/2005.11401.
+OpenAI, Josh Achiam, Steven Adler, Sandhini Agarwal, Lama Ahmad, Ilge Akkaya, Floren-
+cia Leoni Aleman, Diogo Almeida, Janko Altenschmidt, Sam Altman, Shyamal Anadkat, Red
+Avila, Igor Babuschkin, Suchir Balaji, Valerie Balcom, Paul Baltescu, Haiming Bao, Moham-
+mad Bavarian, Jeff Belgum, Irwan Bello, Jake Berdine, Gabriel Bernadett-Shapiro, Christopher
+Berner, Lenny Bogdonoff, Oleg Boiko, Madelaine Boyd, Anna-Luisa Brakman, Greg Brock-
+man, Tim Brooks, Miles Brundage, Kevin Button, Trevor Cai, Rosie Campbell, Andrew Cann,
+Brittany Carey, Chelsea Carlson, Rory Carmichael, Brooke Chan, Che Chang, Fotis Chantzis,
+DerekChen, SullyChen, RubyChen, JasonChen, MarkChen, BenChess, ChesterCho, Casey
+Chu, Hyung Won Chung, Dave Cummings, Jeremiah Currier, Yunxing Dai, Cory Decareaux,
+ThomasDegry,NoahDeutsch,DamienDeville,ArkaDhar,DavidDohan,SteveDowling,Sheila
+Dunning, Adrien Ecoffet, Atty Eleti, Tyna Eloundou, David Farhi, Liam Fedus, Niko Felix,
+Simo´n Posada Fishman, Juston Forte, Isabella Fulford, Leo Gao, Elie Georges, Christian Gib-
+son, Vik Goel, Tarun Gogineni, Gabriel Goh, Rapha Gontijo-Lopes, Jonathan Gordon, Morgan
+Grafstein, Scott Gray, Ryan Greene, Joshua Gross, Shixiang Shane Gu, Yufei Guo, Chris Hal-
+lacy, Jesse Han, Jeff Harris, Yuchen He, Mike Heaton, Johannes Heidecke, Chris Hesse, Alan
+Hickey, Wade Hickey, Peter Hoeschele, Brandon Houghton, Kenny Hsu, Shengli Hu, Xin Hu,
+Joost Huizinga, Shantanu Jain, Shawn Jain, Joanne Jang, Angela Jiang, Roger Jiang, Haozhun
+Jin, Denny Jin, Shino Jomoto, Billie Jonn, Heewoo Jun, Tomer Kaftan, Łukasz Kaiser, Ali Ka-
+mali,IngmarKanitscheider,NitishShirishKeskar,TabarakKhan,LoganKilpatrick,JongWook
+Kim, Christina Kim, Yongjik Kim, Jan Hendrik Kirchner, Jamie Kiros, Matt Knight, Daniel
+Kokotajlo, Łukasz Kondraciuk, Andrew Kondrich, Aris Konstantinidis, Kyle Kosic, Gretchen
+Krueger, Vishal Kuo, Michael Lampe, Ikai Lan, Teddy Lee, Jan Leike, Jade Leung, Daniel
+Levy, Chak Ming Li, Rachel Lim, Molly Lin, Stephanie Lin, Mateusz Litwin, Theresa Lopez,
+Ryan Lowe, Patricia Lue, Anna Makanju, Kim Malfacini, Sam Manning, Todor Markov, Yaniv
+Markovski,BiancaMartin,KatieMayer,AndrewMayne,BobMcGrew,ScottMayerMcKinney,
+ChristineMcLeavey,PaulMcMillan,JakeMcNeil,DavidMedina,AalokMehta,JacobMenick,
+Luke Metz, Andrey Mishchenko, Pamela Mishkin, Vinnie Monaco, Evan Morikawa, Daniel
+Mossing, TongMu, MiraMurati, OlegMurk, DavidMe´ly, AshvinNair, ReiichiroNakano, Ra-
+jeevNayak,ArvindNeelakantan,RichardNgo,HyeonwooNoh,LongOuyang,CullenO’Keefe,
+Jakub Pachocki, Alex Paino, Joe Palermo, Ashley Pantuliano, Giambattista Parascandolo, Joel
+Parish, Emy Parparita, Alex Passos, Mikhail Pavlov, Andrew Peng, Adam Perelman, Filipe
+de Avila Belbute Peres, Michael Petrov, Henrique Ponde de Oliveira Pinto, Michael, Pokorny,
+MichellePokrass,VitchyrH.Pong,TollyPowell,AletheaPower,BorisPower,ElizabethProehl,
+Raul Puri, Alec Radford, Jack Rae, Aditya Ramesh, Cameron Raymond, Francis Real, Kendra
+Rimbach, Carl Ross, Bob Rotsted, Henri Roussez, Nick Ryder, Mario Saltarelli, Ted Sanders,
+Shibani Santurkar, Girish Sastry, Heather Schmidt, David Schnurr, John Schulman, Daniel Sel-
+sam,KylaSheppard,TokiSherbakov,JessicaShieh,SarahShoker,PranavShyam,SzymonSidor,
+Eric Sigler, Maddie Simens, Jordan Sitkin, Katarina Slama, Ian Sohl, Benjamin Sokolowsky,
+YangSong,NatalieStaudacher,FelipePetroskiSuch,NatalieSummers,IlyaSutskever,JieTang,
+NikolasTezak,MadeleineB.Thompson,PhilTillet,AminTootoonchian,ElizabethTseng,Pre-
+ston Tuggle, Nick Turley, Jerry Tworek, Juan Felipe Cero´n Uribe, Andrea Vallone, Arun Vi-
+jayvergiya,ChelseaVoss,CarrollWainwright,JustinJayWang,AlvinWang,BenWang,Jonathan
+Ward,JasonWei,CJWeinmann,AkilaWelihinda,PeterWelinder,JiayiWeng,LilianWeng,Matt
+Wiethoff, Dave Willner, Clemens Winter, Samuel Wolrich, Hannah Wong, Lauren Workman,
+SherwinWu,JeffWu,MichaelWu,KaiXiao,TaoXu,SarahYoo,KevinYu,QimingYuan,Wo-
+jciech Zaremba, Rowan Zellers, Chong Zhang, Marvin Zhang, Shengjia Zhao, Tianhao Zheng,
+JuntangZhuang,WilliamZhuk,andBarretZoph. Gpt-4technicalreport,2023.
+Arkil Patel, Satwik Bhattamishra, and Navin Goyal. Are NLP models really able to solve simple
+math word problems? In Proceedings of the 2021 Conference of the North American Chapter
+of the Association for Computational Linguistics: Human Language Technologies, pp. 2080–
+2094, Online, June 2021. Association for Computational Linguistics. doi: 10.18653/v1/2021.
+naacl-main.168. URLhttps://aclanthology.org/2021.naacl-main.168.
+7Preprint
+Yijun Tian, Yikun Han, Xiusi Chen, Wei Wang, and Nitesh V. Chawla. Tinyllm: Learning a
+smallstudentfrommultiplelargelanguagemodels,2024. URLhttps://arxiv.org/abs/
+2402.04616.
+XuezhiWang,JasonWei,DaleSchuurmans,QuocLe,EdChi,SharanNarang,AakankshaChowdh-
+ery,andDennyZhou. Self-consistencyimproveschainofthoughtreasoninginlanguagemodels,
+2023. URLhttps://arxiv.org/abs/2203.11171.
+JasonWei, MaartenBosma, VincentY.Zhao, KelvinGuu, AdamsWeiYu, BrianLester, NanDu,
+AndrewM.Dai,andQuocV.Le. Finetunedlanguagemodelsarezero-shotlearners,2022a. URL
+https://arxiv.org/abs/2109.01652.
+JasonWei,XuezhiWang,DaleSchuurmans,MaartenBosma,BrianIchter,FeiXia,EdChi,Quoc
+Le, and Denny Zhou. Chain-of-thought prompting elicits reasoning in large language models,
+2022b.
+ZhuoshengZhang,AstonZhang,MuLi,andAlexSmola. Automaticchainofthoughtpromptingin
+largelanguagemodels,2022. URLhttps://arxiv.org/abs/2210.03493.
+QihuangZhong,KangWang,ZiyangXu,JuhuaLiu,LiangDing,BoDu,andDachengTao.Achiev-
+ing > 97% on gsm8k: Deeply understanding the problems makes llms better solvers for math
+wordproblems,2024. URLhttps://arxiv.org/abs/2404.14963.
+8
